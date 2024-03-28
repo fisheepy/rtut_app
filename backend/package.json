@@ -2,11 +2,11 @@
   "name": "heroku-app",
   "version": "1.0.0",
   "description": "",
-  "main": "./server/index.js",
+  "main": "./backend/server/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./server/index.js",
-    "heroku-postbuild": "cd client && npm install && npm run build"
+    "start": "node ./backend/server/index.js",
+    "heroku-postbuild": "cd bakend/client && npm install && npm run build"
   },
   "author": "",
   "license": "ISC",
