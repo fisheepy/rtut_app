@@ -1,0 +1,332 @@
+const express = require('express');
+const cors = require('cors');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const bodyParser = require('body-parser');
+const { MongoClient, ServerApiVersion } = require('mongodb');
+const csvtojson = require('csvtojson');
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, '../client/build')))
+
+const port = 3001;
+
+const username = process.env.MONGODB_USERNAME;
+const password = process.env.MONGODB_PASSWORD;
+const host_name = process.env.MONGODB_HOST;
+const database_name = process.env.MONGODB_DATABASE;
+
+const uri = `mongodb+srv://${username}:${password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+const client = new MongoClient(uri, {
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
+});
+const csvFilePath = './server/data.csv';
+
+app.get('/import', async (req, res, next) => {
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+
+        const collection_name = 'employees';
+        const collection = db.collection(collection_name);
+
+        // Read data from CSV file using csvtojson
+        const jsonArray = await csvtojson().fromFile(csvFilePath);
+
+        // Insert data into MongoDB collection
+        await collection.insertMany(jsonArray);
+
+        console.log('Data imported successfully');
+        res.send('Data imported successfully');
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.get('/data', cors(), async (req, res, next) => {
+    const loginName = req.query; // Extract firstName and lastName from query parameters
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+
+        // Query database to retrieve data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdmin = admins.some(admin => admin['Payroll Name'] === loginName.loginName && admin['Type'] === 'root');
+        // Filter data based on user's admin status
+
+        if (isAdmin) {
+            filteredData = data;
+        }
+        else {
+            // User is not a root user, filter data accordingly
+            filteredData = data.filter(employee => isSupervisorOrSubordinate(employee, loginName.loginName, data));
+        }
+
+        // Send filtered data as JSON response
+        res.json(filteredData);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+    // Function to check if an employee is the supervisor or subordinate of the given login name
+    function isSupervisorOrSubordinate(employee, loginName, allEmployees) {
+        if (employee["Supervisor Legal Name"].toUpperCase() === loginName.toUpperCase()) {
+            return true; // Employee directly reports to the login user
+        } else {
+            // Check recursively if the supervisor's supervisor is the login user
+            const supervisor = allEmployees.find(emp => emp["Payroll Name"] === employee["Supervisor Legal Name"]);
+            if (supervisor) {
+                return isSupervisorOrSubordinate(supervisor, loginName, allEmployees);
+            }
+        }
+        return false;
+    }
+});
+
+// Define a route to handle the POST request for executing the script
+app.post('/call-function-update-subscribers', (req, res) => {
+    // Execute the script
+    exec('node ./server/updateSubscribers.mjs', (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-send-one-time-code', async (req, res) => {
+    const { firstName, lastName } = req.body;
+
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+        // Check if the user is an admin
+        const adminCollection = client.db(database_name).collection('admins');
+        const isAdmin = await adminCollection.findOne({
+            "Payroll Name": `${lastName}, ${firstName}`
+        });
+
+        if (isAdmin) {
+            // Execute the script to send the one-time code
+            exec(`node ./server/sendOTC.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error executing script: ${error.message}`);
+                    res.status(500).send(`Internal Server Error: ${error.message}`);
+                    return;
+                }
+
+                res.status(200).send('Script executed successfully');
+            });
+        } else {
+            // User is not an admin, respond with an error message
+            res.status(403).send('You are not authorized to request a one-time code');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/call-function-validate-log-in', async (req, res) => {
+    const { firstName, lastName, enteredCode } = req.body;
+
+    // Execute the script
+    exec(`node ./server/validateLogin.mjs "${firstName}" "${lastName}" "${enteredCode}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+// Define a route to handle the POST request for executing the script
+app.post('/call-function-send-notification', (req, res) => {
+    const messageContent = req.body.body;
+    const subject = req.body.subject;
+    const sender = req.body.sender;
+    const selectedEmployees = req.body.selectedEmployees;
+    const sendEmail = req.body.sendEmail;
+    const sendSms = req.body.sendSms;
+    const sendApp = req.body.sendApp;
+
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./server/sendNotification.mjs "${messageContent}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-send-survey', (req, res) => {
+    const surveyJson = req.body.surveyJson;
+    const selectedEmployees = req.body.selectedEmployees;
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+    const surveyQuestionsJSON = JSON.stringify(surveyJson);
+    const subject = req.body.subject;
+    const sender = req.body.sender;
+
+    // Write the JSON string to a temporary file
+    const selectedEmployeesFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(selectedEmployeesFilePath, selectedEmployeesJSON);
+
+    const surveyQuestionsFilePath = path.join(__dirname, 'temp', 'surveyQuestions.json');
+    fs.writeFileSync(surveyQuestionsFilePath, surveyQuestionsJSON);
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/submit-survey', async (req, res) => {
+    try {
+        // Retrieve the survey result data from the request body
+        const { surveyId, answers, timestamp } = req.body;
+
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey results');
+
+        // Insert the survey data into the MongoDB collection
+        await collection.insertOne({ UID: surveyId, answers, timestamp });
+
+        console.log('Survey data inserted successfully');
+        res.status(200).send('Survey result received successfully');
+    } catch (error) {
+        console.error('Error handling survey submission:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+
+app.post('/call-function-add-employee', async (req, res) => {
+    const newEmployee = req.body;
+    const newEmployeeJSON = JSON.stringify(newEmployee);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'newEmployee.json');
+    fs.writeFileSync(tempFilePath, newEmployeeJSON);
+    // Execute the script
+    exec(`node ./server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+app.post('/call-function-delete-employee', async (req, res) => {
+    const firstName = req.body.firstName;
+    const lastName = req.body.lastName;
+
+    // Execute the script
+    exec(`node ./server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+app.post('/call-function-delete-notifications', async (req, res) => {
+    const selectedEmployees = req.body.selectedEmployees;
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+    const selectedEmployeesFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(selectedEmployeesFilePath, selectedEmployeesJSON);
+
+    // Execute the script
+    exec(`node ./server/deleteAllNotifications.mjs "${selectedEmployeesFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname + '/client/public/index.html'))
+});
+
+// Start the server
+app.listen(process.env.PORT || port, () => {
+    console.log(`Server is running on port ${port}`);
+});
