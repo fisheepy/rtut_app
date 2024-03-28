@@ -1,0 +1,66 @@
+{
+  "name": "my-app",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@capacitor/core": "^5.6.0",
+    "@capacitor/ios": "5.6.0",
+    "@miblanchard/react-native-slider": "^2.6.0",
+    "@novu/headless": "^0.23.1",
+    "@novu/node": "^0.22.0",
+    "@novu/notification-center": "^0.22.0",
+    "@react-native-async-storage/async-storage": "^1.22.2",
+    "@react-navigation/native": "^6.1.10",
+    "@react-navigation/stack": "^6.3.21",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@use-gesture/react": "^10.3.1",
+    "crypto": "^1.0.1",
+    "crypto-js": "^4.2.0",
+    "fuse.js": "^7.0.0",
+    "googleapis": "^131.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.0.1",
+    "react-native": "^0.73.4",
+    "react-native-gesture-handler": "^2.15.0",
+    "react-native-ui": "^1.0.0",
+    "react-native-web": "^0.19.10",
+    "react-router-dom": "^6.22.1",
+    "react-scripts": "^5.0.1",
+    "react-spring": "^9.7.3",
+    "survey-core": "^1.9.131",
+    "survey-react": "^1.9.130",
+    "survey-react-ui": "^1.9.131",
+    "uuid": "^9.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.6.0"
+  }
+}
