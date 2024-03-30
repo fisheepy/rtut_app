@@ -1,19 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Box from '@mui/material/Box';
-import NotificationCenterComponent from './notificationCenterComponent';
 import LoginComponent from './loginComponent';
-import SurveyCenterComponent from './surveyCenterComponent';
-import UtilitiesCenterComponent from './utilitiesCenterComponent';
+import EmployeeSelectionComponent from './employeeSelectionComponent';
 import { SelectedEmployeesProvider } from './selectedEmployeesContext';
+import MenuComponent from './menuComponent';
+
+const menuItems = [
+  {
+    id: 'notification',
+    label: 'Notification',
+    subItems: [
+      { id: 'createNotification', label: 'Create Notification' },
+      { id: 'reviewNotification', label: 'Review Notifications' },
+    ],
+  },
+  { 
+    id: 'survey',
+    label: 'Survey',
+    subItems: [
+      { id: 'createSurvey', label: 'Create Survey'},
+      { id: 'reviewSurvey', label: 'Review Survey'},
+    ],
+  },
+  {
+    id: 'utility',
+    label: 'Utility',
+    subItems: [
+      { id: 'tools', label: 'Tools' },
+      { id: 'settings', label: 'Settings' },
+    ],
+  },
+  { id: 'userProfile', label: 'User Profile' },
+];
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(true);
-  const [value, setValue] = useState(0);
   const [userData, setUserData] = useState({ firstName: null, lastName: null });
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [selectedItem, setSelectedItem] = useState(menuItems[0]);
 
   const handleLoginSuccess = (data) => {
     setUserData(data);
@@ -28,22 +52,6 @@ function App() {
     setLoggedIn(false);
     setUserData({ firstName: null, lastName: null });
   };
-
-  const handleActivity = () => {
-    setLastActivityTime(Date.now());
-  };
-
-  const handleTabChange = (event, newTabValue) => {
-    setValue(newTabValue);
-  };
-
-  function CustomTabPanel({ value, index, children }) {
-    return (
-      <div role="tabpanel" hidden={value !== index}>
-        {value === index && <Box p={3}>{children}</Box>}
-      </div>
-    );
-  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -66,22 +74,12 @@ function App() {
         <SelectedEmployeesProvider>
           <div>
             <p>Welcome, {userData.firstName}!</p>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-              <Tabs value={value} onChange={handleTabChange} aria-label="basic tabs example">
-                <Tab label="Notification Center" />
-                <Tab label="Survey Center" />
-                <Tab label="Utility" />
-              </Tabs>
-            </Box>
-            <CustomTabPanel value={value} index={0}>
-              <NotificationCenterComponent />
-            </CustomTabPanel>
-            <CustomTabPanel value={value} index={1}>
-              <SurveyCenterComponent />
-            </CustomTabPanel>
-            <CustomTabPanel value={value} index={2}>
-              <UtilitiesCenterComponent />
-            </CustomTabPanel>
+            <MenuComponent items={menuItems} onSelect={setSelectedItem} />
+            <div className="display-area" style={{ flex: 1, padding: '20px' }}>
+            </div>
+            <div className="display-area" style={{ flex: 1, padding: '20px' }}>
+              <EmployeeSelectionComponent />
+            </div>
           </div>
         </SelectedEmployeesProvider>
       )}
