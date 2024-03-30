@@ -1,24 +1,23 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-const MenuItem = ({ item, onSelect, showSubItems, onToggleSubItems }) => (
-  <View style={styles.menuItemContainer}>
-    <TouchableOpacity onPress={() => onToggleSubItems(item.id)} style={styles.menuItem}>
-      <Text style={styles.menuText}>{item.label}</Text>
-    </TouchableOpacity>
-    {showSubItems && item.subItems && (
-      <View style={styles.subMenuContainer}>
-        {item.subItems.map((subItem) => (
-          <TouchableOpacity key={subItem.id} onPress={() => onSelect(subItem)} style={styles.subMenuItem}>
-            <Text style={styles.subMenuText}>{subItem.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    )}
-  </View>
-);
-
 const MenuComponent = ({ items, onSelect }) => {
+  const MenuItem = ({ item, onSelect, showSubItems, onToggleSubItems }) => (
+    <View style={styles.menuItemContainer}>
+      <TouchableOpacity onPress={() => onToggleSubItems(item.id)} style={styles.menuItem}>
+        <Text style={styles.menuText}>{item.label}</Text>
+      </TouchableOpacity>
+      {showSubItems && item.subItems && (
+        <View style={styles.subMenuContainer}>
+          {item.subItems.map((subItem) => (
+            <TouchableOpacity key={subItem.id} onPress={() => {onSelect(subItem);setVisibleSubItemId(null);}} style={styles.subMenuItem}>
+              <Text style={styles.subMenuText}>{subItem.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
   const [visibleSubItemId, setVisibleSubItemId] = useState(null);
 
   const handleToggleSubItems = (itemId) => {
