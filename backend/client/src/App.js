@@ -4,6 +4,14 @@ import LoginComponent from './loginComponent';
 import EmployeeSelectionComponent from './employeeSelectionComponent';
 import { SelectedEmployeesProvider } from './selectedEmployeesContext';
 import MenuComponent from './menuComponent';
+import NotificationCenterModule from './notificationCenterComponent';
+import SurveyCenterComponent from './surveyCenterComponent';
+
+const componentMapping = {
+  'createNotification': NotificationCenterModule,
+  'createSurvey': SurveyCenterComponent,
+  // Add other mappings as necessary.
+};
 
 const menuItems = [
   {
@@ -38,6 +46,14 @@ function App() {
   const [userData, setUserData] = useState({ firstName: null, lastName: null });
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [selectedItem, setSelectedItem] = useState(menuItems[0]);
+
+  const handleMenuItemSelect = (item) => {
+    setSelectedItem(item);
+  };
+
+  console.log(selectedItem);
+  const RenderSelectedComponent = componentMapping[selectedItem.id];
+  console.log(RenderSelectedComponent);
 
   const handleLoginSuccess = (data) => {
     setUserData(data);
@@ -74,8 +90,9 @@ function App() {
         <SelectedEmployeesProvider>
           <div>
             <p>Welcome, {userData.firstName}!</p>
-            <MenuComponent items={menuItems} onSelect={setSelectedItem} />
+            <MenuComponent items={menuItems} onSelect={handleMenuItemSelect} />
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
+            {RenderSelectedComponent ? <RenderSelectedComponent /> : "Please select a menu item."}
             </div>
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
               <EmployeeSelectionComponent />
