@@ -145,13 +145,13 @@ app.post('/call-function-send-one-time-code', async (req, res) => {
         // Check if the user is an admin
         const adminCollection = client.db(database_name).collection('admins');
         const isAdmin = await adminCollection.findOne({
-            "LastName": lastName,
-            "FirstName": firstName
+            "Last Name": lastName,
+            "First Name": firstName
         });
 
         if (isAdmin) {
             // Execute the script to send the one-time code
-            exec(`node ./server/sendOTC.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+            exec(`node ./backend/server/sendOTC.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`Error executing script: ${error.message}`);
                     res.status(500).send(`Internal Server Error: ${error.message}`);
@@ -178,7 +178,7 @@ app.post('/call-function-validate-log-in', async (req, res) => {
     const { firstName, lastName, enteredCode } = req.body;
 
     // Execute the script
-    exec(`node ./server/validateLogin.mjs "${firstName}" "${lastName}" "${enteredCode}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/validateLogin.mjs "${firstName}" "${lastName}" "${enteredCode}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);
@@ -205,7 +205,7 @@ app.post('/call-function-send-notification', (req, res) => {
     const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
     fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./server/sendNotification.mjs "${messageContent}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendNotification.mjs "${messageContent}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);
@@ -233,7 +233,7 @@ app.post('/call-function-send-survey', (req, res) => {
     fs.writeFileSync(surveyQuestionsFilePath, surveyQuestionsJSON);
 
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);
@@ -281,7 +281,7 @@ app.post('/call-function-add-employee', async (req, res) => {
     const tempFilePath = path.join(__dirname, 'temp', 'newEmployee.json');
     fs.writeFileSync(tempFilePath, newEmployeeJSON);
     // Execute the script
-    exec(`node ./server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);
@@ -296,24 +296,7 @@ app.post('/call-function-delete-employee', async (req, res) => {
     const lastName = req.body.lastName;
 
     // Execute the script
-    exec(`node ./server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
-        res.status(200).send(stdout);
-    });
-});
-
-app.post('/call-function-delete-notifications', async (req, res) => {
-    const selectedEmployees = req.body.selectedEmployees;
-    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
-    const selectedEmployeesFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
-    fs.writeFileSync(selectedEmployeesFilePath, selectedEmployeesJSON);
-
-    // Execute the script
-    exec(`node ./server/deleteAllNotifications.mjs "${selectedEmployeesFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);
@@ -324,7 +307,7 @@ app.post('/call-function-delete-notifications', async (req, res) => {
 });
 
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname + '/client/public/index.html'))
+    res.sendFile(path.join(__dirname + '/backend/client/public/index.html'))
 });
 
 // Start the server

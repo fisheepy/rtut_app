@@ -18,9 +18,12 @@ function generateUniqueId(firstName, lastName) {
 
 // Function to split PayrollName and format filteredValues
 const transformFilteredValues = (filteredValues) => {
-    return filteredValues.map(({ 'Payroll Name': PayrollName, Email, Phone }) => {
+    return filteredValues.map(({
+        'First Name': firstName, 
+        'Last Name': lastName,
+        'Email': email,
+        'Phone': phone }) => {
         // Split PayrollName into firstName and lastName
-        const [lastName, firstName] = PayrollName.split(',').map(name => name.trim());
 
         // Construct the object with formatted data
         const formattedData = {
@@ -32,12 +35,12 @@ const transformFilteredValues = (filteredValues) => {
             lastName: lastName
         };
 
-        if (Email) {
-            formattedData.email = Email;
+        if (email) {
+            formattedData.Email = email;
         }
 
-        if (Phone) {
-            formattedData.phone = Phone;
+        if (phone) {
+            formattedData.Phone = phone;
         }
 
         return formattedData;

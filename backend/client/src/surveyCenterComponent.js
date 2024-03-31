@@ -167,11 +167,6 @@ function SurveyCenterComponent() {
                     surveyJson={surveyJson}
                     windowDimensions={{width: windowDimensions.width*0.5}}/>
             </div>
-            <div>
-                <hr />
-                <EmployeeSelectionComponent />
-                <hr />
-            </div>
         </div>
     );
 }

@@ -113,9 +113,6 @@ function NotificationCenterComponent() {
                     </label>
                 </div>
             </div>
-            <hr />
-            <EmployeeSelectionComponent />
-            <hr />
         </div>
     );
 }
