@@ -4,3 +4,4 @@
 /frontend/build/
 /frontend/ios/
 /frontend/android/
+.DS*

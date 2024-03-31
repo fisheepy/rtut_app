@@ -29,7 +29,7 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
-const csvFilePath = './server/data.csv';
+const csvFilePath = './backend/server/output.csv';
 
 app.get('/import', async (req, res, next) => {
     try {
@@ -85,7 +85,7 @@ app.get('/data', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdmin = admins.some(admin => admin['Payroll Name'] === loginName.loginName && admin['Type'] === 'root');
+        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
         // Filter data based on user's admin status
 
         if (isAdmin) {
@@ -108,7 +108,7 @@ app.get('/data', cors(), async (req, res, next) => {
     }
     // Function to check if an employee is the supervisor or subordinate of the given login name
     function isSupervisorOrSubordinate(employee, loginName, allEmployees) {
-        if (employee["Supervisor Legal Name"].toUpperCase() === loginName.toUpperCase()) {
+        if (employee["Supervisor"].toUpperCase() === loginName.toUpperCase()) {
             return true; // Employee directly reports to the login user
         } else {
             // Check recursively if the supervisor's supervisor is the login user
@@ -145,7 +145,8 @@ app.post('/call-function-send-one-time-code', async (req, res) => {
         // Check if the user is an admin
         const adminCollection = client.db(database_name).collection('admins');
         const isAdmin = await adminCollection.findOne({
-            "Payroll Name": `${lastName}, ${firstName}`
+            "LastName": lastName,
+            "FirstName": firstName
         });
 
         if (isAdmin) {

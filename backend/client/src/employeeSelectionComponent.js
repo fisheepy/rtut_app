@@ -13,13 +13,15 @@ function EmployeeSelectionComponent() {
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
 
     const columnsToDisplay = [
-        'Payroll Name',
-        'Hire/Rehire Date',
+        'Name',
+        'Hire Date',
         'Position Status',
-        'Home Department Description',
-        'Job Title Description',
-        'Location Description',
-        'Supervisor Legal Name',
+        'Home Department',
+        'Job Title',
+        'Location',
+        'Supervisor',
+        'Phone',
+        'Email',
     ];
 
     useEffect(() => {
@@ -29,9 +31,17 @@ function EmployeeSelectionComponent() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const loginName = 'Yu, Xuan'; //localStorage.getItem('loginName');
-                const response = await axios.get(`/data?loginName=${loginName}`);
-                const sortedData = response.data.sort((a, b) => a['Payroll Name'].localeCompare(b['Payroll Name']));
+                const loginName = {firstName: 'Xuan', lastName: 'Yu'}; //localStorage.getItem('loginName');
+                const response = await axios.get(`/data?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+                console.log(response);
+                const processedData = response.data.map(employee => ({
+                    ...employee,
+                    'Name': `${employee['Last Name']}, ${employee['First Name']}`, 
+                    'Supervisor': `${employee['Supervisor Last Name']}, ${employee['Supervisor First Name']}` 
+                }));
+                const sortedData = processedData.sort((a, b) => {
+                    return a['Last Name'].localeCompare(b['Last Name']);
+                });
                 setEmployees(sortedData);
                 setFilteredEmployees(sortedData);
                 extractFilterValues(sortedData);
@@ -79,7 +89,7 @@ function EmployeeSelectionComponent() {
 
     const applyFilters = () => {
         // Separate filter for Payroll Name to treat it specially
-        const payrollNameFilter = selectedFilters['Payroll Name'];
+        const payrollNameFilter = selectedFilters['Name'];
 
         // Default start and end dates
         const defaultStartDate = new Date('1995/01/01');
@@ -91,20 +101,20 @@ function EmployeeSelectionComponent() {
 
         // Filter by payroll name if specified
         const filteredByPayrollName = payrollNameFilter && payrollNameFilter.length > 0
-            ? employees.filter(employee => payrollNameFilter.includes(employee['Payroll Name']))
+            ? employees.filter(employee => payrollNameFilter.includes(employee['Name']))
             : [];
 
         // Filter by other criteria except for Payroll Name, including date range
         const filteredByOtherCriteria = employees.filter(employee => {
             // Convert employee's hire/rehire date from string to Date object
-            const hireDate = new Date(employee['Hire/Rehire Date']);
+            const hireDate = new Date(employee['Hire Date']);
 
             // Check if employee's date falls within the specified range
             const isInDateRange = hireDate >= start && hireDate <= end;
 
             // Check other filters excluding Payroll Name
             const matchesOtherFilters = Object.entries(selectedFilters).every(([columnName, filterValues]) =>
-                columnName === 'Payroll Name' || // Skip Payroll Name in this filtering step
+                columnName === 'Name' || // Skip Payroll Name in this filtering step
                 filterValues.length === 0 || filterValues.includes(employee[columnName])
             );
 
@@ -115,7 +125,7 @@ function EmployeeSelectionComponent() {
         const combinedFilteredEmployees = [
             ...filteredByPayrollName,
             ...filteredByOtherCriteria.filter(employee =>
-                !filteredByPayrollName.some(filteredEmployee => filteredEmployee['Payroll Name'] === employee['Payroll Name'])
+                !filteredByPayrollName.some(filteredEmployee => filteredEmployee['Name'] === employee['Name'])
             )
         ];
         const finalFilteredEmployees = combinedFilteredEmployees.filter(employee =>
@@ -165,7 +175,7 @@ function EmployeeSelectionComponent() {
                             <tr>
                                 <th>Select</th> {/* New column for checkboxes */}
                                 {columnsToDisplay.map((columnName, index) => {
-                                    if (columnName === "Hire/Rehire Date") {
+                                    if (columnName === "Hire Date") {
                                         // Skip rendering a filter for "Hire/Rehire Date"
                                         return (
                                             <th key={index}>{columnName}</th>

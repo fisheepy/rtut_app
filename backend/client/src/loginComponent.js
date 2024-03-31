@@ -15,7 +15,7 @@ function LoginComponent({ onLoginStatusChange, onLoginSuccess }) {
                     setUserMessage('');
                     onLoginStatusChange(true); // Call the function to update login status
                     onLoginSuccess({ firstName: firstName, lastName: lastName });
-                    localStorage.setItem('loginName', lastName + ', ' + firstName);
+                    localStorage.setItem('loginName', { firstName: firstName, lastName: lastName });
                 }
                 else {
                     setUserMessage('Invalid Login Attempt!');
