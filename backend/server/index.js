@@ -12,6 +12,7 @@ app.use(express.json());
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '../client/build')))
+const { parse } = require('json2csv');
 
 const port = 3101;
 
@@ -304,6 +305,21 @@ app.post('/call-function-delete-employee', async (req, res) => {
         }
         res.status(200).send(stdout);
     });
+});
+
+app.post('/call-function-export-selected-employees', (req, res) => {
+    const employees = req.body.employees;
+
+    try {
+        // Generate CSV
+        const csv = parse(employees);
+        res.header('Content-Type', 'text/csv');
+        res.attachment('selected-employees.csv'); // Suggests a filename for the downloaded file
+        res.send(csv);
+    } catch (error) {
+        console.error('Error generating CSV:', error);
+        res.status(500).send('Failed to export employees to CSV');
+    }
 });
 
 app.get('*', (req, res) => {

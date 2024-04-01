@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import EmployeeSelectionComponent from './employeeSelectionComponent';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 
 function NotificationCenterComponent() {

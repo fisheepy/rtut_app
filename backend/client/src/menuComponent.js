@@ -1,27 +1,51 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-const MenuComponent = ({ items, onSelect }) => {
-  const MenuItem = ({ item, onSelect, showSubItems, onToggleSubItems }) => (
+const MenuItem = ({ item, onSelect, onToggleSubItems, visibleItemIds }) => {
+  const isVisible = visibleItemIds.has(item.id);
+  const toggleVisibility = () => onToggleSubItems(item.id);
+
+  return (
     <View style={styles.menuItemContainer}>
-      <TouchableOpacity onPress={() => onToggleSubItems(item.id)} style={styles.menuItem}>
-        <Text style={styles.menuText}>{item.label}</Text>
-      </TouchableOpacity>
-      {showSubItems && item.subItems && (
+      {item.subItems && item.subItems.length > 0 ? (
+        <TouchableOpacity onPress={toggleVisibility} style={styles.menuItem}>
+          <Text style={styles.menuText}>{item.label}</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity onPress={() => onSelect(item)} style={styles.menuItem}>
+          <Text style={styles.menuText}>{item.label}</Text>
+        </TouchableOpacity>
+      )}
+      {isVisible && item.subItems && (
         <View style={styles.subMenuContainer}>
           {item.subItems.map((subItem) => (
-            <TouchableOpacity key={subItem.id} onPress={() => {onSelect(subItem);setVisibleSubItemId(null);}} style={styles.subMenuItem}>
-              <Text style={styles.subMenuText}>{subItem.label}</Text>
-            </TouchableOpacity>
+            <MenuItem
+              key={subItem.id}
+              item={subItem}
+              onSelect={onSelect}
+              onToggleSubItems={onToggleSubItems}
+              visibleItemIds={visibleItemIds}
+            />
           ))}
         </View>
       )}
     </View>
   );
-  const [visibleSubItemId, setVisibleSubItemId] = useState(null);
+};
+
+const MenuComponent = ({ items, onSelect }) => {
+  const [visibleItemIds, setVisibleItemIds] = useState(new Set());
 
   const handleToggleSubItems = (itemId) => {
-    setVisibleSubItemId(visibleSubItemId === itemId ? null : itemId);
+    setVisibleItemIds(prevVisibleItemIds => {
+      const newVisibleItemIds = new Set(prevVisibleItemIds);
+      if (newVisibleItemIds.has(itemId)) {
+        newVisibleItemIds.delete(itemId);
+      } else {
+        newVisibleItemIds.add(itemId);
+      }
+      return newVisibleItemIds;
+    });
   };
 
   return (
@@ -31,8 +55,8 @@ const MenuComponent = ({ items, onSelect }) => {
           key={item.id}
           item={item}
           onSelect={onSelect}
-          showSubItems={visibleSubItemId === item.id}
           onToggleSubItems={handleToggleSubItems}
+          visibleItemIds={visibleItemIds}
         />
       ))}
     </View>
@@ -58,14 +82,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   subMenuContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
+    position: 'relative', // Allows the submenu to take up space and push content below
+    marginTop: 5, // Provides a small gap between the parent item and the submenu for visual separation
+    paddingLeft: 20, // Indents submenu items for hierarchy
     backgroundColor: '#f9f9f9',
     padding: 10,
     borderWidth: 1,
     borderColor: '#ddd',
-    zIndex: 3, // Ensure submenus are above the menu and other content
+    zIndex: 3,
   },
   subMenuItem: {
     paddingVertical: 5,

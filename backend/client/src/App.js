@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import './App.css';
 import LoginComponent from './loginComponent';
 import EmployeeSelectionComponent from './employeeSelectionComponent';
@@ -6,11 +6,12 @@ import { SelectedEmployeesProvider } from './selectedEmployeesContext';
 import MenuComponent from './menuComponent';
 import NotificationCenterModule from './notificationCenterComponent';
 import SurveyCenterComponent from './surveyCenterComponent';
+import UtilityToolsCompoent from './utilityToolsComponent';
 
 const componentMapping = {
   'createNotification': NotificationCenterModule,
   'createSurvey': SurveyCenterComponent,
-  // Add other mappings as necessary.
+  'exportEmployeesCsv': UtilityToolsCompoent,
 };
 
 const menuItems = [
@@ -22,19 +23,25 @@ const menuItems = [
       { id: 'reviewNotification', label: 'Review Notifications' },
     ],
   },
-  { 
+  {
     id: 'survey',
     label: 'Survey',
     subItems: [
-      { id: 'createSurvey', label: 'Create Survey'},
-      { id: 'reviewSurvey', label: 'Review Survey'},
+      { id: 'createSurvey', label: 'Create Survey' },
+      { id: 'reviewSurvey', label: 'Review Survey' },
     ],
   },
   {
     id: 'utility',
     label: 'Utility',
     subItems: [
-      { id: 'tools', label: 'Tools' },
+      {
+        id: 'tools',
+        label: 'Tools',
+        subItems: [
+          { id: 'exportEmployeesCsv', label: 'Export Selected Employees to CSV' },
+        ],
+      },
       { id: 'settings', label: 'Settings' },
     ],
   },
@@ -51,9 +58,7 @@ function App() {
     setSelectedItem(item);
   };
 
-  console.log(selectedItem);
   const RenderSelectedComponent = componentMapping[selectedItem.id];
-  console.log(RenderSelectedComponent);
 
   const handleLoginSuccess = (data) => {
     setUserData(data);
@@ -92,7 +97,7 @@ function App() {
             <p>Welcome, {userData.firstName}!</p>
             <MenuComponent items={menuItems} onSelect={handleMenuItemSelect} />
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
-            {RenderSelectedComponent ? <RenderSelectedComponent /> : "Please select a menu item."}
+              {RenderSelectedComponent ? <RenderSelectedComponent /> : "Please select a menu item."}
             </div>
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
               <EmployeeSelectionComponent />
