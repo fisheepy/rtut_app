@@ -7,58 +7,36 @@ import MenuComponent from './menuComponent';
 import NotificationCenterModule from './notificationCenterComponent';
 import SurveyCenterComponent from './surveyCenterComponent';
 import UtilityToolsCompoent from './utilityToolsComponent';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const componentMapping = {
-  'createNotification': NotificationCenterModule,
-  'createSurvey': SurveyCenterComponent,
-  'exportEmployeesCsv': UtilityToolsCompoent,
+  'sendNotification': NotificationCenterModule,
+  'sendSurvey': SurveyCenterComponent,
+  'processEmployeeCsv': UtilityToolsCompoent,
 };
-
-const menuItems = [
-  {
-    id: 'notification',
-    label: 'Notification',
-    subItems: [
-      { id: 'createNotification', label: 'Create Notification' },
-      { id: 'reviewNotification', label: 'Review Notifications' },
-    ],
-  },
-  {
-    id: 'survey',
-    label: 'Survey',
-    subItems: [
-      { id: 'createSurvey', label: 'Create Survey' },
-      { id: 'reviewSurvey', label: 'Review Survey' },
-    ],
-  },
-  {
-    id: 'utility',
-    label: 'Utility',
-    subItems: [
-      {
-        id: 'tools',
-        label: 'Tools',
-        subItems: [
-          { id: 'exportEmployeesCsv', label: 'Export Selected Employees to CSV' },
-        ],
-      },
-      { id: 'settings', label: 'Settings' },
-    ],
-  },
-  { id: 'userProfile', label: 'User Profile' },
-];
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(true);
   const [userData, setUserData] = useState({ firstName: null, lastName: null });
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
-  const [selectedItem, setSelectedItem] = useState(menuItems[0]);
+  const [selectedItem, setSelectedItem] = useState([]);
+  const [componentKey, setComponentKey] = useState(null);
 
-  const handleMenuItemSelect = (item) => {
+  useEffect(() => {
+    // Perform any setup or actions required when selectedItem changes
+    setComponentKey(selectedItem.id);
+
+    // Optional: Any cleanup actions can go here in the return function
+    return () => {
+      // Cleanup actions
+    };
+  }, [selectedItem]); 
+
+  const handleItemSelect = (item) => {
     setSelectedItem(item);
   };
 
-  const RenderSelectedComponent = componentMapping[selectedItem.id];
+  const RenderSelectedComponent = componentMapping[componentKey];
 
   const handleLoginSuccess = (data) => {
     setUserData(data);
@@ -95,7 +73,7 @@ function App() {
         <SelectedEmployeesProvider>
           <div>
             <p>Welcome, {userData.firstName}!</p>
-            <MenuComponent items={menuItems} onSelect={handleMenuItemSelect} />
+            <MenuComponent onItemSelect={handleItemSelect} />
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
               {RenderSelectedComponent ? <RenderSelectedComponent /> : "Please select a menu item."}
             </div>
