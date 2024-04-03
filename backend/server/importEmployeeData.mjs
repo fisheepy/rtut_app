@@ -1,4 +1,5 @@
 import { importEmployeesData } from './mongodbUtilities.mjs';
+import { updateEmployeesToNovuSubscribers } from './novuUtilities.mjs';
 import fs from 'fs';
 
 const importEmployees = async (filePath) => {
@@ -11,6 +12,7 @@ const importEmployees = async (filePath) => {
         try {
             // Use the extracted Novu operation
             await importEmployeesData(employees);
+            await updateEmployeesToNovuSubscribers(employees);
         } catch (error) {
             console.error('Error:', error.message);
         }

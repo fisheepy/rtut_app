@@ -1,6 +1,14 @@
 import { Novu } from '@novu/node';
+import crypto from 'crypto';
 
 const novu = new Novu(process.env.NOVU_API);
+
+function generateUniqueId(firstName, lastName) {
+  const nameString = `${firstName}${lastName}`;
+  const hash = crypto.createHash('sha256');
+  hash.update(nameString);
+  return hash.digest('hex');
+}
 
 export const triggerSurveyNotification = async (formattedValues, surveyQuestionsString, subject, sender, uniqueId) => {
   try {
@@ -75,5 +83,31 @@ export async function listNotifications(subscriberId) {
   } catch (error) {
     console.error('Error listing notification:', error);
     throw error;
+  }
+}
+
+export async function updateEmployeesToNovuSubscribers(employees) {
+  try {
+      // Process each employee
+      for (const employee of employees) {
+        const uid = generateUniqueId(employee.firstName.toUpperCase(), employee.lastName.toUpperCase());
+    
+        // Using findDocument utility to check if employee is already a subscriber
+        const response = await novu.subscribers.get(uid);
+        console.log(response.data);
+        // if (!existingSubscriber) {
+        //     // Using sendNotification utility for identifying a subscriber if not existing
+        //     await sendNotification('subscribers.identify', { subscriberId: uid }, {
+        //         firstName: employee.firstName.toUpperCase(),
+        //         lastName: employee.lastName.toUpperCase(),
+        //         phone: "+1" + employee.phone,
+        //         email: employee.email,
+        //     });
+        // }
+      }
+
+      console.log('Employees processed successfully');
+  } catch (error) {
+      console.error('Error:', error);
   }
 }
