@@ -322,6 +322,26 @@ app.post('/call-function-export-selected-employees', (req, res) => {
     }
 });
 
+app.post('/call-function-import-employees', (req, res) => {
+    const employees = req.body.employees;
+    
+    const employeesJSON = JSON.stringify(employees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'employees.json');
+    fs.writeFileSync(tempFilePath, employeesJSON);
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/importEmployeeData.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname + '/backend/client/public/index.html'))
 });
