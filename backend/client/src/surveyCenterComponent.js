@@ -71,7 +71,7 @@ function SurveyCenterComponent() {
             ...prevSurveyJson,
             elements: [...prevSurveyJson.elements, newQuestion]
         }));
-
+        console.log(surveyJson);
         // Reset allowCustomAnswer for the next question
         setAllowCustomAnswer(false);
         setAnswerChoices([]);

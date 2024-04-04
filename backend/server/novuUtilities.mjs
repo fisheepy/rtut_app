@@ -90,20 +90,31 @@ export async function updateEmployeesToNovuSubscribers(employees) {
   try {
       // Process each employee
       for (const employee of employees) {
-        const uid = generateUniqueId(employee.firstName.toUpperCase(), employee.lastName.toUpperCase());
+        const uid = generateUniqueId(employee['First Name'].toUpperCase(), employee['Last Name'].toUpperCase());
     
         // Using findDocument utility to check if employee is already a subscriber
         const response = await novu.subscribers.get(uid);
-        console.log(response.data);
-        // if (!existingSubscriber) {
-        //     // Using sendNotification utility for identifying a subscriber if not existing
-        //     await sendNotification('subscribers.identify', { subscriberId: uid }, {
-        //         firstName: employee.firstName.toUpperCase(),
-        //         lastName: employee.lastName.toUpperCase(),
-        //         phone: "+1" + employee.phone,
-        //         email: employee.email,
-        //     });
-        // }
+        const subscriber = response.data;
+        if (subscriber) {
+          // Start with mandatory fields
+          const subscriberData = {
+              firstName: employee['First Name'],
+              lastName: employee['Last Name'],
+          };
+      
+          // Add email if it's a valid value
+          if (employee['Email'] && typeof employee['Email'] === 'string' && employee['Email'].includes('@')) {
+              subscriberData.email = employee['Email'];
+          }
+      
+          // Add phone if it's a valid value
+          if (employee['Phone'] && typeof employee['Phone'] === 'string' && employee['Phone'].trim().length > 0) {
+              subscriberData.phone = employee['Phone'];
+          }
+      
+          await novu.subscribers.identify(uid, subscriberData);
+      }
+        console.log('Renew', employee['First Name']);
       }
 
       console.log('Employees processed successfully');

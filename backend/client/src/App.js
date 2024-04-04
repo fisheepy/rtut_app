@@ -7,12 +7,17 @@ import MenuComponent from './menuComponent';
 import NotificationCenterModule from './notificationCenterComponent';
 import SurveyCenterComponent from './surveyCenterComponent';
 import UtilityToolsCompoent from './utilityToolsComponent';
+import NotificationsHistoryModule from './notificationsHistoryComponent';
+import SurveysHistoryModule from './surveysHistoryComponent';
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const componentMapping = {
   'sendNotification': NotificationCenterModule,
   'sendSurvey': SurveyCenterComponent,
   'processEmployeeCsv': UtilityToolsCompoent,
+  'reviewNotifications': NotificationsHistoryModule,
+  'reviewSurveys': SurveysHistoryModule,
 };
 
 function App() {
@@ -77,9 +82,13 @@ function App() {
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
               {RenderSelectedComponent ? <RenderSelectedComponent /> : "Please select a menu item."}
             </div>
-            <div className="display-area" style={{ flex: 1, padding: '20px' }}>
-              <EmployeeSelectionComponent />
-            </div>
+            {
+              componentKey !== 'reviewNotifications' &&
+              componentKey !== 'reviewSurveys' && (
+              <div className="display-area" style={{ flex: 1, padding: '20px' }}>
+                <EmployeeSelectionComponent />
+              </div>
+            )}
           </div>
         </SelectedEmployeesProvider>
       )}
