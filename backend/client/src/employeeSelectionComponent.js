@@ -1,6 +1,19 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
+import { 
+    Table, 
+    TableBody, 
+    TableCell, 
+    TableContainer, 
+    TableHead, 
+    TableRow, 
+    Checkbox, 
+    Paper, 
+    TextField, 
+    MenuItem, 
+    FormGroup 
+} from '@mui/material';
 
 function EmployeeSelectionComponent() {
     const { selectedEmployees, setSelectedEmployees } = useContext(SelectedEmployeesContext);
@@ -31,13 +44,13 @@ function EmployeeSelectionComponent() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const loginName = {firstName: 'Xuan', lastName: 'Yu'}; //localStorage.getItem('loginName');
+                const loginName = { firstName: 'Xuan', lastName: 'Yu' }; //localStorage.getItem('loginName');
                 const response = await axios.get(`/employees?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
                 console.log(response);
                 const processedData = response.data.map(employee => ({
                     ...employee,
-                    'Name': `${employee['Last Name']}, ${employee['First Name']}`, 
-                    'Supervisor': `${employee['Supervisor Last Name']}, ${employee['Supervisor First Name']}` 
+                    'Name': `${employee['Last Name']}, ${employee['First Name']}`,
+                    'Supervisor': `${employee['Supervisor Last Name']}, ${employee['Supervisor First Name']}`
                 }));
                 const sortedData = processedData.sort((a, b) => {
                     return a['Last Name'].localeCompare(b['Last Name']);
@@ -74,16 +87,21 @@ function EmployeeSelectionComponent() {
     };
 
     const handleFilterChange = (event, columnName) => {
-        const selectedOptions = Array.from(event.target.selectedOptions, option => option.value);
-        if (selectedOptions.includes("all")) {
-            const { [columnName]: removed, ...rest } = selectedFilters;
-            setSelectedFilters(rest);
-        } else {
-            setSelectedFilters(prevFilters => ({
-                ...prevFilters,
-                [columnName]: selectedOptions
-            }));
-        }
+        const value = event.target.value;
+        setSelectedFilters(prevFilters => {
+            // If "All" is selected (represented as an empty string), remove the filter from the selectedFilters object
+            if (value === "") {
+                const newFilters = { ...prevFilters };
+                delete newFilters[columnName];
+                return newFilters;
+            } else {
+                // Otherwise, update the filter as usual
+                return {
+                    ...prevFilters,
+                    [columnName]: value,
+                };
+            }
+        });
         applyFilters();
     };
 
@@ -155,74 +173,89 @@ function EmployeeSelectionComponent() {
         });
     };
 
+    const handleCheckboxChange = (employeeId) => {
+        setDeselectedEmployees(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(employeeId)) {
+                newSet.delete(employeeId);
+            } else {
+                newSet.add(employeeId);
+            }
+            return newSet;
+        });
+    };
+
+    const columns = [
+        { id: 'Name', label: 'Name', filter: true },
+        { id: 'Hire Date', label: 'Hire Date', filter: false },
+        { id: 'Position Status', label: 'Position Status', filter: true },
+        { id: 'Home Department', label: 'Home Department', filter: true },
+        { id: 'Location', label: 'Location', filter: false },
+        { id: 'Supervisor', label: 'Supervisor', filter: false },
+        { id: 'Phone', label: 'Location', filter: false },
+        { id: 'Email', label: 'Email', filter: false },
+
+        // Add other columns as needed...
+    ];
+
     return (
         <div>
             <h3>Selected Employees</h3>
-            {employees.length > 0 ? (
-                <div className="grid-container">
-                    <tr>
-                        <label>
-                            Start Date:
-                            <input type="date" value={startDate} onChange={handleStartDateChange} />
-                        </label>
-                        <label>
-                            End Date:
-                            <input type="date" value={endDate} onChange={handleEndDateChange} />
-                        </label>
-                    </tr>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Select</th> {/* New column for checkboxes */}
-                                {columnsToDisplay.map((columnName, index) => {
-                                    if (columnName === "Hire Date") {
-                                        // Skip rendering a filter for "Hire/Rehire Date"
-                                        return (
-                                            <th key={index}>{columnName}</th>
-                                        );
-                                    } else {
-                                        return (
-                                            <th key={index}>
-                                                {columnName}
-                                                <div className="filter-item">
-                                                    <select
-                                                        multiple
-                                                        value={selectedFilters[columnName] || []}
-                                                        onChange={(event) => handleFilterChange(event, columnName)}
-                                                    >
-                                                        <option value="all">All</option>
-                                                        {filterValues[columnName] && filterValues[columnName].map((value, index) => (
-                                                            <option key={index} value={value}>{value}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </th>
-                                        );
-                                    }
-                                })}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredEmployees.map((employee, index) => (
-                                <tr key={index} style={{ textDecoration: deselectedEmployees.has(employee._id) ? 'line-through' : 'none' }}>
-                                    <td>
-                                        <input
-                                            type="checkbox"
-                                            checked={!deselectedEmployees.has(employee._id)}
-                                            onChange={e => handleDeselectCheckboxChange(employee._id, e.target.checked)}
-                                        />
-                                    </td>
-                                    {columnsToDisplay.map((column, colIndex) => (
-                                        <td key={colIndex}>{employee[column]}</td>
-                                    ))}
-                                </tr>
+            <TableContainer component={Paper}>
+                <Table aria-label="employee selection table">
+                    <TableHead>
+                        <TableRow>
+                            {columns.map((column) => (
+                                <TableCell key={column.id}>{column.label}</TableCell>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-            ) : (
-                <p>No data available</p>
-            )}
+                        </TableRow>
+                        <TableRow>
+                            {columns.map((column) => (
+                                <TableCell key={column.id + '-filter'}>
+                                    {column.filter ? (
+                                        <TextField
+                                            select
+                                            fullWidth
+                                            label={column.label}
+                                            value={selectedFilters[column.id] || ''}
+                                            onChange={(e) => handleFilterChange(e, column.id)}
+                                            size="small"
+                                        >
+                                            <MenuItem key="all" value="">
+                                                All
+                                            </MenuItem>
+                                            {filterValues[column.id]?.map((option) => (
+                                                <MenuItem key={option} value={option}>
+                                                    {option}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    ) : null}
+                                </TableCell>
+                            ))}
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {filteredEmployees.map((employee) => (
+                            <TableRow key={employee._id} style={{ textDecoration: deselectedEmployees.has(employee._id) ? 'line-through' : 'none' }}>
+                                {columns.map((column, colIndex) => (
+                                    <TableCell key={colIndex}>
+                                        {column.id === 'select' ? (
+                                            <Checkbox
+                                                checked={!deselectedEmployees.has(employee._id)}
+                                                onChange={() => handleCheckboxChange(employee._id)}
+                                                color="primary"
+                                            />
+                                        ) : (
+                                            employee[column.id]
+                                        )}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
         </div>
     );
 }
