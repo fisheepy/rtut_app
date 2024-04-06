@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
-import { 
-    Table, 
-    TableBody, 
-    TableCell, 
-    TableContainer, 
-    TableHead, 
-    TableRow, 
-    Checkbox, 
-    Paper, 
-    TextField, 
-    MenuItem, 
-    FormGroup 
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Checkbox,
+    Paper,
+    TextField,
+    MenuItem,
 } from '@mui/material';
 
 function EmployeeSelectionComponent() {
@@ -186,15 +185,15 @@ function EmployeeSelectionComponent() {
     };
 
     const columns = [
-        { id: 'Name', label: 'Name', filter: true },
         { id: 'Hire Date', label: 'Hire Date', filter: false },
+        { id: 'Name', label: 'Name (Override Add)', filter: true },
         { id: 'Position Status', label: 'Position Status', filter: true },
         { id: 'Home Department', label: 'Home Department', filter: true },
-        { id: 'Location', label: 'Location', filter: false },
-        { id: 'Supervisor', label: 'Supervisor', filter: false },
-        { id: 'Phone', label: 'Location', filter: false },
-        { id: 'Email', label: 'Email', filter: false },
-
+        { id: 'Location', label: 'Location', filter: true },
+        { id: 'Supervisor', label: 'Supervisor', filter: true },
+        { id: 'Phone', label: 'Phone', filter: true },
+        { id: 'Email', label: 'Email', filter: true },
+        { id: 'select', label: '(Override Remove)', filter: false },
         // Add other columns as needed...
     ];
 
@@ -206,30 +205,67 @@ function EmployeeSelectionComponent() {
                     <TableHead>
                         <TableRow>
                             {columns.map((column) => (
-                                <TableCell key={column.id}>{column.label}</TableCell>
+                                <TableCell key={column.id}>{column.label}</TableCell> // This ensures all column labels are displayed
                             ))}
                         </TableRow>
                         <TableRow>
-                            {columns.map((column) => (
+                            {/* Placeholder cells for columns before 'Hire Date' */}
+                            {columns.slice(0, columns.findIndex(col => col.id === 'Hire Date')).map(col => (
+                                <TableCell key={col.id} />
+                            ))}
+                            {/* Filter for 'Hire Date' */}
+                            <TableCell colSpan={1}>
+                                <TextField
+                                    id="start-date"
+                                    label="Hire Start Date"
+                                    type="date"
+                                    value={startDate}
+                                    onChange={handleStartDateChange}
+                                    InputLabelProps={{
+                                        shrink: true,
+                                    }}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                                <TextField
+                                    id="end-date"
+                                    label="Hire End Date"
+                                    type="date"
+                                    value={endDate}
+                                    onChange={handleEndDateChange}
+                                    InputLabelProps={{
+                                        shrink: true,
+                                    }}
+                                    variant="outlined"
+                                    size="small"
+                                />
+                            </TableCell>
+                            {/* Placeholder cells for columns after 'Hire Date' */}
+                            {columns.slice(columns.findIndex(col => col.id === 'Hire Date') + 1).map(column => (
                                 <TableCell key={column.id + '-filter'}>
                                     {column.filter ? (
                                         <TextField
                                             select
+                                            SelectProps={{
+                                                multiple: true,
+                                                renderValue: (selected) => selected.join(', '),
+                                            }}
                                             fullWidth
                                             label={column.label}
-                                            value={selectedFilters[column.id] || ''}
+                                            value={selectedFilters[column.id] || []}
                                             onChange={(e) => handleFilterChange(e, column.id)}
                                             size="small"
                                         >
-                                            <MenuItem key="all" value="">
-                                                All
-                                            </MenuItem>
-                                            {filterValues[column.id]?.map((option) => (
+                                            {filterValues[column.id]?.map(option => (
                                                 <MenuItem key={option} value={option}>
+                                                    <Checkbox checked={selectedFilters[column.id]?.includes(option) || false} />
                                                     {option}
                                                 </MenuItem>
                                             ))}
                                         </TextField>
+                                    ) : column.id === 'Hire Date' ? (
+                                        // Special handling for the Hire Date filter, if needed
+                                        null // Placeholder, update as per your logic
                                     ) : null}
                                 </TableCell>
                             ))}
@@ -238,8 +274,8 @@ function EmployeeSelectionComponent() {
                     <TableBody>
                         {filteredEmployees.map((employee) => (
                             <TableRow key={employee._id} style={{ textDecoration: deselectedEmployees.has(employee._id) ? 'line-through' : 'none' }}>
-                                {columns.map((column, colIndex) => (
-                                    <TableCell key={colIndex}>
+                                {columns.map((column) => (
+                                    <TableCell key={column.id}>
                                         {column.id === 'select' ? (
                                             <Checkbox
                                                 checked={!deselectedEmployees.has(employee._id)}
@@ -247,7 +283,7 @@ function EmployeeSelectionComponent() {
                                                 color="primary"
                                             />
                                         ) : (
-                                            employee[column.id]
+                                            employee[column.id] || ''
                                         )}
                                     </TableCell>
                                 ))}
