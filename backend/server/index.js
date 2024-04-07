@@ -332,32 +332,31 @@ app.post('/call-function-send-survey', (req, res) => {
 });
 
 app.post('/submit-survey', async (req, res) => {
-    console.log(req);
-    // try {
-    //     // Retrieve the survey result data from the request body
-    //     const { surveyId, answers, timestamp } = req.body;
+    try {
+        // Retrieve the survey result data from the request body
+        const { surveyId, answers, timestamp } = req.body;
 
-    //     // Connect to MongoDB
-    //     await client.connect();
-    //     console.log('Connected to MongoDB');
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
 
-    //     // Access the database
-    //     const db = client.db(database_name);
-    //     const collection = db.collection('survey results');
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey results');
 
-    //     // Insert the survey data into the MongoDB collection
-    //     await collection.insertOne({ UID: surveyId, answers, timestamp });
+        // Insert the survey data into the MongoDB collection
+        await collection.insertOne({ UID: surveyId, answers, timestamp });
 
-    //     console.log('Survey data inserted successfully');
-    //     res.status(200).send('Survey result received successfully');
-    // } catch (error) {
-    //     console.error('Error handling survey submission:', error.message);
-    //     res.status(500).send('Internal Server Error');
-    // } finally {
-    //     // Close the MongoDB connection
-    //     await client.close();
-    //     console.log('Connection to MongoDB closed');
-    // }
+        console.log('Survey data inserted successfully');
+        res.status(200).send('Survey result received successfully');
+    } catch (error) {
+        console.error('Error handling survey submission:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
 });
 
 

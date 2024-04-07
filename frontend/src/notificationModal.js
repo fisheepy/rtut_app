@@ -179,17 +179,16 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     }, [markNotificationsAsRead]);
 
     const handleSurveyComplete = async (answers) => {
-        console.log("Survey answers:", answers);
         try {
             const timestamp = Date.now();
-
+            const surveyId = selectedNotification.payload.uniqueId;
             // Send the survey result to the server
             const response = await fetch('https://rtut-app-admin-server-c2d4ae9d37ae.herokuapp.com/submit-survey', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ answers, timestamp }),
+                body: JSON.stringify({ surveyId, answers, timestamp }),
             });
 
             if (!response.ok) {
