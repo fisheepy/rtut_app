@@ -56,3 +56,8 @@
   font-weight: bold; /* Make it bold to catch attention */
   margin-bottom: 20px; /* Separate from content below */
 }
+
+.datePicker {
+  width: 100%;
+  background-color: 'white';
+}

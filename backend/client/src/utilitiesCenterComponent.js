@@ -1,120 +1,106 @@
-// utilitiesCenterComponent.js
 import React, { useContext, useState } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
-import EmployeeSelectionComponent from './employeeSelectionComponent';
 import axios from 'axios';
+import { Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import './App.css';
 
 const UtilitiesCenterComponent = () => {
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
     const [executionStatus, setExecutionStatus] = useState('Status:');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [showAddEmployeeForm, setShowAddEmployeeForm] = useState(false);
+    const [openAddModal, setOpenAddModal] = useState(false);
+    const [openDeleteModal, setOpenDeleteModal] = useState(false);
+    const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '' });
     const [newEmployee, setNewEmployee] = useState({
         firstName: '',
         lastName: '',
-        hireDate: '',
+        hireDate: new Date(),
         homeDepartment: '',
         jobTitle: '',
         location: '',
-        supervisorName: ''
+        supervisorFirstName: '',
+        supervisorLastName: '',
     });
 
-    // Inside NotificationContext or a similar file
-    const cleanAllNotifications = () => {
-        const data = { selectedEmployees };
-        axios.post('/call-function-delete-notifications', data)
-            .then(response => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tRequest delete notifications succeeded!`);
-            })
-            .catch(error => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tRequest delete notifications succeeded!`);
-            });
-    };
-
-    const handleDelete = () => {
-        // Confirm with the user before proceeding
-        const isConfirmed = window.confirm(`Are you sure you want to delete the employee: ${firstName} ${lastName}?`);
-
-        if (isConfirmed) {
-            axios.post('/call-function-delete-employee', { firstName, lastName })
-                .then(response => {
-                    // Handle successful deletion here
-                    setExecutionStatus(`Employee ${firstName} ${lastName} deleted successfully.`);
-                })
-                .catch(error => {
-                    // Handle errors here
-                    setExecutionStatus(`Failed to delete employee ${firstName} ${lastName}.`);
-                });
-        }
-    };
     const handleAddEmployeeChange = (e) => {
         const { name, value } = e.target;
-        setNewEmployee(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
+        setNewEmployee(prevState => ({ ...prevState, [name]: value }));
     };
 
-    const handleAddEmployeeSubmit = () => {
-        // Confirm with the user before proceeding
-        const isConfirmed = window.confirm(`Are you sure you want to add this employee?`);
-        
-        if (isConfirmed) {
-            axios.post('/call-function-add-employee', newEmployee)
-                .then(response => {
-                    // Handle successful addition here
-                    setExecutionStatus(`Employee ${newEmployee.firstName} ${newEmployee.lastName} added successfully.`);
-                    setShowAddEmployeeForm(false); // Close the form modal
-                })
-                .catch(error => {
-                    // Handle errors here
-                    setExecutionStatus(`Failed to add employee ${newEmployee.firstName} ${newEmployee.lastName}.`);
-                });
+    const handleDeleteEmployeeChange = (e) => {
+        const { name, value } = e.target;
+        setDeleteEmployee(prevState => ({ ...prevState, [name]: value }));
+    };
+
+    const handleAddEmployeeSubmit = async () => {
+        // Submit new employee to backend
+        try {
+            await axios.post('/call-function-add-employee', newEmployee);
+            setExecutionStatus(`Employee ${newEmployee.firstName} ${newEmployee.lastName} added successfully.`);
+            setOpenAddModal(false);
+        } catch (error) {
+            setExecutionStatus(`Failed to add employee ${newEmployee.firstName} ${newEmployee.lastName}.`);
+        }
+    };
+
+    const handleDeleteEmployeeSubmit = async () => {
+        // Submit delete request to backend
+        try {
+            await axios.post('/call-function-delete-employee', deleteEmployee);
+            setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} deleted successfully.`);
+            setOpenDeleteModal(false);
+        } catch (error) {
+            setExecutionStatus(`Failed to delete employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}.`);
         }
     };
 
     return (
         <div>
-            {/* Assuming you have some styling and structure for your utility */}
             <h3>Execution Status</h3>
-            <p className="execution-status">{executionStatus}</p>
-            <button onClick={cleanAllNotifications}>Clean All Notifications</button>
-            <h3>Delete Employee</h3>
-            <input
-                type="text"
-                placeholder="First Name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-            />
-            <input
-                type="text"
-                placeholder="Last Name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-            />
-            <button onClick={handleDelete}>Delete Employee</button>
-            <button onClick={() => setShowAddEmployeeForm(true)}>Add New Employee</button>
+            <p>{executionStatus}</p>
+            <Button variant="outlined" color="primary" onClick={() => setOpenAddModal(true)}>
+                Add New Employee
+            </Button>
+            <Button variant="outlined" color="secondary" onClick={() => setOpenDeleteModal(true)}>
+                Delete Employee
+            </Button>
+            {/* Add Employee Modal */}
+            <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)}>
+                <DialogTitle>Add New Employee</DialogTitle>
+                <DialogContent>
+                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <DatePicker
+                        selected={new Date(newEmployee.hireDate)}
+                        onChange={(date) => handleAddEmployeeChange('hireDate', date)}
+                        dateFormat="yyyy-MM-dd" // Customize the date format as needed
+                        wrapperClassName="datePicker"
+                        />
+                    <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>
+                    <Button onClick={handleAddEmployeeSubmit}>Submit</Button>
+                </DialogActions>
+            </Dialog>
 
-            {showAddEmployeeForm && (
-                <div className="modal">
-                    <h3>Add New Employee</h3>
-                    <input name="firstName" type="text" placeholder="First Name" value={newEmployee.firstName} onChange={handleAddEmployeeChange} />
-                    <input name="lastName" type="text" placeholder="Last Name" value={newEmployee.lastName} onChange={handleAddEmployeeChange} />
-                    <input name="hireDate" type="date" placeholder="Hire Date" value={newEmployee.hireDate} onChange={handleAddEmployeeChange} />
-                    <input name="homeDepartment" type="text" placeholder="Home Department" value={newEmployee.homeDepartment} onChange={handleAddEmployeeChange} />
-                    <input name="jobTitle" type="text" placeholder="Job Title" value={newEmployee.jobTitle} onChange={handleAddEmployeeChange} />
-                    <input name="location" type="text" placeholder="Location" value={newEmployee.location} onChange={handleAddEmployeeChange} />
-                    <input name="supervisorName" type="text" placeholder="Supervisor Name" value={newEmployee.supervisorName} onChange={handleAddEmployeeChange} />
-                    <button onClick={handleAddEmployeeSubmit}>Submit</button>
-                    <button onClick={() => setShowAddEmployeeForm(false)}>Cancel</button>
-                </div>
-            )}
-            <hr />
-            <EmployeeSelectionComponent />
-            <hr />
+            {/* Delete Employee Modal */}
+            <Dialog open={openDeleteModal} onClose={() => setOpenDeleteModal(false)}>
+                <DialogTitle>Delete Employee</DialogTitle>
+                <DialogContent>
+                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={handleDeleteEmployeeChange} />
+                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={handleDeleteEmployeeChange} />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenDeleteModal(false)}>Cancel</Button>
+                    <Button onClick={handleDeleteEmployeeSubmit}>Delete</Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 };

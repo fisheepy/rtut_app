@@ -7,18 +7,17 @@ const MenuComponent = ({ onItemSelect }) => {
   const menuItems = [
     { id: 'sendNotification', label: 'Send Notification' },
     { id: 'sendSurvey', label: 'Send Survey' },
-    { id: 'reviewNotifications', label: 'Review Notifications' },
-    { id: 'reviewSurveys', label: 'Review Surveys' },
-    { id: 'processEmployeeCsv', label: 'Import/Export Employees'}
+    { id: 'reviewNotifications', label: 'Notification History' },
+    { id: 'reviewSurveys', label: 'Surveys History' },
+    { id: 'processEmployeeCsv', label: 'Import/Export Employees'},
+    { id: 'processEmployee', label: 'Add/Remove Individual Employee'},
     // Add other items as necessary
   ];
 
   const handleSelect = (eventKey) => {
     const item = menuItems.find(item => item.id === eventKey);
-    console.log('Selected item in MenuComponent:', item);
     setSelectedItem(item.label);
     if (onItemSelect) {
-      console.log(item);
       onItemSelect(item); // Invoke the callback with the selected item
     }
   };

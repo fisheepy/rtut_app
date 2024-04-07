@@ -9,6 +9,7 @@ import SurveyCenterComponent from './surveyCenterComponent';
 import UtilityToolsCompoent from './utilityToolsComponent';
 import NotificationsHistoryModule from './notificationsHistoryComponent';
 import SurveysHistoryModule from './surveysHistoryComponent';
+import UtilitiesCenterComponent from './utilitiesCenterComponent';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -18,6 +19,7 @@ const componentMapping = {
   'processEmployeeCsv': UtilityToolsCompoent,
   'reviewNotifications': NotificationsHistoryModule,
   'reviewSurveys': SurveysHistoryModule,
+  'processEmployee': UtilitiesCenterComponent,
 };
 
 function App() {
@@ -84,7 +86,8 @@ function App() {
             </div>
             {
               componentKey !== 'reviewNotifications' &&
-              componentKey !== 'reviewSurveys' && (
+              componentKey !== 'reviewSurveys' && 
+              componentKey !== 'processEmployee' &&(
               <div className="display-area" style={{ flex: 1, padding: '20px' }}>
                 <EmployeeSelectionComponent />
               </div>

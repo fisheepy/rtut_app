@@ -8,14 +8,16 @@ const addEmployee = async (tempFilePath) => {
         const newEmployee = JSON.parse(newEmployeeJSON);
         console.log(newEmployee);
         const document = {
-            "Payroll Name": newEmployee.lastName + ', '+newEmployee.firstName,
-            "Hire/Rehire Date": newEmployee.hireDate,
+            "First Name": newEmployee.firstName,
+            "Last Name": newEmployee.lastName,
+            "Hire Date": newEmployee.hireDate,
             "Position Status": 'Active',
             "Termination Date": '',
-            "Home Department Description": newEmployee.homeDepartment,
-            "Job Title Description": newEmployee.jobTitle,
-            "Location Description": newEmployee.location,
-            "Supervisor Legal Name": newEmployee.supervisorName,
+            "Home Department": newEmployee.homeDepartment,
+            "Job Title": newEmployee.jobTitle,
+            "Location": newEmployee.location,
+            "Supervisor First Name": newEmployee.supervisorFirstName,
+            "Supervisor Last Name": newEmployee.supervisorLastName,
             // Add any other fields necessary for your employee document
         };
         const result = await addDocument('employees', document);
