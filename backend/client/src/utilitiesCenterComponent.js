@@ -15,7 +15,7 @@ const UtilitiesCenterComponent = () => {
     const [newEmployee, setNewEmployee] = useState({
         firstName: '',
         lastName: '',
-        hireDate: new Date(),
+        hireDate: new Date().toISOString().split('T')[0],
         homeDepartment: '',
         jobTitle: '',
         location: '',
@@ -23,9 +23,16 @@ const UtilitiesCenterComponent = () => {
         supervisorLastName: '',
     });
 
-    const handleAddEmployeeChange = (e) => {
-        const { name, value } = e.target;
-        setNewEmployee(prevState => ({ ...prevState, [name]: value }));
+    const handleAddEmployeeChange = (field, value) => {
+        // If the change comes from the DatePicker, field will directly be 'hireDate', and value will be the Date object
+        if (field === 'hireDate') {
+            const formattedDate = value.toISOString().split('T')[0]; // Format the date to 'yyyy-MM-dd'
+            console.log(formattedDate);
+            setNewEmployee(prevState => ({ ...prevState, [field]: formattedDate }));
+        } else {
+            // For other inputs, field is derived from event.target.name, and value from event.target.value
+            setNewEmployee(prevState => ({ ...prevState, [field]: value }));
+        }
     };
 
     const handleDeleteEmployeeChange = (e) => {
@@ -69,19 +76,19 @@ const UtilitiesCenterComponent = () => {
             <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)}>
                 <DialogTitle>Add New Employee</DialogTitle>
                 <DialogContent>
-                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
-                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined"     onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined"     onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <DatePicker
                         selected={new Date(newEmployee.hireDate)}
                         onChange={(date) => handleAddEmployeeChange('hireDate', date)}
                         dateFormat="yyyy-MM-dd" // Customize the date format as needed
                         wrapperClassName="datePicker"
                         />
-                    <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
-                    <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
-                    <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
-                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
-                    <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={handleAddEmployeeChange} />
+                    <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>

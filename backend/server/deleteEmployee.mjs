@@ -2,7 +2,7 @@ import { deleteDocument } from './mongodbUtilities.mjs';
 
 const deleteEmployee = async (firstName, lastName) => {
     try {
-      const filter = { "Payroll Name": `${lastName}, ${firstName}` };
+      const filter = { "First Name": `${firstName}`, "Last Name": `${lastName}` };
       const result = await deleteDocument('employees', filter);
       
       console.log(`${result} document(s) deleted`);
