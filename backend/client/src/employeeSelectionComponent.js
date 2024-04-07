@@ -190,6 +190,7 @@ function EmployeeSelectionComponent() {
         { id: 'Name', label: 'Name (Override Add)', filter: true },
         { id: 'Position Status', label: 'Position Status', filter: true },
         { id: 'Home Department', label: 'Home Department', filter: true },
+        { id: 'Job Title', label: 'Job Title', filter: true },
         { id: 'Location', label: 'Location', filter: true },
         { id: 'Supervisor', label: 'Supervisor', filter: true },
         { id: 'Phone', label: 'Phone', filter: true },
@@ -218,7 +219,7 @@ function EmployeeSelectionComponent() {
                             <TableCell colSpan={1}>
                                 <TextField
                                     id="start-date"
-                                    label="Hire Start Date"
+                                    label="Start Date"
                                     type="date"
                                     value={startDate}
                                     onChange={handleStartDateChange}
@@ -230,7 +231,7 @@ function EmployeeSelectionComponent() {
                                 />
                                 <TextField
                                     id="end-date"
-                                    label="Hire End Date"
+                                    label="End Date"
                                     type="date"
                                     value={endDate}
                                     onChange={handleEndDateChange}

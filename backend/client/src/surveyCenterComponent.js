@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import './App.css';
-import EmployeeSelectionComponent from './employeeSelectionComponent';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import SurveyRenderer from './surveyRenderer';
-import {useWindowDimensions} from 'react-native';
+import { useWindowDimensions } from 'react-native';
+import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from '@mui/material';
 
 function SurveyCenterComponent() {
     const [subject, setSubject] = useState('');
@@ -16,8 +16,14 @@ function SurveyCenterComponent() {
     const [executionStatus, setExecutionStatus] = useState('Status:');
     const [answerChoices, setAnswerChoices] = useState([]);
     const [allowCustomAnswer, setAllowCustomAnswer] = useState(false);
+    const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+
     const windowDimensions = useWindowDimensions();
 
+    const prepareRecipientNames = () => {
+        return selectedEmployees.map(emp => emp.Name).join('/ ');
+    };
+    
     function addQuestion() {
         let newQuestion;
         // Adjust choices based on whether a custom answer is allowed
@@ -78,7 +84,10 @@ function SurveyCenterComponent() {
         setQuestionTitle("");
     }
 
-    // Function to confirm sending surveys to employees
+    const handleSendSurvey = () => {
+        setOpenConfirmDialog(true);
+    };
+
     const confirmSendSurveys = () => {
         const data = { subject, sender, surveyJson, selectedEmployees };
         axios.post('/call-function-send-survey', data)
@@ -90,7 +99,8 @@ function SurveyCenterComponent() {
                 const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
                 setExecutionStatus(`Status:${timeStamp}:\tSend survey failed!`);
             });
-        setSurveyJson({ elements: [] });
+        setOpenConfirmDialog(false); // Close the dialog after sending
+        setSurveyJson({ elements: [] }); // Reset the survey after sending
     };
 
     return (
@@ -159,14 +169,30 @@ function SurveyCenterComponent() {
                         )}
                     </div>
                 </div>
-                <button onClick={confirmSendSurveys} style={{ marginTop: '10px' }}>Send Survey</button>
+                <button onClick={handleSendSurvey} style={{ marginTop: '10px' }}>Send Survey</button>
             </div>
             <div id="preview-section">
                 <h3>Preview</h3>
-                <SurveyRenderer 
+                <SurveyRenderer
                     surveyJson={surveyJson}
-                    windowDimensions={{width: windowDimensions.width*0.5}}/>
+                    windowDimensions={{ width: windowDimensions.width * 0.5 }} />
             </div>
+            {/* Confirmation Dialog */}
+            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
+                <DialogTitle>Confirm Send Survey</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to send this survey to the selected employees?
+                    </DialogContentText>
+                    <strong>Subject: {subject}</strong><br />
+                    <strong>Sender: {sender}</strong><br />
+                    <strong>Recipients:</strong> {prepareRecipientNames()}<br />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>
+                    <Button onClick={confirmSendSurveys} color="primary">Send</Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 }
