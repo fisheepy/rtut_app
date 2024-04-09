@@ -77,6 +77,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       justifyContent: 'center',
       backgroundColor: '#d8dee6',
       width: windowDimensions.width * 1,
+      marginBottom: 20,
     },
     button: {
     },
