@@ -69,7 +69,8 @@ const NotificationProvider = ({ children, applicationIdentifier, subscriberId })
                 const uniqueNotifications = Array.from(new Map(allFetchedNotifications.map(notif => [notif.id, notif])).values());
                 const sortedNotifications = uniqueNotifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
-                setNotifications(sortedNotifications); 
+                setNotifications(sortedNotifications);
+                console.log('fetchAllNotifications successful!');
             } catch (error) {
                 console.error('An error occurred during fetching notifications:', error);
             } finally {

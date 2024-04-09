@@ -124,7 +124,11 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     useEffect(() => {
         if (fetchNeeded) {
             console.log('Fetch all!');
-            fetchAllNotifications();
+            fetchAllNotifications().then(() => {
+                console.log('Notifications fetched successfully.');
+                // Assuming fetchAllNotifications updates the notifications context,
+                // the useEffect hook below will trigger and updateQualifiedNotifications.
+            }).catch(error => console.error('Failed to fetch notifications:', error));
             setFetchNeeded(false);
             const now = Date.now();
             setLastFetchTime(now);
@@ -149,7 +153,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     useEffect(() => {
         if (isPulledDown) {
             // Call your custom function here
-            console.log('Pulled down detected in NotificationModal');
+            console.log('Refetch due to pull down');
             setFetchNeeded(true);
         }
     }, [isPulledDown]);
@@ -177,6 +181,11 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
         setDetailViewMode(true);
         setFetchNeeded(true);
     }, [markNotificationsAsRead]);
+
+    const handleReadNotification = () => {
+        setDetailViewMode(false);
+        setFetchNeeded(true);
+    };
 
     const handleSurveyComplete = async (answers) => {
         try {
@@ -228,7 +237,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
                 ) : (
                     <MessageDetailComponent
                         notification={selectedNotification}
-                        onBack={() => setDetailViewMode(false)}
+                        onBack={handleReadNotification}
                         windowDimensions={windowDimensions}
                     />
                 )
