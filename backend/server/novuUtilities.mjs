@@ -29,19 +29,21 @@ export const triggerSurveyNotification = async (formattedValues, surveyQuestions
 };
 
 export async function sendNovuNotification(formattedValues, messageContent, subject, sender, sendOptions) {
-  const filteredValuesToSend = formattedValues.map(({ email, phone, ...rest }) => {
+  const filteredValuesToSend = formattedValues.map(({ Email, Phone, ...rest }) => {
     const toSend = { ...rest };
 
-    if (sendOptions.email === 'true' && email) {
-      toSend.email = email;
+    if (sendOptions.email === 'true' && Email) {
+      toSend.email = Email;
     }
-
-    if (sendOptions.sms === 'true' && phone) {
-      toSend.phone = phone;
+    
+    if (sendOptions.sms === 'true' && Phone) {
+      toSend.phone = Phone;
     }
 
     return toSend;
   });
+  
+  console.log(filteredValuesToSend);
 
   try {
     await novu.trigger('rtut-general', {
@@ -51,6 +53,7 @@ export async function sendNovuNotification(formattedValues, messageContent, subj
         messageContent,
         subject,
         sender,
+        sendOptions,
       }
     });
     console.log('Notifications sent successfully');

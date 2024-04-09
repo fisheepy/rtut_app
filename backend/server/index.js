@@ -32,35 +32,35 @@ const client = new MongoClient(uri, {
 });
 const csvFilePath = './backend/server/output.csv';
 
-app.get('/import', async (req, res, next) => {
-    try {
-        // Connect to MongoDB
-        await client.connect();
-        console.log('Connected to MongoDB');
+// app.get('/import', async (req, res, next) => {
+//     try {
+//         // Connect to MongoDB
+//         await client.connect();
+//         console.log('Connected to MongoDB');
 
-        // Access the database
-        const db = client.db(database_name);
+//         // Access the database
+//         const db = client.db(database_name);
 
-        const collection_name = 'employees';
-        const collection = db.collection(collection_name);
+//         const collection_name = 'employees';
+//         const collection = db.collection(collection_name);
 
-        // Read data from CSV file using csvtojson
-        const jsonArray = await csvtojson().fromFile(csvFilePath);
+//         // Read data from CSV file using csvtojson
+//         const jsonArray = await csvtojson().fromFile(csvFilePath);
 
-        // Insert data into MongoDB collection
-        await collection.insertMany(jsonArray);
+//         // Insert data into MongoDB collection
+//         await collection.insertMany(jsonArray);
 
-        console.log('Data imported successfully');
-        res.send('Data imported successfully');
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).send('Internal Server Error');
-    } finally {
-        // Close the MongoDB connection
-        await client.close();
-        console.log('Connection to MongoDB closed');
-    }
-});
+//         console.log('Data imported successfully');
+//         res.send('Data imported successfully');
+//     } catch (error) {
+//         console.error('Error:', error);
+//         res.status(500).send('Internal Server Error');
+//     } finally {
+//         // Close the MongoDB connection
+//         await client.close();
+//         console.log('Connection to MongoDB closed');
+//     }
+// });
 
 app.get('/employees', cors(), async (req, res, next) => {
     const loginName = req.query; // Extract firstName and lastName from query parameters
