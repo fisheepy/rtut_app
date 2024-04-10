@@ -62,6 +62,10 @@ const SurveysHistoryModule = () => {
     setIsResultsDialogOpen(false);
   };
 
+  const renderAnswers = (answers) => {
+    return Object.entries(answers).map(([question, answer]) => `${question}: ${answer}`).join(", ");
+  };
+  
   return (
     <div>
       <h2>Surveys History</h2>
@@ -114,6 +118,26 @@ const SurveysHistoryModule = () => {
       <Dialog open={isResultsDialogOpen} onClose={handleCloseResultsDialog} maxWidth="lg" fullWidth>
         <DialogTitle>Survey Results</DialogTitle>
         <DialogContent>
+        <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Answers</TableCell>
+                  <TableCell>Timestamp</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {surveyResults.map((result) => (
+                  <TableRow key={result._id}>
+                    <TableCell>{result._id}</TableCell>
+                    <TableCell>{renderAnswers(result.answers)}</TableCell>
+                    <TableCell>{new Date(result.timestamp).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseResultsDialog}>Close</Button>
