@@ -1,29 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from '@mui/material';
 import SurveyRenderer from './surveyRenderer';
 
 const SurveysHistoryModule = () => {
   const [surveys, setSurveys] = useState([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedSurveyJson, setSelectedSurveyJson] = useState(null);
-
-  // Function to handle viewing survey details (already implemented)
-  const handleOpenSurvey = (surveyJson) => {
-    setSelectedSurveyJson(surveyJson);
-    setIsDialogOpen(true);
-  };
-
-  // Function to handle viewing survey results (to be designed)
-  const handleViewResults = (surveyId) => {
-    // Placeholder for handling view results action
-    console.log("View results for survey ID:", surveyId);
-    // You can set state here to open a dialog similar to the survey details or navigate to a different component/module
-  };
-
-  const handleClose = () => {
-    setIsDialogOpen(false);
-  };
+  const [selectedSurveyJson, setSelectedSurveyJson] = useState({});
+  const [surveyResults, setSurveyResults] = useState({});
+  const [isSurveyDialogOpen, setIsSurveyDialogOpen] = useState(false);
+  const [isResultsDialogOpen, setIsResultsDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchSurveys = async () => {
@@ -39,18 +37,43 @@ const SurveysHistoryModule = () => {
     fetchSurveys();
   }, []);
 
+  const handleOpenSurvey = (survey) => {
+    setSelectedSurveyJson(JSON.parse(survey.surveyQuestionsJSON));
+    setIsSurveyDialogOpen(true);
+  };
+
+  const handleCloseSurveyDialog = () => {
+    setIsSurveyDialogOpen(false);
+  };
+
+  const handleViewResults = async (surveyId) => {
+    try {
+      const loginName = { firstName: 'Xuan', lastName: 'Yu' };
+      const response = await axios.get(`/survey-results/${surveyId}?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+      setSurveyResults(response.data);
+      console.log(response.data);
+      setIsResultsDialogOpen(true);
+    } catch (error) {
+      console.error('Error fetching survey results:', error);
+    }
+  };
+
+  const handleCloseResultsDialog = () => {
+    setIsResultsDialogOpen(false);
+  };
+
   return (
     <div>
-      <h2>Surveys</h2>
+      <h2>Surveys History</h2>
       <TableContainer component={Paper}>
-        <Table aria-label="simple table">
+        <Table>
           <TableHead>
             <TableRow>
               <TableCell>Sender</TableCell>
               <TableCell>Subject</TableCell>
               <TableCell>Send Timestamp</TableCell>
-              <TableCell>Action</TableCell>
-              <TableCell>Results</TableCell> {/* New column for results */}
+              <TableCell>View Survey</TableCell>
+              <TableCell>View Results</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -60,22 +83,21 @@ const SurveysHistoryModule = () => {
                 <TableCell>{survey.subject}</TableCell>
                 <TableCell>{new Date(survey.currentDataTime).toLocaleString()}</TableCell>
                 <TableCell>
-                  <Button variant="outlined" onClick={() => handleOpenSurvey(JSON.parse(survey.surveyQuestionsJSON))}>
-                    View Survey
+                  <Button variant="outlined" onClick={() => handleOpenSurvey(survey)}>
+                    View
                   </Button>
                 </TableCell>
                 <TableCell>
-                  <Button variant="outlined" color="primary" onClick={() => handleViewResults(survey._id)}>
-                    View Results
-                  </Button> {/* New button for viewing results */}
+                  <Button variant="outlined" onClick={() => handleViewResults(survey.uniqueId)}>
+                    Results
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
-      {/* Survey details dialog (already implemented) */}
-      <Dialog open={isDialogOpen} onClose={handleClose} maxWidth="lg" fullWidth>
+      <Dialog open={isSurveyDialogOpen} onClose={handleCloseSurveyDialog} maxWidth="lg" fullWidth>
         <DialogTitle>Survey Details</DialogTitle>
         <DialogContent>
           {selectedSurveyJson && (
@@ -86,7 +108,15 @@ const SurveysHistoryModule = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Go Back</Button>
+          <Button onClick={handleCloseSurveyDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={isResultsDialogOpen} onClose={handleCloseResultsDialog} maxWidth="lg" fullWidth>
+        <DialogTitle>Survey Results</DialogTitle>
+        <DialogContent>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseResultsDialog}>Close</Button>
         </DialogActions>
       </Dialog>
     </div>

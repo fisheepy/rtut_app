@@ -208,6 +208,50 @@ app.get('/surveys', cors(), async (req, res, next) => {
     }
 });
 
+app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
+    const { surveyId } = req.params;
+    const loginName = req.query; 
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey results');
+
+        // Query database to retrieve data
+        const data = await collection.find({ UID: surveyId }).toArray();
+        
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        // Filter data based on user's admin status
+
+        if (isAdmin) {
+            res.json(data);
+        }
+        else {
+            res.status(401).send('Not Authorized');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
 // Define a route to handle the POST request for executing the script
 app.post('/call-function-update-subscribers', (req, res) => {
     // Execute the script

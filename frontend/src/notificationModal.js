@@ -173,18 +173,27 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
         setFilteredNotifications(newFilteredNotifications);
     }, [qualifiedNotifications, currentTab]);
 
+    useEffect(() => {
+        // Logic that needs to run when detailViewMode changes
+        if (detailViewMode) {
+          // If detailViewMode is true, perform actions for detail view being active
+        } else {
+          // If detailViewMode is false, perform actions for returning to the list view
+          // For example, refreshing the list view to reflect any changes
+          setFetchNeeded(true);
+        }
+      }, [detailViewMode]); 
+
     const handleNotificationPress = useCallback((notification) => {
         markNotificationsAsRead(notification.id);
         setSelectedNotification(notification);
         console.log(notification);
         console.log(selectedNotification);
         setDetailViewMode(true);
-        setFetchNeeded(true);
     }, [markNotificationsAsRead]);
 
     const handleReadNotification = () => {
         setDetailViewMode(false);
-        setFetchNeeded(true);
     };
 
     const handleSurveyComplete = async (answers) => {
