@@ -24,18 +24,6 @@ function EmployeeSelectionComponent() {
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
 
-    const columnsToDisplay = [
-        'Name',
-        'Hire Date',
-        'Position Status',
-        'Home Department',
-        'Job Title',
-        'Location',
-        'Supervisor',
-        'Phone',
-        'Email',
-    ];
-
     useEffect(() => {
         applyFilters();
     }, [selectedFilters, employees, deselectedEmployees, startDate, endDate]);
@@ -155,23 +143,6 @@ function EmployeeSelectionComponent() {
         console.log(combinedFilteredEmployees);
         console.log(finalFilteredEmployees);
         console.log(filteredEmployees);
-    };
-
-    const handleDeselectCheckboxChange = (employeeId, isSelected) => {
-        setDeselectedEmployees(prevDeselectedEmployees => {
-            const updatedDeselectedEmployees = new Set(prevDeselectedEmployees);
-            console.log(employeeId);
-            console.log(isSelected);
-            if (!isSelected) {
-                updatedDeselectedEmployees.add(employeeId);
-            } else {
-                updatedDeselectedEmployees.delete(employeeId);
-            }
-
-            // Immediately apply filters with the updated set of deselected employees
-            applyFilters(updatedDeselectedEmployees);
-            return updatedDeselectedEmployees;
-        });
     };
 
     const handleCheckboxChange = (employeeId) => {
