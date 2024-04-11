@@ -1,0 +1,8 @@
+{
+  "appId": "io.ionic.RTUT",
+  "appName": "RTUT",
+  "bundledWebRuntime": false,
+  "npmClient": "npm",
+  "webDir": "build",
+  "cordova": {}
+}
