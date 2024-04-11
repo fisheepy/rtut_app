@@ -43,7 +43,8 @@ function EmployeeSelectionComponent() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const loginName = { firstName: 'Xuan', lastName: 'Yu' }; //localStorage.getItem('loginName');
+                const loginName = JSON.parse(localStorage.getItem('loginName'));
+                console.log(loginName);
                 const response = await axios.get(`/employees?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
                 console.log(response);
                 const processedData = response.data.map(employee => ({

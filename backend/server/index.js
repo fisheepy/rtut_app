@@ -86,15 +86,14 @@ app.get('/employees', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
-        // Filter data based on user's admin status
-
-        if (isAdmin) {
+        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName);
+        const isRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        if (isRoot) {
             filteredData = data;
         }
-        else {
+        else if (isAdmin) {
             // User is not a root user, filter data accordingly
-            filteredData = data.filter(employee => isSupervisorOrSubordinate(employee, loginName.loginName, data));
+            filteredData = data.filter(employee => isSupervisorOrSubordinate(employee, loginName, data));
         }
 
         // Send filtered data as JSON response
@@ -109,11 +108,13 @@ app.get('/employees', cors(), async (req, res, next) => {
     }
     // Function to check if an employee is the supervisor or subordinate of the given login name
     function isSupervisorOrSubordinate(employee, loginName, allEmployees) {
-        if (employee["Supervisor"].toUpperCase() === loginName.toUpperCase()) {
+        if (employee["Supervisor First Name"].toUpperCase() === loginName.firstName.toUpperCase() &&
+            employee["Supervisor Last Name"].toUpperCase() === loginName.lastName.toUpperCase()) {
             return true; // Employee directly reports to the login user
         } else {
             // Check recursively if the supervisor's supervisor is the login user
-            const supervisor = allEmployees.find(emp => emp["Payroll Name"] === employee["Supervisor Legal Name"]);
+            const supervisor = allEmployees.find(emp => emp["First Name"] === employee["Supervisor First Name"] && 
+                                                        emp["Last Name"] === employee["Supervisor Last Name"]);
             if (supervisor) {
                 return isSupervisorOrSubordinate(supervisor, loginName, allEmployees);
             }

@@ -23,7 +23,7 @@ const componentMapping = {
 };
 
 function App() {
-  const [loggedIn, setLoggedIn] = useState(true);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [userData, setUserData] = useState({ firstName: null, lastName: null });
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [selectedItem, setSelectedItem] = useState([]);

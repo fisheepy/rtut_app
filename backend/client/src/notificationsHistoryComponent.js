@@ -8,7 +8,7 @@ const NotificationsHistoryModule = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const loginName = { firstName: 'Xuan', lastName: 'Yu' }; // Replace with localStorage.getItem('loginName') as needed
+        const loginName = JSON.parse(localStorage.getItem('loginName'));
         const response = await axios.get(`/notifications?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
         setNotifications(response.data);
       } catch (error) {
