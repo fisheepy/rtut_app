@@ -19,7 +19,7 @@ import SurveyRenderer from './surveyRenderer';
 const SurveysHistoryModule = () => {
   const [surveys, setSurveys] = useState([]);
   const [selectedSurveyJson, setSelectedSurveyJson] = useState({});
-  const [surveyResults, setSurveyResults] = useState({});
+  const [surveyResults, setSurveyResults] = useState([]);
   const [isSurveyDialogOpen, setIsSurveyDialogOpen] = useState(false);
   const [isResultsDialogOpen, setIsResultsDialogOpen] = useState(false);
 
