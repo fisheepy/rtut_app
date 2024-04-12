@@ -1,5 +1,7 @@
 import { React, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Modal, Button, Alert } from 'react-native';
+import { VscFeedback } from "react-icons/vsc";
+
 import axios from 'axios';
 
 const UserSettingsComponent = () => {
@@ -40,13 +42,15 @@ const UserSettingsComponent = () => {
                     style={styles.feedbackButton}
                     onPress={() => setModalVisible(true)}
                 >
-                    {/* Use Icon component here, e.g., <Icon name="feedback" size={24} color="#000" /> */}
-                    <Text style={styles.feedbackButtonText}>Submit Feedback</Text>
+                    <VscFeedback />
+
+                    <Text style={styles.linkText}>User Feedback</Text>
+
                 </Pressable>
             )}
             <Modal
                 animationType="slide"
-                transparent={true}
+                transparent={false}
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(!modalVisible)}
             >
@@ -88,7 +92,6 @@ const UserSettingsComponent = () => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 50,
@@ -99,10 +102,11 @@ const styles = StyleSheet.create({
         color: '#3273a8',
     },
     feedbackButton: {
+        fontSize: 36,
         marginTop: 20,
-        backgroundColor: '#007bff',
         padding: 10,
         borderRadius: 5,
+        alignItems: 'center',
     },
     feedbackButtonText: {
         color: '#ffffff',
@@ -145,6 +149,11 @@ const styles = StyleSheet.create({
         color: "white",
         fontWeight: "bold",
         textAlign: "center"
+    },
+    linkText: {
+        fontSize: 12,
+        color: 'black',
+        textAlign: 'justify',
     },
 });
 

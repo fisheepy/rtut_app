@@ -76,13 +76,13 @@ function App({ windowDimensions }) {
       width: windowDimensions.width * 0.75,
       height: windowDimensions.height,
       backgroundColor: '#dddddd',
-      padding: 40,
+      padding: 10,
       zIndex: 2,
       alignItems: 'center', // Center content in the menu
     },
     backIcon: {
       alignSelf: 'center', // Center the back icon
-      marginTop: 100,
+      marginTop: 50,
       marginBottom: 20, // Space below the back icon
       padding: 20,
     },
