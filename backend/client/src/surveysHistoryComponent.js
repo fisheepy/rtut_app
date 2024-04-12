@@ -28,7 +28,8 @@ const SurveysHistoryModule = () => {
       try {
         const loginName = JSON.parse(localStorage.getItem('loginName'));
         const response = await axios.get(`/surveys?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
-        setSurveys(response.data);
+        const sortedNotifications = response.data.sort((a, b) => new Date(a.currentDataTime) - new Date(b.currentDataTime));
+        setSurveys(sortedNotifications);
       } catch (error) {
         console.error('Error fetching surveys:', error);
       }
