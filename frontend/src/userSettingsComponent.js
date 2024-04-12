@@ -1,6 +1,8 @@
 import { React, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, Modal, Button, Alert } from 'react-native';
 import { VscFeedback } from "react-icons/vsc";
+import { GiConfirmed } from "react-icons/gi";
+import { GiCancel } from "react-icons/gi";
 
 import axios from 'axios';
 
@@ -30,7 +32,7 @@ const UserSettingsComponent = () => {
     const handleCloseModal = () => {
         setModalVisible(false);
     };
-    
+
     return (
         <View style={styles.container}>
             <Pressable onPress={() => setExpanded(!expanded)}>
@@ -57,7 +59,7 @@ const UserSettingsComponent = () => {
                 <View style={styles.centeredView}>
                     <View style={styles.modalView}>
                         <TextInput
-                            style={styles.input}
+                            style={styles.nameInput}
                             onChangeText={setName}
                             value={name}
                             placeholder="Your Name"
@@ -74,13 +76,20 @@ const UserSettingsComponent = () => {
                                 style={styles.Button}
                                 onPress={handleFeedbackSubmit}
                             >
-                                <Text style={styles.textStyle}>Submit Feedback</Text>
+                                <GiConfirmed
+                                    style={styles.button}
+                                    fontSize={40}
+                                    color='green'
+                                />
                             </Pressable>
                             <Pressable
                                 style={styles.Button}
                                 onPress={() => setModalVisible(!modalVisible)}
                             >
-                                <Text style={styles.textStyle}>Close</Text>
+                                <GiCancel
+                                    style={{ ...styles.button, pointerEvents: "none" }}
+                                    fontSize={40}
+                                />
                             </Pressable>
                         </View>
                     </View>
@@ -135,12 +144,27 @@ const styles = StyleSheet.create({
         maxHeight: '80%', // Maximum height to avoid covering the entire screen
     },
     feedbackInput: {
+        backgroundColor: 'lightgray',
         width: '100%', // Take up all available width within the modal
-        minHeight: 100, // Minimum height for the text input
+        minHeight: 250, // Minimum height for the text input
         marginBottom: 20, // Margin bottom for spacing
         borderColor: '#ccc', // Border color for the text input
         borderWidth: 1, // Border width
         padding: 10, // Padding inside the text input
+    },
+    nameInput: {
+        backgroundColor: 'lightgray',
+        width: '60%', // Take up all available width within the modal
+        minHeight: 25, // Minimum height for the text input
+        marginBottom: 20, // Margin bottom for spacing
+        borderColor: '#ccc', // Border color for the text input
+        borderWidth: 1, // Border width
+        padding: 10, // Padding inside the text input
+    },
+    buttonGroup: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginBottom: 20,
     },
     buttonClose: {
         marginTop: 15,
