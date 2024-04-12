@@ -44,7 +44,8 @@ export async function sendNovuNotification(formattedValues, messageContent, subj
   });
   
   console.log(filteredValuesToSend);
-
+  const sendEmail = sendOptions.email;
+  const sendSMS = sendOptions.sms;
   try {
     await novu.trigger('rtut-general', {
       to: filteredValuesToSend,
@@ -53,7 +54,8 @@ export async function sendNovuNotification(formattedValues, messageContent, subj
         messageContent,
         subject,
         sender,
-        sendOptions,
+        sendEmail,
+        sendSMS,
       }
     });
     console.log('Notifications sent successfully');
