@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 5,
-        width: '50%', // Fixed width for the modal
+        width: '80%', // Fixed width for the modal
         maxHeight: '80%', // Maximum height to avoid covering the entire screen
     },
     feedbackInput: {

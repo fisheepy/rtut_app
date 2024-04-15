@@ -75,11 +75,6 @@ const RegistrationForm = ({ navigation, windowDimensions }) => {
     navigation.navigate("Main");
   };
 
-  const handleCancel = () => {
-    // Navigate back to the main view without saving any changes
-    navigation.goBack();
-  };
-
   return (
     <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
       <View style={styles.container}>
@@ -102,12 +97,6 @@ const RegistrationForm = ({ navigation, windowDimensions }) => {
               title="Confirm"
               onPress={handleConfirm}>
               <Text style={styles.tabButtonText}>Confirm</Text>
-            </Pressable>
-            <Pressable
-              style={styles.tabButton}
-              title="Cancel"
-              onPress={handleCancel}>
-              <Text style={styles.tabButtonText}>Cancel</Text>
             </Pressable>
           </View>
         </View>

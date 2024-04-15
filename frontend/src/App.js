@@ -79,6 +79,7 @@ function App({ windowDimensions }) {
       padding: 10,
       zIndex: 2,
       alignItems: 'center', // Center content in the menu
+      justifyContent: 'flex-start',
     },
     backIcon: {
       alignSelf: 'center', // Center the back icon
