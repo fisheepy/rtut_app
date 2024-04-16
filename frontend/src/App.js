@@ -11,9 +11,11 @@ import { useDrag } from '@use-gesture/react';
 
 function App({ windowDimensions }) {
   const [subscriberId, setSubscriberId] = useState(null);
+  const [subscriberName, setSubscriberName] = useState(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [style, api] = useSpring(() => ({ y: 0 }));
   const [isPulledDown, setIsPulledDown] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   const bind = useDrag(({ down, movement: [mx, my] }) => {
     if (down) {
@@ -38,21 +40,41 @@ function App({ windowDimensions }) {
   }, [isPulledDown]);
 
   useEffect(() => {
-    const fetchSubscriberId = async () => {
-      try {
-        const uid = await AsyncStorage.getItem('uid');
-        setSubscriberId(uid);
-      } catch (error) {
-        console.error('Error fetching uid from AsyncStorage:', error);
-      }
-    };
+    let isCancelled = false;
 
-    fetchSubscriberId();
+    async function fetchUserDetails() {
+      try {
+        const userId = await AsyncStorage.getItem('userId');
+        const userName = await AsyncStorage.getItem('userName');
+        const [firstName, lastName] = userName.split('/');
+        if (!isCancelled && userId && userName) {
+          setSubscriberId(userId);
+          setSubscriberName({ firstName, lastName }); // Assuming userName is stored as a stringified JSON
+          console.log(userName);
+          setIsDataLoaded(true); // Data is considered loaded when both states are set
+        } else {
+          setTimeout(fetchUserDetails, 5000); // Retry after 5 seconds if data is not yet available or complete
+        }
+      } catch (error) {
+        console.error('Error fetching user details from AsyncStorage:', error);
+        if (!isCancelled) {
+          setTimeout(fetchUserDetails, 5000); // Retry after error
+        }
+      }
+    }
+
+    fetchUserDetails();
+
+    return () => {
+      isCancelled = true; // Prevent setting state after the component is unmounted
+    };
   }, []);
+
 
   const toggleMenu = () => {
     setIsMenuVisible(!isMenuVisible);
   };
+
   const bannerHeight = 100;
   const styles = StyleSheet.create({
     container: {
@@ -111,8 +133,11 @@ function App({ windowDimensions }) {
   return (
     <View style={styles.container}>
       <View style={styles.banner}>
-        <Text style={styles.bannerText}>Welcome Back</Text>
-      </View>
+        {isDataLoaded ? (
+          <Text style={styles.bannerText}>Welcome Back, {subscriberName.firstName} {subscriberName.lastName} </Text>
+        ) : (
+          <Text style={styles.bannerText}>Loading...</Text>
+        )}      </View>
       <View style={styles.iconButtonContainer}>
         <Pressable onPress={toggleMenu}>
           <GrUserSettings style={{ fontSize: 24, color: '#3273a8' }} />

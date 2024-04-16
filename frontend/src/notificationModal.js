@@ -8,6 +8,8 @@ import { CiSquareQuestion, CiCirclePlus } from "react-icons/ci";
 import { TfiAnnouncement } from "react-icons/tfi";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const getStorageKey = (userId) => `notifications_${userId}`;
+
 const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     const styles = StyleSheet.create({
         container: {
@@ -105,7 +107,8 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     useEffect(() => {
         const loadCachedNotifications = async () => {
             try {
-                const cachedNotifications = await AsyncStorage.getItem('qualifiedNotifications');
+                const userId = await AsyncStorage.getItem('userId');
+                const cachedNotifications = await AsyncStorage.getItem(getStorageKey(userId));
                 if (cachedNotifications) {
                     setQualifiedNotifications(JSON.parse(cachedNotifications));
                     setFetchNeeded(false);

@@ -1,5 +1,6 @@
 import React, { useContext, createContext, useEffect, useState, useRef, useCallback } from "react";
 import { HeadlessService } from '@novu/headless';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NotificationContext = createContext();
 
@@ -47,6 +48,7 @@ const NotificationProvider = ({ children, applicationIdentifier, subscriberId })
     }, []);
 
     const fetchAllNotifications = useCallback(async () => {
+        const userId = await AsyncStorage.getItem('userId'); 
         if (headlessServiceRef){
             setIsLoading(true);
             pageNumRef.current = 0; // Start from the first page
@@ -71,6 +73,7 @@ const NotificationProvider = ({ children, applicationIdentifier, subscriberId })
     
                 setNotifications(sortedNotifications);
                 console.log('fetchAllNotifications successful!');
+                await AsyncStorage.setItem(`notifications_${userId}`, JSON.stringify(sortedNotifications));
             } catch (error) {
                 console.error('An error occurred during fetching notifications:', error);
             } finally {

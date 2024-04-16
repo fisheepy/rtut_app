@@ -59,14 +59,16 @@ const RegistrationForm = ({ navigation, windowDimensions }) => {
 
   const handleConfirm = async () => {
     // Generate UID using first and last name
-    const uid = generateUniqueId(
+    const userId = generateUniqueId(
       firstName.toUpperCase(),
       lastName.toUpperCase()
     );
 
     try {
-      // Save the UID to AsyncStorage
-      await AsyncStorage.setItem('uid', uid);
+      await AsyncStorage.setItem('userId', userId);
+      const userName = firstName+'/'+lastName;
+      await AsyncStorage.setItem('userName', userName);
+      console.log(userName);
     } catch (error) {
       console.error('Error saving UID:', error);
     }
