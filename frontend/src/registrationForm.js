@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ImageBackground } from 'react-native';
+import { View, Text, TextInput, Pressable, ImageBackground } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateUniqueId } from './utils';
+import commonStyles from './styles/commonStyles';
 
 const backgroundImage = require('./assets/Dearborn-New-Sign-scaled-1.jpg');
 
@@ -9,53 +10,16 @@ const RegistrationForm = ({ navigation, windowDimensions }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      width: windowDimensions.width,
-      height: windowDimensions.height,
-      backgroundColor: 'transparent',
-    },
-    form: {
-      minHeight: '100vw',
-      width: windowDimensions.width * 0.75,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: 'transparent',
-    },
-    input: {
-      marginBottom: 10,
-      padding: 10,
-      borderWidth: 1,
-      borderColor: '#ccc',
-      borderRadius: 5,
-      textAlign: 'center',
-      width: '100%',
-      backgroundColor: 'gray',
-    },
-    buttonContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      marginTop: 20,
-      width: windowDimensions.width * 0.75,
-    },
-    tabButton: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 40,
-      width: windowDimensions.width * 0.25,
-      backgroundColor: '#839c83'
-    },
-    tabButtonText: {
-    },
-    backgroundImage: {
-      flex: 1,
-      width: '100%',
-      height: '100%',
-    },
-  });
+  const styles = {
+    container: { ...commonStyles.login.container, width: windowDimensions.width, height: windowDimensions.height,},
+    form: { ...commonStyles.login.form, width: windowDimensions.width * 0.75,},
+    input: commonStyles.login.input,
+    buttonContainer: { ...commonStyles.login.buttonContainer, width: windowDimensions.width * 0.75,},
+    tabButton: { ...commonStyles.login.tabButton, width: windowDimensions.width * 0.25,},
+    tabButtonText: commonStyles.login.tabButtonText,
+    backgroundImage: commonStyles.login.backgroundImage,
+};
+
 
   const handleConfirm = async () => {
     // Generate UID using first and last name

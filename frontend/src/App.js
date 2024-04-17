@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationModal from './notificationModal';
 import { NotificationProvider } from './context/novuNotifications';
@@ -8,6 +8,7 @@ import UserSettingsComponent from './userSettingsComponent';
 import { GrUserSettings, GrFormClose } from "react-icons/gr"; // Import GrFormClose for the Back icon
 import { useSpring, animated } from 'react-spring';
 import { useDrag } from '@use-gesture/react';
+import commonStyles from './styles/commonStyles';
 
 function App({ windowDimensions }) {
   const [subscriberId, setSubscriberId] = useState(null);
@@ -75,84 +76,30 @@ function App({ windowDimensions }) {
     setIsMenuVisible(!isMenuVisible);
   };
 
-  const bannerHeight = 100;
-  const styles = StyleSheet.create({
-    container: {
-      flexDirection: 'column',
-      justifyContent: 'flex-start',
-      alignItems: 'center',
-      width: windowDimensions.width,
-      height: windowDimensions.height,
-      backgroundColor: '#d8dee6',
-    },
-    iconButtonContainer: {
-      position: 'absolute',
-      top: 50,
-      left: 10,
-      zIndex: 1, // Ensure the icon is above other content
-    },
-    menu: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      width: windowDimensions.width * 0.75,
-      height: windowDimensions.height,
-      backgroundColor: '#dddddd',
-      padding: 10,
-      zIndex: 2,
-      alignItems: 'center', // Center content in the menu
-      justifyContent: 'flex-start',
-    },
-    backIcon: {
-      alignSelf: 'center', // Center the back icon
-      marginTop: 50,
-      marginBottom: 20, // Space below the back icon
-      padding: 20,
-    },
-    content: {
-      flex: 1,
-      paddingTop: bannerHeight,
-    },
-    banner: {
-      backgroundColor: '#6e909c', // Change this to any color you prefer for the banner background
-      width: '100%', // Match the width of the screen
-      height: bannerHeight, // Fixed height for the banner section
-      justifyContent: 'center', // Center content vertically within the banner
-      alignItems: 'center', // Center content horizontally within the banner
-      position: 'absolute', // Position absolute to ensure it does not affect layout flow
-      top: 0, // Align to the top of the screen
-      zIndex: 0, // Ensure it's behind the menu and other content
-    },
-    bannerText: {
-      color: 'white', // Text color for the banner
-      fontSize: 20, // Adjust the font size as needed
-    },
-    // Adjust other styles as needed
-  });
-
   return (
-    <View style={styles.container}>
-      <View style={styles.banner}>
+    <View style={commonStyles.app.container}>
+      <View style={commonStyles.app.banner}>
         {isDataLoaded ? (
-          <Text style={styles.bannerText}>Welcome Back, {subscriberName.firstName} {subscriberName.lastName} </Text>
+          <Text style={commonStyles.app.bannerText}>Welcome Back, {subscriberName.firstName} {subscriberName.lastName} </Text>
         ) : (
-          <Text style={styles.bannerText}>Loading...</Text>
-        )}      </View>
-      <View style={styles.iconButtonContainer}>
+          <Text style={commonStyles.app.bannerText}>Loading...</Text>
+        )}      
+        </View>
+      <View style={commonStyles.app.iconButtonContainer}>
         <Pressable onPress={toggleMenu}>
           <GrUserSettings style={{ fontSize: 24, color: '#3273a8' }} />
         </Pressable>
       </View>
       {isMenuVisible && (
-        <View style={styles.menu}>
-          <Pressable onPress={() => setIsMenuVisible(false)} style={styles.backIcon}>
+        <View style={commonStyles.app.menu}>
+          <Pressable onPress={() => setIsMenuVisible(false)} style={commonStyles.app.backIcon}>
             <GrFormClose style={{ fontSize: 32, color: '#3273a8' }} />
           </Pressable>
           <UserSettingsComponent />
           <UsefulLinksComponent />
         </View>
       )}
-      <View style={styles.content}>
+      <View style={commonStyles.app.content}>
         <div>
           <animated.div {...bind()} style={{ ...dragStyle, y: style.y.to(y => Math.min(y, 150)) }}>
             <NotificationProvider applicationIdentifier="o-7dmY_XxQs5" subscriberId={subscriberId}>
