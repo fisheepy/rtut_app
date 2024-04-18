@@ -138,6 +138,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
             }
         });
         setFilteredNotifications(newFilteredNotifications);
+        console.log(filteredNotifications);
     }, [qualifiedNotifications, currentTab]);
 
     useEffect(() => {
@@ -154,8 +155,6 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     const handleNotificationPress = useCallback((notification) => {
         markNotificationsAsRead(notification.id);
         setSelectedNotification(notification);
-        console.log(notification);
-        console.log(selectedNotification);
         setDetailViewMode(true);
     }, [markNotificationsAsRead]);
 
@@ -180,6 +179,12 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
                 throw new Error('Failed to submit survey: ' + response.statusText);
             }
 
+            const completedSurveys = JSON.parse(localStorage.getItem('completedSurveys') || '[]');
+            if (!completedSurveys.includes(surveyId)) {
+              completedSurveys.push(surveyId);
+              localStorage.setItem('completedSurveys', JSON.stringify(completedSurveys));
+            }
+
             // Handle the server response if needed
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
@@ -200,12 +205,21 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
         setCurrentTab(tab);
     }, []);
 
+    let surveyJson;
+
+    try {
+        surveyJson = JSON.parse(selectedNotification.payload.messageContent);
+    } catch (error) {
+        console.error('Failed to parse survey JSON:', error);
+        surveyJson = null; 
+    }
+
     return (
         <View style={styles.container}>
             {detailViewMode ? (
                 currentTab === 'surveys' ? (
                     <SurveyRenderer
-                        surveyJson={JSON.parse(selectedNotification.payload.messageContent)}
+                        surveyJson={surveyJson}
                         onCancel={() => setDetailViewMode(false)}
                         onSurveyComplete={handleSurveyComplete}
                         windowDimensions={windowDimensions}
@@ -234,7 +248,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
                             <MessageViewComponent
                                 notification={notification}
                                 onPress={() => {
-                                    if (currentTab!=='surveys' || !completedSurveys.includes(notification.id)) {
+                                    if (currentTab!=='surveys' || !completedSurveys.includes(notification.payload.uniqueId)) {
                                         console.log(notification);
                                         handleNotificationPress(notification);
                                     }
