@@ -86,14 +86,14 @@ function App({ windowDimensions }) {
         )}      
         </View>
       <View style={commonStyles.app.iconButtonContainer}>
-        <Pressable onPress={toggleMenu}>
-          <GrUserSettings style={{ fontSize: 24, color: '#3273a8' }} />
+        <Pressable onPress={toggleMenu} style={commonStyles.app.settingIcon}>
+          <GrUserSettings />
         </Pressable>
       </View>
       {isMenuVisible && (
         <View style={commonStyles.app.menu}>
           <Pressable onPress={() => setIsMenuVisible(false)} style={commonStyles.app.backIcon}>
-            <GrFormClose style={{ fontSize: 32, color: '#3273a8' }} />
+            <GrFormClose />
           </Pressable>
           <UserSettingsComponent />
           <UsefulLinksComponent />

@@ -1,9 +1,13 @@
 import { StyleSheet } from 'react-native';
+import 'typeface-open-sans';
 
 const bannerHeight = 100;
 const baseColor = '#d8dee6';
-const menuColor = '#145369';
+const menuColor = '#b8cad3';
 const bannerColor = '#6e909c';
+const toggleColor = '#206b12';
+const settingColor = '#040f15';
+const bannerTextColor = '#040f15';
 
 export default StyleSheet.create({
     app: {
@@ -34,10 +38,16 @@ export default StyleSheet.create({
             justifyContent: 'flex-start',
         },
         backIcon: {
+            fontSize: 32,
             alignSelf: 'center', // Center the back icon
             marginTop: 50,
             marginBottom: 20, // Space below the back icon
             padding: 20,
+            color: toggleColor, 
+        },
+        settingIcon: {
+            fontSize: 32, 
+            color: settingColor, 
         },
         content: {
             flex: 1,
@@ -54,13 +64,14 @@ export default StyleSheet.create({
             zIndex: 0, // Ensure it's behind the menu and other content
         },
         bannerText: {
-            color: 'white', // Text color for the banner
-            fontSize: 20, // Adjust the font size as needed
+            color: bannerTextColor, // Text color for the banner
+            fontSize: 18, // Adjust the font size as needed
+            fontFamily: 'Open Sans',
         },
     },
     messageView: {
         container: {
-            height: 50,
+            height: 80,
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
@@ -82,6 +93,7 @@ export default StyleSheet.create({
             fontWeight: 'bold',
             marginBottom: 5,
             textAlign: 'center',
+            fontFamily: 'Open Sans',
         },
         readSubject: {
             color: 'gray', // Style for read notification subjects
@@ -95,11 +107,15 @@ export default StyleSheet.create({
             flexDirection: 'row',
         },
         sender: {
+            fontSize: 14,
             marginLeft: '10px',
+            fontFamily: 'Open Sans',
         },
         time: {
+            fontSize: 14,
             marginLeft: 'auto',
             marginRight: '10px',
+            fontFamily: 'Open Sans',
         },
     },
     messageDetail: {
@@ -120,12 +136,14 @@ export default StyleSheet.create({
             marginBottom: 5,
             justifyContent: 'flex-start',
             alignItems: 'flex-start',
+            fontFamily: 'Open Sans',
         },
         info: {
             fontSize: 16,
             color: 'gray',
             textAlign: 'left',
             paddingHorizontal: 32,
+            fontFamily: 'Open Sans',
         },
         body: {
             marginTop: 15,
@@ -136,6 +154,7 @@ export default StyleSheet.create({
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 16,
+            fontFamily: 'Open Sans',
         },
         buttonContainer: {
             flexDirection: 'row',
@@ -146,6 +165,7 @@ export default StyleSheet.create({
             fontWeight: 'bold',
             letterSpacing: 0.25,
             color: 'white',
+            fontFamily: 'Open Sans',
         },
         infoContainer: {
             fontSize: 14,
@@ -153,11 +173,15 @@ export default StyleSheet.create({
             flexDirection: 'row',
         },
         sender: {
+            fontSize: 14,
             marginLeft: '15px',
+            fontFamily: 'Open Sans',
         },
         time: {
+            fontSize: 14,
             marginLeft: 'auto',
             marginRight: '15px',
+            fontFamily: 'Open Sans',
         },
     },
     login: {
@@ -201,5 +225,143 @@ export default StyleSheet.create({
             width: '100%',
             height: '100%',
           },
+    },
+    useSetting: {
+        container: {
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginTop: 50,
+        },
+        iconLink: {
+            flexDirection: 'column',
+            alignItems: 'center',
+            marginVertical: 10,
+        },
+        toggleText: {
+            fontSize: 16,
+            fontWeight: 'bold',
+            color: toggleColor,
+            fontFamily: 'Open Sans',
+        },
+        feedbackButton: {
+            fontSize: 36,
+            marginTop: 20,
+            padding: 10,
+            borderRadius: 5,
+            alignItems: 'center',
+            fontFamily: 'Open Sans',
+        },
+        feedbackButtonText: {
+            fontSize: 16,
+            color: '#ffffff',
+            fontFamily: 'Open Sans',
+        },
+        centeredView: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.4)', // Semi-transparent background
+        },
+        modalView: {
+            margin: 20,
+            backgroundColor: '#6e909c',
+            borderRadius: 20,
+            padding: 35,
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: {
+                width: 0,
+                height: 2,
+            },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+            elevation: 5,
+            width: '80%', // Fixed width for the modal
+            maxHeight: '80%', // Maximum height to avoid covering the entire screen
+        },
+        feedbackInput: {
+            backgroundColor: 'lightgray',
+            width: '100%', // Take up all available width within the modal
+            minHeight: 250, // Minimum height for the text input
+            marginBottom: 20, // Margin bottom for spacing
+            borderColor: '#ccc', // Border color for the text input
+            borderWidth: 1, // Border width
+            padding: 10, // Padding inside the text input
+        },
+        nameInput: {
+            backgroundColor: 'lightgray',
+            width: '60%', // Take up all available width within the modal
+            minHeight: 25, // Minimum height for the text input
+            marginBottom: 20, // Margin bottom for spacing
+            borderColor: '#ccc', // Border color for the text input
+            borderWidth: 1, // Border width
+            padding: 10, // Padding inside the text input
+        },
+        buttonGroup: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            marginBottom: 20,
+        },
+        buttonClose: {
+            marginTop: 15,
+        },
+        textStyle: {
+            color: "white",
+            fontWeight: "bold",
+            textAlign: "center"
+        },
+        linkText: {
+            fontSize: 12,
+            color: toggleColor,
+            textAlign: 'justify',
+            fontFamily: 'Open Sans',
+        },
+    },
+    notificationModal: {
+        container: {
+            flex: 1,
+            padding: 10,
+            backgroundColor: '#d8dee6',
+            position: 'static',
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        tabButtonContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 15,
+            width: '90vw',
+            height: 80,
+        },
+        tabButton: {
+            flex: 1,
+            alignItems: 'center',
+            height: 60,
+        },
+        activeTab: {
+            color: 'green',
+        },
+        messagesContainer: {
+            width: '90vw',
+        },
+        notificationContainer: {
+            width: '90vw',
+        },
+        tabButtonText: {
+            fontSize: 16,
+        },
+        refreshButtonContainer: {
+            marginTop: 20,
+            alignItems: 'center',
+        },
+        refreshButton: {
+            backgroundColor: '#007bff',
+            padding: 10,
+            borderRadius: 5,
+        },
+        completedSurvey: {
+            opacity: 0.5,
+        },
     },
 });

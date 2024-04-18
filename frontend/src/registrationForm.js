@@ -11,14 +11,14 @@ const RegistrationForm = ({ navigation, windowDimensions }) => {
   const [lastName, setLastName] = useState('');
 
   const styles = {
-    container: { ...commonStyles.login.container, width: windowDimensions.width, height: windowDimensions.height,},
-    form: { ...commonStyles.login.form, width: windowDimensions.width * 0.75,},
+    container: { ...commonStyles.login.container, width: windowDimensions.width, height: windowDimensions.height, },
+    form: { ...commonStyles.login.form, width: windowDimensions.width * 0.75, },
     input: commonStyles.login.input,
-    buttonContainer: { ...commonStyles.login.buttonContainer, width: windowDimensions.width * 0.75,},
-    tabButton: { ...commonStyles.login.tabButton, width: windowDimensions.width * 0.25,},
+    buttonContainer: { ...commonStyles.login.buttonContainer, width: windowDimensions.width * 0.75, },
+    tabButton: { ...commonStyles.login.tabButton, width: windowDimensions.width * 0.25, },
     tabButtonText: commonStyles.login.tabButtonText,
     backgroundImage: commonStyles.login.backgroundImage,
-};
+  };
 
 
   const handleConfirm = async () => {
@@ -30,7 +30,7 @@ const RegistrationForm = ({ navigation, windowDimensions }) => {
 
     try {
       await AsyncStorage.setItem('userId', userId);
-      const userName = firstName+'/'+lastName;
+      const userName = firstName + '/' + lastName;
       await AsyncStorage.setItem('userName', userName);
       console.log(userName);
     } catch (error) {

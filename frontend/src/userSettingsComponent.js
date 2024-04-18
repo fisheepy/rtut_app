@@ -1,8 +1,9 @@
 import { React, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Modal, Button, Alert } from 'react-native';
+import { View, Text, Pressable, TextInput, Modal, Button, Alert } from 'react-native';
 import { VscFeedback } from "react-icons/vsc";
 import { GiConfirmed } from "react-icons/gi";
 import { GiCancel } from "react-icons/gi";
+import commonStyles from './styles/commonStyles';
 
 import axios from 'axios';
 
@@ -34,19 +35,19 @@ const UserSettingsComponent = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={commonStyles.useSetting.container}>
             <Pressable onPress={() => setExpanded(!expanded)}>
-                <Text style={styles.toggleText}>{expanded ? 'Collapse' : 'User Settings'}</Text>
+                <Text style={commonStyles.useSetting.toggleText}>{expanded ? 'Collapse' : 'User Settings'}</Text>
             </Pressable>
 
             {expanded && (
                 <Pressable
-                    style={styles.feedbackButton}
+                    style={commonStyles.useSetting.feedbackButton}
                     onPress={() => setModalVisible(true)}
                 >
                     <VscFeedback />
 
-                    <Text style={styles.linkText}>User Feedback</Text>
+                    <Text style={commonStyles.useSetting.linkText}>User Feedback</Text>
 
                 </Pressable>
             )}
@@ -56,38 +57,38 @@ const UserSettingsComponent = () => {
                 visible={modalVisible}
                 onRequestClose={() => setModalVisible(!modalVisible)}
             >
-                <View style={styles.centeredView}>
-                    <View style={styles.modalView}>
+                <View style={commonStyles.useSetting.centeredView}>
+                    <View style={commonStyles.useSetting.modalView}>
                         <TextInput
-                            style={styles.nameInput}
+                            style={commonStyles.useSetting.nameInput}
                             onChangeText={setName}
                             value={name}
                             placeholder="Your Name"
                         />
                         <TextInput
-                            style={styles.feedbackInput}
+                            style={commonStyles.useSetting.feedbackInput}
                             onChangeText={setFeedback}
                             value={feedback}
                             placeholder="Type your feedback here..."
                             multiline
                         />
-                        <View style={styles.buttonGroup}>
+                        <View style={commonStyles.useSetting.buttonGroup}>
                             <Pressable
-                                style={styles.Button}
+                                style={commonStyles.useSetting.Button}
                                 onPress={handleFeedbackSubmit}
                             >
                                 <GiConfirmed
-                                    style={styles.button}
+                                    style={commonStyles.useSetting.button}
                                     fontSize={40}
                                     color='green'
                                 />
                             </Pressable>
                             <Pressable
-                                style={styles.Button}
+                                style={commonStyles.useSetting.Button}
                                 onPress={() => setModalVisible(!modalVisible)}
                             >
                                 <GiCancel
-                                    style={{ ...styles.button, pointerEvents: "none" }}
+                                    style={{ ...commonStyles.useSetting.button, pointerEvents: "none" }}
                                     fontSize={40}
                                 />
                             </Pressable>
@@ -98,87 +99,5 @@ const UserSettingsComponent = () => {
         </View>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 50,
-    },
-    toggleText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#3273a8',
-    },
-    feedbackButton: {
-        fontSize: 36,
-        marginTop: 20,
-        padding: 10,
-        borderRadius: 5,
-        alignItems: 'center',
-    },
-    feedbackButtonText: {
-        color: '#ffffff',
-    },
-    centeredView: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.4)', // Semi-transparent background
-    },
-    modalView: {
-        margin: 20,
-        backgroundColor: '#6e909c',
-        borderRadius: 20,
-        padding: 35,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-        width: '80%', // Fixed width for the modal
-        maxHeight: '80%', // Maximum height to avoid covering the entire screen
-    },
-    feedbackInput: {
-        backgroundColor: 'lightgray',
-        width: '100%', // Take up all available width within the modal
-        minHeight: 250, // Minimum height for the text input
-        marginBottom: 20, // Margin bottom for spacing
-        borderColor: '#ccc', // Border color for the text input
-        borderWidth: 1, // Border width
-        padding: 10, // Padding inside the text input
-    },
-    nameInput: {
-        backgroundColor: 'lightgray',
-        width: '60%', // Take up all available width within the modal
-        minHeight: 25, // Minimum height for the text input
-        marginBottom: 20, // Margin bottom for spacing
-        borderColor: '#ccc', // Border color for the text input
-        borderWidth: 1, // Border width
-        padding: 10, // Padding inside the text input
-    },
-    buttonGroup: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginBottom: 20,
-    },
-    buttonClose: {
-        marginTop: 15,
-    },
-    textStyle: {
-        color: "white",
-        fontWeight: "bold",
-        textAlign: "center"
-    },
-    linkText: {
-        fontSize: 12,
-        color: 'black',
-        textAlign: 'justify',
-    },
-});
 
 export default UserSettingsComponent;

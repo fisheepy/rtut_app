@@ -1,65 +1,29 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNotification } from './context/novuNotifications';
-import { View, Pressable, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Pressable, Text, ScrollView } from 'react-native';
 import MessageViewComponent from './messageViewComponent';
 import MessageDetailComponent from './messageDetailComponent'
 import SurveyRenderer from './surveyRenderer';
 import { CiSquareQuestion, CiCirclePlus } from "react-icons/ci";
 import { TfiAnnouncement } from "react-icons/tfi";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import commonStyles from './styles/commonStyles';
 
 const getStorageKey = (userId) => `notifications_${userId}`;
 
 const NotificationModal = ({ windowDimensions, isPulledDown }) => {
-    const styles = StyleSheet.create({
-        container: {
-            flex: 1,
-            padding: 10,
-            width: windowDimensions.width * 1,
-            backgroundColor: '#d8dee6',
-            position: 'static',
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        tabButtonContainer: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 15,
-            width: '90vw',
-            height: 80,
-        },
-        tabButton: {
-            flex: 1,
-            alignItems: 'center',
-            height: 60,
-        },
-        activeTab: {
-            color: 'green',
-        },
-        messagesContainer: {
-            width: '90vw',
-            height: windowDimensions.height - 234,
-        },
-        notificationContainer: {
-            width: '90vw',
-        },
-        tabButtonText: {
-            fontSize: 16,
-        },
-        refreshButtonContainer: {
-            marginTop: 20,
-            alignItems: 'center',
-        },
-        refreshButton: {
-            backgroundColor: '#007bff',
-            padding: 10,
-            borderRadius: 5,
-        },
-        completedSurvey: {
-            opacity: 0.5,
-        },
-    });
+    const styles = {
+        container: {...commonStyles.notificationModal.container, width: windowDimensions.width,},
+        tabButtonContainer: commonStyles.notificationModal.tabButtonContainer,
+        tabButton: commonStyles.notificationModal.tabButton,
+        activeTab: commonStyles.notificationModal.activeTab,
+        messagesContainer: {...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 234,},
+        notificationContainer: commonStyles.notificationModal.notificationContainer,
+        tabButtonText: commonStyles.notificationModal.tabButtonText,
+        refreshButtonContainer: commonStyles.notificationModal.refreshButtonContainer,
+        refreshButton: commonStyles.notificationModal.refreshButton,
+        completedSurvey: commonStyles.notificationModal.completedSurvey,
+    };
 
     const { notifications, markNotificationsAsRead, markAllMessagesAsRead, deleteNotification, fetchAllNotifications } = useNotification();
     const [qualifiedNotifications, setQualifiedNotifications] = useState([]);

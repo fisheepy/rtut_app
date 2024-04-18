@@ -33,6 +33,9 @@
     "survey-core": "^1.9.131",
     "survey-react": "^1.9.130",
     "survey-react-ui": "^1.9.131",
+    "typeface-clear-sans": "^1.1.13",
+    "typeface-open-sans": "^1.1.13",
+    "typeface-roboto": "^1.1.13",
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4"
   },
