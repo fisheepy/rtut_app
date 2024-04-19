@@ -20,7 +20,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
         tabButtonContainer: commonStyles.notificationModal.tabButtonContainer,
         tabButton: commonStyles.notificationModal.tabButton,
         activeTab: commonStyles.notificationModal.activeTab,
-        messagesContainer: {...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 234,},
+        messagesContainer: {...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 227,},
         notificationContainer: {
             ...commonStyles.notificationModal.notificationContainer,
             borderBottomWidth: 1, 
@@ -147,6 +147,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
         });
         setFilteredNotifications(newFilteredNotifications);
         console.log(filteredNotifications);
+        console.log(completedSurveys);
     }, [qualifiedNotifications, currentTab]);
 
     useEffect(() => {
@@ -216,7 +217,9 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     let surveyJson;
 
     try {
-        surveyJson = JSON.parse(selectedNotification.payload.messageContent);
+        if (selectedNotification.payload.messageType === 'SURVEY'){
+            surveyJson = JSON.parse(selectedNotification.payload.messageContent);
+        }
     } catch (error) {
         console.error('Failed to parse survey JSON:', error);
         surveyJson = null; 
@@ -248,10 +251,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
                     {filteredNotifications.map(notification => (
                         <View
                             key={notification.id}
-                            style={[
-                                styles.notificationContainer,
-                                completedSurveys.includes(notification.id) && styles.completedSurvey,
-                            ]}
+                            style={styles.notificationContainer}
                         >
                             <MessageViewComponent
                                 notification={notification}
@@ -261,6 +261,7 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
                                         handleNotificationPress(notification);
                                     }
                                 }}
+                                isSurveyCompleted = {completedSurveys.includes(notification.payload.uniqueId)}
                                 windowDimensions={windowDimensions}
                             />
                         </View>

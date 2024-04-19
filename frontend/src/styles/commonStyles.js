@@ -2,12 +2,13 @@ import { StyleSheet } from 'react-native';
 import 'typeface-open-sans';
 
 const bannerHeight = 100;
-const baseColor = '#d8dee6';
+const baseColor = '#e7eff7';
 const menuColor = '#b8cad3';
-const bannerColor = '#6e909c';
+const bannerColor = '#206b12';
 const toggleColor = '#206b12';
 const settingColor = '#040f15';
 const bannerTextColor = '#040f15';
+const tabColor = '#bee0ec';
 
 export default StyleSheet.create({
     app: {
@@ -57,21 +58,24 @@ export default StyleSheet.create({
             backgroundColor: bannerColor, // Change this to any color you prefer for the banner background
             width: '100%', // Match the width of the screen
             height: bannerHeight, // Fixed height for the banner section
-            justifyContent: 'center', // Center content vertically within the banner
+            justifyContent: 'flex-end', // Center content vertically within the banner
             alignItems: 'center', // Center content horizontally within the banner
             position: 'absolute', // Position absolute to ensure it does not affect layout flow
             top: 0, // Align to the top of the screen
             zIndex: 0, // Ensure it's behind the menu and other content
         },
         bannerText: {
+            marginBottom: 15,
             color: bannerTextColor, // Text color for the banner
-            fontSize: 18, // Adjust the font size as needed
+            fontSize: 20, // Adjust the font size as needed
+            fontWeight: 'Bold',
             fontFamily: 'Open Sans',
+            color: baseColor,
         },
     },
     messageView: {
         container: {
-            height: 80,
+            height: 78,
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
@@ -91,12 +95,11 @@ export default StyleSheet.create({
         subject: {
             fontSize: 18,
             fontWeight: 'bold',
-            marginBottom: 5,
             textAlign: 'center',
             fontFamily: 'Open Sans',
         },
         sender: {
-            fontSize: 14,
+            fontSize: 12,
             marginLeft: '10px',
             fontFamily: 'Open Sans',
         },
@@ -323,18 +326,18 @@ export default StyleSheet.create({
         container: {
             flex: 1,
             padding: 10,
-            backgroundColor: '#d8dee6',
+            backgroundColor: baseColor,
             position: 'static',
             alignItems: 'center',
             justifyContent: 'center',
         },
         tabButtonContainer: {
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'end',
             justifyContent: 'center',
-            marginBottom: 15,
-            width: '90vw',
-            height: 80,
+            width: '100vw',
+            height: 107,
+            backgroundColor: tabColor,
         },
         tabButton: {
             flex: 1,
