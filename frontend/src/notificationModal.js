@@ -13,12 +13,20 @@ const getStorageKey = (userId) => `notifications_${userId}`;
 
 const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     const styles = {
-        container: {...commonStyles.notificationModal.container, width: windowDimensions.width,},
+        container: {
+            ...commonStyles.notificationModal.container,
+            width: windowDimensions.width,
+        },
         tabButtonContainer: commonStyles.notificationModal.tabButtonContainer,
         tabButton: commonStyles.notificationModal.tabButton,
         activeTab: commonStyles.notificationModal.activeTab,
         messagesContainer: {...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 234,},
-        notificationContainer: commonStyles.notificationModal.notificationContainer,
+        notificationContainer: {
+            ...commonStyles.notificationModal.notificationContainer,
+            borderBottomWidth: 1, 
+            borderBottomColor: '#ccc', 
+            marginBottom: 10, 
+        },
         tabButtonText: commonStyles.notificationModal.tabButtonText,
         refreshButtonContainer: commonStyles.notificationModal.refreshButtonContainer,
         refreshButton: commonStyles.notificationModal.refreshButton,

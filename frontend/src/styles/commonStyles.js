@@ -78,15 +78,15 @@ export default StyleSheet.create({
             maxWidth: '100%',
             wordWrap: 'break-word',
             marginLeft: 18,
-            borderWidth: 1,
-            borderColor: 'black',
-            marginBottom: 5,
         },
-        readContainer: {
-            backgroundColor: 'lightgray', // Style for read notifications
+        headLine: {
+            height: 20,
+            flexDirection: 'row',
         },
-        unreadContainer: {
-            backgroundColor: 'white', // Style for unread notifications
+        subjectLine: {
+            height: 20,
+            alignItems: 'flex-start',
+            marginLeft: 30,
         },
         subject: {
             fontSize: 18,
@@ -94,17 +94,6 @@ export default StyleSheet.create({
             marginBottom: 5,
             textAlign: 'center',
             fontFamily: 'Open Sans',
-        },
-        readSubject: {
-            color: 'gray', // Style for read notification subjects
-        },
-        unreadSubject: {
-            color: 'black', // Style for unread notification subjects
-        },
-        infoContainer: {
-            fontSize: 14,
-            color: 'gray',
-            flexDirection: 'row',
         },
         sender: {
             fontSize: 14,
@@ -116,6 +105,19 @@ export default StyleSheet.create({
             marginLeft: 'auto',
             marginRight: '10px',
             fontFamily: 'Open Sans',
+        },
+        indicator: {
+            height: 10,
+            width: 10,
+            borderRadius: 5,
+            marginRight: 10,
+            alignSelf: 'center',
+        },
+        readIndicator: {
+            backgroundColor: 'darkgrey', // Color for read messages
+        },
+        unreadIndicator: {
+            backgroundColor: 'green', // Color for unread messages
         },
     },
     messageDetail: {
