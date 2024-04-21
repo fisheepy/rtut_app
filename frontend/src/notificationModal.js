@@ -8,24 +8,28 @@ import { CiSquareQuestion, CiCirclePlus } from "react-icons/ci";
 import { TfiAnnouncement } from "react-icons/tfi";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import commonStyles from './styles/commonStyles';
+import { useSpring, animated } from 'react-spring';
+import { useDrag } from '@use-gesture/react';
 
 const getStorageKey = (userId) => `notifications_${userId}`;
 
-const NotificationModal = ({ windowDimensions, isPulledDown }) => {
+const NotificationModal = ({ windowDimensions }) => {
     const styles = {
         container: {
             ...commonStyles.notificationModal.container,
+            flexGrow: 1,
             width: windowDimensions.width,
+            height: windowDimensions.height - 100,
         },
-        tabButtonContainer: commonStyles.notificationModal.tabButtonContainer,
+        tabButtonContainer: { ...commonStyles.notificationModal.tabButtonContainer,height: 110, },
         tabButton: commonStyles.notificationModal.tabButton,
         activeTab: commonStyles.notificationModal.activeTab,
-        messagesContainer: {...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 227,},
+        messagesContainer: { ...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 220, },
         notificationContainer: {
             ...commonStyles.notificationModal.notificationContainer,
-            borderBottomWidth: 1, 
-            borderBottomColor: '#ccc', 
-            marginBottom: 10, 
+            borderBottomWidth: 1,
+            borderBottomColor: '#ccc',
+            marginBottom: 10,
         },
         tabButtonText: commonStyles.notificationModal.tabButtonText,
         refreshButtonContainer: commonStyles.notificationModal.refreshButtonContainer,
@@ -45,6 +49,31 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
         return parseInt(localStorage.getItem('lastFetchTime'), 10) || 0;
     });
     const completedSurveys = JSON.parse(localStorage.getItem('completedSurveys') || '[]');
+    const [isPulledDown, setIsPulledDown] = useState(false);
+    const [style, api] = useSpring(() => ({ y: 0 }));
+
+    const bind = useDrag(({ down, movement: [mx, my] }) => {
+        if (down) {
+            api.start({ y: my });
+        } else {
+            api.start({ y: 0 });
+            if (my > 100) {
+                setIsPulledDown(true);
+            }
+        }
+    }, { axis: 'y' });
+
+    useEffect(() => {
+        if (isPulledDown) {
+            // Trigger the refresh logic
+            fetchAllNotifications().then(() => {
+                console.log('Notifications fetched successfully.');
+            }).catch(error => {
+                console.error('Failed to fetch notifications:', error);
+            });
+            setIsPulledDown(false); // Reset the flag after refresh
+        }
+    }, [isPulledDown, fetchAllNotifications]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -153,13 +182,13 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     useEffect(() => {
         // Logic that needs to run when detailViewMode changes
         if (detailViewMode) {
-          // If detailViewMode is true, perform actions for detail view being active
+            // If detailViewMode is true, perform actions for detail view being active
         } else {
-          // If detailViewMode is false, perform actions for returning to the list view
-          // For example, refreshing the list view to reflect any changes
-          setFetchNeeded(true);
+            // If detailViewMode is false, perform actions for returning to the list view
+            // For example, refreshing the list view to reflect any changes
+            setFetchNeeded(true);
         }
-      }, [detailViewMode]); 
+    }, [detailViewMode]);
 
     const handleNotificationPress = useCallback((notification) => {
         markNotificationsAsRead(notification.id);
@@ -190,8 +219,8 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
 
             const completedSurveys = JSON.parse(localStorage.getItem('completedSurveys') || '[]');
             if (!completedSurveys.includes(surveyId)) {
-              completedSurveys.push(surveyId);
-              localStorage.setItem('completedSurveys', JSON.stringify(completedSurveys));
+                completedSurveys.push(surveyId);
+                localStorage.setItem('completedSurveys', JSON.stringify(completedSurveys));
             }
 
             // Handle the server response if needed
@@ -217,12 +246,12 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
     let surveyJson;
 
     try {
-        if (selectedNotification.payload.messageType === 'SURVEY'){
+        if (selectedNotification.payload.messageType === 'SURVEY') {
             surveyJson = JSON.parse(selectedNotification.payload.messageContent);
         }
     } catch (error) {
         console.error('Failed to parse survey JSON:', error);
-        surveyJson = null; 
+        surveyJson = null;
     }
 
     return (
@@ -243,30 +272,32 @@ const NotificationModal = ({ windowDimensions, isPulledDown }) => {
                     />
                 )
             ) : (
-                <ScrollView
-                    style={styles.messagesContainer}
-                    showsVerticalScrollIndicator={false}
-                    showsHorizontalScrollIndicator={false}
-                >
-                    {filteredNotifications.map(notification => (
-                        <View
-                            key={notification.id}
-                            style={styles.notificationContainer}
-                        >
-                            <MessageViewComponent
-                                notification={notification}
-                                onPress={() => {
-                                    if (currentTab!=='surveys' || !completedSurveys.includes(notification.payload.uniqueId)) {
-                                        console.log(notification);
-                                        handleNotificationPress(notification);
-                                    }
-                                }}
-                                isSurveyCompleted = {completedSurveys.includes(notification.payload.uniqueId)}
-                                windowDimensions={windowDimensions}
-                            />
-                        </View>
-                    ))}
-                </ScrollView>
+                <animated.div {...bind()} style={{ y: style.y.to(y => Math.min(y, 150)) }}>
+                    <ScrollView
+                        style={styles.messagesContainer}
+                        showsVerticalScrollIndicator={false}
+                        showsHorizontalScrollIndicator={false}
+                    >
+                        {filteredNotifications.map(notification => (
+                            <View
+                                key={notification.id}
+                                style={styles.notificationContainer}
+                            >
+                                <MessageViewComponent
+                                    notification={notification}
+                                    onPress={() => {
+                                        if (currentTab !== 'surveys' || !completedSurveys.includes(notification.payload.uniqueId)) {
+                                            console.log(notification);
+                                            handleNotificationPress(notification);
+                                        }
+                                    }}
+                                    isSurveyCompleted={completedSurveys.includes(notification.payload.uniqueId)}
+                                    windowDimensions={windowDimensions}
+                                />
+                            </View>
+                        ))}
+                    </ScrollView>
+                </animated.div>
             )}
             {!detailViewMode && (
                 <View style={styles.tabButtonContainer}>

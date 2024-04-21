@@ -6,39 +6,13 @@ import { NotificationProvider } from './context/novuNotifications';
 import UsefulLinksComponent from './usefulLinksComponent';
 import UserSettingsComponent from './userSettingsComponent';
 import { GrUserSettings, GrFormClose } from "react-icons/gr"; // Import GrFormClose for the Back icon
-import { useSpring, animated } from 'react-spring';
-import { useDrag } from '@use-gesture/react';
 import commonStyles from './styles/commonStyles';
 
 function App({ windowDimensions }) {
   const [subscriberId, setSubscriberId] = useState(null);
   const [subscriberName, setSubscriberName] = useState(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [style, api] = useSpring(() => ({ y: 0 }));
-  const [isPulledDown, setIsPulledDown] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-
-  const bind = useDrag(({ down, movement: [mx, my] }) => {
-    if (down) {
-      api.start({ y: my });
-    } else {
-      api.start({ y: 0 });
-      if (my > 100) { // Adjust threshold as needed
-        setIsPulledDown(true); // Set the flag when pulled down
-      }
-    }
-  }, { axis: 'y' });
-
-  const dragStyle = {
-    touchAction: 'none',
-  };
-
-  useEffect(() => {
-    // Reset the flag after it has been set to true
-    if (isPulledDown) {
-      setTimeout(() => setIsPulledDown(false), 300); // Reset after some time
-    }
-  }, [isPulledDown]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -101,11 +75,9 @@ function App({ windowDimensions }) {
       )}
       <View style={commonStyles.app.content}>
         <div>
-          <animated.div {...bind()} style={{ ...dragStyle, y: style.y.to(y => Math.min(y, 150)) }}>
             <NotificationProvider applicationIdentifier="o-7dmY_XxQs5" subscriberId={subscriberId}>
-              <NotificationModal windowDimensions={windowDimensions} isPulledDown={isPulledDown} />
+              <NotificationModal windowDimensions={windowDimensions} />
             </NotificationProvider>
-          </animated.div>
         </div>
       </View>
     </View>

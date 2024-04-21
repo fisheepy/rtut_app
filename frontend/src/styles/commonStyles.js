@@ -7,7 +7,7 @@ const menuColor = '#b8cad3';
 const bannerColor = '#206b12';
 const toggleColor = '#206b12';
 const settingColor = '#040f15';
-const bannerTextColor = '#040f15';
+const bannerTextColor = '#e7eff7';
 const tabColor = '#bee0ec';
 
 export default StyleSheet.create({
@@ -70,18 +70,17 @@ export default StyleSheet.create({
             fontSize: 20, // Adjust the font size as needed
             fontWeight: 'Bold',
             fontFamily: 'Open Sans',
-            color: baseColor,
         },
     },
     messageView: {
         container: {
-            height: 78,
+            height: 80,
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
             maxWidth: '100%',
             wordWrap: 'break-word',
-            marginLeft: 18,
+            marginLeft: 0,
         },
         headLine: {
             height: 20,
@@ -90,7 +89,7 @@ export default StyleSheet.create({
         subjectLine: {
             height: 20,
             alignItems: 'flex-start',
-            marginLeft: 30,
+            marginLeft: 25,
         },
         subject: {
             fontSize: 18,
@@ -104,16 +103,16 @@ export default StyleSheet.create({
             fontFamily: 'Open Sans',
         },
         time: {
-            fontSize: 14,
+            fontSize: 12,
             marginLeft: 'auto',
-            marginRight: '10px',
+            marginRight: '0px',
             fontFamily: 'Open Sans',
         },
         indicator: {
             height: 10,
             width: 10,
             borderRadius: 5,
-            marginRight: 10,
+            marginRight: 5,
             alignSelf: 'center',
         },
         readIndicator: {
@@ -127,7 +126,7 @@ export default StyleSheet.create({
         container: {
             flex: 1, 
             justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: 'stretch',
             backgroundColor: baseColor,
         },
         content: {
@@ -150,8 +149,13 @@ export default StyleSheet.create({
             paddingHorizontal: 32,
             fontFamily: 'Open Sans',
         },
+        contentContainer: {
+            flexGrow: 1, // Important for making sure the container can grow
+            justifyContent: 'flex-start', // Centers content when less than screen height
+            backgroundColor: baseColor,
+        },
         body: {
-            marginTop: 15,
+            marginTop: 35,
             marginBottom: 15,
             fontSize: 16,
             color: 'black',
@@ -160,6 +164,7 @@ export default StyleSheet.create({
             alignItems: 'center',
             paddingHorizontal: 16,
             fontFamily: 'Open Sans',
+            backgroundColor: baseColor,
         },
         buttonContainer: {
             flexDirection: 'row',
@@ -336,18 +341,19 @@ export default StyleSheet.create({
             alignItems: 'end',
             justifyContent: 'center',
             width: '100vw',
-            height: 107,
             backgroundColor: tabColor,
         },
         tabButton: {
             flex: 1,
             alignItems: 'center',
             height: 60,
+            marginBottom: 20,
         },
         activeTab: {
             color: 'green',
         },
         messagesContainer: {
+            marginTop: 10,
             width: '90vw',
         },
         notificationContainer: {
