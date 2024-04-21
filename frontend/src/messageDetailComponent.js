@@ -8,12 +8,12 @@ import { useDrag } from '@use-gesture/react';
 
 const MessageDetailComponent = ({ notification, onBack, windowDimensions }) => {
     const styles = {
-        container: { ...commonStyles.messageDetail.container, width: windowDimensions.width * 0.9 },
+        container: { ...commonStyles.messageDetail.container },
         content: commonStyles.messageDetail.content,
         contentContainer: {...commonStyles.messageDetail.contentContainer },
         subject: commonStyles.messageDetail.subject,
-        infoContainer: { ...commonStyles.messageDetail.infoContainer, width: windowDimensions.width * 0.9 },
-        body: { ...commonStyles.messageDetail.body, width: windowDimensions.width * 0.9 },
+        infoContainer: { ...commonStyles.messageDetail.infoContainer },
+        body: { ...commonStyles.messageDetail.body },
         buttonContainer: { ...commonStyles.messageDetail.buttonContainer, width: windowDimensions.width },
         time: commonStyles.messageDetail.time,
     };

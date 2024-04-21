@@ -125,12 +125,12 @@ export default StyleSheet.create({
     messageDetail: {
         container: {
             flex: 1, 
+            flexGrow: 1,
             justifyContent: 'space-between',
             alignItems: 'stretch',
             backgroundColor: baseColor,
         },
         content: {
-            paddingBottom: 30, 
             minHeight: '30vw',
         },
         subject: {
@@ -155,21 +155,21 @@ export default StyleSheet.create({
             backgroundColor: baseColor,
         },
         body: {
-            marginTop: 35,
-            marginBottom: 15,
             fontSize: 16,
             color: 'black',
             textAlign: 'justify',
             justifyContent: 'center',
             alignItems: 'center',
-            paddingHorizontal: 16,
+            paddingHorizontal: 32,
             fontFamily: 'Open Sans',
             backgroundColor: baseColor,
+            paddingBottom: 30, 
         },
         buttonContainer: {
             flexDirection: 'row',
             justifyContent: 'center',
             backgroundColor: baseColor,
+            paddingBottom: 30, 
           },
         buttonText: {
             fontWeight: 'bold',
@@ -178,9 +178,11 @@ export default StyleSheet.create({
             fontFamily: 'Open Sans',
         },
         infoContainer: {
+            paddingHorizontal: 32,
             fontSize: 14,
             color: 'gray',
             flexDirection: 'row',
+            paddingBottom: 15,
         },
         sender: {
             fontSize: 14,
