@@ -377,4 +377,79 @@ export default StyleSheet.create({
             opacity: 0.5,
         },
     },
+    SurveyRenderer: {
+        surveyContainer: {
+            width: '100vw',
+            backgroundColor: baseColor,
+          },
+          questionContainer: {
+            marginBottom: 20,
+            paddingHorizontal: 30,
+            width: '90vw',
+          },
+          questionTitle: {
+            textAlign: 'center',
+            marginBottom: 10,
+          },
+          choiceContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 10,
+            width: '90vw',
+          },
+          radioCircle: {
+            width: 20,
+            height: 20,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: '#000',
+            marginHorizontal: 10,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+          selectedRadio: {
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: '#000',
+          },
+          customInput: {
+            borderWidth: 1,
+            borderColor: '#ccc',
+            padding: 10,
+            borderRadius: 5,
+            marginTop: 10,
+          },
+          input: {
+            borderWidth: 1,
+            borderColor: '#ccc',
+            padding: 10,
+            borderRadius: 5,
+          },
+          checkbox: {
+            width: 20,
+            height: 20,
+            borderWidth: 1,
+            borderColor: '#000',
+            marginHorizontal: 10,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+          checkedBox: {
+            width: 12,
+            height: 12,
+            backgroundColor: '#000',
+          },
+          sliderContainer: {
+            width: '90vw',
+          },
+          buttonContainer: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            width: '100vw',
+            marginBottom: 20,
+          },
+          button: {
+          },
+    },
 });

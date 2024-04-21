@@ -1,88 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Pressable } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Pressable } from 'react-native';
 import { Slider } from '@miblanchard/react-native-slider';
 import { GiConfirmed } from "react-icons/gi";
 import { GiCancel } from "react-icons/gi";
+import commonStyles from './styles/commonStyles';
 
 const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensions }) => {
-  const styles = StyleSheet.create({
-    surveyContainer: {
-      width: windowDimensions.width * 1,
-      backgroundColor: '#d8dee6',
-    },
-    questionContainer: {
-      marginBottom: 20,
-      paddingHorizontal: 30,
-      width: windowDimensions.width * 0.9,
-    },
-    questionTitle: {
-      textAlign: 'center',
-      marginBottom: 10,
-    },
-    choiceContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 10,
-      width: windowDimensions.width * 0.9,
-    },
-    radioCircle: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: '#000',
-      marginHorizontal: 10,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    selectedRadio: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      backgroundColor: '#000',
-    },
-    customInput: {
-      borderWidth: 1,
-      borderColor: '#ccc',
-      padding: 10,
-      borderRadius: 5,
-      marginTop: 10,
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: '#ccc',
-      padding: 10,
-      borderRadius: 5,
-    },
-    checkbox: {
-      width: 20,
-      height: 20,
-      borderWidth: 1,
-      borderColor: '#000',
-      marginHorizontal: 10,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    checkedBox: {
-      width: 12,
-      height: 12,
-      backgroundColor: '#000',
-    },
-    sliderContainer: {
-      width: windowDimensions.width * 0.9,
-      backgroundColor: 'gray',
-    },
-    buttonContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      backgroundColor: '#d8dee6',
-      width: windowDimensions.width * 1,
-      marginBottom: 20,
-    },
-    button: {
-    },
-  });
-
   const initializeAnswers = (surveyQuestions) => {
     const initialAnswers = {};
     surveyQuestions.forEach(question => {
@@ -195,9 +118,9 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       case 'text':
         return (
           <>
-            <Text style={styles.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
             <TextInput
-              style={styles.input}
+              style={commonStyles.SurveyRenderer.input}
               placeholder="Your answer"
               value={answers[question.name] || ''}
               onChangeText={(text) => handleInputChange(question.name, text)}
@@ -208,16 +131,16 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       case 'singleChoice':
         return (
           <>
-            <Text style={styles.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
             {question.choices.map((choice, index) => (
               choice !== 'Other' && (
                 <TouchableOpacity
                   key={index}
                   onPress={() => handleRadioChange(question.name, choice)}
-                  style={styles.choiceContainer}
+                  style={commonStyles.SurveyRenderer.choiceContainer}
                 >
-                  <View style={styles.radioCircle}>
-                    {answers[question.name] === choice && <View style={styles.selectedRadio} />}
+                  <View style={commonStyles.SurveyRenderer.radioCircle}>
+                    {answers[question.name] === choice && <View style={commonStyles.SurveyRenderer.selectedRadio} />}
                   </View>
                   <Text>{choice}</Text>
                 </TouchableOpacity>)
@@ -226,15 +149,15 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
               <>
                 <TouchableOpacity
                   onPress={() => handleRadioChange(question.name, 'other')}
-                  style={styles.choiceContainer}
+                  style={commonStyles.SurveyRenderer.choiceContainer}
                 >
-                  <View style={styles.radioCircle}>
-                    {customAnswerSelected[question.name] && <View style={styles.selectedRadio} />}
+                  <View style={commonStyles.SurveyRenderer.radioCircle}>
+                    {customAnswerSelected[question.name] && <View style={commonStyles.SurveyRenderer.selectedRadio} />}
                   </View>
                   <Text>Other (please specify)</Text>
                 </TouchableOpacity>
                 <TextInput
-                  style={styles.customInput}
+                  style={commonStyles.SurveyRenderer.customInput}
                   placeholder="Other (please specify)"
                   onChangeText={(text) => handleCustomAnswerChange(question.name, text)}
                   value={answers[`${question.name}-custom`] || ''}
@@ -248,9 +171,9 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       case 'rating':
         return (
           <>
-            <Text style={styles.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
             <Slider
-              containerStyle={styles.sliderContainer}
+              containerStyle={commonStyles.SurveyRenderer.sliderContainer}
               minimumValue={1}
               maximumValue={question.rateMax}
               step={1}
@@ -264,16 +187,16 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       case 'multiChoice':
         return (
           <>
-            <Text style={styles.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
             {question.choices.map((choice, index) => (
               choice !== 'Other' && (
                 <TouchableOpacity
                   key={index}
                   onPress={() => handleCheckboxChange(question.name, choice, !answers[question.name]?.includes(choice))}
-                  style={styles.choiceContainer}
+                  style={commonStyles.SurveyRenderer.choiceContainer}
                 >
-                  <View style={styles.checkbox}>
-                    {answers[question.name]?.includes(choice) && <View style={styles.checkedBox} />}
+                  <View style={commonStyles.SurveyRenderer.checkbox}>
+                    {answers[question.name]?.includes(choice) && <View style={commonStyles.SurveyRenderer.checkedBox} />}
                   </View>
                   <Text>{choice}</Text>
                 </TouchableOpacity>)
@@ -282,15 +205,15 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
               <>
                 <TouchableOpacity
                   onPress={() => handleOtherCheckboxChange(question.name, !customAnswerSelected[question.name])}
-                  style={styles.choiceContainer}
+                  style={commonStyles.SurveyRenderer.choiceContainer}
                 >
-                  <View style={styles.checkbox}>
-                    {customAnswerSelected[question.name] && <View style={styles.checkedBox} />}
+                  <View style={commonStyles.SurveyRenderer.checkbox}>
+                    {customAnswerSelected[question.name] && <View style={commonStyles.SurveyRenderer.checkedBox} />}
                   </View>
                   <Text>Other (please specify)</Text>
                 </TouchableOpacity>
                 <TextInput
-                  style={styles.customInput}
+                  style={commonStyles.SurveyRenderer.customInput}
                   placeholder="Other (please specify)"
                   onChangeText={(text) => handleCustomAnswerChange(question.name, text)}
                   value={answers[`${question.name}-custom`] || ''}
@@ -308,29 +231,29 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
 
   return (
     <ScrollView
-      style={styles.surveyContainer}
+      style={commonStyles.SurveyRenderer.surveyContainer}
       showsVerticalScrollIndicator={false}
       showsHorizontalScrollIndicator={false}
     >
       {surveyJson.elements.map((question, index) => (
-        <View style={styles.questionContainer}>
+        <View style={commonStyles.SurveyRenderer.questionContainer}>
           {renderQuestion(question)}
         </View>
       ))}
       <View
-        style={styles.buttonContainer}
+        style={commonStyles.SurveyRenderer.buttonContainer}
       >
         {isSurveyComplete ? (
           <Pressable onPress={()=>onSurveyComplete(answers)}>
             <GiConfirmed
-              style={styles.button}
+              style={commonStyles.SurveyRenderer.button}
               fontSize={40}
               color='green'
             />
           </Pressable>
         ) : (
           <GiConfirmed
-            style={{ ...styles.button, pointerEvents: "none" }}
+            style={{ ...commonStyles.SurveyRenderer.button, pointerEvents: "none" }}
             fontSize={40}
             color='gray'
           />
@@ -338,7 +261,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
         <View style={{ width: 100 }} />
         <Pressable onPress={onCancel}>
           <GiCancel
-            style={{ ...styles.button, pointerEvents: "none" }}
+            style={{ ...commonStyles.SurveyRenderer.button, pointerEvents: "none" }}
             fontSize={40}
           />
         </Pressable>
