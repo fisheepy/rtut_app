@@ -118,7 +118,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       case 'text':
         return (
           <>
-            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.title}>{question.title}:</Text>
             <TextInput
               style={commonStyles.SurveyRenderer.input}
               placeholder="Your answer"
@@ -131,7 +131,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       case 'singleChoice':
         return (
           <>
-            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.title}>{question.title}:</Text>
             {question.choices.map((choice, index) => (
               choice !== 'Other' && (
                 <TouchableOpacity
@@ -142,7 +142,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
                   <View style={commonStyles.SurveyRenderer.radioCircle}>
                     {answers[question.name] === choice && <View style={commonStyles.SurveyRenderer.selectedRadio} />}
                   </View>
-                  <Text>{choice}</Text>
+                  <Text style={commonStyles.SurveyRenderer.text}>{choice}</Text>
                 </TouchableOpacity>)
             ))}
             {question.allowCustomAnswer && (
@@ -154,10 +154,10 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
                   <View style={commonStyles.SurveyRenderer.radioCircle}>
                     {customAnswerSelected[question.name] && <View style={commonStyles.SurveyRenderer.selectedRadio} />}
                   </View>
-                  <Text>Other (please specify)</Text>
+                  <Text style={commonStyles.SurveyRenderer.text}>Other (please specify)</Text>
                 </TouchableOpacity>
                 <TextInput
-                  style={commonStyles.SurveyRenderer.customInput}
+                  style={commonStyles.SurveyRenderer.input}
                   placeholder="Other (please specify)"
                   onChangeText={(text) => handleCustomAnswerChange(question.name, text)}
                   value={answers[`${question.name}-custom`] || ''}
@@ -171,7 +171,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       case 'rating':
         return (
           <>
-            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.title}>{question.title}:</Text>
             <Slider
               containerStyle={commonStyles.SurveyRenderer.sliderContainer}
               minimumValue={1}
@@ -180,14 +180,14 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
               onValueChange={(value) => handleInputChange(question.name, value)}
               value={answers[question.name] || question.rateMax / 2}
             />
-            <Text>{answers[question.name] || question.rateMax / 2}</Text>
+            <Text style={commonStyles.SurveyRenderer.text}>{answers[question.name] || question.rateMax / 2}</Text>
           </>
         );
 
       case 'multiChoice':
         return (
           <>
-            <Text style={commonStyles.SurveyRenderer.questionTitle}>{question.title}:</Text>
+            <Text style={commonStyles.SurveyRenderer.title}>{question.title}:</Text>
             {question.choices.map((choice, index) => (
               choice !== 'Other' && (
                 <TouchableOpacity
@@ -198,7 +198,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
                   <View style={commonStyles.SurveyRenderer.checkbox}>
                     {answers[question.name]?.includes(choice) && <View style={commonStyles.SurveyRenderer.checkedBox} />}
                   </View>
-                  <Text>{choice}</Text>
+                  <Text style={commonStyles.SurveyRenderer.text}>{choice}</Text>
                 </TouchableOpacity>)
             ))}
             {question.allowCustomAnswer && (
@@ -210,10 +210,10 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
                   <View style={commonStyles.SurveyRenderer.checkbox}>
                     {customAnswerSelected[question.name] && <View style={commonStyles.SurveyRenderer.checkedBox} />}
                   </View>
-                  <Text>Other (please specify)</Text>
+                  <Text style={commonStyles.SurveyRenderer.text}>Other (please specify)</Text>
                 </TouchableOpacity>
                 <TextInput
-                  style={commonStyles.SurveyRenderer.customInput}
+                  style={commonStyles.SurveyRenderer.input}
                   placeholder="Other (please specify)"
                   onChangeText={(text) => handleCustomAnswerChange(question.name, text)}
                   value={answers[`${question.name}-custom`] || ''}
@@ -231,7 +231,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
 
   return (
     <ScrollView
-      style={commonStyles.SurveyRenderer.surveyContainer}
+      style={commonStyles.SurveyRenderer.container}
       showsVerticalScrollIndicator={false}
       showsHorizontalScrollIndicator={false}
     >
@@ -246,14 +246,13 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
         {isSurveyComplete ? (
           <Pressable onPress={()=>onSurveyComplete(answers)}>
             <GiConfirmed
-              style={commonStyles.SurveyRenderer.button}
               fontSize={40}
               color='green'
             />
           </Pressable>
         ) : (
           <GiConfirmed
-            style={{ ...commonStyles.SurveyRenderer.button, pointerEvents: "none" }}
+            style={{ pointerEvents: "none" }}
             fontSize={40}
             color='gray'
           />
@@ -261,7 +260,7 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
         <View style={{ width: 100 }} />
         <Pressable onPress={onCancel}>
           <GiCancel
-            style={{ ...commonStyles.SurveyRenderer.button, pointerEvents: "none" }}
+            style={{ pointerEvents: "none" }}
             fontSize={40}
           />
         </Pressable>

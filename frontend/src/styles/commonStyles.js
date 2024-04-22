@@ -378,7 +378,7 @@ export default StyleSheet.create({
         },
     },
     SurveyRenderer: {
-        surveyContainer: {
+        container: {
             width: '100vw',
             backgroundColor: baseColor,
           },
@@ -387,9 +387,18 @@ export default StyleSheet.create({
             paddingHorizontal: 30,
             width: '90vw',
           },
-          questionTitle: {
+          text:
+          {
+            textAlign: 'justify',
+            fontFamily: 'Open Sans',
+            fontSize: 12,
+          },
+          title: {
             textAlign: 'center',
             marginBottom: 10,
+            fontFamily: 'Open Sans',
+            fontWeight: 'bold',
+            fontSize: 12,
           },
           choiceContainer: {
             flexDirection: 'row',
@@ -413,18 +422,13 @@ export default StyleSheet.create({
             borderRadius: 6,
             backgroundColor: '#000',
           },
-          customInput: {
-            borderWidth: 1,
-            borderColor: '#ccc',
-            padding: 10,
-            borderRadius: 5,
-            marginTop: 10,
-          },
           input: {
             borderWidth: 1,
             borderColor: '#ccc',
             padding: 10,
             borderRadius: 5,
+            fontFamily: 'Open Sans',
+            fontSize: 12,
           },
           checkbox: {
             width: 20,
@@ -439,6 +443,7 @@ export default StyleSheet.create({
             width: 12,
             height: 12,
             backgroundColor: '#000',
+            fontFamily: 'Open Sans',
           },
           sliderContainer: {
             width: '90vw',
@@ -448,8 +453,6 @@ export default StyleSheet.create({
             justifyContent: 'center',
             width: '100vw',
             marginBottom: 20,
-          },
-          button: {
           },
     },
 });
