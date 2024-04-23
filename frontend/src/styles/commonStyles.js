@@ -3,12 +3,12 @@ import 'typeface-open-sans';
 
 const bannerHeight = 100;
 const baseColor = '#e7eff7';
-const menuColor = '#b8cad3';
-const bannerColor = '#206b12';
+const menuColor = '#008c8c';
+const bannerColor = '#900021';
 const toggleColor = '#206b12';
 const settingColor = '#040f15';
 const bannerTextColor = '#e7eff7';
-const tabColor = '#bee0ec';
+const tabColor = '#003153';
 
 export default StyleSheet.create({
     app: {
@@ -348,11 +348,16 @@ export default StyleSheet.create({
         tabButton: {
             flex: 1,
             alignItems: 'center',
-            height: 60,
-            marginBottom: 20,
+            justifyContent: 'center',
+            fontSize: 36,
+            fontWeight: 'bold',
+            marginBottom: 15,
         },
         activeTab: {
-            color: 'green',
+            color: '#fbd26a',
+        },
+        inactiveTab: {
+            color:'#900021',
         },
         messagesContainer: {
             marginTop: 10,
@@ -363,6 +368,7 @@ export default StyleSheet.create({
         },
         tabButtonText: {
             fontSize: 16,
+            fontWeight: 'bold',
         },
         refreshButtonContainer: {
             marginTop: 20,

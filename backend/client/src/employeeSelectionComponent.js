@@ -167,7 +167,11 @@ function EmployeeSelectionComponent() {
         { id: 'Supervisor', label: 'Supervisor', filter: true },
         { id: 'Phone', label: 'Phone', filter: true },
         { id: 'Email', label: 'Email', filter: true },
+        { id: 'Employment Category', label: 'Employement', filter: true },
+        { id: 'EEOC Establishment', label: 'EEOC', filter: true },
+
         { id: 'select', label: '(Override Remove)', filter: false },
+        
         // Add other columns as needed...
     ];
 

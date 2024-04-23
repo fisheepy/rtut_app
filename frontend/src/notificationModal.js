@@ -23,7 +23,8 @@ const NotificationModal = ({ windowDimensions }) => {
         },
         tabButtonContainer: { ...commonStyles.notificationModal.tabButtonContainer,height: 110, },
         tabButton: commonStyles.notificationModal.tabButton,
-        activeTab: commonStyles.notificationModal.activeTab,
+        activeTab: commonStyles.notificationModal.activeTab,        
+        inactiveTab: commonStyles.notificationModal.inactiveTab,
         messagesContainer: { ...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 220, },
         notificationContainer: {
             ...commonStyles.notificationModal.notificationContainer,
@@ -32,6 +33,7 @@ const NotificationModal = ({ windowDimensions }) => {
             marginBottom: 10,
         },
         tabButtonText: commonStyles.notificationModal.tabButtonText,
+        tabButton: commonStyles.notificationModal.tabButton,
         refreshButtonContainer: commonStyles.notificationModal.refreshButtonContainer,
         refreshButton: commonStyles.notificationModal.refreshButton,
         completedSurvey: commonStyles.notificationModal.completedSurvey,
@@ -302,25 +304,55 @@ const NotificationModal = ({ windowDimensions }) => {
             {!detailViewMode && (
                 <View style={styles.tabButtonContainer}>
                     <Pressable
-                        style={[styles.tabButton, currentTab === 'notifications' && styles.activeTab]}
+                        style={[
+                            styles.tabButton, 
+                            currentTab === 'notifications' && styles.activeTab, 
+                            currentTab !== 'notifications' && styles.inactiveTab,
+                        ]}
                         onPress={() => handleTabChange('notifications')}
                     >
-                        <TfiAnnouncement style={{ fontSize: 36 }} />
-                        <Text style={styles.tabButtonText}>Notification</Text>
+                        <TfiAnnouncement style={styles.tabButton} />
+                        <Text style={[
+                            styles.tabButtonText,
+                            currentTab === 'notifications' && styles.activeTab, 
+                            currentTab !== 'notifications' && styles.inactiveTab
+                            ]}>
+                                Notification
+                        </Text>
                     </Pressable>
                     <Pressable
-                        style={[styles.tabButton, currentTab === 'surveys' && styles.activeTab]}
+                        style={[
+                            styles.tabButton, 
+                            currentTab === 'surveys' && styles.activeTab,
+                            currentTab !== 'surveys' && styles.inactiveTab,
+                        ]}
                         onPress={() => handleTabChange('surveys')}
                     >
-                        <CiSquareQuestion style={{ fontSize: 36 }} />
-                        <Text style={styles.tabButtonText}>Survey</Text>
+                        <CiSquareQuestion style={styles.tabButton} />
+                        <Text style={[
+                            styles.tabButtonText,
+                            currentTab === 'surveys' && styles.activeTab, 
+                            currentTab !== 'surveys' && styles.inactiveTab
+                            ]}>
+                                Survey
+                        </Text>
                     </Pressable>
                     <Pressable
-                        style={[styles.tabButton, currentTab === 'others' && styles.activeTab]}
+                        style={[
+                            styles.tabButton, 
+                            currentTab === 'others' && styles.activeTab,
+                            currentTab !== 'others' && styles.inactiveTab,
+                        ]}
                         onPress={() => handleTabChange('others')}
                     >
-                        <CiCirclePlus style={{ fontSize: 36 }} />
-                        <Text style={styles.tabButtonText}>Other</Text>
+                        <CiCirclePlus style={styles.tabButton} />
+                        <Text style={[
+                            styles.tabButtonText,
+                            currentTab === 'others' && styles.activeTab, 
+                            currentTab !== 'others' && styles.inactiveTab
+                            ]}>
+                                Other
+                        </Text>
                     </Pressable>
                 </View>
             )}
