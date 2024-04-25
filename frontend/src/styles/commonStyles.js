@@ -2,13 +2,14 @@ import { StyleSheet } from 'react-native';
 import 'typeface-open-sans';
 
 const bannerHeight = 100;
-const baseColor = '#e7eff7';
-const menuColor = '#008c8c';
-const bannerColor = '#900021';
-const toggleColor = '#206b12';
-const settingColor = '#040f15';
-const bannerTextColor = '#e7eff7';
-const tabColor = '#003153';
+const baseColor = '#f9f1db';
+const menuColor = '#2e59a7';
+const bannerColor = '#314a43';
+const toggleColor = '#f3f3e7';
+const settingColor = '#eeebda';
+const bannerTextColor = '#f9f1db';
+const tabColor = '#314a43';
+const activeColor = '#041014';
 
 export default StyleSheet.create({
     app: {
@@ -116,7 +117,6 @@ export default StyleSheet.create({
             alignSelf: 'center',
         },
         readIndicator: {
-            backgroundColor: 'darkgrey', // Color for read messages
         },
         unreadIndicator: {
             backgroundColor: 'green', // Color for unread messages
@@ -354,10 +354,10 @@ export default StyleSheet.create({
             marginBottom: 15,
         },
         activeTab: {
-            color: '#fbd26a',
+            color: activeColor,
         },
         inactiveTab: {
-            color:'#900021',
+            color:baseColor,
         },
         messagesContainer: {
             marginTop: 10,
