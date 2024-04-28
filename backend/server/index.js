@@ -407,8 +407,7 @@ app.post('/submit-survey', async (req, res) => {
 app.post('/fetch-events', async (req, res) => {
     try {
         // Retrieve the survey result data from the request body
-        const { userId } = req.body;
-        console.log(userId);
+        console.log('test');
         // Connect to MongoDB
         // await client.connect();
         // console.log('Connected to MongoDB');

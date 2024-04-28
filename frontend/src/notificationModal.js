@@ -68,6 +68,7 @@ const NotificationModal = ({ windowDimensions }) => {
     }, { axis: 'y' });
 
     const fetchSchedulerData = async () => {
+        console.log('events!');
         try {
             const response = await fetch('https://rtut-app-admin-server-c2d4ae9d37ae.herokuapp.com/fetch-events', {
                 method: 'POST',
@@ -91,7 +92,11 @@ const NotificationModal = ({ windowDimensions }) => {
             }).catch(error => {
                 console.error('Failed to fetch notifications:', error);
             });
-            fetchSchedulerData();
+            fetchSchedulerData().then(() => {
+                console.log('Events fetched successfully.');
+            }).catch(error => {
+                console.error('Failed to fetch events:', error);
+            });
             setIsPulledDown(false); // Reset the flag after refresh
         }
     }, [isPulledDown, fetchAllNotifications]);
