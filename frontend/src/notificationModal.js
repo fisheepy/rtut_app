@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import commonStyles from './styles/commonStyles';
 import { useSpring, animated } from 'react-spring';
 import { useDrag } from '@use-gesture/react';
+import CalendarComponent from './calendarComponent';
 
 const getStorageKey = (userId) => `notifications_${userId}`;
 
@@ -21,9 +22,9 @@ const NotificationModal = ({ windowDimensions }) => {
             width: windowDimensions.width,
             height: windowDimensions.height - 100,
         },
-        tabButtonContainer: { ...commonStyles.notificationModal.tabButtonContainer,height: 110, },
+        tabButtonContainer: { ...commonStyles.notificationModal.tabButtonContainer, height: 110, },
         tabButton: commonStyles.notificationModal.tabButton,
-        activeTab: commonStyles.notificationModal.activeTab,        
+        activeTab: commonStyles.notificationModal.activeTab,
         inactiveTab: commonStyles.notificationModal.inactiveTab,
         messagesContainer: { ...commonStyles.notificationModal.messagesContainer, height: windowDimensions.height - 220, },
         notificationContainer: {
@@ -53,6 +54,7 @@ const NotificationModal = ({ windowDimensions }) => {
     const completedSurveys = JSON.parse(localStorage.getItem('completedSurveys') || '[]');
     const [isPulledDown, setIsPulledDown] = useState(false);
     const [style, api] = useSpring(() => ({ y: 0 }));
+    const [schedulerData, setSchedulerData] = useState([]);
 
     const bind = useDrag(({ down, movement: [mx, my] }) => {
         if (down) {
@@ -65,6 +67,22 @@ const NotificationModal = ({ windowDimensions }) => {
         }
     }, { axis: 'y' });
 
+    const fetchSchedulerData = async () => {
+        try {
+            const response = await fetch('https://rtut-app-admin-server-c2d4ae9d37ae.herokuapp.com/fetch-events', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify('test'),
+            });
+            console.log(response);
+            // setSchedulerData(data); // Set fetched data to state
+        } catch (error) {
+            console.error('Failed to fetch scheduler data:', error);
+        }
+    };
+
     useEffect(() => {
         if (isPulledDown) {
             // Trigger the refresh logic
@@ -73,6 +91,7 @@ const NotificationModal = ({ windowDimensions }) => {
             }).catch(error => {
                 console.error('Failed to fetch notifications:', error);
             });
+            fetchSchedulerData();
             setIsPulledDown(false); // Reset the flag after refresh
         }
     }, [isPulledDown, fetchAllNotifications]);
@@ -124,6 +143,7 @@ const NotificationModal = ({ windowDimensions }) => {
             }
         };
 
+        fetchSchedulerData();
         loadCachedNotifications();
     }, []);
 
@@ -168,12 +188,12 @@ const NotificationModal = ({ windowDimensions }) => {
         // Update filteredNotifications when qualifiedNotifications or currentTab changes
         console.log('Update filtered notifications!');
         const newFilteredNotifications = qualifiedNotifications.filter(notification => {
-            if (currentTab === 'notifications') {
-                return notification.payload.messageType === 'NOTIFICATION';
-            } else if (currentTab === 'surveys') {
+            if (currentTab === 'surveys') {
                 return notification.payload.messageType === 'SURVEY';
-            } else {
-                return !['NOTIFICATION', 'SURVEY'].includes(notification.payload.messageType);
+            }
+            else if (currentTab === 'notifications') {
+                return notification.payload.messageType === 'NOTIFICATION' ||
+                    !['NOTIFICATION', 'SURVEY'].includes(notification.payload.messageType);
             }
         });
         setFilteredNotifications(newFilteredNotifications);
@@ -275,38 +295,44 @@ const NotificationModal = ({ windowDimensions }) => {
                 )
             ) : (
                 <animated.div {...bind()} style={{ y: style.y.to(y => Math.min(y, 150)) }}>
-                    <ScrollView
-                        style={styles.messagesContainer}
-                        showsVerticalScrollIndicator={false}
-                        showsHorizontalScrollIndicator={false}
-                    >
-                        {filteredNotifications.map(notification => (
-                            <View
-                                key={notification.id}
-                                style={styles.notificationContainer}
-                            >
-                                <MessageViewComponent
-                                    notification={notification}
-                                    onPress={() => {
-                                        if (currentTab !== 'surveys' || !completedSurveys.includes(notification.payload.uniqueId)) {
-                                            console.log(notification);
-                                            handleNotificationPress(notification);
-                                        }
-                                    }}
-                                    isSurveyCompleted={completedSurveys.includes(notification.payload.uniqueId)}
-                                    windowDimensions={windowDimensions}
-                                />
-                            </View>
-                        ))}
-                    </ScrollView>
+                    {currentTab === 'others' ? (
+                        <View style={styles.messagesContainer}>
+                            <CalendarComponent windowDimensions={windowDimensions} />
+                        </View>
+                    ) : (
+                        <ScrollView
+                            style={styles.messagesContainer}
+                            showsVerticalScrollIndicator={false}
+                            showsHorizontalScrollIndicator={false}
+                        >
+                            {filteredNotifications.map(notification => (
+                                <View
+                                    key={notification.id}
+                                    style={styles.notificationContainer}
+                                >
+                                    <MessageViewComponent
+                                        notification={notification}
+                                        onPress={() => {
+                                            if (currentTab !== 'surveys' || !completedSurveys.includes(notification.payload.uniqueId)) {
+                                                console.log(notification);
+                                                handleNotificationPress(notification);
+                                            }
+                                        }}
+                                        isSurveyCompleted={completedSurveys.includes(notification.payload.uniqueId)}
+                                        windowDimensions={windowDimensions}
+                                    />
+                                </View>
+                            ))}
+                        </ScrollView>
+                    )}
                 </animated.div>
             )}
             {!detailViewMode && (
                 <View style={styles.tabButtonContainer}>
                     <Pressable
                         style={[
-                            styles.tabButton, 
-                            currentTab === 'notifications' && styles.activeTab, 
+                            styles.tabButton,
+                            currentTab === 'notifications' && styles.activeTab,
                             currentTab !== 'notifications' && styles.inactiveTab,
                         ]}
                         onPress={() => handleTabChange('notifications')}
@@ -314,15 +340,15 @@ const NotificationModal = ({ windowDimensions }) => {
                         <TfiAnnouncement style={styles.tabButton} />
                         <Text style={[
                             styles.tabButtonText,
-                            currentTab === 'notifications' && styles.activeTab, 
+                            currentTab === 'notifications' && styles.activeTab,
                             currentTab !== 'notifications' && styles.inactiveTab
-                            ]}>
-                                Notification
+                        ]}>
+                            Notification
                         </Text>
                     </Pressable>
                     <Pressable
                         style={[
-                            styles.tabButton, 
+                            styles.tabButton,
                             currentTab === 'surveys' && styles.activeTab,
                             currentTab !== 'surveys' && styles.inactiveTab,
                         ]}
@@ -331,15 +357,15 @@ const NotificationModal = ({ windowDimensions }) => {
                         <CiSquareQuestion style={styles.tabButton} />
                         <Text style={[
                             styles.tabButtonText,
-                            currentTab === 'surveys' && styles.activeTab, 
+                            currentTab === 'surveys' && styles.activeTab,
                             currentTab !== 'surveys' && styles.inactiveTab
-                            ]}>
-                                Survey
+                        ]}>
+                            Survey
                         </Text>
                     </Pressable>
                     <Pressable
                         style={[
-                            styles.tabButton, 
+                            styles.tabButton,
                             currentTab === 'others' && styles.activeTab,
                             currentTab !== 'others' && styles.inactiveTab,
                         ]}
@@ -348,16 +374,17 @@ const NotificationModal = ({ windowDimensions }) => {
                         <CiCirclePlus style={styles.tabButton} />
                         <Text style={[
                             styles.tabButtonText,
-                            currentTab === 'others' && styles.activeTab, 
+                            currentTab === 'others' && styles.activeTab,
                             currentTab !== 'others' && styles.inactiveTab
-                            ]}>
-                                Other
+                        ]}>
+                            Other
                         </Text>
                     </Pressable>
                 </View>
             )}
         </View>
     );
+
 }
 
 export default NotificationModal;

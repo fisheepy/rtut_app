@@ -404,6 +404,33 @@ app.post('/submit-survey', async (req, res) => {
     }
 });
 
+app.post('/fetch-events', async (req, res) => {
+    try {
+        // Retrieve the survey result data from the request body
+        const { userId } = req.body;
+        console.log(userId);
+        // Connect to MongoDB
+        // await client.connect();
+        // console.log('Connected to MongoDB');
+
+        // // Access the database
+        // const db = client.db(database_name);
+        // const collection = db.collection('survey results');
+
+        // // Insert the survey data into the MongoDB collection
+        // await collection.insertOne({ UID: surveyId, answers, timestamp });
+
+        console.log('Survey data inserted successfully');
+        res.status(200).send('Survey result received successfully');
+    } catch (error) {
+        console.error('Error handling survey submission:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
 
 app.post('/call-function-add-employee', async (req, res) => {
     const newEmployee = req.body;
