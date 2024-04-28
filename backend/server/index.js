@@ -434,6 +434,7 @@ app.post('/fetch-events', async (req, res) => {
             return;
         }
         res.json(data);
+        console.log(data);
     } catch (error) {
         console.error('Error handling event fetching:', error.message);
         res.status(500).send('Internal Server Error');
