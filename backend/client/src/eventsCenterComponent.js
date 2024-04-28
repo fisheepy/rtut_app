@@ -12,7 +12,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         creator: '',
         location: ''
     });
-
+    
     // When component mounts or an event prop changes, update the form data
     useEffect(() => {
         if (event) {

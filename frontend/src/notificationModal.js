@@ -68,7 +68,6 @@ const NotificationModal = ({ windowDimensions }) => {
     }, { axis: 'y' });
 
     const fetchSchedulerData = async () => {
-        console.log('events!');
         try {
             const response = await fetch('https://rtut-app-admin-server-c2d4ae9d37ae.herokuapp.com/fetch-events', {
                 method: 'POST',
@@ -76,8 +75,12 @@ const NotificationModal = ({ windowDimensions }) => {
                     'Content-Type': 'application/json',
                 },
             });
-            console.log(response);
-            // setSchedulerData(data); // Set fetched data to state
+            if (response.ok) { // Check if response status code is 200
+                const data = await response.json(); // Parse JSON data from response
+                setSchedulerData(data); // Set fetched data to state
+            } else {
+                console.error('Failed to fetch scheduler data:', response.statusText);
+            }
         } catch (error) {
             console.error('Failed to fetch scheduler data:', error);
         }
@@ -153,7 +156,6 @@ const NotificationModal = ({ windowDimensions }) => {
 
     useEffect(() => {
         if (fetchNeeded) {
-            console.log('Fetch all!');
             fetchAllNotifications().then(() => {
                 console.log('Notifications fetched successfully.');
                 // Assuming fetchAllNotifications updates the notifications context,
@@ -201,8 +203,6 @@ const NotificationModal = ({ windowDimensions }) => {
             }
         });
         setFilteredNotifications(newFilteredNotifications);
-        console.log(filteredNotifications);
-        console.log(completedSurveys);
     }, [qualifiedNotifications, currentTab]);
 
     useEffect(() => {
@@ -242,9 +242,8 @@ const NotificationModal = ({ windowDimensions }) => {
             if (!response.ok) {
                 throw new Error('Failed to submit survey: ' + response.statusText);
             }
-            
+
             const completedSurveys = JSON.parse(localStorage.getItem('completedSurveys') || '[]');
-            console.log(surveyId);
 
             if (!completedSurveys.includes(surveyId)) {
                 completedSurveys.push(surveyId);
@@ -303,7 +302,7 @@ const NotificationModal = ({ windowDimensions }) => {
                 <animated.div {...bind()} style={{ y: style.y.to(y => Math.min(y, 150)) }}>
                     {currentTab === 'others' ? (
                         <View style={styles.messagesContainer}>
-                            <CalendarComponent windowDimensions={windowDimensions} />
+                            <CalendarComponent windowDimensions={windowDimensions} data={schedulerData}/>
                         </View>
                     ) : (
                         <ScrollView
@@ -320,7 +319,6 @@ const NotificationModal = ({ windowDimensions }) => {
                                         notification={notification}
                                         onPress={() => {
                                             if (currentTab !== 'surveys' || !completedSurveys.includes(notification.payload.uniqueId)) {
-                                                console.log(notification);
                                                 handleNotificationPress(notification);
                                             }
                                         }}
