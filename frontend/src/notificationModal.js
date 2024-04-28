@@ -75,7 +75,6 @@ const NotificationModal = ({ windowDimensions }) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify('test'),
             });
             console.log(response);
             // setSchedulerData(data); // Set fetched data to state
@@ -243,8 +242,10 @@ const NotificationModal = ({ windowDimensions }) => {
             if (!response.ok) {
                 throw new Error('Failed to submit survey: ' + response.statusText);
             }
-
+            
             const completedSurveys = JSON.parse(localStorage.getItem('completedSurveys') || '[]');
+            console.log(surveyId);
+
             if (!completedSurveys.includes(surveyId)) {
                 completedSurveys.push(surveyId);
                 localStorage.setItem('completedSurveys', JSON.stringify(completedSurveys));

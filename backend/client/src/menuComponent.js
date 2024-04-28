@@ -9,8 +9,11 @@ const MenuComponent = ({ onItemSelect }) => {
     { id: 'sendSurvey', label: 'Send Survey' },
     { id: 'reviewNotifications', label: 'Notification History' },
     { id: 'reviewSurveys', label: 'Surveys History' },
+    { id: 'reviewEvents', label: 'Event History'},
     { id: 'processEmployeeCsv', label: 'Import/Export Employees'},
     { id: 'processEmployee', label: 'Add/Remove Individual Employee'},
+    { id: 'sendEvent', label: 'Send Event'},
+
     // Add other items as necessary
   ];
 

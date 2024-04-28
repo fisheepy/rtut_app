@@ -32,36 +32,6 @@ const client = new MongoClient(uri, {
 });
 const csvFilePath = './backend/server/output.csv';
 
-// app.get('/import', async (req, res, next) => {
-//     try {
-//         // Connect to MongoDB
-//         await client.connect();
-//         console.log('Connected to MongoDB');
-
-//         // Access the database
-//         const db = client.db(database_name);
-
-//         const collection_name = 'employees';
-//         const collection = db.collection(collection_name);
-
-//         // Read data from CSV file using csvtojson
-//         const jsonArray = await csvtojson().fromFile(csvFilePath);
-
-//         // Insert data into MongoDB collection
-//         await collection.insertMany(jsonArray);
-
-//         console.log('Data imported successfully');
-//         res.send('Data imported successfully');
-//     } catch (error) {
-//         console.error('Error:', error);
-//         res.status(500).send('Internal Server Error');
-//     } finally {
-//         // Close the MongoDB connection
-//         await client.close();
-//         console.log('Connection to MongoDB closed');
-//     }
-// });
-
 app.get('/employees', cors(), async (req, res, next) => {
     const loginName = req.query; // Extract firstName and lastName from query parameters
     try {
@@ -113,8 +83,8 @@ app.get('/employees', cors(), async (req, res, next) => {
             return true; // Employee directly reports to the login user
         } else {
             // Check recursively if the supervisor's supervisor is the login user
-            const supervisor = allEmployees.find(emp => emp["First Name"] === employee["Supervisor First Name"] && 
-                                                        emp["Last Name"] === employee["Supervisor Last Name"]);
+            const supervisor = allEmployees.find(emp => emp["First Name"] === employee["Supervisor First Name"] &&
+                emp["Last Name"] === employee["Supervisor Last Name"]);
             if (supervisor) {
                 return isSupervisorOrSubordinate(supervisor, loginName, allEmployees);
             }
@@ -209,9 +179,52 @@ app.get('/surveys', cors(), async (req, res, next) => {
     }
 });
 
+app.get('/events', cors(), async (req, res, next) => {
+    const loginName = req.query; // Extract firstName and lastName from query parameters
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('events');
+
+        // Query database to retrieve data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        // Filter data based on user's admin status
+
+        if (isAdmin) {
+            res.json(data);
+        }
+        else {
+            res.status(401).send('Not Authorized');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
 app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
     const { surveyId } = req.params;
-    const loginName = req.query; 
+    const loginName = req.query;
     try {
         // Connect to MongoDB
         await client.connect();
@@ -223,7 +236,7 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
 
         // Query database to retrieve data
         const data = await collection.find({ UID: surveyId }).toArray();
-        
+
         // Check if data is retrieved
         if (!data || data.length === 0) {
             console.error('No data found in MongoDB collection');
@@ -254,9 +267,10 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
 });
 
 // Define a route to handle the POST request for executing the script
-app.post('/call-function-update-subscribers', (req, res) => {
-    // Execute the script
-    exec('node ./server/updateSubscribers.mjs', (error, stdout, stderr) => {
+app.post('/call-function-send-event', (req, res) => {
+    const {creator,endDate,location,startDate,title} = req.body.data;
+
+    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);
@@ -406,28 +420,31 @@ app.post('/submit-survey', async (req, res) => {
 
 app.post('/fetch-events', async (req, res) => {
     try {
-        // Retrieve the survey result data from the request body
-        console.log('test');
         // Connect to MongoDB
-        // await client.connect();
-        // console.log('Connected to MongoDB');
+        await client.connect();
+        console.log('Connected to MongoDB');
 
-        // // Access the database
-        // const db = client.db(database_name);
-        // const collection = db.collection('survey results');
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('events');
 
-        // // Insert the survey data into the MongoDB collection
-        // await collection.insertOne({ UID: surveyId, answers, timestamp });
+        const data = await collection.find().toArray();
 
-        console.log('Survey data inserted successfully');
-        res.status(200).send('Survey result received successfully');
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+        res.json(data);
+        res.status(200).send('Events received successfully');
     } catch (error) {
-        console.error('Error handling survey submission:', error.message);
+        console.error('Error handling event fetching:', error.message);
         res.status(500).send('Internal Server Error');
     } finally {
         // Close the MongoDB connection
-        // await client.close();
-        // console.log('Connection to MongoDB closed');
+        await client.close();
+        console.log('Connection to MongoDB closed');
     }
 });
 
@@ -481,7 +498,7 @@ app.post('/call-function-export-selected-employees', (req, res) => {
 
 app.post('/call-function-import-employees', (req, res) => {
     const employees = req.body.employees;
-    
+
     const employeesJSON = JSON.stringify(employees);
 
     // Write the JSON string to a temporary file

@@ -10,16 +10,20 @@ import UtilityToolsCompoent from './utilityToolsComponent';
 import NotificationsHistoryModule from './notificationsHistoryComponent';
 import SurveysHistoryModule from './surveysHistoryComponent';
 import UtilitiesCenterComponent from './utilitiesCenterComponent';
+import EventsHistoryModule from './eventsHistoryComponent';
+import EventsCenterComponent from './eventsCenterComponent';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const componentMapping = {
   'sendNotification': NotificationCenterModule,
   'sendSurvey': SurveyCenterComponent,
+  'sendEvent': EventsCenterComponent,
   'processEmployeeCsv': UtilityToolsCompoent,
   'reviewNotifications': NotificationsHistoryModule,
   'reviewSurveys': SurveysHistoryModule,
   'processEmployee': UtilitiesCenterComponent,
+  'reviewEvents': EventsHistoryModule,
 };
 
 function App() {
@@ -87,6 +91,8 @@ function App() {
             {
               componentKey !== 'reviewNotifications' &&
               componentKey !== 'reviewSurveys' && 
+              componentKey !== 'reviewEvents' &&               
+              componentKey !== 'sendEvent' && 
               componentKey !== 'processEmployee' &&(
               <div className="display-area" style={{ flex: 1, padding: '20px' }}>
                 <EmployeeSelectionComponent />
