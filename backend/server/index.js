@@ -427,8 +427,8 @@ app.post('/fetch-events', async (req, res) => {
         res.status(500).send('Internal Server Error');
     } finally {
         // Close the MongoDB connection
-        await client.close();
-        console.log('Connection to MongoDB closed');
+        // await client.close();
+        // console.log('Connection to MongoDB closed');
     }
 });
 
