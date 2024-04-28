@@ -423,13 +423,10 @@ app.post('/fetch-events', async (req, res) => {
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
-
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('events');
-
         const data = await collection.find().toArray();
-
         // Check if data is retrieved
         if (!data || data.length === 0) {
             console.error('No data found in MongoDB collection');
@@ -437,7 +434,6 @@ app.post('/fetch-events', async (req, res) => {
             return;
         }
         res.json(data);
-        res.status(200).send('Events received successfully');
     } catch (error) {
         console.error('Error handling event fetching:', error.message);
         res.status(500).send('Internal Server Error');
