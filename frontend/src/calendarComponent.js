@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Scheduler,
   WeekView,
@@ -8,12 +8,14 @@ import {
   Toolbar,
   DateNavigator,
   ViewSwitcher,
+  AllDayPanel,
 } from '@devexpress/dx-react-scheduler-material-ui';
 import { ViewState } from '@devexpress/dx-react-scheduler';
 import { AppointmentTooltip } from '@devexpress/dx-react-scheduler-material-ui';
 
 function CalendarComponent({data}) {
-  const currentDate = new Date().toISOString().slice(0, 10);
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().slice(0, 10));
+
   const TooltipContent = ({ appointmentData, ...restProps }) => (
     <AppointmentTooltip.Content {...restProps} appointmentData={appointmentData}>
       <div style={{ marginTop: '10px' }}>
@@ -34,6 +36,7 @@ function CalendarComponent({data}) {
     >
       <ViewState
         currentDate={currentDate}
+        onCurrentDateChange={setCurrentDate} 
       />
       <MonthView />
       <WeekView
@@ -48,8 +51,7 @@ function CalendarComponent({data}) {
       <DateNavigator />
       <ViewSwitcher />
       <Appointments />
-      <AppointmentTooltip contentComponent={TooltipContent} showCloseButton showOpenButton />
-
+      <AppointmentTooltip contentComponent={TooltipContent} showCloseButton />
     </Scheduler>
   );
 }

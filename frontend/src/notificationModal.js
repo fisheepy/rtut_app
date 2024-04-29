@@ -34,7 +34,6 @@ const NotificationModal = ({ windowDimensions }) => {
             marginBottom: 10,
         },
         tabButtonText: commonStyles.notificationModal.tabButtonText,
-        tabButton: commonStyles.notificationModal.tabButton,
         refreshButtonContainer: commonStyles.notificationModal.refreshButtonContainer,
         refreshButton: commonStyles.notificationModal.refreshButton,
         completedSurvey: commonStyles.notificationModal.completedSurvey,
@@ -69,15 +68,29 @@ const NotificationModal = ({ windowDimensions }) => {
 
     const fetchSchedulerData = async () => {
         try {
+            // Check for cached data in local storage
+            const cachedData = localStorage.getItem('eventsData');
+            if (cachedData) {
+                console.log('Using cached data');
+                setSchedulerData(JSON.parse(cachedData));
+                return; // Return early if cached data is used
+            }
+    
+            // Fetch new data from the server if no cached data is available
+            console.log('Fetching new data from server');
             const response = await fetch('https://rtut-app-admin-server-c2d4ae9d37ae.herokuapp.com/fetch-events', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
             });
-            if (response.ok) { // Check if response status code is 200
-                const data = await response.json(); // Parse JSON data from response
-                setSchedulerData(data); // Set fetched data to state
+    
+            if (response.ok) {
+                const data = await response.json();
+                setSchedulerData(data);
+                // Update local storage with new data
+                localStorage.setItem('eventsData', JSON.stringify(data));
+                console.log('Data fetched and cached');
             } else {
                 console.error('Failed to fetch scheduler data:', response.statusText);
             }
@@ -85,7 +98,7 @@ const NotificationModal = ({ windowDimensions }) => {
             console.error('Failed to fetch scheduler data:', error);
         }
     };
-
+    
     useEffect(() => {
         if (isPulledDown) {
             // Trigger the refresh logic
@@ -300,7 +313,7 @@ const NotificationModal = ({ windowDimensions }) => {
                 )
             ) : (
                 <animated.div {...bind()} style={{ y: style.y.to(y => Math.min(y, 150)) }}>
-                    {currentTab === 'others' ? (
+                    {currentTab === 'calendar' ? (
                         <View style={styles.messagesContainer}>
                             <CalendarComponent windowDimensions={windowDimensions} data={schedulerData}/>
                         </View>
@@ -370,18 +383,18 @@ const NotificationModal = ({ windowDimensions }) => {
                     <Pressable
                         style={[
                             styles.tabButton,
-                            currentTab === 'others' && styles.activeTab,
-                            currentTab !== 'others' && styles.inactiveTab,
+                            currentTab === 'calendar' && styles.activeTab,
+                            currentTab !== 'calendar' && styles.inactiveTab,
                         ]}
-                        onPress={() => handleTabChange('others')}
+                        onPress={() => handleTabChange('calendar')}
                     >
                         <CiCirclePlus style={styles.tabButton} />
                         <Text style={[
                             styles.tabButtonText,
-                            currentTab === 'others' && styles.activeTab,
-                            currentTab !== 'others' && styles.inactiveTab
+                            currentTab === 'calendar' && styles.activeTab,
+                            currentTab !== 'calendar' && styles.inactiveTab
                         ]}>
-                            Other
+                            Calendar
                         </Text>
                     </Pressable>
                 </View>
