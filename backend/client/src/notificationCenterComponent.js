@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
-import { Button, DialogContentText, Dialog, DialogActions, DialogContent, DialogTitle, Checkbox, FormControlLabel, FormGroup } from '@mui/material';
+import { Button, DialogContentText, Dialog, DialogActions, DialogContent, DialogTitle, Checkbox, FormControlLabel, FormGroup, Typography, TextField } from '@mui/material';
 
 function NotificationCenterComponent() {
     const [subject, setSubject] = useState('');
@@ -67,67 +67,70 @@ function NotificationCenterComponent() {
 
     return (
         <div>
-            <h3>Execution Status</h3>
-            <p className="execution-status">{executionStatus}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '20px' }}>
-                <h3>Compose Notification</h3>
-                <input
-                    type="text"
-                    placeholder="Subject"
+            <div>
+                <Typography variant="h6">Execution Status</Typography>
+                <Typography>{executionStatus}</Typography>
+                <Typography variant="h6">Compose Notification</Typography>
+                <TextField
+                    label="Subject"
+                    variant="outlined"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    style={{ marginBottom: '10px', width: '50vw' }} // Adjust width here
+                    style={{ width: '25%', }}
                 />
-                <input
-                    type="text"
-                    placeholder="Sender"
+                <TextField
+                    label="Sender"
+                    variant="outlined"
                     value={sender}
                     onChange={(e) => setSender(e.target.value)}
-                    style={{ marginBottom: '10px', width: '50vw' }} // Adjust width here
+                    style={{ width: '25%', }}
                 />
-                <textarea
-                    value={editContent}
-                    onChange={handleEditChange}
-                    placeholder="Type here to compose notification..."
-                    rows={10}
-                    cols={50}
-                    style={{ marginBottom: '10px', width: '50vw' }} // Adjust width here
-                />
-                <div>
-                    <FormControlLabel control={<Checkbox checked={sendOptions.app} onChange={handleCheckboxChange} name="app" />} label="App" />
-                    <FormControlLabel control={<Checkbox checked={sendOptions.email} onChange={handleCheckboxChange} name="email" />} label="Email" />
-                    <FormControlLabel control={<Checkbox checked={sendOptions.sms} onChange={handleCheckboxChange} name="sms" />} label="SMS" />
-                </div>
-                <Button variant="contained" onClick={handleOpenConfirmDialog} style={{ marginTop: '10px', width: '50%' }}>
-                    Send Notification
-                </Button>
-                {/* Confirmation Dialog */}
-                <Dialog open={openConfirmDialog} onClose={handleCloseConfirmDialog}>
-                    <DialogTitle>Confirm Send Notification</DialogTitle>
-                    <DialogContent>
-                        <DialogContentText>
-                            Are you sure you want to send this notification?<br />
-                            <FormGroup>
-                                <FormControlLabel control={<Checkbox checked={sendOptions.app} disabled />} label="App" />
-                                <FormControlLabel control={<Checkbox checked={sendOptions.email} disabled />} label="Email" />
-                                <FormControlLabel control={<Checkbox checked={sendOptions.sms} disabled />} label="SMS" />
-                            </FormGroup>
-                            {/* Display summary of the notification */}
-                            <strong>Subject: {subject}</strong><br />
-                            <strong>Sender: {sender}</strong><br />
-                            <strong>Content: {editContent}</strong><br />
-                            <strong>Recipients:</strong> {prepareRecipientNames()}<br />
-                        </DialogContentText>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleCloseConfirmDialog}>Cancel</Button>
-                        <Button onClick={handleConfirmSendNotification} autoFocus>
-                            Confirm
-                        </Button>
-                    </DialogActions>
-                </Dialog>
             </div>
-        </div>
+            <TextField
+                label="Notification Content" 
+                multiline 
+                rows={10} 
+                placeholder="Type here to compose notification..." 
+                variant="outlined" 
+                value={editContent} 
+                onChange={handleEditChange} 
+                fullWidth 
+                style={{ marginBottom: '10px', width: '50vw',marginTop:'10px' }} 
+            />
+            <div>
+                <FormControlLabel control={<Checkbox checked={sendOptions.app} onChange={handleCheckboxChange} name="app" />} label="App" />
+                <FormControlLabel control={<Checkbox checked={sendOptions.email} onChange={handleCheckboxChange} name="email" />} label="Email" />
+                <FormControlLabel control={<Checkbox checked={sendOptions.sms} onChange={handleCheckboxChange} name="sms" />} label="SMS" />
+            </div>
+            <Button variant="contained" onClick={handleOpenConfirmDialog} style={{ marginTop: '10px', width: '50%' }}>
+                Send Notification
+            </Button>
+            {/* Confirmation Dialog */}
+            <Dialog open={openConfirmDialog} onClose={handleCloseConfirmDialog}>
+                <DialogTitle>Confirm Send Notification</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to send this notification?<br />
+                        <FormGroup>
+                            <FormControlLabel control={<Checkbox checked={sendOptions.app} disabled />} label="App" />
+                            <FormControlLabel control={<Checkbox checked={sendOptions.email} disabled />} label="Email" />
+                            <FormControlLabel control={<Checkbox checked={sendOptions.sms} disabled />} label="SMS" />
+                        </FormGroup>
+                        {/* Display summary of the notification */}
+                        <strong>Subject: {subject}</strong><br />
+                        <strong>Sender: {sender}</strong><br />
+                        <strong>Content: {editContent}</strong><br />
+                        <strong>Recipients:</strong> {prepareRecipientNames()}<br />
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseConfirmDialog}>Cancel</Button>
+                    <Button onClick={handleConfirmSendNotification} autoFocus>
+                        Confirm
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </div >
     );
 }
 
