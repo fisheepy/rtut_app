@@ -512,6 +512,23 @@ app.post('/call-function-import-employees', (req, res) => {
     });
 });
 
+app.get('/call-function-update-employee-token', (req, res) => {
+    const firstName = 'Xuan';//req.body.firstName;
+    const lastName = 'Yu';//req.body.lastName;
+    const token = '9DD56CD289382FADC5C70F508CC6ED700FD16F74DC4CD91870B37A33CABC3BA3';//req.body.token;
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname + '/backend/client/public/index.html'))
 });

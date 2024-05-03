@@ -41,7 +41,7 @@ function App() {
     return () => {
       // Cleanup actions
     };
-  }, [selectedItem]); 
+  }, [selectedItem]);
 
   const handleItemSelect = (item) => {
     setSelectedItem(item);
@@ -90,14 +90,14 @@ function App() {
             </div>
             {
               componentKey !== 'reviewNotifications' &&
-              componentKey !== 'reviewSurveys' && 
-              componentKey !== 'reviewEvents' &&               
-              componentKey !== 'sendEvent' && 
-              componentKey !== 'processEmployee' &&(
-              <div className="display-area" style={{ flex: 1, padding: '20px' }}>
-                <EmployeeSelectionComponent />
-              </div>
-            )}
+              componentKey !== 'reviewSurveys' &&
+              componentKey !== 'reviewEvents' &&
+              componentKey !== 'sendEvent' &&
+              componentKey !== 'processEmployee' && (
+                <div className="display-area" style={{ flex: 1, padding: '20px' }}>
+                  <EmployeeSelectionComponent />
+                </div>
+              )}
           </div>
         </SelectedEmployeesProvider>
       )}
