@@ -10,7 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import commonStyles from './styles/commonStyles';
 import { useSpring, animated } from 'react-spring';
 import { useDrag } from '@use-gesture/react';
-import CalendarComponent from './calendarComponent';
+// import CalendarComponent from './calendarComponent';
 
 const getStorageKey = (userId) => `notifications_${userId}`;
 
@@ -315,7 +315,7 @@ const NotificationModal = ({ windowDimensions }) => {
                 <animated.div {...bind()} style={{ y: style.y.to(y => Math.min(y, 150)) }}>
                     {currentTab === 'calendar' ? (
                         <View style={styles.messagesContainer}>
-                            <CalendarComponent windowDimensions={windowDimensions} data={schedulerData}/>
+                            {/* <CalendarComponent windowDimensions={windowDimensions} data={schedulerData}/> */}
                         </View>
                     ) : (
                         <ScrollView
