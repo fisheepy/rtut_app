@@ -330,7 +330,11 @@ app.post('/call-function-validate-log-in', async (req, res) => {
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
-        res.status(200).send(stdout);
+        if (stdout.includes("Login valid: true")) {
+            res.status(200).send("Login successful");
+        } else {
+            res.status(401).send("Login failed: Invalid code or code expired");
+        }
     });
 });
 

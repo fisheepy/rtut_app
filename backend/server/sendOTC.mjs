@@ -36,7 +36,7 @@ const sendOTCNotifications = async (firstName, lastName, requestedCode) => {
         });
 
         console.log('Send OTC succeeded!');
-        const filter = { "Payroll Name": `${lastName}, ${firstName}` };
+        const filter = { "Last Name": lastName, "First Name": firstName };
         const updateDoc = {
           $set: { 
             requestedCode: requestedCode,
