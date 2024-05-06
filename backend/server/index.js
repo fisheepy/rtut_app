@@ -515,7 +515,7 @@ app.post('/call-function-import-employees', (req, res) => {
 app.get('/call-function-update-employee-token', (req, res) => {
     const firstName = 'Xuan';//req.body.firstName;
     const lastName = 'Yu';//req.body.lastName;
-    const token = '9DD56CD289382FADC5C70F508CC6ED700FD16F74DC4CD91870B37A33CABC3BA3';//req.body.token;
+    const token = 'cfjS5dS_ZEQ1tzldAGGDmq:APA91bFeuRCgP5beNN9xrTmX5pXvHkFeurEpZmVsp_1dmkycb1i_NGpeC_R4QoMpKZoPC3Q-tryZ5-uO4c4-sgo1ap_IlEq1ztlsm_Fu-Aet6Mpdm572nWUcfVH839PQa3AfKnf_g-Th';//req.body.token;
 
     // Execute the script and pass the temporary file path as an argument
     exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {

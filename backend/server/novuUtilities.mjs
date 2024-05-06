@@ -133,7 +133,7 @@ export async function updateEmployeeNovuSubscriberToken(firstName, lastName, tok
     // Process each employee
     const uid = generateUniqueId(firstName.toUpperCase(), lastName.toUpperCase());
 
-    await novu.subscribers.setCredentials(uid, PushProviderIdEnum.EXPO, {
+    await novu.subscribers.setCredentials(uid, PushProviderIdEnum.FCM, {
       deviceTokens: [token],
     });
 
