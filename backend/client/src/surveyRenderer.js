@@ -3,8 +3,9 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Pressa
 import { Slider } from '@miblanchard/react-native-slider';
 import { GiConfirmed } from "react-icons/gi";
 import { GiCancel } from "react-icons/gi";
+import { RiDeleteBin5Line } from "react-icons/ri";
 
-const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensions }) => {
+const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, onRemoveQuestion, windowDimensions }) => {
   const styles = StyleSheet.create({
     surveyContainer: {
       width: windowDimensions.width * 1,
@@ -79,6 +80,21 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       width: windowDimensions.width * 1,
     },
     button: {
+    },
+    removeButton: {
+      position: 'absolute',
+      left: 10,
+      top: 10,
+      padding: 5,
+      backgroundColor: '#ff6347', // Tomato color for visibility, adjust as needed
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1,  // Make sure it's above other elements if needed
+    },
+    removeButtonText: {
+      color: '#fff', // White text
+      fontWeight: 'bold',
     },
   });
 
@@ -314,13 +330,16 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, windowDimensio
       {surveyJson.elements.map((question, index) => (
         <View style={styles.questionContainer}>
           {renderQuestion(question)}
+          <TouchableOpacity onPress={() => onRemoveQuestion(index)} style={styles.removeButton}>
+            <RiDeleteBin5Line name="minus" size={15} />
+          </TouchableOpacity>
         </View>
       ))}
       <View
         style={styles.buttonContainer}
       >
         {isSurveyComplete ? (
-          <Pressable onPress={()=>onSurveyComplete(answers)}>
+          <Pressable onPress={() => onSurveyComplete(answers)}>
             <GiConfirmed
               style={styles.button}
               fontSize={40}

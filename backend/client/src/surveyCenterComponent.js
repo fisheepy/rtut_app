@@ -84,6 +84,13 @@ function SurveyCenterComponent() {
         setQuestionTitle("");
     }
 
+    function removeQuestion(index) {
+        setSurveyJson(prevSurveyJson => ({
+            ...prevSurveyJson,
+            elements: prevSurveyJson.elements.filter((_, i) => i !== index)
+        }));
+    }
+
     const handleSendSurvey = () => {
         setOpenConfirmDialog(true);
     };
@@ -168,7 +175,11 @@ function SurveyCenterComponent() {
             </div>
             <div>
                 <Typography variant="h6">Preview</Typography>
-                <SurveyRenderer surveyJson={surveyJson} windowDimensions={{ width: windowDimensions.width * 0.5 }} />
+                <SurveyRenderer
+                    surveyJson={surveyJson}
+                    onRemoveQuestion={removeQuestion}
+                    windowDimensions={{ width: windowDimensions.width * 0.5 }} 
+                />
             </div>
             <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
                 <DialogTitle>Confirm Send Survey</DialogTitle>
