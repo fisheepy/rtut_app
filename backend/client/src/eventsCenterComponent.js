@@ -1,18 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { TextField, Button, Grid, Paper, Typography } from '@mui/material';
+import {
+    TextField,
+    Button,
+    Grid,
+    Paper,
+    Typography,
+    FormControlLabel,
+    Checkbox,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+} from '@mui/material';
 
 const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
     const [executionStatus, setExecutionStatus] = useState('Status:');
-
     const [formData, setFormData] = useState({
         title: '',
         startDate: '',
         endDate: '',
         creator: '',
-        location: ''
+        location: '',
+        isRecurring: false,
+        recurrenceType: 'weekly', // 'weekly' or 'monthly'
+        recurrenceInterval: 1, // Numeric interval, used differently based on type
+        monthDay: 1, // Day of the month for monthly recurrence
+        weekNumber: 1, // Week of the month for weekly recurrence
     });
-    
+
     // When component mounts or an event prop changes, update the form data
     useEffect(() => {
         if (event) {
@@ -39,7 +55,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         const eventData = {
             data: formData,
         };
-
+    
         axios.post('/call-function-send-event', eventData)
             .then(response => {
                 const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
@@ -123,6 +139,61 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                         </Button>
                     </Grid>
                 </Grid>
+                <Grid item xs={12}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={formData.isRecurring}
+                                onChange={() => setFormData(prev => ({ ...prev, isRecurring: !prev.isRecurring }))}
+                            />
+                        }
+                        label="Is Recurring"
+                    />
+                </Grid>
+
+                {formData.isRecurring && (
+                    <>
+                        <Grid item xs={12}>
+                            <FormControl fullWidth>
+                                <InputLabel>Recurrence Type</InputLabel>
+                                <Select
+                                    name="recurrenceType"
+                                    value={formData.recurrenceType}
+                                    onChange={handleChange}
+                                >
+                                    <MenuItem value="weekly">Weekly</MenuItem>
+                                    <MenuItem value="monthly">Monthly</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+
+                        {formData.recurrenceType === 'monthly' ? (
+                            <Grid item xs={6}>
+                                <TextField
+                                    name="monthDay"
+                                    label="Day of the Month"
+                                    type="number"
+                                    fullWidth
+                                    value={formData.monthDay}
+                                    onChange={handleChange}
+                                    InputProps={{ inputProps: { min: 1, max: 31 } }}
+                                />
+                            </Grid>
+                        ) : (
+                            <Grid item xs={6}>
+                                <TextField
+                                    name="weekNumber"
+                                    label="Week of the Month"
+                                    type="number"
+                                    fullWidth
+                                    value={formData.weekNumber}
+                                    onChange={handleChange}
+                                    InputProps={{ inputProps: { min: 1, max: 5 } }}
+                                />
+                            </Grid>
+                        )}
+                    </>
+                )}
             </form>
         </Paper>
     );

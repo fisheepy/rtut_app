@@ -6,6 +6,59 @@ const host_name = process.env.MONGODB_HOST;
 const database_name = process.env.MONGODB_DATABASE;
 const MONGODB_URI = `mongodb+srv://${username}:${password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
 
+async function generateAndSaveUsernames() {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+      await client.connect();
+      const db = client.db(database_name);
+      const collection = db.collection('employees');
+
+      const employees = await collection.find({ username: { $exists: false } }).toArray();
+      const usernameSet = new Set(await collection.distinct('username'));
+
+      for (const employee of employees) {
+          let username = generateUsername(employee.firstName, employee.lastName, usernameSet);
+          usernameSet.add(username);
+          await collection.updateOne({ _id: employee._id }, { $set: { username } });
+      }
+  } catch (error) {
+      console.error('Failed to update usernames:', error);
+  } finally {
+      await client.close();
+  }
+}
+
+function generateUsername(firstName, lastName, usernameSet) {
+  let baseUsername = `${firstName}${lastName.substring(0, Math.min(3, lastName.length))}`.toLowerCase();
+  let username = baseUsername;
+  let suffix = 1;
+  while (usernameSet.has(username)) {
+      username = `${baseUsername}${suffix}`;
+      suffix++;
+  }
+  return username;
+}
+
+async function addNewEmployee(firstName, lastName) {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+      await client.connect();
+      const db = client.db(database_name);
+      const collection = db.collection('employees');
+
+      const usernameSet = new Set(await collection.distinct('username'));
+      const username = generateUsername(firstName, lastName, usernameSet);
+
+      const newEmployee = { firstName, lastName, username };
+      await collection.insertOne(newEmployee);
+      console.log('New employee added:', newEmployee);
+  } catch (error) {
+      console.error('Failed to add new employee:', error);
+  } finally {
+      await client.close();
+  }
+}
+
 export const saveEventToDatabase = async (eventData) => {
   const client = new MongoClient(MONGODB_URI);
   try {
@@ -54,7 +107,7 @@ export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDat
   }
 };
 
-export async function saveNotificationToDatabase(sender, subject, messageContent) {
+export async function saveNotificationToDatabase(sender, subject, messageContent, messageId, transactionId) {
   const client = new MongoClient(MONGODB_URI);
   const currentDataTime = Date.now();
 
@@ -65,7 +118,7 @@ export async function saveNotificationToDatabase(sender, subject, messageContent
     const db = client.db(database_name);
     const collection = db.collection('notifications');
 
-    await collection.insertOne({ sender, subject, currentDataTime, messageContent });
+    await collection.insertOne({ sender, subject, currentDataTime, messageContent, messageId, transactionId });
     console.log('Notification saved to database successfully');
   } catch (error) {
     console.error('Error handling saving notification to database:', error);
