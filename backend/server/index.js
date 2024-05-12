@@ -516,10 +516,25 @@ app.post('/call-function-import-employees', (req, res) => {
     });
 });
 
+app.post('/call-function-delete-notification', (req, res) => {
+    const transactionId = req.body.transactionId;
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/deleteNotification.mjs "${transactionId}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
 app.get('/call-function-update-employee-token', (req, res) => {
-    const firstName = 'Xuan';//req.body.firstName;
-    const lastName = 'Yu';//req.body.lastName;
-    const token = 'cfjS5dS_ZEQ1tzldAGGDmq:APA91bFeuRCgP5beNN9xrTmX5pXvHkFeurEpZmVsp_1dmkycb1i_NGpeC_R4QoMpKZoPC3Q-tryZ5-uO4c4-sgo1ap_IlEq1ztlsm_Fu-Aet6Mpdm572nWUcfVH839PQa3AfKnf_g-Th';//req.body.token;
+    const firstName = 'Test';//req.body.firstName;
+    const lastName = 'Test';//req.body.lastName;
+    const token = 'eIDbNJiUzEWdpjwantqi5v:APA91bGi-0dy6xATQCG0uCmeMU6tv45DCybJ2F58wts2nIkbPCHKeu84XSnv5WbWso-hp2WoY7kuAIuQdepvu2RaJpapMCW2GFUNHv-2ti2f0auqrLNWvhk9Iru_Xvend2mxeJcdCoaQ';//req.body.token;
 
     // Execute the script and pass the temporary file path as an argument
     exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {

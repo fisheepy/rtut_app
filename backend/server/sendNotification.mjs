@@ -19,7 +19,7 @@ function generateUniqueId(firstName, lastName) {
 // Function to split PayrollName and format filteredValues
 const transformFilteredValues = (filteredValues) => {
     return filteredValues.map(({
-        'First Name': firstName, 
+        'First Name': firstName,
         'Last Name': lastName,
         'Email': email,
         'Phone': phone }) => {
@@ -61,9 +61,17 @@ const sendNotifications = async (messageContent, subject, sender, filePath, send
 
         try {
             // Use the extracted Novu operation
-            await sendNovuNotification(formattedValues, messageContent, subject, sender, sendOptions);
-            // Use the extracted MongoDB operation
-            await saveNotificationToDatabase(sender, subject, messageContent);
+            await sendNovuNotification(formattedValues, messageContent, subject, sender, sendOptions)
+                .then(response => {
+                    if (response.success) {
+                        console.log('Message sent successfully:', response.messageId, response.transactionId);
+                        // Use the extracted MongoDB operation
+                        saveNotificationToDatabase(sender, subject, messageContent, response.messageId, response.transactionId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to send message:', error);
+                });
         } catch (error) {
             console.error('Error:', error.message);
         }
