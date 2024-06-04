@@ -6,25 +6,36 @@ const host_name = process.env.MONGODB_HOST;
 const database_name = process.env.MONGODB_DATABASE;
 const MONGODB_URI = `mongodb+srv://${username}:${password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
 
-async function generateAndSaveUsernames() {
+export async function generateAndSaveUsernames() {
+  const generateRandomCode = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+  };
+
   const client = new MongoClient(MONGODB_URI);
   try {
-      await client.connect();
-      const db = client.db(database_name);
-      const collection = db.collection('employees');
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
 
-      const employees = await collection.find({ username: { $exists: false } }).toArray();
-      const usernameSet = new Set(await collection.distinct('username'));
+    const employees = await collection.find({ username: { $exists: true } }).toArray();
+    // const usernameSet = new Set(await collection.distinct('username'));
+    const usernameSet = new Set();
 
-      for (const employee of employees) {
-          let username = generateUsername(employee.firstName, employee.lastName, usernameSet);
-          usernameSet.add(username);
-          await collection.updateOne({ _id: employee._id }, { $set: { username } });
-      }
+    for (const employee of employees) {
+      let username = generateUsername(employee['First Name'], employee['Last Name'], usernameSet);
+      usernameSet.add(username);
+      let password = generateRandomCode();
+      await collection.updateOne({ _id: employee._id }, { $set: { username, password } });
+    }
   } catch (error) {
-      console.error('Failed to update usernames:', error);
+    console.error('Failed to update usernames:', error);
   } finally {
-      await client.close();
+    await client.close();
   }
 }
 
@@ -33,8 +44,8 @@ function generateUsername(firstName, lastName, usernameSet) {
   let username = baseUsername;
   let suffix = 1;
   while (usernameSet.has(username)) {
-      username = `${baseUsername}${suffix}`;
-      suffix++;
+    username = `${baseUsername}${suffix}`;
+    suffix++;
   }
   return username;
 }
@@ -42,20 +53,20 @@ function generateUsername(firstName, lastName, usernameSet) {
 async function addNewEmployee(firstName, lastName) {
   const client = new MongoClient(MONGODB_URI);
   try {
-      await client.connect();
-      const db = client.db(database_name);
-      const collection = db.collection('employees');
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
 
-      const usernameSet = new Set(await collection.distinct('username'));
-      const username = generateUsername(firstName, lastName, usernameSet);
+    const usernameSet = new Set(await collection.distinct('username'));
+    const username = generateUsername(firstName, lastName, usernameSet);
 
-      const newEmployee = { firstName, lastName, username };
-      await collection.insertOne(newEmployee);
-      console.log('New employee added:', newEmployee);
+    const newEmployee = { firstName, lastName, username };
+    await collection.insertOne(newEmployee);
+    console.log('New employee added:', newEmployee);
   } catch (error) {
-      console.error('Failed to add new employee:', error);
+    console.error('Failed to add new employee:', error);
   } finally {
-      await client.close();
+    await client.close();
   }
 }
 

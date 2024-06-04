@@ -338,6 +338,22 @@ app.post('/call-function-validate-log-in', async (req, res) => {
     });
 });
 
+app.get('/call-function-generate-user-names', async (req, res) => {
+    // Execute the script
+    exec(`node ./backend/server/generateUserNames.mjs`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        if (stdout.includes("Generate UserNames successful!")) {
+            res.status(200).send("Generate UserNames successful!");
+        } else {
+            res.status(401).send("Generate UserNames error!");
+        }
+    });
+});
+
 // Define a route to handle the POST request for executing the script
 app.post('/call-function-send-notification', (req, res) => {
     const messageContent = req.body.body;
@@ -440,6 +456,33 @@ app.post('/fetch-events', async (req, res) => {
         res.json(data);
     } catch (error) {
         console.error('Error handling event fetching:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/authentication', async (req, res) => {
+    try {
+        const { userName, password } = req.body;
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+        const user = await collection.find({userName:userName, password:password}).toArray();
+        // Check if data is retrieved
+        if (!user || dauserta.length === 0) {
+            console.error('No valid login found in MongoDB collection');
+            res.status(404).send('Validation failed');
+            return;
+        }
+        res.json(user);
+    } catch (error) {
+        console.error('Error handling validation:', error.message);
         res.status(500).send('Internal Server Error');
     } finally {
         // Close the MongoDB connection
