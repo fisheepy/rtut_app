@@ -475,7 +475,7 @@ app.post('/authentication', async (req, res) => {
         const collection = db.collection('employees');
         const user = await collection.find({userName:userName, password:password}).toArray();
         // Check if data is retrieved
-        if (!user || dauserta.length === 0) {
+        if (!user || user.length === 0) {
             console.error('No valid login found in MongoDB collection');
             res.status(404).send('Validation failed');
             return;
