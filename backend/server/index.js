@@ -466,6 +466,7 @@ app.post('/fetch-events', async (req, res) => {
 
 app.post('/authentication', async (req, res) => {
     try {
+        console.log(req.body);
         const { userName, password } = req.body;
         // Connect to MongoDB
         await client.connect();
@@ -474,6 +475,7 @@ app.post('/authentication', async (req, res) => {
         const db = client.db(database_name);
         const collection = db.collection('employees');
         const user = await collection.find({userName:userName, password:password}).toArray();
+        console.log(user);
         // Check if data is retrieved
         if (!user || user.length === 0) {
             console.error('No valid login found in MongoDB collection');
