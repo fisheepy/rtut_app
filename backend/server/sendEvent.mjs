@@ -15,8 +15,8 @@ const sendEvent = async (eventData) => {
 };
 
 // Check if command-line arguments are provided
-if (process.argv.length < 7) {
-    console.error('Usage: node sendEvent.mjs <creator> <endDate> <location> <startDate> <title>');
+if (process.argv.length < 8) {
+    console.error('Usage: node sendEvent.mjs <creator> <endDate> <location> <startDate> <title> <allDay>');
     process.exit(1);
 }
 
@@ -26,6 +26,8 @@ const endDate = process.argv[3];
 const location = process.argv[4];
 const startDate = process.argv[5];
 const title = process.argv[6];
-const eventData = {creator,endDate,location,startDate,title};
+const allDay = process.argv[7];
+
+const eventData = {creator,endDate,location,startDate,title,allDay};
 // Call the function to send notifications
 sendEvent(eventData);

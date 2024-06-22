@@ -81,8 +81,30 @@ export const saveEventToDatabase = async (eventData) => {
     const db = client.db(database_name);
     const collection = db.collection('events');
 
+    // Parse dates
+    const startDate = new Date(eventData.startDate);
+    const endDate = new Date(eventData.endDate);
+    const allDay = eventData.allDay;
+    const creator = eventData.creator;
+    const location = eventData.location;
+    const title = eventData.title;
+
+    // Adjust start and end dates for all-day events to include the whole day
+    if (allDay === 'true') {
+        startDate.setUTCHours(8, 0, 0, 0);
+        endDate.setUTCHours(23, 59, 59, 999);
+    }
+    const event = {
+      creator,
+      location,
+      startDate,
+      endDate,
+      title,
+      allDay: allDay === 'true'
+    };
+
     // Insert the survey data into the MongoDB collection
-    await collection.insertOne(eventData);
+    await collection.insertOne(event);
     console.log('Event form saved to database successfully');
   } catch (error) {
     console.error('Error handling saving Event form to database:', error.message);
