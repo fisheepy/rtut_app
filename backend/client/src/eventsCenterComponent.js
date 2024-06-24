@@ -13,6 +13,7 @@ import {
     Select,
     MenuItem,
 } from '@mui/material';
+import moment from 'moment';
 
 const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
     const [executionStatus, setExecutionStatus] = useState('Status:');
@@ -22,15 +23,14 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         endDate: '',
         creator: '',
         location: '',
+        detail: '',
         isRecurring: false,
-        recurrenceType: 'weekly', // 'weekly' or 'monthly'
-        recurrenceInterval: 1, // Numeric interval, used differently based on type
-        monthDay: 1, // Day of the month for monthly recurrence
-        weekNumber: 1, // Week of the month for weekly recurrence
-        allDay: false, // Added for all-day events
+        recurrenceType: 'weekly',
+        monthDay: 1,
+        allDay: false,
+        recurrenceEndDate: '', // New field for end date of recurrence
     });
 
-    // When component mounts or an event prop changes, update the form data
     useEffect(() => {
         if (event) {
             setFormData({
@@ -39,56 +39,82 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                 endDate: event.endDate || '',
                 creator: event.creator || '',
                 location: event.location || '',
+                detail: event.detail || '',
+                allDay: event.allDay || false,
                 isRecurring: event.isRecurring || false,
                 recurrenceType: event.recurrenceType || 'weekly',
-                recurrenceInterval: event.recurrenceInterval || 1,
                 monthDay: event.monthDay || 1,
-                weekNumber: event.weekNumber || 1,
-                allDay: event.allDay || false,
+                recurrenceEndDate: event.recurrenceEndDate || '',
             });
         }
     }, [event]);
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prevState => {
-            const newState = {
-                ...prevState,
-                [name]: type === 'checkbox' ? checked : value
-            };
+        const { name, value } = e.target;
+        setFormData(prevState => ({
+            ...prevState,
+            [name]: value
+        }));
+    };
 
-            // Automatically set endDate to the same day as startDate for all-day events
-            if (name === 'startDate' && prevState.allDay) {
-                newState.endDate = value;
-            }
-
-            return newState;
-        });
+    const handleCheckboxChange = (e) => {
+        const { name, checked } = e.target;
+        setFormData(prevState => ({
+            ...prevState,
+            [name]: checked
+        }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        // Adjust dates for all-day events to ensure they are set correctly
-        const adjustedFormData = {
-            ...formData,
-            startDate: formData.allDay ? new Date(formData.startDate).toISOString().split('T')[0] : formData.startDate,
-            endDate: formData.allDay ? new Date(formData.endDate).toISOString().split('T')[0] : formData.endDate,
+
+        const createEvent = async (eventData) => {
+            try {
+                await axios.post('/call-function-send-event', eventData);
+                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+                setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tSend event succeeded!`);
+            } catch (error) {
+                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+                setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tSend event failed!`);
+            }
         };
 
-        const eventData = {
-            data: adjustedFormData,
+        const createRecurringEvents = () => {
+            let currentDate = moment(formData.startDate);
+            const endRecurrenceDate = moment(formData.recurrenceEndDate);
+            const events = [];
+
+            while (currentDate.isBefore(endRecurrenceDate) || currentDate.isSame(endRecurrenceDate, 'day')) {
+                const endEventDate = formData.allDay ? currentDate.clone().endOf('day').startOf('day') : moment(formData.endDate).clone().add(currentDate.diff(moment(formData.startDate)), 'milliseconds');
+
+                events.push({
+                    data: {
+                        ...formData,
+                        startDate: currentDate.toISOString(),
+                        endDate: endEventDate.toISOString(),
+                    }
+                });
+
+                if (formData.recurrenceType === 'weekly') {
+                    currentDate.add(1, 'weeks');
+                } else if (formData.recurrenceType === 'bi-weekly') {
+                    currentDate.add(2, 'weeks');
+                } else if (formData.recurrenceType === 'monthly') {
+                    currentDate.add(1, 'months');
+                }
+            }
+
+            return events;
         };
-    
-        axios.post('/call-function-send-event', eventData)
-            .then(response => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tSend event succeeded!`);
-            })
-            .catch(error => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tSend event failed!`);
-            });
+
+        if (formData.isRecurring) {
+            const events = createRecurringEvents();
+            for (const event of events) {
+                await createEvent(event);
+            }
+        } else {
+            await createEvent({ data: formData });
+        }
     };
 
     return (
@@ -109,22 +135,10 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                             onChange={handleChange}
                         />
                     </Grid>
-                    <Grid item xs={12}>
-                        <FormControlLabel
-                            control={
-                                <Checkbox
-                                    name="allDay"
-                                    checked={formData.allDay}
-                                    onChange={handleChange}
-                                />
-                            }
-                            label="All Day Event"
-                        />
-                    </Grid>
                     <Grid item xs={6}>
                         <TextField
                             name="startDate"
-                            label={formData.allDay ? "Start Date" : "Start Date and Time"}
+                            label="Start Date"
                             type={formData.allDay ? "date" : "datetime-local"}
                             fullWidth
                             InputLabelProps={{
@@ -137,7 +151,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                     <Grid item xs={6}>
                         <TextField
                             name="endDate"
-                            label={formData.allDay ? "End Date" : "End Date and Time"}
+                            label="End Date"
                             type={formData.allDay ? "date" : "datetime-local"}
                             fullWidth
                             InputLabelProps={{
@@ -166,61 +180,28 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                         />
                     </Grid>
                     <Grid item xs={12}>
+                        <TextField
+                            name="detail"
+                            label="Detail"
+                            fullWidth
+                            multiline
+                            rows={4}
+                            value={formData.detail}
+                            onChange={handleChange}
+                        />
+                    </Grid>
+                    <Grid item xs={12}>
                         <FormControlLabel
                             control={
                                 <Checkbox
-                                    name="isRecurring"
-                                    checked={formData.isRecurring}
-                                    onChange={handleChange}
+                                    checked={formData.allDay}
+                                    onChange={handleCheckboxChange}
+                                    name="allDay"
                                 />
                             }
-                            label="Is Recurring"
+                            label="All Day"
                         />
                     </Grid>
-
-                    {formData.isRecurring && (
-                        <>
-                            <Grid item xs={12}>
-                                <FormControl fullWidth>
-                                    <InputLabel>Recurrence Type</InputLabel>
-                                    <Select
-                                        name="recurrenceType"
-                                        value={formData.recurrenceType}
-                                        onChange={handleChange}
-                                    >
-                                        <MenuItem value="weekly">Weekly</MenuItem>
-                                        <MenuItem value="monthly">Monthly</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Grid>
-
-                            {formData.recurrenceType === 'monthly' ? (
-                                <Grid item xs={6}>
-                                    <TextField
-                                        name="monthDay"
-                                        label="Day of the Month"
-                                        type="number"
-                                        fullWidth
-                                        value={formData.monthDay}
-                                        onChange={handleChange}
-                                        InputProps={{ inputProps: { min: 1, max: 31 } }}
-                                    />
-                                </Grid>
-                            ) : (
-                                <Grid item xs={6}>
-                                    <TextField
-                                        name="weekNumber"
-                                        label="Week of the Month"
-                                        type="number"
-                                        fullWidth
-                                        value={formData.weekNumber}
-                                        onChange={handleChange}
-                                        InputProps={{ inputProps: { min: 1, max: 5 } }}
-                                    />
-                                </Grid>
-                            )}
-                        </>
-                    )}
                     <Grid item style={{ marginTop: 16 }}>
                         <Button
                             type="submit"
@@ -231,6 +212,49 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                         </Button>
                     </Grid>
                 </Grid>
+                <Grid item xs={12}>
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={formData.isRecurring}
+                                onChange={() => setFormData(prev => ({ ...prev, isRecurring: !prev.isRecurring }))}
+                            />
+                        }
+                        label="Is Recurring"
+                    />
+                </Grid>
+
+                {formData.isRecurring && (
+                    <>
+                        <Grid item xs={12}>
+                            <FormControl fullWidth>
+                                <InputLabel>Recurrence Type</InputLabel>
+                                <Select
+                                    name="recurrenceType"
+                                    value={formData.recurrenceType}
+                                    onChange={handleChange}
+                                >
+                                    <MenuItem value="weekly">Weekly</MenuItem>
+                                    <MenuItem value="bi-weekly">Bi-weekly</MenuItem>
+                                    <MenuItem value="monthly">Monthly</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField
+                                name="recurrenceEndDate"
+                                label="Recurrence End Date"
+                                type="date"
+                                fullWidth
+                                InputLabelProps={{
+                                    shrink: true,
+                                }}
+                                value={formData.recurrenceEndDate}
+                                onChange={handleChange}
+                            />
+                        </Grid>
+                    </>
+                )}
             </form>
         </Paper>
     );

@@ -268,9 +268,9 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
 
 // Define a route to handle the POST request for executing the script
 app.post('/call-function-send-event', (req, res) => {
-    const { creator, endDate, location, startDate, title, allDay } = req.body.data;
+    const { creator, endDate, location, startDate, title, allDay, detail } = req.body.data;
 
-    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}" "${detail}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);

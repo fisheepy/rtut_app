@@ -88,6 +88,7 @@ export const saveEventToDatabase = async (eventData) => {
     const creator = eventData.creator;
     const location = eventData.location;
     const title = eventData.title;
+    const detail = eventData.detail;
 
     // Adjust start and end dates for all-day events to include the whole day
     if (allDay === 'true') {
@@ -100,7 +101,8 @@ export const saveEventToDatabase = async (eventData) => {
       startDate,
       endDate,
       title,
-      allDay: allDay === 'true'
+      allDay: allDay === 'true',
+      detail,
     };
 
     // Insert the survey data into the MongoDB collection
