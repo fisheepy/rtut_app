@@ -438,6 +438,32 @@ app.post('/submit-survey', async (req, res) => {
     }
 });
 
+app.post('/fetch-events', async (req, res) => {
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('events');
+        const data = await collection.find().toArray();
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+        res.json(data);
+    } catch (error) {
+        console.error('Error handling event fetching:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
 app.post('/reset-password',
     [
         body('userId').notEmpty().withMessage('User ID is required'),
@@ -498,6 +524,7 @@ app.post('/reset-password',
 
 app.post('/authentication', async (req, res) => {
     try {
+        console.log(req.body);
         const { userName, password } = req.body;
         // Connect to MongoDB
         await client.connect();
@@ -505,7 +532,8 @@ app.post('/authentication', async (req, res) => {
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        const user = await collection.find({ username: userName, password: password }).toArray();
+        const user = await collection.find({username:userName, password:password}).toArray();
+        console.log(user);
         // Check if data is retrieved
         if (!user || user.length === 0) {
             console.error('No valid login found in MongoDB collection');
@@ -533,7 +561,7 @@ app.post('/authentication', async (req, res) => {
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        const user = await collection.find({ username: userName, password: password }).toArray();
+        const user = await collection.find({username:userName, password:password}).toArray();
         console.log(user);
         // Check if data is retrieved
         if (!user || user.length === 0) {
