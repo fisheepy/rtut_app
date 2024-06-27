@@ -20,6 +20,7 @@
     "cowsay": "^1.6.0",
     "csvtojson": "^2.0.10",
     "express": "^4.19.2",
+    "express-validator": "^7.1.0",
     "fs": "^0.0.1-security",
     "json2csv": "^6.0.0-alpha.2",
     "moment": "^2.30.1",
