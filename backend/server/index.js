@@ -438,24 +438,83 @@ app.post('/submit-survey', async (req, res) => {
     }
 });
 
-app.post('/fetch-events', async (req, res) => {
+app.post('/reset-password',
+    [
+        body('userId').notEmpty().withMessage('User ID is required'),
+        body('newPassword')
+            .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
+            .matches(/[A-Za-z]/).withMessage('Password must contain at least one letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[@$!%*#?&]/).withMessage('Password must contain at least one special character'),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { userId, newPassword } = req.body;
+        try {
+            // Connect to MongoDB
+            await client.connect();
+            console.log('Connected to MongoDB');
+
+            // Access the database and collection
+            const db = client.db(database_name);
+            const collection = db.collection('employees');
+
+            // Find the user
+            const user = await collection.findOne({ username: userId });
+
+            // Check if user exists
+            if (!user) {
+                console.error('No valid login found in MongoDB collection');
+                res.status(404).json({ message: 'User not found' });
+                return;
+            }
+
+            // Update the user's password and set the password reset date
+            const updateResult = await collection.updateOne(
+                { username: userId },
+                { $set: { password: newPassword, passwordResetDate: new Date() } }
+            );
+
+            if (updateResult.modifiedCount === 1) {
+                res.status(200).json({ message: 'Password reset successful' });
+            } else {
+                res.status(500).json({ message: 'Failed to update password' });
+            }
+
+        } catch (error) {
+            console.error('Error handling password reset:', error.message);
+            res.status(500).send('Internal Server Error');
+        } finally {
+            // Close the MongoDB connection
+            await client.close();
+            console.log('Connection to MongoDB closed');
+        }
+    }
+);
+
+app.post('/authentication', async (req, res) => {
     try {
+        const { userName, password } = req.body;
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
         // Access the database
         const db = client.db(database_name);
-        const collection = db.collection('events');
-        const data = await collection.find().toArray();
+        const collection = db.collection('employees');
+        const user = await collection.find({ username: userName, password: password }).toArray();
         // Check if data is retrieved
-        if (!data || data.length === 0) {
-            console.error('No data found in MongoDB collection');
-            res.status(404).send('No Data Found');
+        if (!user || user.length === 0) {
+            console.error('No valid login found in MongoDB collection');
+            res.status(404).send('Validation failed');
             return;
         }
-        res.json(data);
+        res.json(user);
     } catch (error) {
-        console.error('Error handling event fetching:', error.message);
+        console.error('Error handling validation:', error.message);
         res.status(500).send('Internal Server Error');
     } finally {
         // Close the MongoDB connection
@@ -474,7 +533,7 @@ app.post('/authentication', async (req, res) => {
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        const user = await collection.find({username:userName, password:password}).toArray();
+        const user = await collection.find({ username: userName, password: password }).toArray();
         console.log(user);
         // Check if data is retrieved
         if (!user || user.length === 0) {
