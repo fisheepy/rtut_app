@@ -438,6 +438,34 @@ app.post('/submit-survey', async (req, res) => {
     }
 });
 
+app.post('/submit-feedback', async (req, res) => {
+    try {
+        // Retrieve the feedback data from the request body
+        const { name, feedback } = req.body;
+
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('feedback');
+
+        // Insert the feedback data into the MongoDB collection
+        await collection.insertOne({ name, feedback, timestamp: new Date() });
+
+        console.log('Feedback data inserted successfully');
+        res.status(200).send('Feedback received successfully');
+    } catch (error) {
+        console.error('Error handling feedback submission:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
 app.post('/fetch-events', async (req, res) => {
     try {
         // Connect to MongoDB
