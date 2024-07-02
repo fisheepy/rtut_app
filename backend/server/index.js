@@ -493,27 +493,29 @@ app.post('/fetch-events', async (req, res) => {
 });
 
 app.post('/register_token', (req, res) => {
-    const { token, user } = req.body;
-    console.log('Received token:', token);
-    console.log('Received user info:', user);
-  
-    const firstName = user.userFirstName;//req.body.firstName;
-    const lastName = user.userLastName;//req.body.lastName;
+    try {
+        const { token, user } = req.body;
+        console.log('Received token:', token);
+        console.log('Received user info:', user);
 
-    // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
+        const firstName = user.userFirstName;//req.body.firstName;
+        const lastName = user.userLastName;//req.body.lastName;
 
-        res.status(200).send('Script executed successfully');
-    });
+        // Execute the script and pass the temporary file path as an argument
+        exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+                return;
+            }
 
-    // For now, just send a success response
-    res.status(200).json({ message: 'Token and user info received successfully' });
-  });
+            res.status(200).json({ message: 'Token and user info received successfully' });
+        });
+    } catch (error) {
+        console.error('Error handling password reset:', error.message);
+        res.status(500).send('Internal Server Error');
+    }
+});
 
 app.post('/reset-password',
     [
@@ -575,7 +577,6 @@ app.post('/reset-password',
 
 app.post('/authentication', async (req, res) => {
     try {
-        console.log(req.body);
         const { userName, password } = req.body;
         // Connect to MongoDB
         await client.connect();
@@ -583,8 +584,7 @@ app.post('/authentication', async (req, res) => {
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        const user = await collection.find({username:userName, password:password}).toArray();
-        console.log(user);
+        const user = await collection.find({ username: userName, password: password }).toArray();
         // Check if data is retrieved
         if (!user || user.length === 0) {
             console.error('No valid login found in MongoDB collection');
@@ -612,7 +612,7 @@ app.post('/authentication', async (req, res) => {
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        const user = await collection.find({username:userName, password:password}).toArray();
+        const user = await collection.find({ username: userName, password: password }).toArray();
         console.log(user);
         // Check if data is retrieved
         if (!user || user.length === 0) {
