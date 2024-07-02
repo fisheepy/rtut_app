@@ -497,8 +497,8 @@ app.post('/register_token', (req, res) => {
     console.log('Received token:', token);
     console.log('Received user info:', user);
   
-    const firstName = user['First Name'];//req.body.firstName;
-    const lastName = user['Last Name'];//req.body.lastName;
+    const firstName = user.userFirstName;//req.body.firstName;
+    const lastName = user.userLastName;//req.body.lastName;
 
     // Execute the script and pass the temporary file path as an argument
     exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {
