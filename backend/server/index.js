@@ -497,10 +497,24 @@ app.post('/register_token', (req, res) => {
     console.log('Received token:', token);
     console.log('Received user info:', user);
   
+    const firstName = user['First Name'];//req.body.firstName;
+    const lastName = user['Last Name'];//req.body.lastName;
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+
     // For now, just send a success response
     res.status(200).json({ message: 'Token and user info received successfully' });
   });
-  
+
 app.post('/reset-password',
     [
         body('userId').notEmpty().withMessage('User ID is required'),
