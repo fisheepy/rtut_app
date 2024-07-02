@@ -492,6 +492,15 @@ app.post('/fetch-events', async (req, res) => {
     }
 });
 
+app.post('/register_token', (req, res) => {
+    const { token, user } = req.body;
+    console.log('Received token:', token);
+    console.log('Received user info:', user);
+  
+    // For now, just send a success response
+    res.status(200).json({ message: 'Token and user info received successfully' });
+  });
+  
 app.post('/reset-password',
     [
         body('userId').notEmpty().withMessage('User ID is required'),
