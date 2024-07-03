@@ -1,6 +1,5 @@
 import { Novu, PushProviderIdEnum } from '@novu/node';
 import crypto from 'crypto';
-import { response } from 'express';
 import { exec } from 'child_process';
 
 const apiKey = process.env.NOVU_API;
@@ -11,6 +10,32 @@ function generateUniqueId(firstName, lastName) {
   const hash = crypto.createHash('sha256');
   hash.update(nameString);
   return hash.digest('hex');
+}
+
+export async function updateEmployeeToNovuSubscriber(employee) {
+  try {
+    const uid = generateUniqueId(employee['First Name'].toUpperCase(), employee['Last Name'].toUpperCase());
+
+    const subscriberData = {
+      firstName: employee['First Name'],
+      lastName: employee['Last Name'],
+    };
+
+    if (employee['Email'] && typeof employee['Email'] === 'string' && employee['Email'].includes('@')) {
+      subscriberData.email = employee['Email'];
+    }
+
+    if (employee['Phone'] && typeof employee['Phone'] === 'string' && employee['Phone'].trim().length > 0) {
+      subscriberData.phone = employee['Phone'];
+    }
+
+    await novu.subscribers.identify(uid, subscriberData);
+
+    console.log('Updated', employee['First Name']);
+  } catch (error) {
+    console.error('Error updating employee to Novu subscriber:', error);
+    throw error;
+  }
 }
 
 function generateMessageId(sender) {
@@ -78,7 +103,6 @@ export async function sendNovuNotification(formattedValues, messageContent, subj
       },
     });
 
-    console.log(response);
     const transactionId = response.data.data.transactionId;
     console.log('Notifications sent successfully with transactionId:', transactionId);
 
@@ -123,23 +147,20 @@ export async function listNotifications(subscriberId) {
 export async function deleteNotification(transactionId) {
   try {
     // await novu.messages.deleteById(messageId);
-
-
-
     const curlCommand = `curl --request DELETE \
     --url 'https://api.novu.co/v1/messages/transaction/${transactionId}' \
     --header 'Authorization: ApiKey ${apiKey}'`;
 
     exec(curlCommand, (error, stdout, stderr) => {
       if (error) {
-          console.error(`exec error: ${error}`);
-          return;
+        console.error(`exec error: ${error}`);
+        return;
       }
       if (stderr) {
-          console.error(`stderr: ${stderr}`);
+        console.error(`stderr: ${stderr}`);
       }
       console.log(`stdout: ${stdout}`);
-  });
+    });
 
     console.log('Notification deleted successfully');
   } catch (error) {
@@ -149,38 +170,12 @@ export async function deleteNotification(transactionId) {
 
 export async function updateEmployeesToNovuSubscribers(employees) {
   try {
-    // Process each employee
     for (const employee of employees) {
-      const uid = generateUniqueId(employee['First Name'].toUpperCase(), employee['Last Name'].toUpperCase());
-
-      // Using findDocument utility to check if employee is already a subscriber
-      const response = await novu.subscribers.get(uid);
-      const subscriber = response.data;
-      if (subscriber) {
-        // Start with mandatory fields
-        const subscriberData = {
-          firstName: employee['First Name'],
-          lastName: employee['Last Name'],
-        };
-
-        // Add email if it's a valid value
-        if (employee['Email'] && typeof employee['Email'] === 'string' && employee['Email'].includes('@')) {
-          subscriberData.email = employee['Email'];
-        }
-
-        // Add phone if it's a valid value
-        if (employee['Phone'] && typeof employee['Phone'] === 'string' && employee['Phone'].trim().length > 0) {
-          subscriberData.phone = employee['Phone'];
-        }
-
-        await novu.subscribers.identify(uid, subscriberData);
-      }
-      console.log('Renew', employee['First Name']);
+      await updateEmployeeToNovuSubscriber(employee);
     }
-
-    console.log('Employees processed successfully');
+    console.log('All employees processed successfully');
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error updating employees to Novu subscribers:', error);
   }
 }
 
