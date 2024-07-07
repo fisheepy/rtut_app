@@ -438,6 +438,52 @@ app.post('/submit-survey', async (req, res) => {
     }
 });
 
+// Endpoint to handle user registration
+app.post('/register_external',
+    async (req, res) => {
+      const { firstName, lastName, password, type, phoneNumber, email } = req.body;
+  
+      try {
+        // Connect to MongoDB
+        console.log({ firstName, lastName, password, type, phoneNumber, email });
+
+        // await client.connect();
+        // console.log('Connected to MongoDB');
+  
+        // // Access the database
+        // const db = client.db(database_name);
+        // const collection = db.collection('external users');
+  
+        // // Generate a unique username
+        // const username = generateUniqueId(firstName, lastName);
+  
+        // // Insert the user data into the MongoDB collection
+        // const newUser = {
+        //   firstName,
+        //   lastName,
+        //   username,
+        //   password: password,
+        //   type,
+        //   phoneNumber: phoneNumber || '', // Optional field
+        //   email: email || '', // Optional field
+        //   created_at: new Date()
+        // };
+  
+        // await collection.insertOne(newUser);
+        console.log('User data inserted successfully');
+  
+        res.status(200).send('User registered successfully');
+      } catch (error) {
+        console.error('Error handling user registration:', error.message);
+        res.status(500).send('Internal Server Error');
+      } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+      }
+    }
+  );
+  
 app.post('/submit-feedback', async (req, res) => {
     try {
         // Retrieve the feedback data from the request body
