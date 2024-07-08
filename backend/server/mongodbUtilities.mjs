@@ -333,11 +333,13 @@ export async function addExternalUser(firstName, lastName, password, type, phone
       // Connect to MongoDB
       await client.connect();
       const db = client.db(database_name);
-      const collection = db.collection('external users');
+      const collectionName = 'external users';
+      const collection = db.collection(collectionName);
+      const usernameSet = new Set(await collectionName.distinct('username'));
 
       // Generate a unique username
-      const username = generateUniqueId(firstName, lastName);
-
+      const username = generateUsername(firstName, lastName, usernameSet);
+      
       // Insert the user data into the MongoDB collection
       const newUser = {
           firstName,
@@ -352,6 +354,7 @@ export async function addExternalUser(firstName, lastName, password, type, phone
 
       await collection.insertOne(newUser);
       console.log('User data inserted successfully');
+      return true;
   } catch (error) {
       console.error('Error handling user registration:', error.message);
       return false;
@@ -359,6 +362,5 @@ export async function addExternalUser(firstName, lastName, password, type, phone
       // Close the MongoDB connection
       await client.close();
       console.log('Connection to MongoDB closed');
-      return true;
   }
 }
