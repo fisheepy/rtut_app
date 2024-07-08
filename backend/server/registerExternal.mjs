@@ -1,10 +1,9 @@
 import { addExternalUser } from "./mongodbUtilities.mjs";
 
 // Main function to handle the registration process
-async function main() {
-    console.log(process.argv.slice(2));
-    const [firstName, lastName, password, type, phoneNumber, email] = process.argv.slice(2);
-
+async function main(firstName, lastName, password, type, phoneNumber, email) {
+    console.log({firstName, lastName, password, type, phoneNumber, email});
+    
     if (!firstName || !lastName || !password || !type) {
         console.error('Missing required fields');
         process.exit(1);
@@ -19,4 +18,5 @@ async function main() {
     }
 }
 
-main().catch(console.error);
+const [firstName, lastName, password, type, phoneNumber, email] = process.argv.slice(2);
+main(firstName, lastName, password, type, phoneNumber, email).catch(console.error);
