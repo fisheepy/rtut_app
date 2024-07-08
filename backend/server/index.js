@@ -454,7 +454,7 @@ app.post('/register_external',
             return res.status(400).json({ errors: errors.array() });
         }
         const { firstName, lastName, password, type, phoneNumber, email } = req.body;
-
+        console.log({ firstName, lastName, password, type, phoneNumber, email });
         // Execute the script
         exec(`node ./backend/server/registerExternal.mjs "${firstName}" "${lastName}" "${password}" "${type}" "${phoneNumber}" "${email}"`, (error, stdout, stderr) => {
             if (error) {

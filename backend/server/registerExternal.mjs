@@ -2,6 +2,7 @@ import { addExternalUser } from "./mongodbUtilities.mjs";
 
 // Main function to handle the registration process
 async function main() {
+    console.log(process.argv.slice(2));
     const [firstName, lastName, password, type, phoneNumber, email] = process.argv.slice(2);
 
     if (!firstName || !lastName || !password || !type) {
