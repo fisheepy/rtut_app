@@ -328,6 +328,7 @@ export async function importEmployeesData(employees) {
 
 // Function to add a new user to the database
 export async function addExternalUser(firstName, lastName, password, type, phoneNumber, email) {
+  const client = new MongoClient(MONGODB_URI);
   try {
       // Connect to MongoDB
       await client.connect();
