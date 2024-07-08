@@ -325,3 +325,39 @@ export async function importEmployeesData(employees) {
     await client.close();
   }
 }
+
+// Function to add a new user to the database
+export async function addExternalUser(firstName, lastName, password, type, phoneNumber, email) {
+  try {
+      // Connect to MongoDB
+      await client.connect();
+      const db = client.db(database_name);
+      const collection = db.collection('external users');
+
+      // Generate a unique username
+      const username = generateUniqueId(firstName, lastName);
+
+      // Insert the user data into the MongoDB collection
+      const newUser = {
+          firstName,
+          lastName,
+          username,
+          password,
+          type,
+          phoneNumber: phoneNumber || '', // Optional field
+          email: email || '', // Optional field
+          created_at: new Date()
+      };
+
+      await collection.insertOne(newUser);
+      console.log('User data inserted successfully');
+      return true;
+  } catch (error) {
+      console.error('Error handling user registration:', error.message);
+      return false;
+  } finally {
+      // Close the MongoDB connection
+      await client.close();
+      console.log('Connection to MongoDB closed');
+  }
+}

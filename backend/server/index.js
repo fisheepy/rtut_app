@@ -440,50 +440,37 @@ app.post('/submit-survey', async (req, res) => {
 
 // Endpoint to handle user registration
 app.post('/register_external',
+    [
+        body('firstName').notEmpty().withMessage('First Name is required'),
+        body('lastName').notEmpty().withMessage('Last Name is required'),
+        body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
+            .matches(/[A-Za-z]/).withMessage('Password must contain at least one letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[@$!%*#?&]/).withMessage('Password must contain at least one special character'),
+    ],
     async (req, res) => {
-      const { firstName, lastName, password, type, phoneNumber, email } = req.body;
-  
-      try {
-        // Connect to MongoDB
-        console.log({ firstName, lastName, password, type, phoneNumber, email });
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        const { firstName, lastName, password, type, phoneNumber, email } = req.body;
 
-        // await client.connect();
-        // console.log('Connected to MongoDB');
-  
-        // // Access the database
-        // const db = client.db(database_name);
-        // const collection = db.collection('external users');
-  
-        // // Generate a unique username
-        // const username = generateUniqueId(firstName, lastName);
-  
-        // // Insert the user data into the MongoDB collection
-        // const newUser = {
-        //   firstName,
-        //   lastName,
-        //   username,
-        //   password: password,
-        //   type,
-        //   phoneNumber: phoneNumber || '', // Optional field
-        //   email: email || '', // Optional field
-        //   created_at: new Date()
-        // };
-  
-        // await collection.insertOne(newUser);
-        console.log('User data inserted successfully');
-  
-        res.status(200).send('User registered successfully');
-      } catch (error) {
-        console.error('Error handling user registration:', error.message);
-        res.status(500).send('Internal Server Error');
-      } finally {
-        // Close the MongoDB connection
-        await client.close();
-        console.log('Connection to MongoDB closed');
-      }
+        // Execute the script
+        exec(`node ./backend/server/registerExternal.mjs "${firstName}" "${lastName}" "${password}" "${type}" "${phoneNumber}" "${email}"`, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+                return;
+            }
+            if (stdout.includes("Register valid: true")) {
+                res.status(200).send("Register successful");
+            } else {
+                res.status(401).send("Register failed");
+            }
+        });
     }
-  );
-  
+);
+
 app.post('/submit-feedback', async (req, res) => {
     try {
         // Retrieve the feedback data from the request body
