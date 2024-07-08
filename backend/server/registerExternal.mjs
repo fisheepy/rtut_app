@@ -18,5 +18,18 @@ async function main(firstName, lastName, password, type, phoneNumber, email) {
     }
 }
 
-const [firstName, lastName, password, type, phoneNumber, email] = process.argv.slice(2);
-main(firstName, lastName, password, type, phoneNumber, email).catch(console.error);
+// Check if command-line arguments are provided
+if (process.argv.length < 8) {
+    console.error('Usage: Not enough inputs');
+    process.exit(1);
+}
+
+// Extract command-line arguments
+const firstName = process.argv[2];
+const lastName = process.argv[3];
+const password = process.argv[4];
+const type = process.argv[5];
+const phoneNumber = process.argv[6];
+const email = process.argv[7];
+console.log('function');
+main(firstName, lastName, password, type, phoneNumber, email);
