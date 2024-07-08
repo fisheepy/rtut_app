@@ -335,11 +335,11 @@ export async function addExternalUser(firstName, lastName, password, type, phone
       const db = client.db(database_name);
       const collectionName = 'external users';
       const collection = db.collection(collectionName);
-      const usernameSet = new Set(await collectionName.distinct('username'));
+      // const usernameSet = new Set(await collectionName.distinct('username'));
 
       // Generate a unique username
-      const username = generateUsername(firstName, lastName, usernameSet);
-      
+      // const username = generateUsername(firstName, lastName, usernameSet);
+
       // Insert the user data into the MongoDB collection
       const newUser = {
           firstName,
@@ -347,9 +347,9 @@ export async function addExternalUser(firstName, lastName, password, type, phone
           username,
           password,
           type,
-          phoneNumber: phoneNumber || '', // Optional field
-          email: email || '', // Optional field
-          created_at: new Date()
+          // phoneNumber: phoneNumber || '', // Optional field
+          // email: email || '', // Optional field
+          // created_at: new Date()
       };
 
       await collection.insertOne(newUser);
