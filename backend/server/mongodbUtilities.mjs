@@ -351,7 +351,6 @@ export async function addExternalUser(firstName, lastName, password, type, phone
 
       await collection.insertOne(newUser);
       console.log('User data inserted successfully');
-      return true;
   } catch (error) {
       console.error('Error handling user registration:', error.message);
       return false;
@@ -359,5 +358,6 @@ export async function addExternalUser(firstName, lastName, password, type, phone
       // Close the MongoDB connection
       await client.close();
       console.log('Connection to MongoDB closed');
+      return true;
   }
 }
