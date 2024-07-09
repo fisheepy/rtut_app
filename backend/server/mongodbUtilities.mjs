@@ -355,10 +355,10 @@ export async function addExternalUser(firstName, lastName, password, type, phone
 
       await collection.insertOne(newUser);
       console.log('User data inserted successfully');
-      return 'true';
+      return true;
   } catch (error) {
       console.error('Error handling user registration:', error.message);
-      return error;
+      return false;
   } finally {
       // Close the MongoDB connection
       await client.close();

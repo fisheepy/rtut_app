@@ -8,12 +8,11 @@ async function main(firstName, lastName, password, type, phoneNumber, email) {
     }
 
     const success = await addExternalUser(firstName, lastName, password, type, phoneNumber, email);
-    console.log(success);
-    // if (success) {
-    //     console.log("Register valid: true");
-    // } else {
-    //     console.log("Register valid: false");
-    // }
+    if (success) {
+        console.log("Register valid: true");
+    } else {
+        console.log("Register valid: false");
+    }
 }
 
 // Check if command-line arguments are provided
