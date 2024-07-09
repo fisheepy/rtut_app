@@ -8,12 +8,12 @@ async function main(firstName, lastName, password, type, phoneNumber, email) {
     }
 
     const success = await addExternalUser(firstName, lastName, password, type, phoneNumber, email);
-
-    if (success) {
-        console.log("Register valid: true");
-    } else {
-        console.log("Register valid: false");
-    }
+    console.log(success);
+    // if (success) {
+    //     console.log("Register valid: true");
+    // } else {
+    //     console.log("Register valid: false");
+    // }
 }
 
 // Check if command-line arguments are provided
@@ -29,5 +29,4 @@ const password = process.argv[4];
 const type = process.argv[5];
 const phoneNumber = process.argv[6];
 const email = process.argv[7];
-console.log('function');
 main(firstName, lastName, password, type, phoneNumber, email);
