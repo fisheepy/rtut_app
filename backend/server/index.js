@@ -618,35 +618,6 @@ app.post('/authentication', async (req, res) => {
         const db = client.db(database_name);
         const collection = db.collection('employees');
         const user = await collection.find({ username: userName, password: password }).toArray();
-        console.log({userName,password});
-        console.log(user);
-        // Check if data is retrieved
-        if (!user || user.length === 0) {
-            console.error('No valid login found in MongoDB collection');
-            res.status(404).send('Validation failed');
-            return;
-        }
-        res.json(user);
-    } catch (error) {
-        console.error('Error handling validation:', error.message);
-        res.status(500).send('Internal Server Error');
-    } finally {
-        // Close the MongoDB connection
-        await client.close();
-        console.log('Connection to MongoDB closed');
-    }
-});
-
-app.post('/authentication', async (req, res) => {
-    try {
-        const { userName, password } = req.body;
-        // Connect to MongoDB
-        await client.connect();
-        console.log('Connected to MongoDB');
-        // Access the database
-        const db = client.db(database_name);
-        const collection = db.collection('employees');
-        const user = await collection.find({ username: userName, password: password }).toArray();
         // Check if data is retrieved
         if (userName === 'testerrtu') {
             console.log('special');
