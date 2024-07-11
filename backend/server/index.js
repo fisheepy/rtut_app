@@ -16,12 +16,12 @@ const { parse } = require('json2csv');
 
 const port = 3101;
 
-const username = process.env.MONGODB_USERNAME;
-const password = process.env.MONGODB_PASSWORD;
+const database_username = process.env.MONGODB_USERNAME;
+const database_password = process.env.MONGODB_PASSWORD;
 const host_name = process.env.MONGODB_HOST;
 const database_name = process.env.MONGODB_DATABASE;
 
-const uri = `mongodb+srv://${username}:${password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
+const uri = `mongodb+srv://${database_username}:${database_password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
     serverApi: {
@@ -610,7 +610,7 @@ app.post('/reset-password',
 
 app.post('/authentication', async (req, res) => {
     try {
-        const { userName, userPassword } = req.body;
+        const { userName, password } = req.body;
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
@@ -619,7 +619,7 @@ app.post('/authentication', async (req, res) => {
         const collection = db.collection('employees');
         // Check if data is retrieved
         console.log(userName);
-        console.log(userPassword);
+        console.log(password);
         if (userName === 'testerrtu') {
             console.log('special');
             const user = [
@@ -647,7 +647,7 @@ app.post('/authentication', async (req, res) => {
             res.json(user);
         }
         else {
-            const user = await collection.find({ username: userName, password: userPassword }).toArray();
+            const user = await collection.find({ username: userName, password: password }).toArray();
 
             if (!user || user.length === 0) {
                 console.error('No valid login found in MongoDB collection');
