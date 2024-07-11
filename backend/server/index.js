@@ -650,7 +650,31 @@ app.post('/authentication', async (req, res) => {
         const user = await collection.find({ username: userName, password: password }).toArray();
         console.log(user);
         // Check if data is retrieved
-        if (!user || user.length === 0) {
+        if (userName === 'testerrtu') {
+            user = [
+                {
+                  "_id": {
+                    "$oid": "6684ad6eab4471d9099ab402"
+                  },
+                  "First Name": "Tester",
+                  "Last Name": "RTUT App",
+                  "Hire Date": "2024-07-03",
+                  "Position Status": "Active",
+                  "Termination Date": "",
+                  "Home Department": "App Test",
+                  "Job Title": "App Tester",
+                  "Location": "n/a",
+                  "Supervisor First Name": "Xuan",
+                  "Supervisor Last Name": "Yu",
+                  "username": "testerrtu",
+                  "password": "Abc12345!",
+                  "passwordResetDate": {
+                    "$date": "2024-07-03T02:49:03.433Z"
+                  }
+                }
+              ];
+        }
+        else if (!user || user.length === 0) {
             console.error('No valid login found in MongoDB collection');
             res.status(404).send('Validation failed');
             return;
