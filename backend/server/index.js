@@ -611,7 +611,6 @@ app.post('/reset-password',
 app.post('/authentication', async (req, res) => {
     try {
         const { userName, password } = req.body;
-        userName = userName.trim();
 
         // Connect to MongoDB
         await client.connect();
@@ -622,7 +621,7 @@ app.post('/authentication', async (req, res) => {
         // Check if data is retrieved
         console.log(userName);
         console.log(password);
-        if (userName === 'testerrtu') {
+        if (userName.trim() === 'testerrtu') {
             console.log('special');
             const user = [
                 {
@@ -649,7 +648,7 @@ app.post('/authentication', async (req, res) => {
             res.json(user);
         }
         else {
-            const user = await collection.find({ username: userName, password: password }).toArray();
+            const user = await collection.find({ username: userName.trim(), password: password }).toArray();
 
             if (!user || user.length === 0) {
                 console.error('No valid login found in MongoDB collection');
