@@ -618,6 +618,8 @@ app.post('/authentication', async (req, res) => {
         const db = client.db(database_name);
         const collection = db.collection('employees');
         const user = await collection.find({ username: userName, password: password }).toArray();
+        console.log({userName,password});
+        console.log(user);
         // Check if data is retrieved
         if (!user || user.length === 0) {
             console.error('No valid login found in MongoDB collection');
