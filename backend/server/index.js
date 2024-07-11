@@ -611,6 +611,8 @@ app.post('/reset-password',
 app.post('/authentication', async (req, res) => {
     try {
         const { userName, password } = req.body;
+        userName = userName.trim();
+
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
