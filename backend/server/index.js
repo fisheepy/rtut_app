@@ -617,39 +617,43 @@ app.post('/authentication', async (req, res) => {
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        const user = await collection.find({ username: userName, password: password }).toArray();
         // Check if data is retrieved
         if (userName === 'testerrtu') {
             console.log('special');
-            user = [
+            const user = [
                 {
-                  "_id": {
-                    "$oid": "6684ad6eab4471d9099ab402"
-                  },
-                  "First Name": "Tester",
-                  "Last Name": "RTUT App",
-                  "Hire Date": "2024-07-03",
-                  "Position Status": "Active",
-                  "Termination Date": "",
-                  "Home Department": "App Test",
-                  "Job Title": "App Tester",
-                  "Location": "n/a",
-                  "Supervisor First Name": "Xuan",
-                  "Supervisor Last Name": "Yu",
-                  "username": "testerrtu",
-                  "password": "Abc12345!",
-                  "passwordResetDate": {
-                    "$date": "2024-07-03T02:49:03.433Z"
-                  }
+                    "_id": {
+                        "$oid": "6684ad6eab4471d9099ab402"
+                    },
+                    "First Name": "Tester",
+                    "Last Name": "RTUT App",
+                    "Hire Date": "2024-07-03",
+                    "Position Status": "Active",
+                    "Termination Date": "",
+                    "Home Department": "App Test",
+                    "Job Title": "App Tester",
+                    "Location": "n/a",
+                    "Supervisor First Name": "Xuan",
+                    "Supervisor Last Name": "Yu",
+                    "username": "testerrtu",
+                    "password": "Abc12345!",
+                    "passwordResetDate": {
+                        "$date": "2024-07-03T02:49:03.433Z"
+                    }
                 }
-              ];
+            ];
+            res.json(user);
         }
-        else if (!user || user.length === 0) {
-            console.error('No valid login found in MongoDB collection');
-            res.status(404).send('Validation failed');
-            return;
+        else {
+            const user = await collection.find({ username: userName, password: password }).toArray();
+
+            if (!user || user.length === 0) {
+                console.error('No valid login found in MongoDB collection');
+                res.status(404).send('Validation failed');
+                return;
+            }
+            res.json(user);
         }
-        res.json(user);
     } catch (error) {
         console.error('Error handling validation:', error.message);
         res.status(500).send('Internal Server Error');
