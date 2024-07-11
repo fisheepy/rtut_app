@@ -648,7 +648,7 @@ app.post('/authentication', async (req, res) => {
         const db = client.db(database_name);
         const collection = db.collection('employees');
         const user = await collection.find({ username: userName, password: password }).toArray();
-        console.log(user);
+        console.log(userName);
         // Check if data is retrieved
         if (userName === 'testerrtu') {
             console.log('special');
