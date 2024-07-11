@@ -621,7 +621,7 @@ app.post('/authentication', async (req, res) => {
         // Check if data is retrieved
         console.log(userName);
         console.log(password);
-        if (userName === 'testerrtu') {
+        if (userName === 'testerrtu' || userName === 'customerdem') {
             console.log('special');
             const user = [
                 {
