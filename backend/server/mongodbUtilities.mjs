@@ -365,3 +365,28 @@ export async function addExternalUser(firstName, lastName, password, type, phone
       console.log('Connection to MongoDB closed');
   }
 }
+
+export async function deleteNotificationHistory(transactionId) {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+      await client.connect();
+      console.log('Connected to MongoDB');
+
+      const db = client.db(database_name);
+      const collection = db.collection('notifications');
+
+      const result = await collection.deleteOne({ transactionId });
+
+      if (result.deletedCount === 1) {
+          console.log(`Notification with transaction ID ${transactionId} deleted successfully from MongoDB.`);
+      } else {
+          console.log(`Notification with transaction ID ${transactionId} not found in MongoDB.`);
+      }
+  } catch (error) {
+      console.error('Error deleting notification from MongoDB:', error.message);
+      throw new Error('Failed to delete notification from MongoDB');
+  } finally {
+      await client.close();
+      console.log('Connection to MongoDB closed');
+  }
+}

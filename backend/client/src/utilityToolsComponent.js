@@ -1,10 +1,11 @@
+import React, { useContext, useState, useCallback } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
-import { useContext, useState, useCallback } from 'react';
-import axios from 'axios';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
+import { saveAs } from 'file-saver';
+import axios from 'axios';
 
-const UtilityToolsCompoent = () => {
+const UtilityToolsComponent = () => {
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
     const [executionStatus, setExecutionStatus] = useState('Status:');
     const [fileForImport, setFileForImport] = useState(null); // State to hold the file
@@ -21,7 +22,6 @@ const UtilityToolsCompoent = () => {
             skipEmptyLines: true,
             complete: async (results) => {
                 try {
-                    console.log(results);
                     await axios.post('/call-function-import-employees', { employees: results.data });
                     setExecutionStatus(`Status: Import succeeded at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
                     setFileForImport(null); // Clear the stored file after import
@@ -44,7 +44,7 @@ const UtilityToolsCompoent = () => {
         setExecutionStatus("Status: No valid CSV file selected.");
     }, []);
     
-    const {getRootProps, getInputProps, isDragActive} = useDropzone({
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         onDropRejected,
         accept: 'text/csv, application/vnd.ms-excel, .csv',
@@ -55,34 +55,13 @@ const UtilityToolsCompoent = () => {
 
     const exportEmployeesToCsv = async (selectedEmployees) => {
         const filteredEmployees = selectedEmployees.map(({ Name, Supervisor, ...keepAttrs }) => keepAttrs);
-
-        try {
-            axios({
-                method: 'post',
-                url: '/call-function-export-selected-employees',
-                data: { employees: filteredEmployees },
-                responseType: 'blob', // Important for handling binary data
-            })
-            .then(response => {
-                const url = window.URL.createObjectURL(new Blob([response.data]));
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', 'selected-employees.csv'); // Name the download file
-                document.body.appendChild(link);
-                link.click();
-                link.parentNode.removeChild(link);
-    
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tExport succeeded!`);
-            })
-            .catch(error => {
-                console.error('Error downloading the file:', error);
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tExport failed!`);
-            });
-        } catch (error) {
-            console.error('Error exporting employees to CSV:', error);
-        }
+        const csv = Papa.unparse(filteredEmployees);
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, 'selected-employees.csv');
+        
+        const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+        setExecutionStatus(`Status:${timeStamp}:\tExport succeeded!`);
     };
 
     return (
@@ -106,4 +85,4 @@ const UtilityToolsCompoent = () => {
     );
 };
 
-export default UtilityToolsCompoent;
+export default UtilityToolsComponent;

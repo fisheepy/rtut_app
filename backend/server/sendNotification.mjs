@@ -60,8 +60,9 @@ const sendNotifications = async (messageContent, subject, sender, filePath, send
         const formattedValues = transformFilteredValues(selectedEmployees);
 
         try {
+            const messageType = 'NOTIFICATION';
             // Use the extracted Novu operation
-            await sendNovuNotification(formattedValues, messageContent, subject, sender, sendOptions)
+            await sendNovuNotification(formattedValues, messageContent, messageType, subject, sender, sendOptions)
                 .then(response => {
                     if (response.success) {
                         console.log('Message sent successfully:', response.messageId, response.transactionId);

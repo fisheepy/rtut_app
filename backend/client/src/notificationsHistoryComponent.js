@@ -23,18 +23,18 @@ const NotificationsHistoryModule = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [executionStatus, setExecutionStatus] = useState('Status:');
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const loginName = JSON.parse(localStorage.getItem('loginName'));
-        const response = await axios.get(`/notifications?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
-        const sortedNotifications = response.data.sort((a, b) => new Date(b.currentDataTime) - new Date(a.currentDataTime));
-        setNotifications(sortedNotifications);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      }
-    };
+  const fetchNotifications = async () => {
+    try {
+      const loginName = JSON.parse(localStorage.getItem('loginName'));
+      const response = await axios.get(`/notifications?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+      const sortedNotifications = response.data.sort((a, b) => new Date(b.currentDataTime) - new Date(a.currentDataTime));
+      setNotifications(sortedNotifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
 
+  useEffect(() => {
     fetchNotifications();
   }, []);
 
@@ -67,13 +67,17 @@ const NotificationsHistoryModule = () => {
 
   const handleDeleteNotification = async () => {
     console.log("Delete Notification:", currentNotification);
-    // Placeholder for actual delete logic
     try {
       const transactionId = currentNotification.transactionId;
       console.log(transactionId);
+      
+      // Delete from Novu cloud
       await axios.post('/call-function-delete-notification', { transactionId: transactionId });
       setExecutionStatus(`Notification deleted successfully.`);
+      // Refresh notifications
+      fetchNotifications();
     } catch (error) {
+      console.error('Error deleting notification:', error);
       setExecutionStatus(`Failed to delete notification.`);
     }
     // Close both dialogs after action

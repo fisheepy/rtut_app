@@ -612,51 +612,26 @@ app.post('/authentication', async (req, res) => {
     try {
         let { userName, password } = req.body;
         userName = userName.trim();
+        
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
+        
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        // Check if data is retrieved
-        console.log(userName);
-        console.log(password);
-        if (userName === 'testerrtu' || userName === 'customerdem') {
-            console.log('special');
-            const user = [
-                {
-                    "_id": {
-                        "$oid": "6684ad6eab4471d9099ab402"
-                    },
-                    "First Name": "Tester",
-                    "Last Name": "RTUT App",
-                    "Hire Date": "2024-07-03",
-                    "Position Status": "Active",
-                    "Termination Date": "",
-                    "Home Department": "App Test",
-                    "Job Title": "App Tester",
-                    "Location": "n/a",
-                    "Supervisor First Name": "Xuan",
-                    "Supervisor Last Name": "Yu",
-                    "username": "testerrtu",
-                    "password": "Abc12345!",
-                    "passwordResetDate": {
-                        "$date": "2024-07-03T02:49:03.433Z"
-                    }
-                }
-            ];
-            res.json(user);
-        }
-        else {
-            const user = await collection.find({ username: userName, password: password }).toArray();
 
-            if (!user || user.length === 0) {
-                console.error('No valid login found in MongoDB collection');
-                res.status(404).send('Validation failed');
-                return;
-            }
-            res.json(user);
+        const user = await collection.find({
+            username: { $regex: new RegExp(`^${userName}$`, 'i') },
+            password: password
+        }).toArray();
+
+        if (!user || user.length === 0) {
+            console.error('No valid login found in MongoDB collection');
+            res.status(404).send('Validation failed');
+            return;
         }
+        res.json(user);
     } catch (error) {
         console.error('Error handling validation:', error.message);
         res.status(500).send('Internal Server Error');
@@ -666,6 +641,7 @@ app.post('/authentication', async (req, res) => {
         console.log('Connection to MongoDB closed');
     }
 });
+
 
 app.post('/call-function-add-employee', async (req, res) => {
     const newEmployee = req.body;
@@ -700,21 +676,6 @@ app.post('/call-function-delete-employee', async (req, res) => {
     });
 });
 
-app.post('/call-function-export-selected-employees', (req, res) => {
-    const employees = req.body.employees;
-
-    try {
-        // Generate CSV
-        const csv = parse(employees);
-        res.header('Content-Type', 'text/csv');
-        res.attachment('selected-employees.csv'); // Suggests a filename for the downloaded file
-        res.send(csv);
-    } catch (error) {
-        console.error('Error generating CSV:', error);
-        res.status(500).send('Failed to export employees to CSV');
-    }
-});
-
 app.post('/call-function-import-employees', (req, res) => {
     const employees = req.body.employees;
 
@@ -740,23 +701,6 @@ app.post('/call-function-delete-notification', (req, res) => {
 
     // Execute the script and pass the temporary file path as an argument
     exec(`node ./backend/server/deleteNotification.mjs "${transactionId}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
-
-        res.status(200).send('Script executed successfully');
-    });
-});
-
-app.get('/call-function-update-employee-token', (req, res) => {
-    const firstName = 'Test';//req.body.firstName;
-    const lastName = 'Test';//req.body.lastName;
-    const token = 'eIDbNJiUzEWdpjwantqi5v:APA91bGi-0dy6xATQCG0uCmeMU6tv45DCybJ2F58wts2nIkbPCHKeu84XSnv5WbWso-hp2WoY7kuAIuQdepvu2RaJpapMCW2GFUNHv-2ti2f0auqrLNWvhk9Iru_Xvend2mxeJcdCoaQ';//req.body.token;
-
-    // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);

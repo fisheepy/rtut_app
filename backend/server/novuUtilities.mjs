@@ -12,6 +12,12 @@ function generateUniqueId(firstName, lastName) {
   return hash.digest('hex');
 }
 
+function generateMessageId(sender) {
+  const timestamp = new Date().getTime(); // Current time in milliseconds
+  const randomComponent = Math.random().toString(36).substring(2, 15); // Random string for additional entropy
+  return `${sender}-${timestamp}-${randomComponent}`;
+}
+
 export async function updateEmployeeToNovuSubscriber(employee) {
   try {
     const uid = generateUniqueId(employee['First Name'].toUpperCase(), employee['Last Name'].toUpperCase());
@@ -38,12 +44,6 @@ export async function updateEmployeeToNovuSubscriber(employee) {
   }
 }
 
-function generateMessageId(sender) {
-  const timestamp = new Date().getTime(); // Current time in milliseconds
-  const randomComponent = Math.random().toString(36).substring(2, 15); // Random string for additional entropy
-  return `${sender}-${timestamp}-${randomComponent}`;
-}
-
 export const triggerSurveyNotification = async (formattedValues, surveyQuestionsString, subject, sender, uniqueId) => {
   const messageId = generateMessageId(sender);
   try {
@@ -64,7 +64,7 @@ export const triggerSurveyNotification = async (formattedValues, surveyQuestions
   }
 };
 
-export async function sendNovuNotification(formattedValues, messageContent, subject, sender, sendOptions) {
+export async function sendNovuNotification(formattedValues, messageContent, messageType, subject, sender, sendOptions) {
   const filteredValuesToSend = formattedValues.map(({ Email, Phone, ...rest }) => {
     const toSend = { ...rest };
 
@@ -86,7 +86,7 @@ export async function sendNovuNotification(formattedValues, messageContent, subj
     const response = await novu.trigger('rtut-general', {
       to: filteredValuesToSend,
       payload: {
-        messageType: "NOTIFICATION",
+        messageType,
         messageContent,
         subject,
         sender,
