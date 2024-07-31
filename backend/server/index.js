@@ -648,12 +648,15 @@ app.post('/api/accept-disclaimer', async (req, res) => {
             res.status(404).send('Validation failed');
             return;
         }
+
         const userInfo = user[0];
         // Check if the user has the 'isActivated' field
+        console.log(userInfo);
+        console.log(accepted);
         if (!userInfo.isActivated && accepted) {
             // Update the user document to add 'isActivated' and 'activationDate'
             await collection.updateOne(
-                { _id: userInfo._id },
+                { username: userInfo.username },
                 {
                     $set: {
                         isActivated: true,
