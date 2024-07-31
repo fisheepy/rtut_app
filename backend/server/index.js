@@ -662,6 +662,7 @@ app.post('/api/accept-disclaimer', async (req, res) => {
                 }
             );
         }
+        res.status(200).send('Disclaimer Accepted!');
     } catch (error) {
         console.error('Error handling accepting disclaimer:', error.message);
         res.status(500).send('Internal Server Error');
