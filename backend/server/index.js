@@ -664,7 +664,7 @@ app.post('/api/accept-disclaimer', async (req, res) => {
     }
 
     async function newFunction(userInfo, accepted, collection) {
-        if ((!userInfo.isActivated || userInfo.isActivated === 'false') && accepted) {
+        if ((userInfo.isActivated === undefined || userInfo.isActivated === false || userInfo.isActivated === 'false') && accepted) {
             console.log('test point');
             // Update the user document to add 'isActivated' and 'activationDate'
             await collection.updateOne(
@@ -678,7 +678,6 @@ app.post('/api/accept-disclaimer', async (req, res) => {
             );
             res.status(200).send('Disclaimer Accepted!');
         }
-
         else {
             res.status(404).send('User not Found!');
         }
