@@ -653,7 +653,7 @@ app.post('/api/accept-disclaimer', async (req, res) => {
         // Check if the user has the 'isActivated' field
         console.log(userInfo);
         console.log(accepted);
-        if (!userInfo.isActivated && accepted) {
+        if ((!userInfo.isActivated || userInfo.isActivated === 'false') && accepted) {
             // Update the user document to add 'isActivated' and 'activationDate'
             await collection.updateOne(
                 { username: userInfo.username },
