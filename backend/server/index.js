@@ -631,8 +631,6 @@ app.post('/reset-password',
 app.post('/api/accept-disclaimer', async (req, res) => {
     try {
         const { accepted, username } = req.body;
-        username = username.trim();
-
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
