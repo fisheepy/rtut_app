@@ -629,6 +629,23 @@ app.post('/reset-password',
 );
 
 app.post('/api/accept-disclaimer', async (req, res) => {
+    async function acceptDisclaimer(userInfo, accepted, collection) {
+        if (userInfo.isActivated !== 'true' && accepted) {
+            console.log('test point');
+            // Update the user document to add 'isActivated' and 'activationDate'
+            await collection.updateOne(
+                { username: { $regex: new RegExp(`^${userInfo.username}$`, 'i') } },
+                {
+                    $set: {
+                        isActivated: 'true',
+                        activationDate: new Date()
+                    }
+                }
+            );
+        }
+        res.status(200).send('Disclaimer Accepted!');
+    }
+    
     try {
         const { accepted, username } = req.body;
         // Connect to MongoDB
@@ -653,7 +670,7 @@ app.post('/api/accept-disclaimer', async (req, res) => {
         // Check if the user has the 'isActivated' field
         console.log(userInfo);
         console.log(accepted);
-        await newFunction(userInfo, accepted, collection);
+        await acceptDisclaimer(userInfo, accepted, collection);
     } catch (error) {
         console.error('Error handling accepting disclaimer:', error.message);
         res.status(500).send('Internal Server Error');
@@ -661,26 +678,6 @@ app.post('/api/accept-disclaimer', async (req, res) => {
         // Close the MongoDB connection
         await client.close();
         console.log('Connection to MongoDB closed');
-    }
-
-    async function newFunction(userInfo, accepted, collection) {
-        if (userInfo.isActivated !== 'true' && accepted) {
-            console.log('test point');
-            // Update the user document to add 'isActivated' and 'activationDate'
-            await collection.updateOne(
-                { username: { $regex: new RegExp(`^${userInfo.username}$`, 'i') } },
-                {
-                    $set: {
-                        isActivated: 'true',
-                        activationDate: new Date()
-                    }
-                }
-            );
-            res.status(200).send('Disclaimer Accepted!');
-        }
-        else {
-            res.status(404).send('User not Found!');
-        }
     }
 });
 
