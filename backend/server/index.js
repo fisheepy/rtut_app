@@ -628,15 +628,61 @@ app.post('/reset-password',
     }
 );
 
-app.post('/authentication', async (req, res) => {
+app.post('/api/accept-disclaimer', async (req, res) => {
     try {
-        let { userName, password } = req.body;
-        userName = userName.trim();
-        
+        const { accepted, username } = req.body;
+        username = username.trim();
+
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
-        
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+
+        const user = await collection.find({
+            username: { $regex: new RegExp(`^${username}$`, 'i') },
+        }).toArray();
+
+        if (!user || user.length === 0) {
+            console.error('User not found in MongoDB collection');
+            res.status(404).send('Validation failed');
+            return;
+        }
+        const userInfo = user[0];
+        // Check if the user has the 'isActivated' field
+        if (!userInfo.isActivated && accepted) {
+            // Update the user document to add 'isActivated' and 'activationDate'
+            await collection.updateOne(
+                { _id: userInfo._id },
+                {
+                    $set: {
+                        isActivated: true,
+                        activationDate: new Date()
+                    }
+                }
+            );
+        }
+    } catch (error) {
+        console.error('Error handling accepting disclaimer:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/api/authentication', async (req, res) => {
+    try {
+        let { userName, password } = req.body;
+        userName = userName.trim();
+
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
         // Access the database
         const db = client.db(database_name);
         const collection = db.collection('employees');
@@ -651,7 +697,11 @@ app.post('/authentication', async (req, res) => {
             res.status(404).send('Validation failed');
             return;
         }
-        res.json(user);
+
+        // Extract the user object
+        const userInfo = user[0];
+
+        res.json([userInfo]);  // Respond with the user info array
     } catch (error) {
         console.error('Error handling validation:', error.message);
         res.status(500).send('Internal Server Error');
@@ -661,7 +711,6 @@ app.post('/authentication', async (req, res) => {
         console.log('Connection to MongoDB closed');
     }
 });
-
 
 app.post('/call-function-add-employee', async (req, res) => {
     const newEmployee = req.body;
