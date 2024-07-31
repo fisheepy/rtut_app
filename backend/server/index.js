@@ -653,19 +653,7 @@ app.post('/api/accept-disclaimer', async (req, res) => {
         // Check if the user has the 'isActivated' field
         console.log(userInfo);
         console.log(accepted);
-        if ((!userInfo.isActivated || userInfo.isActivated === 'false') && accepted) {
-            // Update the user document to add 'isActivated' and 'activationDate'
-            await collection.updateOne(
-                { username: userInfo.username },
-                {
-                    $set: {
-                        isActivated: true,
-                        activationDate: new Date()
-                    }
-                }
-            );
-        }
-        res.status(200).send('Disclaimer Accepted!');
+        await newFunction(userInfo, accepted, collection);
     } catch (error) {
         console.error('Error handling accepting disclaimer:', error.message);
         res.status(500).send('Internal Server Error');
@@ -673,6 +661,27 @@ app.post('/api/accept-disclaimer', async (req, res) => {
         // Close the MongoDB connection
         await client.close();
         console.log('Connection to MongoDB closed');
+    }
+
+    async function newFunction(userInfo, accepted, collection) {
+        if ((!userInfo.isActivated || userInfo.isActivated === 'false') && accepted) {
+            console.log('test point');
+            // Update the user document to add 'isActivated' and 'activationDate'
+            await collection.updateOne(
+                { username: { $regex: new RegExp(`^${userInfo.username}$`, 'i') } },
+                {
+                    $set: {
+                        isActivated: true,
+                        activationDate: new Date()
+                    }
+                }
+            );
+            res.status(200).send('Disclaimer Accepted!');
+        }
+
+        else {
+            res.status(404).send('User not Found!');
+        }
     }
 });
 
