@@ -65,9 +65,12 @@ export const triggerSurveyNotification = async (formattedValues, surveyQuestions
 };
 
 export async function sendNovuNotification(formattedValues, messageContent, messageType, subject, sender, sendOptions) {
-  const filteredValuesToSend = formattedValues.map(({ Email, Phone, ...rest }) => {
+  const formattedArray = Array.isArray(formattedValues) ? formattedValues : [formattedValues];
+
+  const filteredValuesToSend = formattedArray.map(({ Email, Phone, ...rest }) => {
     const toSend = { ...rest };
 
+    toSend.app = sendOptions.app;
     if (sendOptions.email === 'true' && Email) {
       toSend.email = Email;
     }
@@ -80,6 +83,7 @@ export async function sendNovuNotification(formattedValues, messageContent, mess
   });
 
   const messageId = generateMessageId(sender);
+  const sendApp = sendOptions.app;
   const sendEmail = sendOptions.email;
   const sendSMS = sendOptions.sms;
   try {
@@ -90,6 +94,7 @@ export async function sendNovuNotification(formattedValues, messageContent, mess
         messageContent,
         subject,
         sender,
+        sendApp,
         sendEmail,
         sendSMS,
         messageId: messageId

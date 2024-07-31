@@ -140,9 +140,6 @@ function EmployeeSelectionComponent() {
 
         setFilteredEmployees(combinedFilteredEmployees);
         setSelectedEmployees(finalFilteredEmployees);
-        console.log(combinedFilteredEmployees);
-        console.log(finalFilteredEmployees);
-        console.log(filteredEmployees);
     };
 
     const handleCheckboxChange = (employeeId) => {

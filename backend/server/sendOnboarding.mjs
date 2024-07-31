@@ -19,10 +19,9 @@ const transformFilteredValues = (filteredValues) => {
     return filteredValues.map(({
         'First Name': firstName,
         'Last Name': lastName,
-        'Email': email,
-        'Phone': phone }) => {
-        // Split PayrollName into firstName and lastName
-
+        'username': username,
+        'password': password,
+     }) => {
         // Construct the object with formatted data
         const formattedData = {
             subscriberId: generateUniqueId(
@@ -30,23 +29,19 @@ const transformFilteredValues = (filteredValues) => {
                 lastName.toUpperCase()
             ),
             firstName: firstName,
-            lastName: lastName
+            lastName: lastName,
+            username: username,
+            password: password,
+            Email: '',
+            Phone: '',
+
         };
-
-        if (email) {
-            formattedData.Email = email;
-        }
-
-        if (phone) {
-            formattedData.Phone = phone;
-        }
-
         return formattedData;
     });
 };
 
 // Function to send notifications
-const sendNotifications = async (messageContent, subject, sender, filePath, sendOptions) => {
+const sendOnboarding = async (filePath, sendOptions) => {
     // Read the contents of the temporary file
     const selectedEmployeesJSON = fs.readFileSync(filePath, 'utf-8');
 
@@ -57,22 +52,33 @@ const sendNotifications = async (messageContent, subject, sender, filePath, send
         // Transform and format filteredValues
         const formattedValues = transformFilteredValues(selectedEmployees);
 
-        try {
+        // Iterate through each formatted employee and send notification
+        for (const employee of formattedValues) {
             const messageType = 'NOTIFICATION';
-            // Use the extracted Novu operation
-            await sendNovuNotification(formattedValues, messageContent, messageType, subject, sender, sendOptions)
-                .then(response => {
-                    if (response.success) {
-                        console.log('Message sent successfully:', response.messageId, response.transactionId);
-                        // Use the extracted MongoDB operation
-                        saveNotificationToDatabase(sender, subject, messageContent, response.messageId, response.transactionId);
-                    }
-                })
-                .catch(error => {
-                    console.error('Failed to send message:', error);
-                });
-        } catch (error) {
-            console.error('Error:', error.message);
+            const subject = 'Onboarding';
+            const sender = 'RTUT App Admin';
+            const messageContent = 'Hello ' + employee.firstName + ', '
+                + 'You are invited to use the company App. '
+                + 'You can download it from https://apps.apple.com/app/rtut/id6547833065. '
+                + 'Your username is: ' + employee.username + '. Default password is: ' + employee.password + '.';
+
+            try {
+                const response = await sendNovuNotification(
+                    employee, 
+                    messageContent, 
+                    messageType, 
+                    subject, 
+                    sender, 
+                    sendOptions
+                );
+
+                if (response.success) {
+                    console.log('Message sent successfully:', response.messageId, response.transactionId);
+                    await saveNotificationToDatabase(sender, subject, messageContent, response.messageId, response.transactionId);
+                }
+            } catch (error) {
+                console.error('Failed to send message:', error);
+            }
         }
     } catch (error) {
         console.error('Error parsing selectedEmployeesJSON:', error.message);
@@ -80,21 +86,18 @@ const sendNotifications = async (messageContent, subject, sender, filePath, send
 };
 
 // Check if command-line arguments are provided
-if (process.argv.length < 9) {
-    console.error('Usage: node sendNotification.mjs <messageContent> <subject> <sender> <filePath>');
+if (process.argv.length < 3) {
+    console.error('Usage: node sendNotification.mjs <filePath>');
     process.exit(1);
 }
 
 // Extract command-line arguments
-const messageContent = process.argv[2];
-const subject = process.argv[3];
-const sender = process.argv[4];
-const filePath = process.argv[5];
+const filePath = process.argv[2];
 const sendOptions = {
-    app: process.argv[6],
-    sms: process.argv[7],
-    email: process.argv[8],
+    app: 'false',
+    sms: 'true',
+    email: 'false',
 }
 
 // Call the function to send notifications
-sendNotifications(messageContent, subject, sender, filePath, sendOptions);
+sendOnboarding(filePath, sendOptions);

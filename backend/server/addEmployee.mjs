@@ -53,6 +53,8 @@ export async function addNewEmployee(newEmployee) {
       "Location": newEmployee.location,
       "Supervisor First Name": newEmployee.supervisorFirstName,
       "Supervisor Last Name": newEmployee.supervisorLastName,
+      "Email": newEmployee.email,
+      "Phone": newEmployee.phone,
       username,
       password
     };

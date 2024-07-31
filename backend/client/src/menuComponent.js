@@ -13,6 +13,7 @@ const MenuComponent = ({ onItemSelect }) => {
     { id: 'reviewEvents', label: 'Event History'},
     { id: 'processEmployeeCsv', label: 'Import/Export Employees'},
     { id: 'processEmployee', label: 'Add/Remove Individual Employee'},
+    { id: 'processWorkflow', label: 'Process Workflow'},
     // Add other items as necessary
   ];
 

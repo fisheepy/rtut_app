@@ -12,7 +12,7 @@ import SurveysHistoryModule from './surveysHistoryComponent';
 import UtilitiesCenterComponent from './utilitiesCenterComponent';
 import EventsHistoryModule from './eventsHistoryComponent';
 import EventsCenterComponent from './eventsCenterComponent';
-
+import WorkflowModule from './workflowComponent';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const componentMapping = {
@@ -24,6 +24,7 @@ const componentMapping = {
   'reviewSurveys': SurveysHistoryModule,
   'processEmployee': UtilitiesCenterComponent,
   'reviewEvents': EventsHistoryModule,
+  'processWorkflow': WorkflowModule,
 };
 
 function App() {

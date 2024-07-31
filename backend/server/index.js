@@ -354,6 +354,26 @@ app.get('/call-function-generate-user-names', async (req, res) => {
     });
 });
 
+app.post('/api/send-onboarding', async (req, res) => {
+    const selectedEmployees = req.body.selectedEmployees;
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+
+    exec(`node ./backend/server/sendOnboarding.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
 // Define a route to handle the POST request for executing the script
 app.post('/call-function-send-notification', (req, res) => {
     const messageContent = req.body.body;
