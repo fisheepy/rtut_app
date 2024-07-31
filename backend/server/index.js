@@ -664,14 +664,14 @@ app.post('/api/accept-disclaimer', async (req, res) => {
     }
 
     async function newFunction(userInfo, accepted, collection) {
-        if ((userInfo.isActivated === undefined || userInfo.isActivated === false || userInfo.isActivated === 'false') && accepted) {
+        if (userInfo.isActivated !== 'true' && userInfo.isActivated !== true && accepted) {
             console.log('test point');
             // Update the user document to add 'isActivated' and 'activationDate'
             await collection.updateOne(
                 { username: { $regex: new RegExp(`^${userInfo.username}$`, 'i') } },
                 {
                     $set: {
-                        isActivated: true,
+                        isActivated: 'true',
                         activationDate: new Date()
                     }
                 }
