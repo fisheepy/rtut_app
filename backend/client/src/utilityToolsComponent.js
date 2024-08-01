@@ -3,7 +3,6 @@ import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
-import axios from 'axios';
 
 const UtilityToolsComponent = () => {
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
@@ -16,16 +15,19 @@ const UtilityToolsComponent = () => {
             return;
         }
 
-        // Prepare form data for upload
-        const formData = new FormData();
-        formData.append('file', fileForImport);
-
         try {
-            await axios.post('/call-function-import-employees', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+            const formData = new FormData();
+            formData.append('file', fileForImport);
+
+            const response = await fetch('/call-function-import-employees', {
+                method: 'POST',
+                body: formData
             });
+
+            if (!response.ok) {
+                throw new Error('Failed to import employees');
+            }
+
             setExecutionStatus(`Status: Import succeeded at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
             setFileForImport(null);
         } catch (error) {
@@ -54,7 +56,16 @@ const UtilityToolsComponent = () => {
     });
 
     const exportEmployeesToCsv = (selectedEmployees) => {
-        const filteredEmployees = selectedEmployees.map(({ Name, Supervisor, ...keepAttrs }) => keepAttrs);
+        const columnsToExclude = ['Name', 'Supervisor','username','password']; // Add any other column names you want to exclude
+        const filteredEmployees = selectedEmployees.map(employee => {
+            // Create a new object with only the desired attributes
+            return Object.keys(employee).reduce((acc, key) => {
+                if (!columnsToExclude.includes(key)) {
+                    acc[key] = employee[key];
+                }
+                return acc;
+            }, {});
+        });
         const csv = Papa.unparse(filteredEmployees);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         saveAs(blob, 'selected-employees.csv');

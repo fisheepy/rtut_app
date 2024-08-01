@@ -6,6 +6,25 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
+
+const uploadDirectory = path.join(__dirname, 'uploads');
+
+// Create the uploads directory if it doesn't exist
+if (!fs.existsSync(uploadDirectory)) {
+    fs.mkdirSync(uploadDirectory, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDirectory);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ storage });
 
 const app = express();
 app.use(express.json());
@@ -45,8 +64,8 @@ app.get('/employees', cors(), async (req, res, next) => {
         const db = client.db(database_name);
         const collection = db.collection('employees');
 
-        // Query database to retrieve data
-        const data = await collection.find().toArray();
+        // Query database to retrieve data with "Account Active" = 'Active'
+        const data = await collection.find({ "Account Active": "Active" }).toArray();
 
         // Check if data is retrieved
         if (!data || data.length === 0) {
@@ -60,10 +79,12 @@ app.get('/employees', cors(), async (req, res, next) => {
         const admins = await adminCollection.find().toArray();
         const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName);
         const isRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        
+        let filteredData = [];
+        
         if (isRoot) {
             filteredData = data;
-        }
-        else if (isAdmin) {
+        } else if (isAdmin) {
             // User is not a root user, filter data accordingly
             filteredData = data.filter(employee => isSupervisorOrSubordinate(employee, loginName, data));
         }
@@ -78,6 +99,7 @@ app.get('/employees', cors(), async (req, res, next) => {
         await client.close();
         console.log('Connection to MongoDB closed');
     }
+
     // Function to check if an employee is the supervisor or subordinate of the given login name
     function isSupervisorOrSubordinate(employee, loginName, allEmployees) {
         if (employee["Supervisor First Name"].toUpperCase() === loginName.firstName.toUpperCase() &&
@@ -465,20 +487,24 @@ app.post('/call-function-delete-employee', async (req, res) => {
     });
 });
 
-app.post('/call-function-import-employees', (req, res) => {
-    const employees = req.body.employees;
-    const employeesJSON = JSON.stringify(employees);
+app.post('/call-function-import-employees', upload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).send('No file uploaded.');
+    }
 
-    // Write the JSON string to a temporary file
-    const tempFilePath = path.join(__dirname, 'temp', 'employees.json');
-    fs.writeFileSync(tempFilePath, employeesJSON);
-    // Execute the script and pass the temporary file path as an argument
+    const tempFilePath = req.file.path;
+
     exec(`node ./backend/server/importEmployeeData.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
+
+        // Optionally delete the temporary file after processing
+        fs.unlink(tempFilePath, (err) => {
+            if (err) console.error(`Failed to delete temp file: ${err.message}`);
+        });
 
         res.status(200).send('Script executed successfully');
     });

@@ -279,6 +279,7 @@ export async function importEmployeesData(employees) {
         const updates = {};
         let needsUpdate = false;
 
+        // Only prepare updates for fields that exist in employeeData and differ from existingEmployee
         for (const key in employeeData) {
           if (employeeData[key] !== existingEmployee[key]) {
             updates[key] = employeeData[key];
@@ -286,29 +287,12 @@ export async function importEmployeesData(employees) {
           }
         }
 
-        if (needsUpdate || existingEmployee) {
-          const updatesForUnset = {};
-
-          Object.keys(existingEmployee).forEach((key) => {
-            if (!employeeData.hasOwnProperty(key) && key !== '_id') {
-              updatesForUnset[key] = "";
-            }
-          });
-
-          const combinedUpdates = {};
-          if (needsUpdate) {
-            combinedUpdates.$set = updates;
-
-            if (Object.keys(updatesForUnset).length > 0) {
-              combinedUpdates.$unset = updatesForUnset;
-            }
-
-            await collection.updateOne(
-              { _id: new ObjectId(employeeId) },
-              combinedUpdates
-            );
-            console.log(`Employee ${employeeId} updated.`);
-          }
+        if (needsUpdate) {
+          await collection.updateOne(
+            { _id: new ObjectId(employeeId) },
+            { $set: updates }
+          );
+          console.log(`Employee ${employeeId} updated.`);
         }
       } else {
         await collection.insertOne({
