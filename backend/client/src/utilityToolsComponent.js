@@ -8,7 +8,7 @@ import axios from 'axios';
 const UtilityToolsComponent = () => {
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
     const [executionStatus, setExecutionStatus] = useState('Status:');
-    const [fileForImport, setFileForImport] = useState(null); // State to hold the file
+    const [fileForImport, setFileForImport] = useState(null);
 
     const handleImportClick = async () => {
         if (!fileForImport) {
@@ -16,50 +16,48 @@ const UtilityToolsComponent = () => {
             return;
         }
 
-        // Use PapaParse to parse the CSV file
-        Papa.parse(fileForImport, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                try {
-                    await axios.post('/call-function-import-employees', { employees: results.data });
-                    setExecutionStatus(`Status: Import succeeded at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
-                    setFileForImport(null); // Clear the stored file after import
-                } catch (error) {
-                    console.error('Error importing employees:', error);
-                    setExecutionStatus(`Status: Import failed at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+        // Prepare form data for upload
+        const formData = new FormData();
+        formData.append('file', fileForImport);
+
+        try {
+            await axios.post('/call-function-import-employees', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
                 }
-            },
-        });
+            });
+            setExecutionStatus(`Status: Import succeeded at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+            setFileForImport(null);
+        } catch (error) {
+            console.error('Error importing employees:', error);
+            setExecutionStatus(`Status: Import failed at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+        }
     };
 
     const onDrop = useCallback(acceptedFiles => {
-        // Assuming only one file is accepted, store it for later processing
         setFileForImport(acceptedFiles[0]);
-        setExecutionStatus("Status: File ready for import."); // Optional status update
+        setExecutionStatus("Status: File ready for import.");
     }, []);
 
     const onDropRejected = useCallback(rejectedFiles => {
         console.log('Rejected files:', rejectedFiles);
         setExecutionStatus("Status: No valid CSV file selected.");
     }, []);
-    
+
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         onDropRejected,
         accept: 'text/csv, application/vnd.ms-excel, .csv',
         maxFiles: 1,
-        noClick: true, // Disable opening the file dialog on click
-        noKeyboard: true // Disable opening the file dialog on SPACE/ENTER
+        noClick: true,
+        noKeyboard: true
     });
 
-    const exportEmployeesToCsv = async (selectedEmployees) => {
+    const exportEmployeesToCsv = (selectedEmployees) => {
         const filteredEmployees = selectedEmployees.map(({ Name, Supervisor, ...keepAttrs }) => keepAttrs);
         const csv = Papa.unparse(filteredEmployees);
-        
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         saveAs(blob, 'selected-employees.csv');
-        
         const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
         setExecutionStatus(`Status:${timeStamp}:\tExport succeeded!`);
     };
@@ -79,7 +77,6 @@ const UtilityToolsComponent = () => {
                 <input {...getInputProps()} />
                 {isDragActive ? <p>Drop the CSV file here ...</p> : <p>Drag 'n' drop a CSV file here</p>}
             </div>
-            {/* This button now triggers the import process */}
             <button onClick={handleImportClick}>Import Employees From CSV</button>
         </div>
     );
