@@ -12,7 +12,7 @@ function WorkflowModule() {
         const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
         try {
             // Replace with actual API endpoint and data format
-            await axios.post('/api/send-onboarding', { selectedEmployees: selectedEmployees });
+            await axios.post('/call-function-send-onboarding', { selectedEmployees: selectedEmployees });
             setExecutionStatus(`Status:${timeStamp}:\tOnboarding notifications sent successfully.`);
         } catch (error) {
             setExecutionStatus(`Status:${timeStamp}:\tFailed to send onboarding notifications.`);

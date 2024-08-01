@@ -30,7 +30,6 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
-const csvFilePath = './backend/server/output.csv';
 
 app.get('/employees', cors(), async (req, res, next) => {
     const loginName = req.query; // Extract firstName and lastName from query parameters
@@ -354,7 +353,7 @@ app.get('/call-function-generate-user-names', async (req, res) => {
     });
 });
 
-app.post('/api/send-onboarding', async (req, res) => {
+app.post('/call-function-send-onboarding', async (req, res) => {
     const selectedEmployees = req.body.selectedEmployees;
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
@@ -430,7 +429,74 @@ app.post('/call-function-send-survey', (req, res) => {
     });
 });
 
-app.post('/submit-survey', async (req, res) => {
+app.post('/call-function-add-employee', async (req, res) => {
+    const newEmployee = req.body;
+    const newEmployeeJSON = JSON.stringify(newEmployee);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'newEmployee.json');
+    fs.writeFileSync(tempFilePath, newEmployeeJSON);
+    // Execute the script
+    exec(`node ./backend/server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+app.post('/call-function-delete-employee', async (req, res) => {
+    const firstName = req.body.firstName;
+    const lastName = req.body.lastName;
+
+    // Execute the script
+    exec(`node ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+app.post('/call-function-import-employees', (req, res) => {
+    const employees = req.body.employees;
+    const employeesJSON = JSON.stringify(employees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'employees.json');
+    fs.writeFileSync(tempFilePath, employeesJSON);
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/importEmployeeData.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-delete-notification', (req, res) => {
+    const transactionId = req.body.transactionId;
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/deleteNotification.mjs "${transactionId}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/api/submit-survey', async (req, res) => {
     try {
         // Retrieve the survey result data from the request body
         const { surveyId, answers, timestamp } = req.body;
@@ -459,7 +525,7 @@ app.post('/submit-survey', async (req, res) => {
 });
 
 // Endpoint to handle user registration
-app.post('/register_external',
+app.post('/api/register_external',
     [
         body('firstName').notEmpty().withMessage('First Name is required'),
         body('lastName').notEmpty().withMessage('Last Name is required'),
@@ -491,7 +557,7 @@ app.post('/register_external',
     }
 );
 
-app.post('/submit-feedback', async (req, res) => {
+app.post('/api/submit-feedback', async (req, res) => {
     try {
         // Retrieve the feedback data from the request body
         const { name, feedback } = req.body;
@@ -519,7 +585,7 @@ app.post('/submit-feedback', async (req, res) => {
     }
 });
 
-app.post('/fetch-events', async (req, res) => {
+app.post('/api/fetch-events', async (req, res) => {
     try {
         // Connect to MongoDB
         await client.connect();
@@ -545,7 +611,7 @@ app.post('/fetch-events', async (req, res) => {
     }
 });
 
-app.post('/register_token', (req, res) => {
+app.post('/api/register_token', (req, res) => {
     try {
         const { token, user } = req.body;
         console.log('Received token:', token);
@@ -570,7 +636,7 @@ app.post('/register_token', (req, res) => {
     }
 });
 
-app.post('/reset-password',
+app.post('/api/reset-password',
     [
         body('userId').notEmpty().withMessage('User ID is required'),
         body('newPassword')
@@ -645,7 +711,7 @@ app.post('/api/accept-disclaimer', async (req, res) => {
         }
         res.status(200).send('Disclaimer Accepted!');
     }
-    
+
     try {
         const { accepted, username } = req.body;
         // Connect to MongoDB
@@ -717,74 +783,6 @@ app.post('/api/authentication', async (req, res) => {
         await client.close();
         console.log('Connection to MongoDB closed');
     }
-});
-
-app.post('/call-function-add-employee', async (req, res) => {
-    const newEmployee = req.body;
-    const newEmployeeJSON = JSON.stringify(newEmployee);
-
-    // Write the JSON string to a temporary file
-    const tempFilePath = path.join(__dirname, 'temp', 'newEmployee.json');
-    fs.writeFileSync(tempFilePath, newEmployeeJSON);
-    // Execute the script
-    exec(`node ./backend/server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
-        res.status(200).send(stdout);
-    });
-});
-
-app.post('/call-function-delete-employee', async (req, res) => {
-    const firstName = req.body.firstName;
-    const lastName = req.body.lastName;
-
-    // Execute the script
-    exec(`node ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
-        res.status(200).send(stdout);
-    });
-});
-
-app.post('/call-function-import-employees', (req, res) => {
-    const employees = req.body.employees;
-
-    const employeesJSON = JSON.stringify(employees);
-
-    // Write the JSON string to a temporary file
-    const tempFilePath = path.join(__dirname, 'temp', 'employees.json');
-    fs.writeFileSync(tempFilePath, employeesJSON);
-    // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/importEmployeeData.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
-
-        res.status(200).send('Script executed successfully');
-    });
-});
-
-app.post('/call-function-delete-notification', (req, res) => {
-    const transactionId = req.body.transactionId;
-
-    // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/deleteNotification.mjs "${transactionId}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
-
-        res.status(200).send('Script executed successfully');
-    });
 });
 
 app.get('*', (req, res) => {
