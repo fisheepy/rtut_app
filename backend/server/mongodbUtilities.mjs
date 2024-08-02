@@ -120,7 +120,7 @@ export const saveEventToDatabase = async (eventData) => {
 }
 
 // Function to save a survey to the database
-export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber) => {
+export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber, transactionId) => {
   const client = new MongoClient(MONGODB_URI);
   try {
     await client.connect();
@@ -129,7 +129,7 @@ export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDat
     const db = client.db(database_name);
     const collection = db.collection('survey forms');
 
-    await collection.insertOne({ uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber });
+    await collection.insertOne({ uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber, transactionId });
     console.log('Survey form saved to database successfully');
   } catch (error) {
     console.error('Error handling saving survey form to database:', error.message);

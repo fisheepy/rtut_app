@@ -18,6 +18,18 @@ function generateMessageId(sender) {
   return `${sender}-${timestamp}-${randomComponent}`;
 }
 
+// Function to generate a unique ID based on subject, sender, and current time
+function generateUniqueSurveyId(subject, sender) {
+  // Concatenate first name, last name, subject, sender, and current time
+  const currentDataTime = Date.now();
+  const nameString = `${subject}${sender}${currentDataTime}`;
+
+  // Use SHA-256 hashing algorithm to generate a unique hash value
+  const hash = crypto.createHash('sha256');
+  hash.update(nameString);
+  return hash.digest('hex');
+}
+
 export async function updateEmployeeToNovuSubscriber(employee) {
   try {
     const uid = generateUniqueId(employee['First Name'].toUpperCase(), employee['Last Name'].toUpperCase());
@@ -44,26 +56,6 @@ export async function updateEmployeeToNovuSubscriber(employee) {
   }
 }
 
-export const triggerSurveyNotification = async (formattedValues, surveyQuestionsString, subject, sender, uniqueId) => {
-  const messageId = generateMessageId(sender);
-  try {
-    await novu.trigger('rtut-survey', {
-      to: formattedValues,
-      payload: {
-        messageType: "SURVEY",
-        messageContent: surveyQuestionsString,
-        subject: subject,
-        sender: sender,
-        uniqueId: uniqueId,
-        messageId: messageId
-      }
-    });
-    console.log('Survey sent successfully');
-  } catch (error) {
-    console.error('Error triggering survey notification:', error.message);
-  }
-};
-
 export async function sendNovuNotification(formattedValues, messageContent, messageType, subject, sender, sendOptions) {
   const formattedArray = Array.isArray(formattedValues) ? formattedValues : [formattedValues];
 
@@ -86,19 +78,38 @@ export async function sendNovuNotification(formattedValues, messageContent, mess
   const sendApp = sendOptions.app;
   const sendEmail = sendOptions.email;
   const sendSMS = sendOptions.sms;
+  let triggerType = 'rtut-general';
+  let payload;
+  const uniqueId = generateUniqueSurveyId(subject, sender);
+
+  if (messageType === 'SURVEY'){
+    triggerType = 'rtut-survey';
+    payload = {
+      messageType,
+      messageContent,
+      subject,
+      sender,
+      uniqueId,
+      messageId,
+    };
+  }
+  else {
+    payload = {
+      messageType,
+      messageContent,
+      subject,
+      sender,
+      sendApp,
+      sendEmail,
+      sendSMS,
+      messageId,
+    };
+  }
+
   try {
-    const response = await novu.trigger('rtut-general', {
+    const response = await novu.trigger(triggerType, {
       to: filteredValuesToSend,
-      payload: {
-        messageType,
-        messageContent,
-        subject,
-        sender,
-        sendApp,
-        sendEmail,
-        sendSMS,
-        messageId: messageId
-      },
+      payload: payload,
       overrides: {
         fcm: {
           data: {
@@ -115,7 +126,8 @@ export async function sendNovuNotification(formattedValues, messageContent, mess
     return {
       success: true,
       messageId: messageId,
-      transactionId: transactionId
+      transactionId: transactionId,
+      uniqueId: uniqueId, 
     };
   } catch (error) {
     console.error('Error triggering Novu notification:', error);
@@ -123,11 +135,12 @@ export async function sendNovuNotification(formattedValues, messageContent, mess
   }
 }
 
+// Obsolete
 export async function sendNotification(triggerIdentifier, to, payload) {
   try {
     await novu.trigger(triggerIdentifier, {
-      to,
-      payload,
+      to: to,
+      payload: payload,
     });
     console.log('Notification sent successfully');
   } catch (error) {
