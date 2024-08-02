@@ -55,6 +55,11 @@ export async function addNewEmployee(newEmployee) {
       "Supervisor Last Name": newEmployee.supervisorLastName,
       "Email": newEmployee.email,
       "Phone": newEmployee.phone,
+      "Worker Category": newEmployee.workCategory,
+      "Pay Category": newEmployee.payCategory,
+      "EEOC Establishment": newEmployee.eeoc,
+      "isActivated": 'false',
+      "Account Active": "Active",
       username,
       password
     };

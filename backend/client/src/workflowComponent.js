@@ -113,12 +113,14 @@ function WorkflowModule() {
                 <Typography variant="h6">Execution Status</Typography>
                 <Typography>{executionStatus}</Typography>
             </div>
-            <Button variant="contained" color="primary" onClick={() => setIsDialogOpen(true)}>
-                Start Onboarding Workflow
-            </Button>
-            <Button variant="contained" color="secondary" onClick={() => setIsActivateDialogOpen(true)}>
-                Activate App Usage
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px', alignItems: 'center' }}>
+                <Button variant="contained" color="primary" onClick={() => setIsDialogOpen(true)} style={{ width: '200px' }}>
+                    Start Onboarding Workflow
+                </Button>
+                <Button variant="contained" color="secondary" onClick={() => setIsActivateDialogOpen(true)} style={{ width: '200px' }}>
+                    Activate App Usage
+                </Button>
+            </div>
             <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
                 <DialogTitle>Confirm Notification</DialogTitle>
                 <DialogContent>

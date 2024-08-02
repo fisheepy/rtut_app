@@ -23,6 +23,9 @@ const UtilitiesCenterComponent = () => {
         location: '',
         supervisorFirstName: '',
         supervisorLastName: '',
+        eeoc: '', // New field
+        workCategory: '', // New field
+        payCategory: '', // New field
     });
 
     const handleAddEmployeeChange = (field, value) => {
@@ -88,6 +91,10 @@ const UtilitiesCenterComponent = () => {
                     <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="supervisorFirstName" label="Supervisor First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    {/* New Fields */}
+                    <TextField margin="dense" name="eeoc" label="EEOC" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="workCategory" label="Work Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="payCategory" label="Pay Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>

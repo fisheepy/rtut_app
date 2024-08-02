@@ -165,8 +165,10 @@ function EmployeeSelectionComponent() {
         { id: 'Supervisor', label: 'Supervisor', filter: true },
         { id: 'Phone', label: 'Phone', filter: true },
         { id: 'Email', label: 'Email', filter: true },
-        { id: 'Employment Category', label: 'Employement', filter: true },
+        { id: 'Worker Category', label: 'Employement', filter: true },
+        { id: 'Pay Category', label: 'Pay', filter: true },
         { id: 'EEOC Establishment', label: 'EEOC', filter: true },
+        { id: 'isActivated', label: 'Activated', filter: true},
 
         { id: 'select', label: '(Override Remove)', filter: false },
         
