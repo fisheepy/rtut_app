@@ -18,7 +18,7 @@ function LoginComponent({ onLoginStatusChange, onLoginSuccess }) {
             body: JSON.stringify({ firstName, lastName, enteredCode })
         });
 
-        if (true || response.ok) {
+        if (response.ok) {
             setUserMessage('');
             onLoginStatusChange(true); // Call the function to update login status
             onLoginSuccess({ firstName: firstName, lastName: lastName });
