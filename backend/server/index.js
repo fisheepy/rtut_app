@@ -79,9 +79,9 @@ app.get('/employees', cors(), async (req, res, next) => {
         const admins = await adminCollection.find().toArray();
         const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName);
         const isRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
-        
+
         let filteredData = [];
-        
+
         if (isRoot) {
             filteredData = data;
         } else if (isAdmin) {
@@ -515,6 +515,24 @@ app.post('/call-function-delete-notification', (req, res) => {
 
     // Execute the script and pass the temporary file path as an argument
     exec(`node ./backend/server/deleteNotification.mjs "${transactionId}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-activate-app-usage', async (req, res) => {
+    const users = JSON.stringify(req.body);
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'activateUsers.json');
+    fs.writeFileSync(tempFilePath, users);
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/activateAppUsage.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);

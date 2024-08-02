@@ -119,6 +119,118 @@ export const saveEventToDatabase = async (eventData) => {
   }
 }
 
+// Function to activate app users and add them to the database
+export const activateAppUsers = async (users) => {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
+
+    // Collect all existing usernames to ensure uniqueness
+    const existingUsernames = new Set(await collection.distinct('username'));
+
+    for (const user of users) {
+      const {
+        firstName,
+        lastName,
+        Phone,
+        Email,
+        hireDate,
+        positionStatus,
+        homeDepartment,
+        jobTitle,
+        location,
+        reportTo,
+        workCategory,
+        payCategory,
+        eeoEstablishment,
+      } = user;
+
+      const filter = {
+        'First Name': firstName,
+        'Last Name': lastName,
+      };
+
+      // Extract supervisor's first name and last name
+      let supervisorFirstName = '';
+      let supervisorLastName = '';
+      if (reportTo) {
+        const [last, first] = reportTo.split(',').map(name => name.trim());
+        supervisorFirstName = first;
+        supervisorLastName = last;
+      }
+
+      // Find existing employee
+      const existingEmployee = await collection.findOne(filter);
+
+      if (!existingEmployee) {
+        // Generate a username and password for new employees
+        const username = generateUsername(firstName, lastName, existingUsernames);
+        existingUsernames.add(username);
+        const password = generateRandomCode();
+
+        // If the employee doesn't exist, insert a new record with activation info
+        const newEmployee = {
+          'First Name': firstName,
+          'Last Name': lastName,
+          Phone,
+          Email,
+          username,
+          password,
+          'Hire Date': hireDate,
+          'Position Status': positionStatus,
+          'Home Department': homeDepartment,
+          'Job Title': jobTitle,
+          'Location': location,
+          'Supervisor First Name': supervisorFirstName,
+          'Supervisor Last Name': supervisorLastName,
+          'Worker Category': workCategory,
+          'Pay Category': payCategory,
+          'EEOC Establishment': eeoEstablishment,
+          'Account Active': 'Active',
+          'Activation Date': new Date(),
+        };
+
+        await collection.insertOne(newEmployee);
+        console.log(`New user ${firstName} ${lastName} added and activated.`);
+      } else {
+        // Update the existing employee
+        const updates = {
+          'Phone': Phone,
+          'Email': Email,
+          'Hire Date': hireDate,
+          'Position Status': positionStatus,
+          'Home Department': homeDepartment,
+          'Job Title': jobTitle,
+          'Location': location,
+          'Supervisor First Name': supervisorFirstName,
+          'Supervisor Last Name': supervisorLastName,
+          'Worker Category': workCategory,
+          'Pay Category': payCategory,
+          'EEOC Establishment': eeoEstablishment,
+        };
+
+        if (existingEmployee['Account Active'] !== 'Active') {
+          updates['Account Active'] = 'Active';
+          updates['Activation Date'] = new Date();
+          console.log(`User ${firstName} ${lastName} activated.`);
+        } else {
+          console.log(`User ${firstName} ${lastName} is already active, updating other details.`);
+        }
+
+        await collection.updateOne(filter, { $set: updates });
+      }
+    }
+  } catch (error) {
+    console.error('Error handling activating app users to database:', error.message);
+    throw error;
+  } finally {
+    await client.close();
+    console.log('Connection to MongoDB closed');
+  }
+}
+
 // Function to save a survey to the database
 export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber, transactionId) => {
   const client = new MongoClient(MONGODB_URI);
@@ -314,63 +426,63 @@ export async function importEmployeesData(employees) {
 export async function addExternalUser(firstName, lastName, password, type, phoneNumber, email) {
   const client = new MongoClient(MONGODB_URI);
   try {
-      // Connect to MongoDB
-      await client.connect();
-      const db = client.db(database_name);
-      const collection = db.collection('external users');
-      
-      // Get the distinct userId values
-      const usernameSet = new Set(await collection.distinct('userId'));
-  
-      // Generate a unique userId
-      const userId = generateUsername(firstName, lastName, usernameSet);
+    // Connect to MongoDB
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('external users');
 
-      // Insert the user data into the MongoDB collection
-      const newUser = {
-          firstName,
-          lastName,
-          userId,
-          password,
-          type,
-          phoneNumber: phoneNumber || '', // Optional field
-          email: email || '', // Optional field
-          created_at: new Date()
-      };
+    // Get the distinct userId values
+    const usernameSet = new Set(await collection.distinct('userId'));
 
-      await collection.insertOne(newUser);
-      console.log('User data inserted successfully');
-      return true;
+    // Generate a unique userId
+    const userId = generateUsername(firstName, lastName, usernameSet);
+
+    // Insert the user data into the MongoDB collection
+    const newUser = {
+      firstName,
+      lastName,
+      userId,
+      password,
+      type,
+      phoneNumber: phoneNumber || '', // Optional field
+      email: email || '', // Optional field
+      created_at: new Date()
+    };
+
+    await collection.insertOne(newUser);
+    console.log('User data inserted successfully');
+    return true;
   } catch (error) {
-      console.error('Error handling user registration:', error.message);
-      return false;
+    console.error('Error handling user registration:', error.message);
+    return false;
   } finally {
-      // Close the MongoDB connection
-      await client.close();
-      console.log('Connection to MongoDB closed');
+    // Close the MongoDB connection
+    await client.close();
+    console.log('Connection to MongoDB closed');
   }
 }
 
 export async function deleteNotificationHistory(transactionId) {
   const client = new MongoClient(MONGODB_URI);
   try {
-      await client.connect();
-      console.log('Connected to MongoDB');
+    await client.connect();
+    console.log('Connected to MongoDB');
 
-      const db = client.db(database_name);
-      const collection = db.collection('notifications');
+    const db = client.db(database_name);
+    const collection = db.collection('notifications');
 
-      const result = await collection.deleteOne({ transactionId });
+    const result = await collection.deleteOne({ transactionId });
 
-      if (result.deletedCount === 1) {
-          console.log(`Notification with transaction ID ${transactionId} deleted successfully from MongoDB.`);
-      } else {
-          console.log(`Notification with transaction ID ${transactionId} not found in MongoDB.`);
-      }
+    if (result.deletedCount === 1) {
+      console.log(`Notification with transaction ID ${transactionId} deleted successfully from MongoDB.`);
+    } else {
+      console.log(`Notification with transaction ID ${transactionId} not found in MongoDB.`);
+    }
   } catch (error) {
-      console.error('Error deleting notification from MongoDB:', error.message);
-      throw new Error('Failed to delete notification from MongoDB');
+    console.error('Error deleting notification from MongoDB:', error.message);
+    throw new Error('Failed to delete notification from MongoDB');
   } finally {
-      await client.close();
-      console.log('Connection to MongoDB closed');
+    await client.close();
+    console.log('Connection to MongoDB closed');
   }
 }

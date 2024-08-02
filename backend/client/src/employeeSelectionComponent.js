@@ -33,6 +33,7 @@ function EmployeeSelectionComponent() {
             try {
                 const loginName = JSON.parse(localStorage.getItem('loginName'));
                 const response = await axios.get(`/employees?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+                console.log(response);
                 const processedData = response.data.map(employee => ({
                     ...employee,
                     'Name': `${employee['Last Name']}, ${employee['First Name']}`,
@@ -41,6 +42,7 @@ function EmployeeSelectionComponent() {
                 const sortedData = processedData.sort((a, b) => {
                     return a['Last Name'].localeCompare(b['Last Name']);
                 });
+                console.log(sortedData);
                 setEmployees(sortedData);
                 setFilteredEmployees(sortedData);
                 extractFilterValues(sortedData);
@@ -138,6 +140,7 @@ function EmployeeSelectionComponent() {
 
         setFilteredEmployees(combinedFilteredEmployees);
         setSelectedEmployees(finalFilteredEmployees);
+        console.log(finalFilteredEmployees);
     };
 
     const handleCheckboxChange = (employeeId) => {
