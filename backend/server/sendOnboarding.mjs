@@ -21,6 +21,7 @@ const transformFilteredValues = (filteredValues) => {
         'Last Name': lastName,
         'username': username,
         'password': password,
+        'Phone': Phone,
      }) => {
         // Construct the object with formatted data
         const formattedData = {
@@ -33,7 +34,7 @@ const transformFilteredValues = (filteredValues) => {
             username: username,
             password: password,
             Email: '',
-            Phone: '',
+            Phone: Phone,
 
         };
         return formattedData;
