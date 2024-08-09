@@ -1,4 +1,5 @@
 import { MongoClient, ObjectId } from 'mongodb';
+import { DateTime } from 'luxon';
 
 const username = process.env.MONGODB_USERNAME;
 const password = process.env.MONGODB_PASSWORD;
@@ -85,8 +86,9 @@ export const saveEventToDatabase = async (eventData) => {
     const db = client.db(database_name);
     const collection = db.collection('events');
 
-    const startDate = new Date(eventData.startDate);
-    const endDate = new Date(eventData.endDate);
+    const startDate = DateTime.fromISO(eventData.startDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+    const endDate = DateTime.fromISO(eventData.endDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+
     const allDay = eventData.allDay;
     const creator = eventData.creator;
     const location = eventData.location;
@@ -94,7 +96,7 @@ export const saveEventToDatabase = async (eventData) => {
     const detail = eventData.detail;
 
     if (allDay === 'true') {
-      startDate.setUTCHours(0, 0, 0, 0);
+      startDate.setUTCHours(8, 0, 0, 0);
       endDate.setUTCHours(23, 59, 59, 999);
     }
 
