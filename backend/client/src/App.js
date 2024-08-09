@@ -6,7 +6,7 @@ import { SelectedEmployeesProvider } from './selectedEmployeesContext';
 import MenuComponent from './menuComponent';
 import NotificationCenterModule from './notificationCenterComponent';
 import SurveyCenterComponent from './surveyCenterComponent';
-import UtilityToolsCompoent from './utilityToolsComponent';
+import UtilityToolsComponent from './utilityToolsComponent';
 import NotificationsHistoryModule from './notificationsHistoryComponent';
 import SurveysHistoryModule from './surveysHistoryComponent';
 import UtilitiesCenterComponent from './utilitiesCenterComponent';
@@ -19,7 +19,7 @@ const componentMapping = {
   'sendNotification': NotificationCenterModule,
   'sendSurvey': SurveyCenterComponent,
   'sendEvent': EventsCenterComponent,
-  'processEmployeeCsv': UtilityToolsCompoent,
+  'processEmployeeCsv': UtilityToolsComponent,
   'reviewNotifications': NotificationsHistoryModule,
   'reviewSurveys': SurveysHistoryModule,
   'processEmployee': UtilitiesCenterComponent,
@@ -33,6 +33,16 @@ function App() {
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [selectedItem, setSelectedItem] = useState([]);
   const [componentKey, setComponentKey] = useState(null);
+
+  useEffect(() => {
+    // Check localStorage for existing login state
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUserData(parsedUser);
+      setLoggedIn(true);
+    }
+  }, []);
 
   useEffect(() => {
     // Perform any setup or actions required when selectedItem changes
@@ -53,6 +63,9 @@ function App() {
   const handleLoginSuccess = (data) => {
     setUserData(data);
     setLastActivityTime(Date.now());
+    setLoggedIn(true);
+    // Save user data to localStorage
+    localStorage.setItem('user', JSON.stringify(data));
   };
 
   const handleLoginStatusChange = (status) => {
@@ -62,6 +75,8 @@ function App() {
   const handleLogout = () => {
     setLoggedIn(false);
     setUserData({ firstName: null, lastName: null });
+    // Remove user data from localStorage
+    localStorage.removeItem('user');
   };
 
   useEffect(() => {

@@ -8,8 +8,6 @@ function LoginComponent({ onLoginStatusChange, onLoginSuccess }) {
     const [userMessage, setUserMessage] = useState('');
 
     const handleLogin = async() => {
-        const data = { firstName, lastName, enteredCode };
-
         const response = await fetch('/call-function-validate-log-in', {
             method: 'POST',
             headers: {
