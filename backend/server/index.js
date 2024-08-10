@@ -769,8 +769,8 @@ app.post('/api/forget-password',
                     $regexMatch: {
                         input: {
                             $substr: [
-                                { $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } },
-                                { $subtract: [{ $strLenCP: { $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } } }, 10] },
+                                { $replace: { input: "$Phone", find: /\D/g, replacement: "" } },
+                                { $subtract: [{ $strLenCP: { $replace: { input: "$Phone", find: /\D/g, replacement: "" } } }, 10] },
                                 10
                             ]
                         },
