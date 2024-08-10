@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
-const {sendNovuNotification} = require('./novuUtilities.mjs');
+
 const uploadDirectory = path.join(__dirname, 'uploads');
 
 // Create the uploads directory if it doesn't exist
@@ -799,39 +799,27 @@ app.post('/api/forget-password', async (req, res) => {
             return;
         }
 
-        // Update password and get updated user data
-        const { user: updatedUser, newPassword } = await updatePasswordInDatabase(user);
+        const userId = user.username;
 
-        if (!updatedUser) {
-            res.status(500).json({ message: 'Failed to update password' });
-            return;
-        }
+        // Execute the MJS script with necessary parameters
+        exec(`node ./backend/server/forgetPassword.mjs "${userId}" "${uri}" "${database_name}"`, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+                return;
+            }
 
-        // Construct message content
-        const messageContent = `Hello ${updatedUser['First Name']}, a password reset was requested for your account. Your username is: ${updatedUser.username}. Default password is: ${newPassword}. Please contact HR if you did not create the request.`;
-
-        // Send notification
-        const response = await sendNovuNotification(
-            updatedUser,
-            messageContent,
-            'NOTIFICATION',
-            'Forget Password',
-            'RTUT App Admin',
-            { app: 'false', sms: 'true', email: 'false' }
-        );
-
-        if (response.success) {
-            console.log('Notification sent successfully:', response.messageId, response.transactionId);
+            console.log(stdout);
             res.status(200).json({ message: 'Password reset successful' });
-        } else {
-            console.error('Failed to send notification:', response.error);
-            res.status(500).json({ message: 'Failed to send notification' });
-        }
+        });
     } catch (error) {
         console.error('Error handling forget password:', error.message);
         res.status(500).send('Internal Server Error');
+    } finally {
+        await client.close();
     }
 });
+
 
 
 app.post('/api/accept-disclaimer', async (req, res) => {
