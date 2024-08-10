@@ -3,54 +3,16 @@ import crypto from 'crypto';
 import { sendNovuNotification } from './novuUtilities.mjs';
 import { saveNotificationToDatabase, updatePasswordInDatabase } from './mongodbUtilities.mjs';
 
-// Function to generate a unique ID based on name information
-function generateUniqueId(firstName, lastName) {
-    // Concatenate first name and last name to form a single string
-    const nameString = `${firstName}${lastName}`;
-
-    // Use SHA-256 hashing algorithm to generate a unique hash value
-    const hash = crypto.createHash('sha256');
-    hash.update(nameString);
-    return hash.digest('hex');
-}
-
-// Function to split PayrollName and format filteredValues
-const transformFilteredValues = (filteredValues) => {
-    return filteredValues.map(({
-        'First Name': firstName,
-        'Last Name': lastName,
-        'username': username,
-        'password': password,
-        'Phone': Phone,
-    }) => {
-        // Construct the object with formatted data
-        const formattedData = {
-            subscriberId: generateUniqueId(
-                firstName.toUpperCase(),
-                lastName.toUpperCase()
-            ),
-            firstName: firstName,
-            lastName: lastName,
-            username: username,
-            password: password,
-            Email: '',
-            Phone: Phone,
-
-        };
-        return formattedData;
-    });
-};
-
 // Function to send notifications
 const forgetPassword = async (filePath, sendOptions) => {
     // Read the contents of the temporary file
     const selectedEmployeeJSON = fs.readFileSync(filePath, 'utf-8');
     try {
         // Parse the JSON string into an array of objects
-        const selectedEmployee = JSON.parse(selectedEmployeeJSON);
+        const user = JSON.parse(selectedEmployeeJSON);
         // Transform and format filteredValues
-        const employee = transformFilteredValues(selectedEmployee);
-        const newPassword = updatePasswordInDatabase({user:employee,password:''});
+        const password = '';
+        const newPassword = updatePasswordInDatabase(user,password);
         // Iterate through each formatted employee and send notification
         const messageType = 'NOTIFICATION';
         const subject = 'Forget Password';
