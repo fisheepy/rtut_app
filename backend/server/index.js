@@ -762,7 +762,7 @@ app.post('/api/forget-password',
             // Access the database and collection
             const db = client.db(database_name);
             const collection = db.collection('employees');
-
+            console.log(normalizedPhone);
             // Find the user with normalized phone number
             const user = await collection.findOne({
                 $or: [
