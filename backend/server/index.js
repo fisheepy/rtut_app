@@ -744,7 +744,7 @@ app.post('/api/reset-password',
 app.post('/api/forget-password',
     async (req, res) => {
         const { phone } = req.body;
-        
+
         // Helper function to normalize phone numbers
         const normalizePhoneNumber = (number) => {
             // Remove all non-numeric characters
@@ -766,12 +766,20 @@ app.post('/api/forget-password',
             // Find the user with normalized phone number
             const user = await collection.findOne({
                 $expr: {
-                  $eq: [
-                    { $substrCP: [{ $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } }, -10, 10] },
-                    { $substrCP: [normalizedPhone, -10, 10] }
-                  ]
+                    $eq: [
+                        {
+                            $substrCP: [
+                                { $replaceAll: { input: { $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } }, find: /^(.*?)(\d{10})$/, replacement: "$2" } },
+                                0,
+                                10
+                            ]
+                        },
+                        {
+                            $substrCP: [normalizedPhone, 0, 10]
+                        }
+                    ]
                 }
-              });
+            });
             // Check if user exists
             if (!user) {
                 console.error('No valid login found in MongoDB collection');
