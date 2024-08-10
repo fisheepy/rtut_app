@@ -53,6 +53,46 @@ const client = new MongoClient(uri, {
     }
 });
 
+// Helper function to generate a random code for password
+const generateRandomCode = () => {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+  };
+  
+  // Function to update password in the database
+  const updatePasswordInDatabase = async (user) => {
+    const newPassword = generateRandomCode(); // Generate new random password
+  
+    try {
+      await client.connect();
+      const db = client.db(database_name);
+      const collection = db.collection('employees');
+  
+      const result = await collection.findOneAndUpdate(
+        { 'First Name': user['First Name'], 'Last Name': user['Last Name'] },
+        { $set: { password: newPassword } },
+        { returnOriginal: false } // Return the updated document
+      );
+  
+      if (!result.value) {
+        console.error('User not found');
+        return null;
+      }
+  
+      console.log('Password updated:', newPassword);
+      return { user: result.value, newPassword };
+    } catch (error) {
+      console.error('Error updating password in database:', error);
+      throw error;
+    } finally {
+      await client.close();
+    }
+  };
+
 app.get('/employees', cors(), async (req, res, next) => {
     const loginName = req.query; // Extract firstName and lastName from query parameters
     try {
@@ -741,52 +781,56 @@ app.post('/api/reset-password',
     }
 );
 
-app.post('/api/forget-password',
-    async (req, res) => {
-        const { phone } = req.body;
-        try {
-            // Connect to MongoDB
-            await client.connect();
-            console.log('Connected to MongoDB');
-
-            // Access the database and collection
-            const db = client.db(database_name);
-            const collection = db.collection('employees');
-            // Find the user with normalized phone number
-            const user = await collection.findOne({ Phone: phone });
-            // Check if user exists
-            if (!user) {
-                console.error('No valid login found in MongoDB collection');
-                res.status(404).json({ message: 'User not found' });
-                return;
-            }
-
-            const tempFilePath = path.join(__dirname, 'temp', 'forgetPasswordUser.json');
-            console.log('test');
-
-            fs.writeFileSync(tempFilePath, JSON.stringify(user), 'utf-8');
-            console.log('User data written to file:', JSON.stringify(user));
-
-            // Execute the script and pass the temporary file path as an argument
-            exec(`node ./backend/server/forgetPassword.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`Error executing script: ${error.message}`);
-                    res.status(500).send(`Internal Server Error: ${error.message}`);
-                    return;
-                }
-                console.log('check');
-                res.status(200).json({ message: 'Password reset successful' });
-            });
-        } catch (error) {
-            console.error('Error handling forget password:', error.message);
-            res.status(500).send('Internal Server Error');
-        } finally {
-            // Close the MongoDB connection
-            await client.close();
-            console.log('Connection to MongoDB closed');
-        }
+// API endpoint to handle forget-password requests
+app.post('/api/forget-password', async (req, res) => {
+    const { phone } = req.body;
+  
+    try {
+      await client.connect();
+      const db = client.db(database_name);
+      const collection = db.collection('employees');
+  
+      const user = await collection.findOne({ Phone: phone });
+  
+      if (!user) {
+        console.error('User not found');
+        res.status(404).json({ message: 'User not found' });
+        return;
+      }
+  
+      // Update password and get updated user data
+      const { user: updatedUser, newPassword } = await updatePasswordInDatabase(user);
+  
+      if (!updatedUser) {
+        res.status(500).json({ message: 'Failed to update password' });
+        return;
+      }
+  
+      // Construct message content
+      const messageContent = `Hello ${updatedUser['First Name']}, a password reset was requested for your account. Your username is: ${updatedUser.username}. Default password is: ${newPassword}. Please contact HR if you did not create the request.`;
+  
+      // Send notification
+      const response = await sendNovuNotification(
+        updatedUser,
+        messageContent,
+        'NOTIFICATION',
+        'Forget Password',
+        'RTUT App Admin',
+        { app: 'false', sms: 'true', email: 'false' }
+      );
+  
+      if (response.success) {
+        console.log('Notification sent successfully:', response.messageId, response.transactionId);
+        res.status(200).json({ message: 'Password reset successful' });
+      } else {
+        console.error('Failed to send notification:', response.error);
+        res.status(500).json({ message: 'Failed to send notification' });
+      }
+    } catch (error) {
+      console.error('Error handling forget password:', error.message);
+      res.status(500).send('Internal Server Error');
     }
-);
+  });
 
 
 app.post('/api/accept-disclaimer', async (req, res) => {
