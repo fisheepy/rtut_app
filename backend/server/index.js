@@ -760,13 +760,12 @@ app.post('/api/forget-password',
                 res.status(404).json({ message: 'User not found' });
                 return;
             }
-            console.log(user);
 
             const tempFilePath = path.join(__dirname, 'temp', 'forgetPasswordUser.json');
             console.log('test');
 
             fs.writeFileSync(tempFilePath, JSON.stringify(user));
-            console.log('test');
+            console.log(JSON.stringify(user));
 
             // Execute the script and pass the temporary file path as an argument
             exec(`node ./backend/server/forgetPassword.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
@@ -775,7 +774,7 @@ app.post('/api/forget-password',
                     res.status(500).send(`Internal Server Error: ${error.message}`);
                     return;
                 }
-
+                console.log('check');
                 res.status(200).json({ message: 'Password reset successful' });
             });
         } catch (error) {

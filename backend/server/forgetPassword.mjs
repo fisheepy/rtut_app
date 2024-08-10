@@ -44,15 +44,10 @@ const transformFilteredValues = (filteredValues) => {
 // Function to send notifications
 const forgetPassword = async (filePath, sendOptions) => {
     // Read the contents of the temporary file
-    console.log('test');
-
     const selectedEmployeeJSON = fs.readFileSync(filePath, 'utf-8');
-    console.log(selectedEmployeeJSON);
-
     try {
         // Parse the JSON string into an array of objects
         const selectedEmployee = JSON.parse(selectedEmployeeJSON);
-        console.log(selectedEmployee);
         // Transform and format filteredValues
         const employee = transformFilteredValues(selectedEmployee);
         const newPassword = updatePasswordInDatabase({user:employee,password:''});
