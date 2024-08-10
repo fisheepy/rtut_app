@@ -73,7 +73,7 @@ const updatePasswordInDatabase = async (user) => {
         const collection = db.collection('employees');
         console.log(user);
         const result = await collection.findOneAndUpdate(
-            { '_id': user['_id'] },
+            { 'username': user['username'] },
             { $set: { password: newPassword } },
             { returnOriginal: false } // Return the updated document
         );
