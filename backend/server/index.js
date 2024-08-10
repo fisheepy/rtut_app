@@ -767,7 +767,7 @@ app.post('/api/forget-password',
             const user = await collection.findOne({
                 $or: [
                     { Phone: normalizedPhone }, // Direct match
-                    { Phone: { $regex: new RegExp(`\\d*${normalizedPhone}\\d*`) } } // Partial match
+                    { Phone: { $regex: new RegExp(`\\b${normalizedPhone}\\b`) } } // Partial match
                 ]
             });
 
