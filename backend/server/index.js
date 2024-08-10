@@ -71,13 +71,13 @@ const updatePasswordInDatabase = async (user) => {
         await client.connect();
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        console.log(user);
+        console.log('user:',user);
         const result = await collection.findOneAndUpdate(
             { 'username': user['username'] },
             { $set: { password: newPassword } },
             { returnOriginal: false } // Return the updated document
         );
-        console.log(result);
+        console.log('result:',result);
 
         if (!result) {
             console.error('User not found');
@@ -85,7 +85,7 @@ const updatePasswordInDatabase = async (user) => {
         }
 
         console.log('Password updated:', newPassword);
-        return { user: result.value, newPassword };
+        return { user: result, newPassword };
     } catch (error) {
         console.error('Error updating password in database:', error);
         throw error;
