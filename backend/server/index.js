@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
-
+const {sendNovuNotification} = require('./novuUtilities.mjs');
 const uploadDirectory = path.join(__dirname, 'uploads');
 
 // Create the uploads directory if it doesn't exist
