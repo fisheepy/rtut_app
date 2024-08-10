@@ -760,6 +760,8 @@ app.post('/api/forget-password',
                 res.status(404).json({ message: 'User not found' });
                 return;
             }
+            console.log(user);
+
             const tempFilePath = path.join(__dirname, 'temp', 'forgetPasswordUser.json');
             fs.writeFileSync(tempFilePath, user);
             // Execute the script and pass the temporary file path as an argument
