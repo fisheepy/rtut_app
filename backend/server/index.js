@@ -741,6 +741,56 @@ app.post('/api/reset-password',
     }
 );
 
+app.post('/api/forget-password',
+    async (req, res) => {
+        const { phone } = req.body;
+        
+        // Helper function to normalize phone numbers
+        const normalizePhoneNumber = (number) => {
+            // Remove all non-numeric characters
+            return number.replace(/\D/g, '');
+        };
+
+        // Normalize the incoming phone number
+        const normalizedPhone = normalizePhoneNumber(phone);
+
+        try {
+            // Connect to MongoDB
+            await client.connect();
+            console.log('Connected to MongoDB');
+
+            // Access the database and collection
+            const db = client.db(database_name);
+            const collection = db.collection('employees');
+
+            // Find the user with normalized phone number
+            const user = await collection.findOne({
+                $or: [
+                    { Phone: normalizedPhone }, // Direct match
+                    { Phone: { $regex: new RegExp(`\\d*${normalizedPhone}\\d*`) } } // Partial match
+                ]
+            });
+
+            // Check if user exists
+            if (!user) {
+                console.error('No valid login found in MongoDB collection');
+                res.status(404).json({ message: 'User not found' });
+                return;
+            }
+            console.log(user);
+            res.status(200).json({ message: 'Password reset successful' });
+        } catch (error) {
+            console.error('Error handling forget password:', error.message);
+            res.status(500).send('Internal Server Error');
+        } finally {
+            // Close the MongoDB connection
+            await client.close();
+            console.log('Connection to MongoDB closed');
+        }
+    }
+);
+
+
 app.post('/api/accept-disclaimer', async (req, res) => {
     async function acceptDisclaimer(userInfo, accepted, collection) {
         if (userInfo.isActivated !== 'true' && accepted) {
