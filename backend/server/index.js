@@ -77,8 +77,9 @@ const updatePasswordInDatabase = async (user) => {
             { $set: { password: newPassword } },
             { returnOriginal: false } // Return the updated document
         );
+        console.log(result);
 
-        if (!result.value) {
+        if (!result) {
             console.error('User not found');
             return null;
         }
