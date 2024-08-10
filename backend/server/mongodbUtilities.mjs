@@ -123,6 +123,8 @@ export const saveEventToDatabase = async (eventData) => {
 
 // Function to update password in the database
 export const updatePasswordInDatabase = async (user, password) => {
+  console.log(user);
+  console.log(password);
   const client = new MongoClient(MONGODB_URI);
   let newPassword;
   if ( password === '')
@@ -141,7 +143,7 @@ export const updatePasswordInDatabase = async (user, password) => {
       { $set: { password: newPassword } },
       { returnDocument: 'after' } // Return the document after the update
     );
-
+    console.log(result);
     if (!result.value) {
       console.error('User not found');
       return null;

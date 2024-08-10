@@ -49,7 +49,7 @@ const forgetPassword = async (filePath, sendOptions) => {
     try {
         // Parse the JSON string into an array of objects
         const selectedEmployee = JSON.parse(selectedEmployeeJSON);
-
+        console.log(selectedEmployee);
         // Transform and format filteredValues
         const employee = transformFilteredValues(selectedEmployee);
         const newPassword = updatePasswordInDatabase({user:employee,password:''});
