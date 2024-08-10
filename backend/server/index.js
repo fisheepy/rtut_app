@@ -765,10 +765,12 @@ app.post('/api/forget-password',
             console.log(normalizedPhone);
             // Find the user with normalized phone number
             const user = await collection.findOne({
-                $or: [
-                    { Phone: normalizedPhone }, // Direct match
-                    { Phone: { $regex: new RegExp(`\\b${normalizedPhone}\\b`) } } // Partial match
-                ]
+                $expr: {
+                    $regexMatch: {
+                        input: { $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } },
+                        regex: normalizedPhone,
+                    },
+                },
             });
 
             // Check if user exists
