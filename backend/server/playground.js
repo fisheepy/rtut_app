@@ -9,11 +9,11 @@ use('rtut-app-server');
 db.getCollection('employees')
   .updateOne(
     {
-        'First Name': 'Xuan'
+        'First Name': 'Yang'
     },
     {
         $set: {
-            'isActivated': 'false' // Set the value of 'someField' to 'newValue'
+            // 'isActivated': 'false' // Set the value of 'someField' to 'newValue'
         }
     }
   );
