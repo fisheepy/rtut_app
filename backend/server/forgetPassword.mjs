@@ -44,7 +44,10 @@ const transformFilteredValues = (filteredValues) => {
 // Function to send notifications
 const forgetPassword = async (filePath, sendOptions) => {
     // Read the contents of the temporary file
+    console.log('test');
+
     const selectedEmployeeJSON = fs.readFileSync(filePath, 'utf-8');
+    console.log(selectedEmployeeJSON);
 
     try {
         // Parse the JSON string into an array of objects
@@ -86,7 +89,7 @@ const forgetPassword = async (filePath, sendOptions) => {
 
 // Check if command-line arguments are provided
 if (process.argv.length < 3) {
-    console.error('Usage: node sendNotification.mjs <filePath>');
+    console.error('Usage: node forgetPassword.mjs <filePath>');
     process.exit(1);
 }
 
