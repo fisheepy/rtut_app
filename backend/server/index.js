@@ -764,7 +764,14 @@ app.post('/api/forget-password',
             const collection = db.collection('employees');
             console.log(normalizedPhone);
             // Find the user with normalized phone number
-            const user = await collection.findOne({ Phone: phone });
+            const user = await collection.findOne({
+                $expr: {
+                  $eq: [
+                    { $substrCP: [{ $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } }, -10, 10] },
+                    { $substrCP: [normalizedPhone, -10, 10] }
+                  ]
+                }
+              });
             // Check if user exists
             if (!user) {
                 console.error('No valid login found in MongoDB collection');
