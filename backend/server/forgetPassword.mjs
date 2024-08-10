@@ -104,20 +104,5 @@ const sendOptions = {
     email: 'false',
 };
 
-
-// Check if command-line arguments are provided
-if (process.argv.length < 3) {
-    console.error('Usage: node forgetPassword.mjs <filePath>');
-    process.exit(1);
-}
-
-// Extract command-line arguments
-const filePath = process.argv[2];
-const sendOptions = {
-    app: 'false',
-    sms: 'true',
-    email: 'false',
-}
-
 // Call the function to send notifications
 forgetPassword(filePath, sendOptions);
