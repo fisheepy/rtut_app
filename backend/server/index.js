@@ -764,31 +764,28 @@ app.post('/api/forget-password',
             const collection = db.collection('employees');
             console.log(normalizedPhone);
             // Find the user with normalized phone number
-        // Find the user by matching numeric sequences only using aggregation pipeline
-        const user = await collection.aggregate([
-            {
-                $addFields: {
-                    numericPhone: {
-                        $reduce: {
-                            input: {
-                                $split: ["$Phone", ""]
-                            },
-                            initialValue: "",
-                            in: {
-                                $cond: {
-                                    if: { $in: ["$$this", ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]] },
-                                    then: { $concat: ["$$value", "$$this"] },
-                                    else: "$$value"
+            const user = await collection.findOne({
+                $expr: {
+                    $eq: [
+                        { $substr: [
+                            { $reduce: {
+                                input: { $split: ["$Phone", ""] },
+                                initialValue: "",
+                                in: {
+                                    $cond: [
+                                        { $in: ["$$this", ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]] },
+                                        { $concat: ["$$value", "$$this"] },
+                                        "$$value"
+                                    ]
                                 }
-                            }
-                        }
-                    }
+                            }},
+                            { $subtract: [{ $strLenCP: "$$value" }, 10] },
+                            10
+                        ]},
+                        normalizedPhone
+                    ]
                 }
-            },
-            {
-                $match: { numericPhone: normalizedPhone }
-            }
-        ]).toArray();
+            });
 
             // Check if user exists
             if (!user) {
