@@ -764,8 +764,8 @@ app.post('/api/forget-password',
             const tempFilePath = path.join(__dirname, 'temp', 'forgetPasswordUser.json');
             console.log('test');
 
-            fs.writeFileSync(tempFilePath, JSON.stringify(user));
-            console.log(JSON.stringify(user));
+            fs.writeFileSync(tempFilePath, JSON.stringify(user), 'utf-8');
+            console.log('User data written to file:', JSON.stringify(user));
 
             // Execute the script and pass the temporary file path as an argument
             exec(`node ./backend/server/forgetPassword.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
