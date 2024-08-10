@@ -121,6 +121,40 @@ export const saveEventToDatabase = async (eventData) => {
   }
 }
 
+// Function to update password in the database
+export const updatePasswordInDatabase = async (user, password) => {
+  const client = new MongoClient(MONGODB_URI);
+  let newPassword;
+  if ( password === '')
+  {
+    newPassword = generateRandomCode();
+  } else {
+    newPassword = password;
+  }
+  try {
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
+
+    const result = await collection.updateOne(
+      { 'First Name': user['First Name'], 'Last Name': user['Last Name'] },
+      { $set: { password: newPassword } },
+      { returnDocument: 'after' } // Return the document after the update
+    );
+
+    if (!result.value) {
+      console.error('User not found');
+      return null;
+    }
+    return result.value; // Return the updated user document
+  } catch (error) {
+    console.error('Error updating password in database:', error);
+    throw error;
+  } finally {
+    await client.close();
+  }
+};
+
 // Function to activate app users and add them to the database
 export const activateAppUsers = async (users) => {
   const client = new MongoClient(MONGODB_URI);

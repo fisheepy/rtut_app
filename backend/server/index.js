@@ -744,16 +744,6 @@ app.post('/api/reset-password',
 app.post('/api/forget-password',
     async (req, res) => {
         const { phone } = req.body;
-        
-        // Helper function to normalize phone numbers
-        const normalizePhoneNumber = (number) => {
-            // Remove all non-numeric characters
-            return number.replace(/\D/g, '');
-        };
-
-        // Normalize the incoming phone number
-        const normalizedPhone = normalizePhoneNumber(phone);
-
         try {
             // Connect to MongoDB
             await client.connect();
@@ -762,7 +752,6 @@ app.post('/api/forget-password',
             // Access the database and collection
             const db = client.db(database_name);
             const collection = db.collection('employees');
-            console.log(normalizedPhone);
             // Find the user with normalized phone number
             const user = await collection.findOne({ Phone: phone });
             // Check if user exists
@@ -771,7 +760,18 @@ app.post('/api/forget-password',
                 res.status(404).json({ message: 'User not found' });
                 return;
             }
-            res.status(200).json({ message: 'Password reset successful' });
+            const tempFilePath = path.join(__dirname, 'temp', 'forgetPasswordUser.json');
+            fs.writeFileSync(tempFilePath, user);
+            // Execute the script and pass the temporary file path as an argument
+            exec(`node ./backend/server/forgetPassword.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error executing script: ${error.message}`);
+                    res.status(500).send(`Internal Server Error: ${error.message}`);
+                    return;
+                }
+
+                res.status(200).json({ message: 'Password reset successful' });
+            });
         } catch (error) {
             console.error('Error handling forget password:', error.message);
             res.status(500).send('Internal Server Error');
