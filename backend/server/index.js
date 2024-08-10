@@ -766,24 +766,16 @@ app.post('/api/forget-password',
             // Find the user with normalized phone number
             const user = await collection.findOne({
                 $expr: {
-                    $eq: [
-                        { $substr: [
-                            { $reduce: {
-                                input: { $split: ["$Phone", ""] },
-                                initialValue: "",
-                                in: {
-                                    $cond: [
-                                        { $in: ["$$this", ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]] },
-                                        { $concat: ["$$value", "$$this"] },
-                                        "$$value"
-                                    ]
-                                }
-                            }},
-                            { $subtract: [{ $strLenCP: "$$value" }, 10] },
-                            10
-                        ]},
-                        normalizedPhone
-                    ]
+                    $regexMatch: {
+                        input: {
+                            $substr: [
+                                { $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } },
+                                { $subtract: [{ $strLenCP: { $replaceAll: { input: "$Phone", find: /\D/g, replacement: "" } } }, 10] },
+                                10
+                            ]
+                        },
+                        regex: new RegExp(`${normalizedPhone}$`)
+                    }
                 }
             });
 
