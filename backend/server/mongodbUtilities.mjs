@@ -137,7 +137,7 @@ export const updatePasswordInDatabase = async (user, password) => {
     const collection = db.collection('employees');
 
     const result = await collection.findOneAndUpdate(
-      { 'First Name': user['First Name'], 'Last Name': user['Last Name'] },
+      { '_id': user._id},
       { $set: { password: newPassword } },
       { returnDocument: 'after' } // Ensure you use findOneAndUpdate to return the updated document
     );
