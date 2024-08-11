@@ -59,6 +59,9 @@ const main = async () => {
 
         // Generate a new password and update the user
         const newPassword = generateRandomCode();
+        console.log(userId);
+        console.log(newPassword);
+
         await collection.updateOne(
             { username: userId }, 
             { $set: { password: newPassword } },
