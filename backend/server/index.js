@@ -53,47 +53,6 @@ const client = new MongoClient(uri, {
     }
 });
 
-// Helper function to generate a random code for password
-const generateRandomCode = () => {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return code;
-};
-
-// Function to update password in the database
-const updatePasswordInDatabase = async (user) => {
-    const newPassword = generateRandomCode(); // Generate new random password
-
-    try {
-        await client.connect();
-        const db = client.db(database_name);
-        const collection = db.collection('employees');
-        console.log('user:',user);
-        const result = await collection.findOneAndUpdate(
-            { 'username': user['username'] },
-            { $set: { password: newPassword } },
-            { returnOriginal: false } // Return the updated document
-        );
-        console.log('result:',result);
-
-        if (!result) {
-            console.error('User not found');
-            return null;
-        }
-
-        console.log('Password updated:', newPassword);
-        return { user: result, newPassword };
-    } catch (error) {
-        console.error('Error updating password in database:', error);
-        throw error;
-    } finally {
-        await client.close();
-    }
-};
-
 app.get('/employees', cors(), async (req, res, next) => {
     const loginName = req.query; // Extract firstName and lastName from query parameters
     try {

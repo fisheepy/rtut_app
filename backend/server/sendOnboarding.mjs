@@ -1,18 +1,7 @@
 import fs from 'fs';
 import crypto from 'crypto';
-import { sendNovuNotification } from './novuUtilities.mjs';
+import { sendNovuNotification, generateUniqueId } from './novuUtilities.mjs';
 import { saveNotificationToDatabase } from './mongodbUtilities.mjs';
-
-// Function to generate a unique ID based on name information
-function generateUniqueId(firstName, lastName) {
-    // Concatenate first name and last name to form a single string
-    const nameString = `${firstName}${lastName}`;
-
-    // Use SHA-256 hashing algorithm to generate a unique hash value
-    const hash = crypto.createHash('sha256');
-    hash.update(nameString);
-    return hash.digest('hex');
-}
 
 // Function to split PayrollName and format filteredValues
 const transformFilteredValues = (filteredValues) => {

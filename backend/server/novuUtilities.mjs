@@ -1,11 +1,10 @@
 import { Novu, PushProviderIdEnum } from '@novu/node';
 import crypto from 'crypto';
 import { exec } from 'child_process';
-
 const apiKey = process.env.NOVU_API;
 const novu = new Novu(apiKey);
 
-function generateUniqueId(firstName, lastName) {
+export function generateUniqueId(firstName, lastName) {
   const nameString = `${firstName}${lastName}`;
   const hash = crypto.createHash('sha256');
   hash.update(nameString);

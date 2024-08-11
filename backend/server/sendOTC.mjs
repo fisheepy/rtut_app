@@ -1,27 +1,5 @@
-import crypto from 'crypto';
-import { sendNotification } from './novuUtilities.mjs';
-import { updateDocument } from './mongodbUtilities.mjs';
-
-// Function to generate a random alphanumeric code
-const generateRandomCode = () => {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-        code += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return code;
-};
-
-// Function to generate a unique ID based on name information
-function generateUniqueId(firstName, lastName) {
-    // Concatenate first name and last name to form a single string
-    const nameString = `${firstName}${lastName}`;
-
-    // Use SHA-256 hashing algorithm to generate a unique hash value
-    const hash = crypto.createHash('sha256');
-    hash.update(nameString);
-    return hash.digest('hex');
-}
+import { sendNotification, generateUniqueId } from './novuUtilities.mjs';
+import { updateDocument, generateRandomCode } from './mongodbUtilities.mjs';
 
 // Function to send notifications
 const sendOTCNotifications = async (firstName, lastName, requestedCode) => {

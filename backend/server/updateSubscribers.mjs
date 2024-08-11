@@ -1,16 +1,7 @@
-import crypto from 'crypto';
-import { findDocument, insertDocument } from './mongodbUtilities.mjs';
-import { sendNotification } from './novuUtilities.mjs'; // Assuming sendNotification fits the use case
+import { findDocument } from './mongodbUtilities.mjs';
+import { sendNotification, generateUniqueId } from './novuUtilities.mjs'; // Assuming sendNotification fits the use case
 
-const database_name = process.env.MONGODB_DATABASE;
 const collection_name = 'employees';
-
-function generateUniqueId(firstName, lastName) {
-    const nameString = `${firstName}${lastName}`;
-    const hash = crypto.createHash('sha256');
-    hash.update(nameString);
-    return hash.digest('hex');
-}
 
 async function processEmployee(employee) {
     const uid = generateUniqueId(employee.firstName.toUpperCase(), employee.lastName.toUpperCase());
