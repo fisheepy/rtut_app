@@ -11,12 +11,51 @@ const generateRandomCode = () => {
     return code;
 };
 
+// Function to generate a unique ID based on name information
+function generateUniqueId(firstName, lastName) {
+    // Concatenate first name and last name to form a single string
+    const nameString = `${firstName}${lastName}`;
+
+    // Use SHA-256 hashing algorithm to generate a unique hash value
+    const hash = crypto.createHash('sha256');
+    hash.update(nameString);
+    return hash.digest('hex');
+}
+
+// Function to split PayrollName and format filteredValues
+const transformFilteredValues = (filteredValues) => {
+    return filteredValues.map(({
+        'First Name': firstName,
+        'Last Name': lastName,
+        'username': username,
+        'password': password,
+        'Phone': Phone,
+     }) => {
+        // Construct the object with formatted data
+        const formattedData = {
+            subscriberId: generateUniqueId(
+                firstName.toUpperCase(),
+                lastName.toUpperCase()
+            ),
+            firstName: firstName,
+            lastName: lastName,
+            username: username,
+            password: password,
+            Email: '',
+            Phone: Phone,
+
+        };
+        return formattedData;
+    });
+};
+
 // Function to send a notification
 const sendNotification = async (user, newPassword) => {
     const messageContent = `Hello ${user['First Name']}, a password reset was requested for your account. Your username is: ${user.username}. Default password is: ${newPassword}. Please contact HR if you did not create the request.`;
-    
+    const formattedValues = transformFilteredValues(user);
+
     const response = await sendNovuNotification(
-        user,
+        formattedValues,
         messageContent,
         'NOTIFICATION',
         'Forget Password',
