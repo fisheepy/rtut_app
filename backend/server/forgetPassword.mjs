@@ -59,13 +59,13 @@ const main = async () => {
 
         // Generate a new password and update the user
         const newPassword = generateRandomCode();
-        console.log(userId);
-        console.log(newPassword);
 
         await collection.updateOne(
-            { username: userId }, 
-            { $set: { password: newPassword } },
-            { $unset: { passwordResetDate: "" } },
+            { username: userId },
+            {
+                $set: { password: newPassword },
+                $unset: { passwordResetDate: "" }
+            },
         );
         // Send notification
         const response = await sendNotification(user, newPassword);
