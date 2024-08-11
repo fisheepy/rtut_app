@@ -53,7 +53,7 @@ const main = async () => {
 
         // Send notification
         const response = await sendNotification(user, newPassword);
-
+        console.log(response);
         if (response.success) {
             console.log('Notification sent successfully:', response.messageId, response.transactionId);
         } else {
