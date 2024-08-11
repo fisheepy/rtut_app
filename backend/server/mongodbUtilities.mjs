@@ -37,14 +37,29 @@ export async function generateAndSaveUsernames() {
     const db = client.db(database_name);
     const collection = db.collection('employees');
 
-    const employees = await collection.find({ username: { $exists: true } }).toArray();
+    // Find employees who do not have a username or password set
+    const employees = await collection.find({
+      $or: [
+        { username: { $exists: false } },
+        { password: { $exists: false } }
+      ]
+    }).toArray();
+
     const usernameSet = new Set();
 
     for (const employee of employees) {
-      let username = generateUsername(employee['First Name'], employee['Last Name'], usernameSet);
-      usernameSet.add(username);
-      let password = generateRandomCode();
-      await collection.updateOne({ _id: employee._id }, { $set: { username, password } });
+      // Check if the employee already has a username and password
+      if (!employee.username || !employee.password) {
+        let username = generateUsername(employee['First Name'], employee['Last Name'], usernameSet);
+        usernameSet.add(username);
+        let password = generateRandomCode();
+
+        await collection.updateOne(
+          { _id: employee._id },
+          { $set: { username, password } }
+        );
+
+      }
     }
   } catch (error) {
     console.error('Failed to update usernames:', error);
@@ -52,6 +67,7 @@ export async function generateAndSaveUsernames() {
     await client.close();
   }
 }
+
 
 // Function to save an event to the database
 export const saveEventToDatabase = async (eventData) => {
@@ -114,7 +130,7 @@ export const updatePasswordInDatabase = async (user, password) => {
     const collection = db.collection('employees');
 
     const result = await collection.findOneAndUpdate(
-      { '_id': user['_id']},
+      { '_id': user['_id'] },
       { $set: { password: newPassword } },
       { returnDocument: 'after' } // Ensure you use findOneAndUpdate to return the updated document
     );
