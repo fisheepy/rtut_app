@@ -53,29 +53,6 @@ export async function generateAndSaveUsernames() {
   }
 }
 
-// Function to add a new employee and generate username and password
-export async function addNewEmployee(firstName, lastName) {
-  const client = new MongoClient(MONGODB_URI);
-  try {
-    await client.connect();
-    const db = client.db(database_name);
-    const collection = db.collection('employees');
-
-    const usernameSet = new Set(await collection.distinct('username'));
-    const username = generateUsername(firstName, lastName, usernameSet);
-    const password = generateRandomCode();
-
-    const newEmployee = { firstName, lastName, username, password };
-    await collection.insertOne(newEmployee);
-    console.log('New employee added:', newEmployee);
-    return newEmployee;
-  } catch (error) {
-    console.error('Failed to add new employee:', error);
-  } finally {
-    await client.close();
-  }
-}
-
 // Function to save an event to the database
 export const saveEventToDatabase = async (eventData) => {
   const client = new MongoClient(MONGODB_URI);
