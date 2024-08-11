@@ -1,5 +1,6 @@
 import { sendNovuNotification } from './novuUtilities.mjs';
 import { MongoClient } from 'mongodb';
+import crypto from 'crypto';
 
 // Helper function to generate a random code for password
 const generateRandomCode = () => {
