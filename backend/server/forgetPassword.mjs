@@ -23,30 +23,23 @@ function generateUniqueId(firstName, lastName) {
 }
 
 // Function to split PayrollName and format filteredValues
-const transformFilteredValues = (filteredValues) => {
-    return filteredValues.map(({
-        'First Name': firstName,
-        'Last Name': lastName,
-        'username': username,
-        'password': password,
-        'Phone': Phone,
-     }) => {
-        // Construct the object with formatted data
-        const formattedData = {
-            subscriberId: generateUniqueId(
-                firstName.toUpperCase(),
-                lastName.toUpperCase()
-            ),
-            firstName: firstName,
-            lastName: lastName,
-            username: username,
-            password: password,
-            Email: '',
-            Phone: Phone,
+const transformFilteredValues = (user) => {
+    // Construct the object with formatted data
+    const formattedData = {
+        subscriberId: generateUniqueId(
+            user['First Name'].toUpperCase(),
+            user['Last Name'].toUpperCase()
+        ),
+        firstName: user['First Name'],
+        lastName: user['Last Name'],
+        username: user['username'],
+        password: user['password'],
+        Email: '',
+        Phone: user['Phone'],
+    };
+    console.log(formattedData);
 
-        };
-        return formattedData;
-    });
+    return formattedData;
 };
 
 // Function to send a notification
@@ -89,10 +82,9 @@ const main = async () => {
         // Generate a new password and update the user
         const newPassword = generateRandomCode();
         await collection.updateOne({ username: userId }, { $set: { password: newPassword } });
-
+        console.log(user);
         // Send notification
         const response = await sendNotification(user, newPassword);
-        console.log(response);
         if (response.success) {
             console.log('Notification sent successfully:', response.messageId, response.transactionId);
         } else {
