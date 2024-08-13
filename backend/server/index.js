@@ -398,8 +398,37 @@ app.post('/call-function-send-onboarding', async (req, res) => {
     });
 });
 
+// Helper function to log notification data to MongoDB
+const logNotificationToDatabase = async (messageContent, subject, sender, selectedEmployees, sendEmail, sendSms, sendApp) => {
+    try {
+        await client.connect();
+        const db = client.db(database_name);
+        const collection = db.collection('notification logs');
+        
+        // Create a log entry
+        const logEntry = {
+            messageContent,
+            subject,
+            sender,
+            selectedEmployees,
+            sendEmail,
+            sendSms,
+            sendApp,
+            timestamp: new Date()
+        };
+        
+        // Insert the log entry into the collection
+        await collection.insertOne(logEntry);
+        console.log('Notification log saved successfully.');
+    } catch (error) {
+        console.error('Error saving notification log:', error);
+    } finally {
+        await client.close();
+    }
+};
+
 // Define a route to handle the POST request for executing the script
-app.post('/call-function-send-notification', (req, res) => {
+app.post('/call-function-send-notification', async(req, res) => {
     const messageContent = req.body.body;
     const subject = req.body.subject;
     const sender = req.body.sender;
@@ -407,6 +436,7 @@ app.post('/call-function-send-notification', (req, res) => {
     const sendEmail = req.body.sendEmail;
     const sendSms = req.body.sendSms;
     const sendApp = req.body.sendApp;
+    await logNotificationToDatabase(messageContent, subject, sender, selectedEmployees, sendEmail, sendSms, sendApp);
 
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
