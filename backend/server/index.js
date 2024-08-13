@@ -779,8 +779,6 @@ app.post('/api/forget-password', async (req, res) => {
     }
 });
 
-
-
 app.post('/api/accept-disclaimer', async (req, res) => {
     async function acceptDisclaimer(userInfo, accepted, collection) {
         if (userInfo.isActivated !== 'true' && accepted) {

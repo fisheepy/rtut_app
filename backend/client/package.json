@@ -35,7 +35,8 @@
     "sqlite3": "^5.1.7",
     "survey-core": "^1.9.130",
     "survey-react-ui": "^1.9.130",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "PORT=3100 react-scripts start",
