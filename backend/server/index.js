@@ -468,6 +468,7 @@ app.post('/call-function-send-notification', async(req, res) => {
     // Write the JSON string to a temporary file
     const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
     fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+    console.log(tempFilePath);
     // Execute the script and pass the temporary file path as an argument
     exec(`node ./backend/server/sendNotification.mjs "${messageContent}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, async (error, stdout, stderr) => {
         if (error) {
