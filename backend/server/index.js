@@ -429,7 +429,6 @@ const logNotificationToDatabase = async (messageContent, subject, sender, select
 
 // Function to log errors to the database
 const logErrorToDatabase = async (error, context) => {
-    const client = new MongoClient(MONGODB_URI);
     try {
         await client.connect();
         const db = client.db(database_name);
