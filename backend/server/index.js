@@ -427,6 +427,31 @@ const logNotificationToDatabase = async (messageContent, subject, sender, select
     }
 };
 
+// Function to log errors to the database
+const logErrorToDatabase = async (error, context) => {
+    const client = new MongoClient(MONGODB_URI);
+    try {
+        await client.connect();
+        const db = client.db(database_name);
+        const collection = db.collection('error logs');
+
+        // Create an error log entry
+        const errorLogEntry = {
+            error: error.message,
+            context,
+            timestamp: new Date()
+        };
+
+        // Insert the error log entry into the collection
+        await collection.insertOne(errorLogEntry);
+        console.log('Error log saved successfully.');
+    } catch (error) {
+        console.error('Error saving error log:', error);
+    } finally {
+        await client.close();
+    }
+};
+
 // Define a route to handle the POST request for executing the script
 app.post('/call-function-send-notification', async(req, res) => {
     const messageContent = req.body.body;
@@ -445,9 +470,13 @@ app.post('/call-function-send-notification', async(req, res) => {
     const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
     fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/sendNotification.mjs "${messageContent}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendNotification.mjs "${messageContent}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
+            
+            // Log the error details to the database
+            await logErrorToDatabase(error.message, stderr, 'sendNotification.mjs');
+
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
