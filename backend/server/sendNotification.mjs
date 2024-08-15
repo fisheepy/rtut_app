@@ -37,6 +37,7 @@ const transformFilteredValues = (filteredValues) => {
 const sendNotifications = async (messageContent, subject, sender, filePath, sendOptions) => {
     // Read the contents of the temporary file
     const selectedEmployeesJSON = fs.readFileSync(filePath, 'utf-8');
+    const messageContent = JSON.parse(fs.readFileSync(messageContentPath)).messageContent;
 
     try {
         // Parse the JSON string into an array of objects
@@ -74,7 +75,7 @@ if (process.argv.length < 9) {
 }
 
 // Extract command-line arguments
-const messageContent = process.argv[2];
+const messageContentPath = process.argv[2];
 const subject = process.argv[3];
 const sender = process.argv[4];
 const filePath = process.argv[5];
@@ -85,4 +86,4 @@ const sendOptions = {
 }
 
 // Call the function to send notifications
-sendNotifications(messageContent, subject, sender, filePath, sendOptions);
+sendNotifications(messageContentPath, subject, sender, filePath, sendOptions);

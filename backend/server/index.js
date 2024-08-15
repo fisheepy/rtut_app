@@ -464,13 +464,17 @@ app.post('/call-function-send-notification', async(req, res) => {
 
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+    const messageContentJSON = JSON.stringify({ messageContent });
 
     // Write the JSON string to a temporary file
     const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    const messageContentFilePath = path.join(__dirname, 'temp', 'messageContent.json');
+
     fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
-    console.log(tempFilePath);
+    fs.writeFileSync(messageContentFilePath, messageContentJSON);
+
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/sendNotification.mjs "${messageContent}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, async (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendNotification.mjs "${messageContentFilePath}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             
