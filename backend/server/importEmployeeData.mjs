@@ -1,13 +1,19 @@
+import fs from 'fs';
+import Papa from 'papaparse'; // Importing as default
 import { importEmployeesData } from './mongodbUtilities.mjs';
 import { updateEmployeesToNovuSubscribers } from './novuUtilities.mjs';
-import fs from 'fs';
 
 const importEmployees = async (filePath) => {
-    const employeesJSON = fs.readFileSync(filePath, 'utf-8');
+    const employeesCSV = fs.readFileSync(filePath, 'utf-8');
 
     try {
-        // Parse the JSON string into an array of objects
-        const employees = JSON.parse(employeesJSON);
+        // Parse the CSV string into an array of objects
+        const results = Papa.parse(employeesCSV, {
+            header: true,
+            skipEmptyLines: true,
+        });
+
+        const employees = results.data; // This gives you an array of employee objects
 
         try {
             // Use the extracted Novu operation
@@ -19,7 +25,7 @@ const importEmployees = async (filePath) => {
     } catch (error) {
         console.error('Error importing employees:', error.message);
     }
-}
+};
 
 if (process.argv.length < 3) {
     console.error('Usage: node importEmployeeData.mjs <filePath>');
@@ -29,5 +35,5 @@ if (process.argv.length < 3) {
 // Extract command-line arguments
 const filePath = process.argv[2];
 
-// Call the function to send notifications
+// Call the function to import employees
 importEmployees(filePath);

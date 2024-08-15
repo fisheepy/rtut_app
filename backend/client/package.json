@@ -20,6 +20,7 @@
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
     "dotenv": "^16.4.4",
+    "file-saver": "^2.0.5",
     "mongodb": "^6.3.0",
     "papaparse": "^5.4.1",
     "react": "^18.2.0",
@@ -34,7 +35,8 @@
     "sqlite3": "^5.1.7",
     "survey-core": "^1.9.130",
     "survey-react-ui": "^1.9.130",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "PORT=3100 react-scripts start",

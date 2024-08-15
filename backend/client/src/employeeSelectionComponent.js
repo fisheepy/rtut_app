@@ -24,18 +24,6 @@ function EmployeeSelectionComponent() {
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
 
-    const columnsToDisplay = [
-        'Name',
-        'Hire Date',
-        'Position Status',
-        'Home Department',
-        'Job Title',
-        'Location',
-        'Supervisor',
-        'Phone',
-        'Email',
-    ];
-
     useEffect(() => {
         applyFilters();
     }, [selectedFilters, employees, deselectedEmployees, startDate, endDate]);
@@ -44,7 +32,6 @@ function EmployeeSelectionComponent() {
         const fetchData = async () => {
             try {
                 const loginName = JSON.parse(localStorage.getItem('loginName'));
-                console.log(loginName);
                 const response = await axios.get(`/employees?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
                 console.log(response);
                 const processedData = response.data.map(employee => ({
@@ -55,6 +42,7 @@ function EmployeeSelectionComponent() {
                 const sortedData = processedData.sort((a, b) => {
                     return a['Last Name'].localeCompare(b['Last Name']);
                 });
+                console.log(sortedData);
                 setEmployees(sortedData);
                 setFilteredEmployees(sortedData);
                 extractFilterValues(sortedData);
@@ -152,26 +140,7 @@ function EmployeeSelectionComponent() {
 
         setFilteredEmployees(combinedFilteredEmployees);
         setSelectedEmployees(finalFilteredEmployees);
-        console.log(combinedFilteredEmployees);
         console.log(finalFilteredEmployees);
-        console.log(filteredEmployees);
-    };
-
-    const handleDeselectCheckboxChange = (employeeId, isSelected) => {
-        setDeselectedEmployees(prevDeselectedEmployees => {
-            const updatedDeselectedEmployees = new Set(prevDeselectedEmployees);
-            console.log(employeeId);
-            console.log(isSelected);
-            if (!isSelected) {
-                updatedDeselectedEmployees.add(employeeId);
-            } else {
-                updatedDeselectedEmployees.delete(employeeId);
-            }
-
-            // Immediately apply filters with the updated set of deselected employees
-            applyFilters(updatedDeselectedEmployees);
-            return updatedDeselectedEmployees;
-        });
     };
 
     const handleCheckboxChange = (employeeId) => {
@@ -196,7 +165,13 @@ function EmployeeSelectionComponent() {
         { id: 'Supervisor', label: 'Supervisor', filter: true },
         { id: 'Phone', label: 'Phone', filter: true },
         { id: 'Email', label: 'Email', filter: true },
+        { id: 'Worker Category', label: 'Employement', filter: true },
+        { id: 'Pay Category', label: 'Pay', filter: true },
+        { id: 'EEOC Establishment', label: 'EEOC', filter: true },
+        { id: 'isActivated', label: 'Activated', filter: true},
+
         { id: 'select', label: '(Override Remove)', filter: false },
+        
         // Add other columns as needed...
     ];
 

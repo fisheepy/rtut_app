@@ -1,7 +1,7 @@
 import { findDocument } from './mongodbUtilities.mjs';
 
 const validateLogin = async (firstName, lastName, requestedCode) => {
-    const filter = { "LastName": lastName, "FirstName": firstName };
+    const filter = { "Last Name": lastName, "First Name": firstName };
     const result = await findDocument('admins', filter);
     let isValidLogin = false;
     const currentTime = Date.now();

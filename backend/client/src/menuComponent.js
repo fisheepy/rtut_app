@@ -7,10 +7,13 @@ const MenuComponent = ({ onItemSelect }) => {
   const menuItems = [
     { id: 'sendNotification', label: 'Send Notification' },
     { id: 'sendSurvey', label: 'Send Survey' },
+    { id: 'sendEvent', label: 'Send Event'},
     { id: 'reviewNotifications', label: 'Notification History' },
     { id: 'reviewSurveys', label: 'Surveys History' },
+    { id: 'reviewEvents', label: 'Event History'},
     { id: 'processEmployeeCsv', label: 'Import/Export Employees'},
     { id: 'processEmployee', label: 'Add/Remove Individual Employee'},
+    { id: 'processWorkflow', label: 'Process Workflow'},
     // Add other items as necessary
   ];
 

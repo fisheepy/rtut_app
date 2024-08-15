@@ -7,25 +7,26 @@ function LoginComponent({ onLoginStatusChange, onLoginSuccess }) {
     const [enteredCode, setEnteredCode] = useState('');
     const [userMessage, setUserMessage] = useState('');
 
-    const handleLogin = () => {
-        const data = { firstName, lastName, enteredCode };
-        axios.post('/call-function-validate-log-in', data)
-            .then(response => {
-                if (response.data ) {
-                    setUserMessage('');
-                    onLoginStatusChange(true); // Call the function to update login status
-                    onLoginSuccess({ firstName: firstName, lastName: lastName });
-                    console.log(firstName, lastName);
-                    localStorage.setItem('loginName', JSON.stringify({ firstName: firstName, lastName: lastName }));
-                }
-                else {
-                    setUserMessage('Invalid Login Attempt!');
-                    onLoginStatusChange(false); 
-                }
-            })
-            .catch(error => {
-                setUserMessage('Error Occurred during Login!');
-            });
+    const handleLogin = async() => {
+        const response = await fetch('/call-function-validate-log-in', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ firstName, lastName, enteredCode })
+        });
+
+        if (response.ok) {
+            setUserMessage('');
+            onLoginStatusChange(true); // Call the function to update login status
+            onLoginSuccess({ firstName: firstName, lastName: lastName });
+            localStorage.setItem('loginName', JSON.stringify({ firstName: firstName, lastName: lastName }));
+        } else {
+            const errorMsg = await response.text();
+            alert(errorMsg); // Shows why the login failed
+            setUserMessage('Invalid Login Attempt!');
+            onLoginStatusChange(false); 
+        }
     };
 
     const handleRequestCode = () => {

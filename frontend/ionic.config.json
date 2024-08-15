@@ -1,7 +1,0 @@
-{
-    "name": "RTUT",
-    "integrations": {
-      "capacitor": {}
-    },
-    "type": "react"
-  }

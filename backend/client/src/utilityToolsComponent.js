@@ -1,13 +1,13 @@
+import React, { useContext, useState, useCallback } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
-import { useContext, useState, useCallback } from 'react';
-import axios from 'axios';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
+import { saveAs } from 'file-saver';
 
-const UtilityToolsCompoent = () => {
+const UtilityToolsComponent = () => {
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
     const [executionStatus, setExecutionStatus] = useState('Status:');
-    const [fileForImport, setFileForImport] = useState(null); // State to hold the file
+    const [fileForImport, setFileForImport] = useState(null);
 
     const handleImportClick = async () => {
         if (!fileForImport) {
@@ -15,74 +15,62 @@ const UtilityToolsCompoent = () => {
             return;
         }
 
-        // Use PapaParse to parse the CSV file
-        Papa.parse(fileForImport, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async (results) => {
-                try {
-                    console.log(results);
-                    await axios.post('/call-function-import-employees', { employees: results.data });
-                    setExecutionStatus(`Status: Import succeeded at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
-                    setFileForImport(null); // Clear the stored file after import
-                } catch (error) {
-                    console.error('Error importing employees:', error);
-                    setExecutionStatus(`Status: Import failed at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
-                }
-            },
-        });
+        try {
+            const formData = new FormData();
+            formData.append('file', fileForImport);
+
+            const response = await fetch('/call-function-import-employees', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to import employees');
+            }
+
+            setExecutionStatus(`Status: Import succeeded at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+            setFileForImport(null);
+        } catch (error) {
+            console.error('Error importing employees:', error);
+            setExecutionStatus(`Status: Import failed at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+        }
     };
 
     const onDrop = useCallback(acceptedFiles => {
-        // Assuming only one file is accepted, store it for later processing
         setFileForImport(acceptedFiles[0]);
-        setExecutionStatus("Status: File ready for import."); // Optional status update
+        setExecutionStatus("Status: File ready for import.");
     }, []);
 
     const onDropRejected = useCallback(rejectedFiles => {
         console.log('Rejected files:', rejectedFiles);
         setExecutionStatus("Status: No valid CSV file selected.");
     }, []);
-    
-    const {getRootProps, getInputProps, isDragActive} = useDropzone({
+
+    const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         onDropRejected,
         accept: 'text/csv, application/vnd.ms-excel, .csv',
         maxFiles: 1,
-        noClick: true, // Disable opening the file dialog on click
-        noKeyboard: true // Disable opening the file dialog on SPACE/ENTER
+        noClick: true,
+        noKeyboard: true
     });
 
-    const exportEmployeesToCsv = async (selectedEmployees) => {
-        const filteredEmployees = selectedEmployees.map(({ Name, Supervisor, ...keepAttrs }) => keepAttrs);
-
-        try {
-            axios({
-                method: 'post',
-                url: '/call-function-export-selected-employees',
-                data: { employees: filteredEmployees },
-                responseType: 'blob', // Important for handling binary data
-            })
-            .then(response => {
-                const url = window.URL.createObjectURL(new Blob([response.data]));
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', 'selected-employees.csv'); // Name the download file
-                document.body.appendChild(link);
-                link.click();
-                link.parentNode.removeChild(link);
-    
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tExport succeeded!`);
-            })
-            .catch(error => {
-                console.error('Error downloading the file:', error);
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tExport failed!`);
-            });
-        } catch (error) {
-            console.error('Error exporting employees to CSV:', error);
-        }
+    const exportEmployeesToCsv = (selectedEmployees) => {
+        const columnsToExclude = ['Name', 'Supervisor','username','password']; // Add any other column names you want to exclude
+        const filteredEmployees = selectedEmployees.map(employee => {
+            // Create a new object with only the desired attributes
+            return Object.keys(employee).reduce((acc, key) => {
+                if (!columnsToExclude.includes(key)) {
+                    acc[key] = employee[key];
+                }
+                return acc;
+            }, {});
+        });
+        const csv = Papa.unparse(filteredEmployees);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, 'selected-employees.csv');
+        const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+        setExecutionStatus(`Status:${timeStamp}:\tExport succeeded!`);
     };
 
     return (
@@ -100,10 +88,9 @@ const UtilityToolsCompoent = () => {
                 <input {...getInputProps()} />
                 {isDragActive ? <p>Drop the CSV file here ...</p> : <p>Drag 'n' drop a CSV file here</p>}
             </div>
-            {/* This button now triggers the import process */}
             <button onClick={handleImportClick}>Import Employees From CSV</button>
         </div>
     );
 };
 
-export default UtilityToolsCompoent;
+export default UtilityToolsComponent;

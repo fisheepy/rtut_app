@@ -1,4 +1,5 @@
 import { MongoClient, ObjectId } from 'mongodb';
+import { DateTime } from 'luxon';
 
 const username = process.env.MONGODB_USERNAME;
 const password = process.env.MONGODB_PASSWORD;
@@ -6,31 +7,283 @@ const host_name = process.env.MONGODB_HOST;
 const database_name = process.env.MONGODB_DATABASE;
 const MONGODB_URI = `mongodb+srv://${username}:${password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
 
-export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber) => {
+// Helper function to generate a random code for password
+export const generateRandomCode = () => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return code;
+};
+
+// Helper function to generate a unique username
+export function generateUsername(firstName, lastName, usernameSet) {
+  let baseUsername = `${firstName}${lastName.substring(0, Math.min(3, lastName.length))}`.toLowerCase();
+  let username = baseUsername;
+  let suffix = 1;
+  while (usernameSet.has(username)) {
+    username = `${baseUsername}${suffix}`;
+    suffix++;
+  }
+  return username;
+}
+
+// Function to generate and save usernames for all employees
+export async function generateAndSaveUsernames() {
   const client = new MongoClient(MONGODB_URI);
   try {
-    // Connect to MongoDB
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
+
+    // Find employees who do not have a username or password set
+    const employees = await collection.find({
+      $or: [
+        { username: { $exists: false } },
+        { password: { $exists: false } }
+      ]
+    }).toArray();
+
+    const usernameSet = new Set();
+
+    for (const employee of employees) {
+      // Check if the employee already has a username and password
+      if (!employee.username || !employee.password) {
+        let username = generateUsername(employee['First Name'], employee['Last Name'], usernameSet);
+        usernameSet.add(username);
+        let password = generateRandomCode();
+
+        await collection.updateOne(
+          { _id: employee._id },
+          { $set: { username, password } }
+        );
+
+      }
+    }
+  } catch (error) {
+    console.error('Failed to update usernames:', error);
+  } finally {
+    await client.close();
+  }
+}
+
+
+// Function to save an event to the database
+export const saveEventToDatabase = async (eventData) => {
+  const client = new MongoClient(MONGODB_URI);
+  try {
     await client.connect();
     console.log('Connected to MongoDB');
 
-    // Access the database
+    const db = client.db(database_name);
+    const collection = db.collection('events');
+
+    const startDate = DateTime.fromISO(eventData.startDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+    const endDate = DateTime.fromISO(eventData.endDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+
+    const allDay = eventData.allDay;
+    const creator = eventData.creator;
+    const location = eventData.location;
+    const title = eventData.title;
+    const detail = eventData.detail;
+
+    if (allDay === 'true') {
+      startDate.setUTCHours(8, 0, 0, 0);
+      endDate.setUTCHours(23, 59, 59, 999);
+    }
+
+    const event = {
+      creator,
+      location,
+      startDate,
+      endDate,
+      title,
+      allDay: allDay === 'true',
+      detail,
+    };
+
+    await collection.insertOne(event);
+    console.log('Event form saved to database successfully');
+  } catch (error) {
+    console.error('Error handling saving Event form to database:', error.message);
+    throw error;
+  } finally {
+    await client.close();
+    console.log('Connection to MongoDB closed');
+  }
+}
+
+// Function to update password in the database
+export const updatePasswordInDatabase = async (user, password) => {
+  const client = new MongoClient(MONGODB_URI);
+  let newPassword;
+  if (password === '') {
+    newPassword = generateRandomCode();
+  } else {
+    newPassword = password;
+  }
+
+  try {
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
+
+    const result = await collection.findOneAndUpdate(
+      { '_id': user['_id'] },
+      { $set: { password: newPassword } },
+      { returnDocument: 'after' } // Ensure you use findOneAndUpdate to return the updated document
+    );
+
+    if (!result.value) {
+      console.error('User not found');
+      return null;
+    }
+
+    return result.value; // Return the updated user document
+  } catch (error) {
+    console.error('Error updating password in database:', error);
+    throw error;
+  } finally {
+    await client.close();
+  }
+};
+
+// Function to activate app users and add them to the database
+export const activateAppUsers = async (users) => {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
+
+    // Collect all existing usernames to ensure uniqueness
+    const existingUsernames = new Set(await collection.distinct('username'));
+
+    for (const user of users) {
+      const {
+        firstName,
+        lastName,
+        Phone,
+        Email,
+        hireDate,
+        positionStatus,
+        homeDepartment,
+        jobTitle,
+        location,
+        reportTo,
+        workCategory,
+        payCategory,
+        eeoEstablishment,
+      } = user;
+
+      const filter = {
+        'First Name': firstName,
+        'Last Name': lastName,
+      };
+
+      // Extract supervisor's first name and last name
+      let supervisorFirstName = '';
+      let supervisorLastName = '';
+      if (reportTo) {
+        const [last, first] = reportTo.split(',').map(name => name.trim());
+        supervisorFirstName = first;
+        supervisorLastName = last;
+      }
+
+      // Find existing employee
+      const existingEmployee = await collection.findOne(filter);
+
+      if (!existingEmployee) {
+        // Generate a username and password for new employees
+        const username = generateUsername(firstName, lastName, existingUsernames);
+        existingUsernames.add(username);
+        const password = generateRandomCode();
+
+        // If the employee doesn't exist, insert a new record with activation info
+        const newEmployee = {
+          'First Name': firstName,
+          'Last Name': lastName,
+          Phone,
+          Email,
+          username,
+          password,
+          'Hire Date': hireDate,
+          'Position Status': positionStatus,
+          'Home Department': homeDepartment,
+          'Job Title': jobTitle,
+          'Location': location,
+          'Supervisor First Name': supervisorFirstName,
+          'Supervisor Last Name': supervisorLastName,
+          'Worker Category': workCategory,
+          'Pay Category': payCategory,
+          'EEOC Establishment': eeoEstablishment,
+          'Account Active': 'Active',
+          'Activation Date': new Date(),
+        };
+
+        await collection.insertOne(newEmployee);
+        console.log(`New user ${firstName} ${lastName} added and activated.`);
+      } else {
+        // Update the existing employee
+        const updates = {
+          'Phone': Phone,
+          'Email': Email,
+          'Hire Date': hireDate,
+          'Position Status': positionStatus,
+          'Home Department': homeDepartment,
+          'Job Title': jobTitle,
+          'Location': location,
+          'Supervisor First Name': supervisorFirstName,
+          'Supervisor Last Name': supervisorLastName,
+          'Worker Category': workCategory,
+          'Pay Category': payCategory,
+          'EEOC Establishment': eeoEstablishment,
+        };
+
+        if (existingEmployee['Account Active'] !== 'Active') {
+          updates['Account Active'] = 'Active';
+          updates['Activation Date'] = new Date();
+          console.log(`User ${firstName} ${lastName} activated.`);
+        } else {
+          console.log(`User ${firstName} ${lastName} is already active, updating other details.`);
+        }
+
+        await collection.updateOne(filter, { $set: updates });
+      }
+    }
+  } catch (error) {
+    console.error('Error handling activating app users to database:', error.message);
+    throw error;
+  } finally {
+    await client.close();
+    console.log('Connection to MongoDB closed');
+  }
+}
+
+// Function to save a survey to the database
+export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber, transactionId) => {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+    await client.connect();
+    console.log('Connected to MongoDB');
+
     const db = client.db(database_name);
     const collection = db.collection('survey forms');
 
-    // Insert the survey data into the MongoDB collection
-    await collection.insertOne({ uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber });
+    await collection.insertOne({ uniqueId, sender, subject, currentDataTime, surveyQuestionsJSON, recipiantNumber, transactionId });
     console.log('Survey form saved to database successfully');
   } catch (error) {
     console.error('Error handling saving survey form to database:', error.message);
-    throw error; // Rethrow to handle in the calling function
+    throw error;
   } finally {
-    // Close the MongoDB connection
     await client.close();
     console.log('Connection to MongoDB closed');
   }
 };
 
-export async function saveNotificationToDatabase(sender, subject, messageContent) {
+// Function to save a notification to the database
+export async function saveNotificationToDatabase(sender, subject, messageContent, messageId, transactionId) {
   const client = new MongoClient(MONGODB_URI);
   const currentDataTime = Date.now();
 
@@ -41,7 +294,7 @@ export async function saveNotificationToDatabase(sender, subject, messageContent
     const db = client.db(database_name);
     const collection = db.collection('notifications');
 
-    await collection.insertOne({ sender, subject, currentDataTime, messageContent });
+    await collection.insertOne({ sender, subject, currentDataTime, messageContent, messageId, transactionId });
     console.log('Notification saved to database successfully');
   } catch (error) {
     console.error('Error handling saving notification to database:', error);
@@ -51,6 +304,8 @@ export async function saveNotificationToDatabase(sender, subject, messageContent
     console.log('Connection to MongoDB closed');
   }
 }
+
+// Function to update a document in the database
 export async function updateDocument(collectionName, filter, updateDoc) {
   const client = new MongoClient(MONGODB_URI);
   try {
@@ -70,6 +325,7 @@ export async function updateDocument(collectionName, filter, updateDoc) {
   }
 }
 
+// Function to insert a document into the database
 export async function insertDocument(collectionName, document) {
   const client = new MongoClient(MONGODB_URI);
   try {
@@ -89,6 +345,7 @@ export async function insertDocument(collectionName, document) {
   }
 }
 
+// Function to find a document in the database
 export async function findDocument(collectionName, filter) {
   const client = new MongoClient(MONGODB_URI);
   try {
@@ -104,6 +361,7 @@ export async function findDocument(collectionName, filter) {
   }
 }
 
+// Function to delete a document from the database
 export async function deleteDocument(collectionName, filter) {
   const client = new MongoClient(MONGODB_URI);
   try {
@@ -125,6 +383,7 @@ export async function deleteDocument(collectionName, filter) {
   }
 }
 
+// Function to add a document to the database
 export async function addDocument(collectionName, document) {
   const client = new MongoClient(MONGODB_URI);
   try {
@@ -143,75 +402,169 @@ export async function addDocument(collectionName, document) {
   }
 }
 
+// Function to import employee data into the database
 export async function importEmployeesData(employees) {
   const client = new MongoClient(MONGODB_URI);
   try {
-      await client.connect();
-      const collectionName = 'employees';
-      const db = client.db(database_name);
-      const collection = db.collection(collectionName);
+    await client.connect();
+    const collectionName = 'employees';
+    const db = client.db(database_name);
+    const collection = db.collection(collectionName);
 
-      for (const employeeData of employees) {
-          const employeeId = employeeData._id;
-          delete employeeData._id; // Remove _id from data to avoid errors on update
+    for (const employeeData of employees) {
+      const employeeId = employeeData._id;
+      delete employeeData._id;
 
-          // Check if there is an existing document with the same _id
-          const existingEmployee = await collection.findOne({ _id: new ObjectId(employeeId) });
+      const existingEmployee = await collection.findOne({ _id: new ObjectId(employeeId) });
 
-          if (existingEmployee) {
-              // Compare each field for changes
-              const updates = {};
-              let needsUpdate = false;
+      if (existingEmployee) {
+        const updates = {};
+        let needsUpdate = false;
 
-              for (const key in employeeData) {
-                  if (employeeData[key] !== existingEmployee[key]) {
-                      updates[key] = employeeData[key];
-                      needsUpdate = true;
-                  }
-              }
-
-              // If there are changes, update the document
-              if (needsUpdate || existingEmployee) {
-                const updatesForUnset = {};
-            
-                // Determine fields to unset
-                Object.keys(existingEmployee).forEach((key) => {
-                    // If the key is not present in the new data and it's not '_id', mark it for removal
-                    if (!employeeData.hasOwnProperty(key) && key !== '_id') {
-                        updatesForUnset[key] = ""; // The value doesn't matter; $unset just needs the key
-                    }
-                });
-            
-                // Combine $set and $unset updates
-                const combinedUpdates = {};
-                if (needsUpdate) {
-                    combinedUpdates.$set = updates;
-
-                if (Object.keys(updatesForUnset).length > 0) {
-                    combinedUpdates.$unset = updatesForUnset;
-                }
-            
-                // Execute the update with both $set and $unset as needed
-                await collection.updateOne(
-                    { _id: new ObjectId(employeeId) },
-                    combinedUpdates
-                );
-                console.log(`Employee ${employeeId} updated.`);
-              }
-            }
-          } else {
-              // If no existing document found, create a new one
-              await collection.insertOne({
-                  ...employeeData,
-                  _id: new ObjectId(employeeId), // Reassign _id to ensure consistency
-              });
-              console.log(`Employee ${employeeId} created.`);
+        // Only prepare updates for fields that exist in employeeData and differ from existingEmployee
+        for (const key in employeeData) {
+          if (employeeData[key] !== existingEmployee[key]) {
+            updates[key] = employeeData[key];
+            needsUpdate = true;
           }
+        }
+
+        if (needsUpdate) {
+          await collection.updateOne(
+            { _id: new ObjectId(employeeId) },
+            { $set: updates }
+          );
+          console.log(`Employee ${employeeId} updated.`);
+        }
+      } else {
+        await collection.insertOne({
+          ...employeeData,
+          _id: new ObjectId(employeeId),
+        });
+        console.log(`Employee ${employeeId} created.`);
       }
+    }
   } catch (error) {
-      console.error('Error processing employee data:', error);
-      throw error;
+    console.error('Error processing employee data:', error);
+    throw error;
   } finally {
-      await client.close();
+    await client.close();
+  }
+}
+
+// Function to add a new user to the database
+export async function addExternalUser(firstName, lastName, password, type, phoneNumber, email) {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+    // Connect to MongoDB
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('external users');
+
+    // Get the distinct userId values
+    const usernameSet = new Set(await collection.distinct('userId'));
+
+    // Generate a unique userId
+    const userId = generateUsername(firstName, lastName, usernameSet);
+
+    // Insert the user data into the MongoDB collection
+    const newUser = {
+      firstName,
+      lastName,
+      userId,
+      password,
+      type,
+      phoneNumber: phoneNumber || '', // Optional field
+      email: email || '', // Optional field
+      created_at: new Date()
+    };
+
+    await collection.insertOne(newUser);
+    console.log('User data inserted successfully');
+    return true;
+  } catch (error) {
+    console.error('Error handling user registration:', error.message);
+    return false;
+  } finally {
+    // Close the MongoDB connection
+    await client.close();
+    console.log('Connection to MongoDB closed');
+  }
+}
+
+export async function deleteNotificationHistory(transactionId) {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+    await client.connect();
+    console.log('Connected to MongoDB');
+
+    const db = client.db(database_name);
+    const collection = db.collection('notifications');
+
+    const result = await collection.deleteOne({ transactionId });
+
+    if (result.deletedCount === 1) {
+      console.log(`Notification with transaction ID ${transactionId} deleted successfully from MongoDB.`);
+    } else {
+      console.log(`Notification with transaction ID ${transactionId} not found in MongoDB.`);
+    }
+  } catch (error) {
+    console.error('Error deleting notification from MongoDB:', error.message);
+    throw new Error('Failed to delete notification from MongoDB');
+  } finally {
+    await client.close();
+    console.log('Connection to MongoDB closed');
+  }
+}
+
+export async function addNewEmployee(newEmployee) {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
+
+    const usernameSet = new Set(await collection.distinct('username'));
+    const username = generateUsername(newEmployee.firstName, newEmployee.lastName, usernameSet);
+    const password = generateRandomCode();
+
+    const employeeDocument = {
+      "First Name": newEmployee.firstName,
+      "Last Name": newEmployee.lastName,
+      "Hire Date": newEmployee.hireDate,
+      "Position Status": 'Active',
+      "Termination Date": '',
+      "Home Department": newEmployee.homeDepartment,
+      "Job Title": newEmployee.jobTitle,
+      "Location": newEmployee.location,
+      "Supervisor First Name": newEmployee.supervisorFirstName,
+      "Supervisor Last Name": newEmployee.supervisorLastName,
+      "Email": newEmployee.email,
+      "Phone": newEmployee.phone,
+      "Worker Category": newEmployee.workCategory,
+      "Pay Category": newEmployee.payCategory,
+      "EEOC Establishment": newEmployee.eeoc,
+      "isActivated": 'false',
+      "Account Active": "Active",
+      username,
+      password
+    };
+
+    const result = await collection.insertOne(employeeDocument);
+    console.log('New employee added:', employeeDocument);
+
+    // Update the new employee to Novu subscriber
+    await updateEmployeeToNovuSubscriber({
+      'First Name': newEmployee.firstName,
+      'Last Name': newEmployee.lastName,
+      'Email': newEmployee.email, // Ensure email field is passed if available
+      'Phone': newEmployee.phone // Ensure phone field is passed if available
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Failed to add new employee:', error);
+  } finally {
+    await client.close();
   }
 }

@@ -1,27 +1,14 @@
-import { addDocument } from './mongodbUtilities.mjs';
 import fs from 'fs';
+import { addNewEmployee } from './mongodbUtilities.mjs';
 
+// Function to add an employee from a JSON file
 const addEmployee = async (tempFilePath) => {
     try {
         const newEmployeeJSON = fs.readFileSync(tempFilePath, 'utf-8');
-
         const newEmployee = JSON.parse(newEmployeeJSON);
         console.log(newEmployee);
-        const document = {
-            "First Name": newEmployee.firstName,
-            "Last Name": newEmployee.lastName,
-            "Hire Date": newEmployee.hireDate,
-            "Position Status": 'Active',
-            "Termination Date": '',
-            "Home Department": newEmployee.homeDepartment,
-            "Job Title": newEmployee.jobTitle,
-            "Location": newEmployee.location,
-            "Supervisor First Name": newEmployee.supervisorFirstName,
-            "Supervisor Last Name": newEmployee.supervisorLastName,
-            // Add any other fields necessary for your employee document
-        };
-        const result = await addDocument('employees', document);
 
+        const result = await addNewEmployee(newEmployee);
         console.log(`Document inserted with ID: ${result.insertedId}`);
         return result;
     } catch (error) {

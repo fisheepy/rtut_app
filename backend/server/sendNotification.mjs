@@ -1,25 +1,11 @@
 import fs from 'fs';
-import crypto from 'crypto';
-import { sendNovuNotification } from './novuUtilities.mjs';
+import { sendNovuNotification, generateUniqueId } from './novuUtilities.mjs';
 import { saveNotificationToDatabase } from './mongodbUtilities.mjs';
-
-const currentDataTime = Date.now();
-
-// Function to generate a unique ID based on name information
-function generateUniqueId(firstName, lastName) {
-    // Concatenate first name and last name to form a single string
-    const nameString = `${firstName}${lastName}`;
-
-    // Use SHA-256 hashing algorithm to generate a unique hash value
-    const hash = crypto.createHash('sha256');
-    hash.update(nameString);
-    return hash.digest('hex');
-}
 
 // Function to split PayrollName and format filteredValues
 const transformFilteredValues = (filteredValues) => {
     return filteredValues.map(({
-        'First Name': firstName, 
+        'First Name': firstName,
         'Last Name': lastName,
         'Email': email,
         'Phone': phone }) => {
@@ -60,10 +46,19 @@ const sendNotifications = async (messageContent, subject, sender, filePath, send
         const formattedValues = transformFilteredValues(selectedEmployees);
 
         try {
+            const messageType = 'NOTIFICATION';
             // Use the extracted Novu operation
-            await sendNovuNotification(formattedValues, messageContent, subject, sender, sendOptions);
-            // Use the extracted MongoDB operation
-            await saveNotificationToDatabase(sender, subject, messageContent);
+            await sendNovuNotification(formattedValues, messageContent, messageType, subject, sender, sendOptions)
+                .then(response => {
+                    if (response.success) {
+                        console.log('Message sent successfully:', response.messageId, response.transactionId);
+                        // Use the extracted MongoDB operation
+                        saveNotificationToDatabase(sender, subject, messageContent, response.messageId, response.transactionId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to send message:', error);
+                });
         } catch (error) {
             console.error('Error:', error.message);
         }

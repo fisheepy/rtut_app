@@ -11,26 +11,28 @@ const UtilitiesCenterComponent = () => {
     const [executionStatus, setExecutionStatus] = useState('Status:');
     const [openAddModal, setOpenAddModal] = useState(false);
     const [openDeleteModal, setOpenDeleteModal] = useState(false);
-    const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '' });
+    const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '', email: '', phone: '' });
     const [newEmployee, setNewEmployee] = useState({
         firstName: '',
         lastName: '',
+        email: '',
+        phone: '',
         hireDate: new Date().toISOString().split('T')[0],
         homeDepartment: '',
         jobTitle: '',
         location: '',
         supervisorFirstName: '',
         supervisorLastName: '',
+        eeoc: '', // New field
+        workCategory: '', // New field
+        payCategory: '', // New field
     });
 
     const handleAddEmployeeChange = (field, value) => {
-        // If the change comes from the DatePicker, field will directly be 'hireDate', and value will be the Date object
         if (field === 'hireDate') {
             const formattedDate = value.toISOString().split('T')[0]; // Format the date to 'yyyy-MM-dd'
-            console.log(formattedDate);
             setNewEmployee(prevState => ({ ...prevState, [field]: formattedDate }));
         } else {
-            // For other inputs, field is derived from event.target.name, and value from event.target.value
             setNewEmployee(prevState => ({ ...prevState, [field]: value }));
         }
     };
@@ -41,7 +43,6 @@ const UtilitiesCenterComponent = () => {
     };
 
     const handleAddEmployeeSubmit = async () => {
-        // Submit new employee to backend
         try {
             await axios.post('/call-function-add-employee', newEmployee);
             setExecutionStatus(`Employee ${newEmployee.firstName} ${newEmployee.lastName} added successfully.`);
@@ -52,7 +53,6 @@ const UtilitiesCenterComponent = () => {
     };
 
     const handleDeleteEmployeeSubmit = async () => {
-        // Submit delete request to backend
         try {
             await axios.post('/call-function-delete-employee', deleteEmployee);
             setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} deleted successfully.`);
@@ -76,19 +76,25 @@ const UtilitiesCenterComponent = () => {
             <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)}>
                 <DialogTitle>Add New Employee</DialogTitle>
                 <DialogContent>
-                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined"     onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined"     onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="phone" label="Phone" type="tel" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <DatePicker
                         selected={new Date(newEmployee.hireDate)}
                         onChange={(date) => handleAddEmployeeChange('hireDate', date)}
-                        dateFormat="yyyy-MM-dd" // Customize the date format as needed
+                        dateFormat="yyyy-MM-dd"
                         wrapperClassName="datePicker"
-                        />
+                    />
                     <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    {/* New Fields */}
+                    <TextField margin="dense" name="eeoc" label="EEOC" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="workCategory" label="Work Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="payCategory" label="Pay Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>
