@@ -34,7 +34,7 @@ const transformFilteredValues = (filteredValues) => {
 };
 
 // Function to send notifications
-const sendNotifications = async (messageContent, subject, sender, filePath, sendOptions) => {
+const sendNotifications = async (messageContentPath, subject, sender, filePath, sendOptions) => {
     // Read the contents of the temporary file
     const selectedEmployeesJSON = fs.readFileSync(filePath, 'utf-8');
     const messageContent = JSON.parse(fs.readFileSync(messageContentPath)).messageContent;
