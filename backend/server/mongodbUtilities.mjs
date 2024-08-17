@@ -114,6 +114,71 @@ export const saveEventToDatabase = async (eventData) => {
   }
 }
 
+// Function to delete an event from the database
+export const deleteEventFromDatabase = async (eventId) => {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+      await client.connect();
+      console.log('Connected to MongoDB');
+
+      const db = client.db(database_name);
+      const collection = db.collection('events');
+
+      const result = await collection.deleteOne({ _id: new ObjectId(eventId) });
+
+      if (result.deletedCount === 1) {
+          console.log('Event deleted successfully');
+      } else {
+          console.error('No event found with the provided ID');
+      }
+  } catch (error) {
+      console.error('Error deleting event:', error.message);
+      throw error;
+  } finally {
+      await client.close();
+      console.log('Connection to MongoDB closed');
+  }
+};
+
+// Function to update an event in the database
+export const updateEventInDatabase = async (eventId, updatedEvent) => {
+  const client = new MongoClient(MONGODB_URI);
+  try {
+      await client.connect();
+      console.log('Connected to MongoDB');
+
+      const db = client.db(DATABASE_NAME);
+      const collection = db.collection('events');
+
+      const startDate = DateTime.fromISO(updatedEvent.startDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+      const endDate = DateTime.fromISO(updatedEvent.endDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+
+      const eventUpdate = {
+          creator: updatedEvent.creator,
+          location: updatedEvent.location,
+          startDate,
+          endDate,
+          title: updatedEvent.title,
+          allDay: updatedEvent.allDay === 'true',
+          detail: updatedEvent.detail,
+      };
+
+      const result = await collection.updateOne({ _id: new ObjectId(eventId) }, { $set: eventUpdate });
+
+      if (result.modifiedCount === 1) {
+          console.log('Event updated successfully');
+      } else {
+          console.log('No changes made to the event');
+      }
+  } catch (error) {
+      console.error('Error updating event in database:', error.message);
+      throw error;
+  } finally {
+      await client.close();
+      console.log('Connection to MongoDB closed');
+  }
+};
+
 // Function to update password in the database
 export const updatePasswordInDatabase = async (user, password) => {
   const client = new MongoClient(MONGODB_URI);

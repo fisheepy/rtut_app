@@ -305,6 +305,36 @@ app.post('/call-function-send-event', (req, res) => {
     });
 });
 
+// Define a route to handle the POST request for deleting an event
+app.post('/call-function-delete-event', (req, res) => {
+    const { eventId } = req.body;
+
+    exec(`node ./backend/server/deleteEvent.mjs "${eventId}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Event deleted successfully');
+    });
+});
+
+// Define a route to handle the POST request for updating an event
+app.post('/call-function-update-event', (req, res) => {
+    const { eventId, updatedEvent } = req.body;
+
+    exec(`node ./backend/server/updateEvent.mjs "${eventId}" "${JSON.stringify(updatedEvent)}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Event updated successfully');
+    });
+});
+
 app.post('/call-function-send-one-time-code', async (req, res) => {
     const { firstName, lastName } = req.body;
 
