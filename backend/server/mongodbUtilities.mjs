@@ -147,7 +147,7 @@ export const updateEventInDatabase = async (eventId, updatedEvent) => {
       await client.connect();
       console.log('Connected to MongoDB');
 
-      const db = client.db(DATABASE_NAME);
+      const db = client.db(database_name);
       const collection = db.collection('events');
 
       const startDate = DateTime.fromISO(updatedEvent.startDate, { zone: 'America/New_York' }).toUTC().toJSDate();
