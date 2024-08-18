@@ -23,6 +23,7 @@ function EmployeeSelectionComponent() {
     const [startDate, setStartDate] = useState('1980-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
+    const [selectAllChecked, setSelectAllChecked] = useState(false);
 
     useEffect(() => {
         applyFilters();
@@ -33,16 +34,12 @@ function EmployeeSelectionComponent() {
             try {
                 const loginName = JSON.parse(localStorage.getItem('loginName'));
                 const response = await axios.get(`/employees?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
-                console.log(response);
                 const processedData = response.data.map(employee => ({
                     ...employee,
                     'Name': `${employee['Last Name']}, ${employee['First Name']}`,
                     'Supervisor': `${employee['Supervisor Last Name']}, ${employee['Supervisor First Name']}`
                 }));
-                const sortedData = processedData.sort((a, b) => {
-                    return a['Last Name'].localeCompare(b['Last Name']);
-                });
-                console.log(sortedData);
+                const sortedData = processedData.sort((a, b) => a['Last Name'].localeCompare(b['Last Name']));
                 setEmployees(sortedData);
                 setFilteredEmployees(sortedData);
                 extractFilterValues(sortedData);
@@ -125,7 +122,6 @@ function EmployeeSelectionComponent() {
 
         setFilteredEmployees(combinedFilteredEmployees);
         setSelectedEmployees(finalFilteredEmployees);
-        console.log(finalFilteredEmployees);
     };
 
     const handleCheckboxChange = (employeeId) => {
@@ -138,6 +134,16 @@ function EmployeeSelectionComponent() {
             }
             return newSet;
         });
+    };
+
+    const handleSelectAllChange = () => {
+        setSelectAllChecked(!selectAllChecked);
+        if (!selectAllChecked) {
+            setDeselectedEmployees(new Set());
+        } else {
+            const allEmployeeIds = new Set(filteredEmployees.map(emp => emp._id));
+            setDeselectedEmployees(allEmployeeIds);
+        }
     };
 
     const columns = [
@@ -167,9 +173,18 @@ function EmployeeSelectionComponent() {
                             {columns.map((column) => (
                                 <TableCell
                                     key={column.id}
-                                    style={{ fontWeight: 'bold' }} // Apply bold styling to the column names
+                                    style={{ fontWeight: 'bold' }}
                                 >
-                                    {column.label}
+                                    {column.id === 'select' ? (
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <Checkbox
+                                                checked={selectAllChecked}
+                                                onChange={handleSelectAllChange}
+                                                color="primary"
+                                            />
+                                            <span>(Override Remove)</span>
+                                        </div>
+                                    ) : column.label}
                                 </TableCell>
                             ))}
                         </TableRow>
