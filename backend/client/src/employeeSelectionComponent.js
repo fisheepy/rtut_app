@@ -46,7 +46,7 @@ function EmployeeSelectionComponent() {
                 setEmployees(sortedData);
                 setFilteredEmployees(sortedData);
                 extractFilterValues(sortedData);
-                setSelectedEmployees(sortedData); // Assuming you want the initial selected employees to also be sorted
+                setSelectedEmployees(sortedData);
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
@@ -77,13 +77,11 @@ function EmployeeSelectionComponent() {
     const handleFilterChange = (event, columnName) => {
         const value = event.target.value;
         setSelectedFilters(prevFilters => {
-            // If "All" is selected (represented as an empty string), remove the filter from the selectedFilters object
             if (value === "") {
                 const newFilters = { ...prevFilters };
                 delete newFilters[columnName];
                 return newFilters;
             } else {
-                // Otherwise, update the filter as usual
                 return {
                     ...prevFilters,
                     [columnName]: value,
@@ -94,40 +92,27 @@ function EmployeeSelectionComponent() {
     };
 
     const applyFilters = () => {
-        // Separate filter for Payroll Name to treat it specially
         const payrollNameFilter = selectedFilters['Name'];
-
-        // Default start and end dates
         const defaultStartDate = new Date('1995/01/01');
-        const defaultEndDate = new Date(); // Today
-
-        // Parse the input start and end dates, fallback to default if not specified
+        const defaultEndDate = new Date();
         const start = startDate ? new Date(startDate) : defaultStartDate;
         const end = endDate ? new Date(endDate) : defaultEndDate;
 
-        // Filter by payroll name if specified
         const filteredByPayrollName = payrollNameFilter && payrollNameFilter.length > 0
             ? employees.filter(employee => payrollNameFilter.includes(employee['Name']))
             : [];
 
-        // Filter by other criteria except for Payroll Name, including date range
         const filteredByOtherCriteria = employees.filter(employee => {
-            // Convert employee's hire/rehire date from string to Date object
             const hireDate = new Date(employee['Hire Date']);
-
-            // Check if employee's date falls within the specified range
             const isInDateRange = hireDate >= start && hireDate <= end;
-
-            // Check other filters excluding Payroll Name
             const matchesOtherFilters = Object.entries(selectedFilters).every(([columnName, filterValues]) =>
-                columnName === 'Name' || // Skip Payroll Name in this filtering step
+                columnName === 'Name' ||
                 filterValues.length === 0 || filterValues.includes(employee[columnName])
             );
 
             return isInDateRange && matchesOtherFilters;
         });
 
-        // Combine the two filtered arrays, ensuring unique entries
         const combinedFilteredEmployees = [
             ...filteredByPayrollName,
             ...filteredByOtherCriteria.filter(employee =>
@@ -135,7 +120,7 @@ function EmployeeSelectionComponent() {
             )
         ];
         const finalFilteredEmployees = combinedFilteredEmployees.filter(employee =>
-            !deselectedEmployees.has(employee._id) // Assuming each employee has a unique 'id' property
+            !deselectedEmployees.has(employee._id)
         );
 
         setFilteredEmployees(combinedFilteredEmployees);
@@ -165,14 +150,11 @@ function EmployeeSelectionComponent() {
         { id: 'Supervisor', label: 'Supervisor', filter: true },
         { id: 'Phone', label: 'Phone', filter: true },
         { id: 'Email', label: 'Email', filter: true },
-        { id: 'Worker Category', label: 'Employement', filter: true },
+        { id: 'Worker Category', label: 'Employment', filter: true },
         { id: 'Pay Category', label: 'Pay', filter: true },
         { id: 'EEOC Establishment', label: 'EEOC', filter: true },
-        { id: 'isActivated', label: 'Activated', filter: true},
-
+        { id: 'isActivated', label: 'Activated', filter: true },
         { id: 'select', label: '(Override Remove)', filter: false },
-        
-        // Add other columns as needed...
     ];
 
     return (
@@ -183,15 +165,18 @@ function EmployeeSelectionComponent() {
                     <TableHead>
                         <TableRow>
                             {columns.map((column) => (
-                                <TableCell key={column.id}>{column.label}</TableCell> // This ensures all column labels are displayed
+                                <TableCell
+                                    key={column.id}
+                                    style={{ fontWeight: 'bold' }} // Apply bold styling to the column names
+                                >
+                                    {column.label}
+                                </TableCell>
                             ))}
                         </TableRow>
                         <TableRow>
-                            {/* Placeholder cells for columns before 'Hire Date' */}
                             {columns.slice(0, columns.findIndex(col => col.id === 'Hire Date')).map(col => (
                                 <TableCell key={col.id} />
                             ))}
-                            {/* Filter for 'Hire Date' */}
                             <TableCell colSpan={1}>
                                 <TextField
                                     id="start-date"
@@ -218,7 +203,6 @@ function EmployeeSelectionComponent() {
                                     size="small"
                                 />
                             </TableCell>
-                            {/* Placeholder cells for columns after 'Hire Date' */}
                             {columns.slice(columns.findIndex(col => col.id === 'Hire Date') + 1).map(column => (
                                 <TableCell key={column.id + '-filter'}>
                                     {column.filter ? (
@@ -242,8 +226,7 @@ function EmployeeSelectionComponent() {
                                             ))}
                                         </TextField>
                                     ) : column.id === 'Hire Date' ? (
-                                        // Special handling for the Hire Date filter, if needed
-                                        null // Placeholder, update as per your logic
+                                        null
                                     ) : null}
                                 </TableCell>
                             ))}
