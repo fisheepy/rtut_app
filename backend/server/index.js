@@ -324,7 +324,10 @@ app.post('/call-function-delete-event', (req, res) => {
 app.post('/call-function-update-event', (req, res) => {
     const { eventId, updatedEvent } = req.body;
 
-    exec(`node ./backend/server/updateEvent.mjs "${eventId}" "${JSON.stringify(updatedEvent)}"`, (error, stdout, stderr) => {
+    const tempFilePath = path.join(__dirname, 'temp', 'updatedEvent.json');
+    fs.writeFileSync(tempFilePath, JSON.stringify(updatedEvent));
+
+    exec(`node ./backend/server/updateEvent.mjs "${eventId}" "${tempFilePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);

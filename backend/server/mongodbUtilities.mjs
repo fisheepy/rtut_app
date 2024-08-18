@@ -159,7 +159,7 @@ export const updateEventInDatabase = async (eventId, updatedEvent) => {
           startDate,
           endDate,
           title: updatedEvent.title,
-          allDay: updatedEvent.allDay === 'true',
+          allDay: updatedEvent.allDay,
           detail: updatedEvent.detail,
       };
 

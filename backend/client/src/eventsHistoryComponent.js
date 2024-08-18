@@ -15,6 +15,8 @@ import {
   DialogActions,
   TextField,
   Grid,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 
 const EventsHistoryModule = () => {
@@ -59,6 +61,7 @@ const EventsHistoryModule = () => {
 
   const handleEditSubmit = async () => {
     try {
+      console.log({ eventId: selectedEvent._id, updatedEvent: selectedEvent });
       await axios.post(`/call-function-update-event`, { eventId: selectedEvent._id, updatedEvent: selectedEvent });
       setEvents((prevEvents) => prevEvents.map((e) => (e._id === selectedEvent._id ? selectedEvent : e)));
       setIsEditDialogOpen(false);
@@ -72,6 +75,16 @@ const EventsHistoryModule = () => {
     setSelectedEvent((prevEvent) => ({
       ...prevEvent,
       [name]: value,
+    }));
+  };
+
+  const handleAllDayChange = (e) => {
+    const { checked } = e.target;
+    setSelectedEvent((prevEvent) => ({
+      ...prevEvent,
+      allDay: checked,
+      startDate: checked ? prevEvent.startDate.split('T')[0] : prevEvent.startDate,
+      endDate: checked ? prevEvent.endDate.split('T')[0] : prevEvent.endDate,
     }));
   };
 
@@ -129,7 +142,7 @@ const EventsHistoryModule = () => {
                     fullWidth
                     label="Start Date"
                     name="startDate"
-                    type="datetime-local"
+                    type={selectedEvent.allDay ? "date" : "datetime-local"}
                     value={selectedEvent.startDate}
                     onChange={handleChange}
                     InputLabelProps={{ shrink: true }}
@@ -140,7 +153,7 @@ const EventsHistoryModule = () => {
                     fullWidth
                     label="End Date"
                     name="endDate"
-                    type="datetime-local"
+                    type={selectedEvent.allDay ? "date" : "datetime-local"}
                     value={selectedEvent.endDate}
                     onChange={handleChange}
                     InputLabelProps={{ shrink: true }}
@@ -173,6 +186,18 @@ const EventsHistoryModule = () => {
                     onChange={handleChange}
                     multiline
                     rows={4}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={selectedEvent.allDay}
+                        onChange={handleAllDayChange}
+                        name="allDay"
+                      />
+                    }
+                    label="All Day Event"
                   />
                 </Grid>
               </Grid>
