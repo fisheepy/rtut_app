@@ -19,7 +19,7 @@ function EmployeeSelectionComponent() {
     const [employees, setEmployees] = useState([]);
     const [filteredEmployees, setFilteredEmployees] = useState([]);
     const [filterValues, setFilterValues] = useState({});
-    const [selectedFilters, setSelectedFilters] = useState({});
+    const [selectedFilters, setSelectedFilters] = useState({ isActivated: ['true'] }); // Default to "true" for "Activated"
     const [startDate, setStartDate] = useState('1980-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
