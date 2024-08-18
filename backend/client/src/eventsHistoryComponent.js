@@ -49,7 +49,6 @@ const EventsHistoryModule = () => {
 
   const handleDeleteConfirm = async () => {
     try {
-      console.log(selectedEvent);
       await axios.post(`/call-function-delete-event`, { eventId: selectedEvent._id });
       setEvents((prevEvents) => prevEvents.filter((e) => e._id !== selectedEvent._id));
       setIsDeleteDialogOpen(false);
@@ -60,8 +59,7 @@ const EventsHistoryModule = () => {
 
   const handleEditSubmit = async () => {
     try {
-      console.log(selectedEvent);
-      await axios.post(`/call-function-update-event`, { event: selectedEvent });
+      await axios.post(`/call-function-update-event`, { eventId: selectedEvent._id, updatedEvent: selectedEvent });
       setEvents((prevEvents) => prevEvents.map((e) => (e._id === selectedEvent._id ? selectedEvent : e)));
       setIsEditDialogOpen(false);
     } catch (error) {
