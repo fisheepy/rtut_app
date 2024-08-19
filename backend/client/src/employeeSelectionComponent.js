@@ -12,6 +12,12 @@ import {
     Paper,
     TextField,
     MenuItem,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Grid,
 } from '@mui/material';
 
 function EmployeeSelectionComponent() {
@@ -24,6 +30,8 @@ function EmployeeSelectionComponent() {
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
     const [selectAllChecked, setSelectAllChecked] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
 
     useEffect(() => {
         applyFilters();
@@ -146,6 +154,35 @@ function EmployeeSelectionComponent() {
         }
     };
 
+    const handleRowDoubleClick = (employee) => {
+        setSelectedEmployee(employee);
+        setIsEditModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setIsEditModalOpen(false);
+        setSelectedEmployee(null);
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setSelectedEmployee(prevEmployee => ({
+            ...prevEmployee,
+            [name]: value,
+        }));
+    };
+
+    const handleSaveChanges = async () => {
+        try {
+            await axios.put(`/employees/${selectedEmployee._id}`, selectedEmployee);
+            setEmployees((prevEmployees) => prevEmployees.map((emp) => (emp._id === selectedEmployee._id ? selectedEmployee : emp)));
+            applyFilters(); // Reapply filters after editing
+            handleModalClose();
+        } catch (error) {
+            console.error('Error updating employee:', error);
+        }
+    };
+
     const columns = [
         { id: 'Hire Date', label: 'Hire Date', filter: false },
         { id: 'Name', label: 'Name (Override Add)', filter: true },
@@ -240,16 +277,18 @@ function EmployeeSelectionComponent() {
                                                 </MenuItem>
                                             ))}
                                         </TextField>
-                                    ) : column.id === 'Hire Date' ? (
-                                        null
-                                    ) : null}
+                                    ) : column.id === 'Hire Date' ? null : null}
                                 </TableCell>
                             ))}
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {filteredEmployees.map((employee) => (
-                            <TableRow key={employee._id} style={{ textDecoration: deselectedEmployees.has(employee._id) ? 'line-through' : 'none' }}>
+                            <TableRow
+                                key={employee._id}
+                                onDoubleClick={() => handleRowDoubleClick(employee)}
+                                style={{ textDecoration: deselectedEmployees.has(employee._id) ? 'line-through' : 'none' }}
+                            >
                                 {columns.map((column) => (
                                     <TableCell key={column.id}>
                                         {column.id === 'select' ? (
@@ -268,6 +307,130 @@ function EmployeeSelectionComponent() {
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            <Dialog open={isEditModalOpen} onClose={handleModalClose} maxWidth="md" fullWidth>
+                <DialogTitle>Edit Employee Information</DialogTitle>
+                <DialogContent>
+                    {selectedEmployee && (
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="First Name"
+                                    name="First Name"
+                                    value={selectedEmployee['First Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Last Name"
+                                    name="Last Name"
+                                    value={selectedEmployee['Last Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Hire Date"
+                                    name="Hire Date"
+                                    type="date"
+                                    value={selectedEmployee['Hire Date']}
+                                    onChange={handleInputChange}
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Home Department"
+                                    name="Home Department"
+                                    value={selectedEmployee['Home Department']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Supervisor First Name"
+                                    name="Supervisor First Name"
+                                    value={selectedEmployee['Supervisor First Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Supervisor Last Name"
+                                    name="Supervisor Last Name"
+                                    value={selectedEmployee['Supervisor Last Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Job Title"
+                                    name="Job Title"
+                                    value={selectedEmployee['Job Title']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Location"
+                                    name="Location"
+                                    value={selectedEmployee['Location']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Email"
+                                    name="Email"
+                                    value={selectedEmployee['Email']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Phone"
+                                    name="Phone"
+                                    value={selectedEmployee['Phone']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="EEOC Establishment"
+                                    name="EEOC Establishment"
+                                    value={selectedEmployee['EEOC Establishment']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Employment Category"
+                                    name="Worker Category"
+                                    value={selectedEmployee['Worker Category']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                        </Grid>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleModalClose}>Cancel</Button>
+                    <Button onClick={handleSaveChanges} color="primary">Save</Button>
+                </DialogActions>
+            </Dialog>
         </div>
     );
 }

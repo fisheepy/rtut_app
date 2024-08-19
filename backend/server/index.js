@@ -4,7 +4,7 @@ const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 
@@ -287,6 +287,44 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
         // Close the MongoDB connection
         await client.close();
         console.log('Connection to MongoDB closed');
+    }
+});
+
+async function updateEmployeeInDatabase(employeeId, updatedEmployee) {
+    try {
+        await client.connect();
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+        const { _id, ...employeeUpdate } = updatedEmployee;
+
+        // Update the employee with the new information
+        const result = await collection.updateOne(
+            { _id: new ObjectId(employeeId) },
+            { $set: employeeUpdate }
+        );
+
+        return result.modifiedCount > 0;
+    } catch (error) {
+        console.error('Error updating employee in database:', error);
+        throw error;
+    } finally {
+        await client.close();
+    }
+}
+
+app.put('/employees/:id', async (req, res) => {
+    const employeeId = req.params.id;
+    const updatedEmployee = req.body;
+
+    try {
+        const success = await updateEmployeeInDatabase(employeeId, updatedEmployee);
+        if (success) {
+            res.status(200).send('Employee updated successfully');
+        } else {
+            res.status(404).send('Employee not found');
+        }
+    } catch (error) {
+        res.status(500).send('Error updating employee');
     }
 });
 
