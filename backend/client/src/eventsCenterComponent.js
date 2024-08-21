@@ -28,7 +28,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         recurrenceType: 'weekly',
         monthDay: 1,
         allDay: false,
-        recurrenceEndDate: '', // New field for end date of recurrence
+        recurrenceEndDate: '', 
     });
 
     useEffect(() => {
@@ -51,10 +51,26 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prevState => ({
-            ...prevState,
-            [name]: value
-        }));
+
+        setFormData(prevState => {
+            let newFormData = { ...prevState, [name]: value };
+
+            if (name === "startDate") {
+                // If startDate is changed, check if it is after the current endDate
+                if (moment(value).isAfter(moment(prevState.endDate))) {
+                    newFormData.endDate = value; // Set endDate to be the same as startDate
+                }
+            }
+
+            if (name === "endDate") {
+                // If endDate is changed, check if it is before the current startDate
+                if (moment(value).isBefore(moment(prevState.startDate))) {
+                    newFormData.startDate = value; // Set startDate to be the same as endDate
+                }
+            }
+
+            return newFormData;
+        });
     };
 
     const handleCheckboxChange = (e) => {
