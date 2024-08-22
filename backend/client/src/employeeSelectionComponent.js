@@ -176,7 +176,7 @@ function EmployeeSelectionComponent() {
         try {
             await axios.put(`/employees/${selectedEmployee._id}`, selectedEmployee);
             setEmployees((prevEmployees) => prevEmployees.map((emp) => (emp._id === selectedEmployee._id ? selectedEmployee : emp)));
-            applyFilters(); // Reapply filters after editing
+            applyFilters();
             handleModalClose();
         } catch (error) {
             console.error('Error updating employee:', error);
@@ -203,14 +203,14 @@ function EmployeeSelectionComponent() {
     return (
         <div>
             <h3>Selected Employees</h3>
-            <TableContainer component={Paper}>
-                <Table aria-label="employee selection table">
+            <TableContainer component={Paper} style={{ maxHeight: 600 }}>
+                <Table aria-label="employee selection table" stickyHeader>
                     <TableHead>
-                        <TableRow>
+                        <TableRow style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'white' }}>
                             {columns.map((column) => (
                                 <TableCell
                                     key={column.id}
-                                    style={{ fontWeight: 'bold' }}
+                                    style={{ fontWeight: 'bold', backgroundColor: 'white' }}
                                 >
                                     {column.id === 'select' ? (
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -225,7 +225,7 @@ function EmployeeSelectionComponent() {
                                 </TableCell>
                             ))}
                         </TableRow>
-                        <TableRow>
+                        <TableRow style={{ position: 'sticky', top: 48, zIndex: 1, backgroundColor: 'white' }}>
                             {columns.slice(0, columns.findIndex(col => col.id === 'Hire Date')).map(col => (
                                 <TableCell key={col.id} />
                             ))}
@@ -282,6 +282,7 @@ function EmployeeSelectionComponent() {
                             ))}
                         </TableRow>
                     </TableHead>
+
                     <TableBody>
                         {filteredEmployees.map((employee) => (
                             <TableRow
