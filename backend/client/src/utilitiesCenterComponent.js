@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import axios from 'axios';
-import { Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import './App.css';
@@ -23,14 +23,14 @@ const UtilitiesCenterComponent = () => {
         location: '',
         supervisorFirstName: '',
         supervisorLastName: '',
-        eeoc: '', // New field
-        workCategory: '', // New field
-        payCategory: '', // New field
+        eeoc: '',
+        workCategory: '',
+        payCategory: '',
     });
 
     const handleAddEmployeeChange = (field, value) => {
         if (field === 'hireDate') {
-            const formattedDate = value.toISOString().split('T')[0]; // Format the date to 'yyyy-MM-dd'
+            const formattedDate = value.toISOString().split('T')[0];
             setNewEmployee(prevState => ({ ...prevState, [field]: formattedDate }));
         } else {
             setNewEmployee(prevState => ({ ...prevState, [field]: value }));
@@ -80,20 +80,28 @@ const UtilitiesCenterComponent = () => {
                     <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="phone" label="Phone" type="tel" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    
+                    {/* Label for Hire Date */}
+                    <Typography variant="subtitle1" gutterBottom style={{ marginTop: 16 }}>
+                        Hire Date
+                    </Typography>
+                    
                     <DatePicker
                         selected={new Date(newEmployee.hireDate)}
                         onChange={(date) => handleAddEmployeeChange('hireDate', date)}
                         dateFormat="yyyy-MM-dd"
                         wrapperClassName="datePicker"
                     />
+                    
                     <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="supervisorFirstName" label="Supervisor First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    
                     {/* New Fields */}
                     <TextField margin="dense" name="eeoc" label="EEOC" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="workCategory" label="Work Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="workCategory" label="Employment Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                     <TextField margin="dense" name="payCategory" label="Pay Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
                 </DialogContent>
                 <DialogActions>

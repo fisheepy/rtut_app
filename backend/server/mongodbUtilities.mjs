@@ -589,6 +589,20 @@ export async function addNewEmployee(newEmployee) {
     const db = client.db(database_name);
     const collection = db.collection('employees');
 
+    // Check for duplicates based on first+last name, email, or phone number
+    const duplicateCheck = await collection.findOne({
+      $or: [
+        { "First Name": newEmployee.firstName, "Last Name": newEmployee.lastName },
+        { Email: newEmployee.email },
+        { Phone: newEmployee.phone }
+      ]
+    });
+
+    if (duplicateCheck) {
+      console.log('Duplicate employee found:', duplicateCheck);
+      throw new Error('Duplicate employee record found. Cannot add new employee.');
+    }
+
     const usernameSet = new Set(await collection.distinct('username'));
     const username = generateUsername(newEmployee.firstName, newEmployee.lastName, usernameSet);
     const password = generateRandomCode();
@@ -628,7 +642,8 @@ export async function addNewEmployee(newEmployee) {
 
     return result;
   } catch (error) {
-    console.error('Failed to add new employee:', error);
+    console.error('Failed to add new employee:', error.message);
+    throw error; // Rethrow error to be handled by the caller
   } finally {
     await client.close();
   }
