@@ -426,7 +426,6 @@ export async function findDocument(collectionName, filter) {
   }
 }
 
-// Function to delete a document from the database
 export async function deleteDocument(collectionName, filter) {
   const client = new MongoClient(MONGODB_URI);
   try {
@@ -435,11 +434,12 @@ export async function deleteDocument(collectionName, filter) {
     const collection = db.collection(collectionName);
     const result = await collection.deleteOne(filter);
 
-    if (result.deletedCount === 1) {
-      console.log(`Successfully deleted one document.`);
-    } else {
-      console.log("No documents matched the query. Deleted 0 documents.");
+    if (result.deletedCount === 0) {
+      throw new Error('Employee not found.');
     }
+
+    console.log(`Successfully deleted ${result.deletedCount} document(s).`);
+    return result;
   } catch (error) {
     console.error('Error finding document:', error);
     throw error;

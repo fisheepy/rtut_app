@@ -601,7 +601,6 @@ app.post('/call-function-add-employee', async (req, res) => {
         if (error) {
             // Find the relevant error line
             const errorLines = stderr.split('\n');
-            console.log(errorLines);
             const relevantError = errorLines.find(line => line.includes("Error during operation"));
             
             if (relevantError) {
@@ -625,11 +624,20 @@ app.post('/call-function-delete-employee', async (req, res) => {
     // Execute the script
     exec(`node ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
         if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
+            // Find the relevant error line
+            const errorLines = stderr.split('\n');
+            const relevantError = errorLines.find(line => line.includes("Error during operation"));
+
+            if (relevantError) {
+                // Remove "Error during operation: " text
+                const cleanErrorMessage = relevantError.replace("Error during operation: ", "");
+                res.status(500).send(cleanErrorMessage);
+            } else {
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+            }
             return;
         }
-        res.status(200).send(stdout);
+        res.status(200).send(stdout.trim());
     });
 });
 

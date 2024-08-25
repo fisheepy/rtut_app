@@ -57,11 +57,13 @@ const UtilitiesCenterComponent = () => {
 
     const handleDeleteEmployeeSubmit = async () => {
         try {
-            await axios.post('/call-function-delete-employee', deleteEmployee);
+            const response = await axios.post('/call-function-delete-employee', deleteEmployee);
             setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} deleted successfully.`);
             setOpenDeleteModal(false);
         } catch (error) {
-            setExecutionStatus(`Failed to delete employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}.`);
+            // Extract the specific error message from the server response
+            const errorMessage = error.response?.data || 'An unexpected error occurred';
+            setExecutionStatus(`Failed to delete employee ${newEmployee.firstName} ${newEmployee.lastName}: ${errorMessage}`);
         }
     };
 
@@ -122,7 +124,15 @@ const UtilitiesCenterComponent = () => {
             </Dialog>
 
             {/* Delete Employee Modal */}
-            <Dialog open={openDeleteModal} onClose={() => setOpenDeleteModal(false)}>
+            <Dialog
+                open={openDeleteModal}
+                onClose={() => setDeleteEmployee(false)}
+                PaperProps={{
+                    style: {
+                        marginLeft: '650px', // Adjust this value to move the modal lower
+                    },
+                }}
+            >
                 <DialogTitle>Delete Employee</DialogTitle>
                 <DialogContent>
                     <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={handleDeleteEmployeeChange} />
