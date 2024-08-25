@@ -595,16 +595,28 @@ app.post('/call-function-add-employee', async (req, res) => {
     // Write the JSON string to a temporary file
     const tempFilePath = path.join(__dirname, 'temp', 'newEmployee.json');
     fs.writeFileSync(tempFilePath, newEmployeeJSON);
+
     // Execute the script
     exec(`node ./backend/server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
         if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
+            // Find the relevant error line
+            const errorLines = stderr.split('\n');
+            console.log(errorLines);
+            const relevantError = errorLines.find(line => line.includes("Error during operation"));
+            
+            if (relevantError) {
+                // Remove "Error during operation: " text
+                const cleanErrorMessage = relevantError.replace("Error during operation: ", "");
+                res.status(500).send(cleanErrorMessage);
+            } else {
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+            }
             return;
         }
         res.status(200).send(stdout);
     });
 });
+
 
 app.post('/call-function-delete-employee', async (req, res) => {
     const firstName = req.body.firstName;

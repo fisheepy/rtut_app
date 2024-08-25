@@ -46,9 +46,12 @@ const UtilitiesCenterComponent = () => {
         try {
             await axios.post('/call-function-add-employee', newEmployee);
             setExecutionStatus(`Employee ${newEmployee.firstName} ${newEmployee.lastName} added successfully.`);
-            setOpenAddModal(false);
+            setOpenAddModal(false); // Close the modal on success
         } catch (error) {
-            setExecutionStatus(`Failed to add employee ${newEmployee.firstName} ${newEmployee.lastName}.`);
+            // Extract the error message from the response and display it
+            const errorMessage = error.response?.data || 'An unexpected error occurred';
+            setExecutionStatus(`Failed to add employee ${newEmployee.firstName} ${newEmployee.lastName}: ${errorMessage}`);
+            // Modal remains open to allow the user to correct any issues and retry
         }
     };
 
@@ -73,36 +76,44 @@ const UtilitiesCenterComponent = () => {
                 Delete Employee
             </Button>
             {/* Add Employee Modal */}
-            <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)}>
+            <Dialog
+                open={openAddModal}
+                onClose={() => setOpenAddModal(false)}
+                PaperProps={{
+                    style: {
+                        marginLeft: '650px', // Adjust this value to move the modal lower
+                    },
+                }}
+            >
                 <DialogTitle>Add New Employee</DialogTitle>
                 <DialogContent>
-                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="phone" label="Phone" type="tel" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    
+                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="phone" label="Phone" type="tel" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+
                     {/* Label for Hire Date */}
                     <Typography variant="subtitle1" gutterBottom style={{ marginTop: 16 }}>
                         Hire Date
                     </Typography>
-                    
+
                     <DatePicker
                         selected={new Date(newEmployee.hireDate)}
                         onChange={(date) => handleAddEmployeeChange('hireDate', date)}
                         dateFormat="yyyy-MM-dd"
                         wrapperClassName="datePicker"
                     />
-                    
-                    <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    
+
+                    <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+
                     {/* New Fields */}
-                    <TextField margin="dense" name="eeoc" label="EEOC" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="workCategory" label="Employment Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
-                    <TextField margin="dense" name="payCategory" label="Pay Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)}/>
+                    <TextField margin="dense" name="eeoc" label="EEOC" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="workCategory" label="Employment Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <TextField margin="dense" name="payCategory" label="Pay Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>
