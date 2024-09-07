@@ -1,5 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb';
 import { DateTime } from 'luxon';
+import {updateEmployeeToNovuSubscriber} from './novuUtilities.mjs';
 
 const username = process.env.MONGODB_USERNAME;
 const password = process.env.MONGODB_PASSWORD;
@@ -585,76 +586,83 @@ export async function deleteNotificationHistory(transactionId) {
 export async function addNewEmployee(newEmployee) {
   const client = new MongoClient(MONGODB_URI);
   try {
-      await client.connect();
-      const db = client.db(database_name);
-      const collection = db.collection('employees');
+    await client.connect();
+    const db = client.db(database_name);
+    const collection = db.collection('employees');
 
-      // Check for duplicates based on first+last name, email, or phone number
-      const duplicateCheck = await collection.findOne({
-          $or: [
-              { "First Name": newEmployee.firstName, "Last Name": newEmployee.lastName },
-              { Email: newEmployee.email },
-              { Phone: newEmployee.phone }
-          ]
-      });
+    // Prepare duplicate check conditions, excluding empty or null email
+    const duplicateConditions = [
+      { "First Name": newEmployee.firstName, "Last Name": newEmployee.lastName },
+      { Phone: newEmployee.phone }
+    ];
 
-      if (duplicateCheck) {
-          if (duplicateCheck.Email === newEmployee.email) {
-              throw new Error('Error during operation: Duplicate email found.');
-          }
-          if (duplicateCheck.Phone === newEmployee.phone) {
-              throw new Error('Error during operation: Duplicate phone number found.');
-          }
-          throw new Error('Error during operation: Duplicate employee record found.');
+    // Add email to conditions only if it is not null or empty
+    if (newEmployee.email) {
+      duplicateConditions.push({ Email: newEmployee.email });
+    }
+
+    // Check for duplicates based on first+last name, email, or phone number
+    const duplicateCheck = await collection.findOne({
+      $or: duplicateConditions
+    });
+
+    if (duplicateCheck) {
+      if (newEmployee.email && duplicateCheck.Email === newEmployee.email) {
+        throw new Error('Error during operation: Duplicate email found.');
       }
-
-      // Check for duplicate username
-      const usernameSet = new Set(await collection.distinct('username'));
-      const username = generateUsername(newEmployee.firstName, newEmployee.lastName, usernameSet);
-      if (usernameSet.has(username)) {
-          throw new Error('Error during operation: Duplicate username found.');
+      if (duplicateCheck.Phone === newEmployee.phone) {
+        throw new Error('Error during operation: Duplicate phone number found.');
       }
+      throw new Error('Error during operation: Duplicate employee record found.');
+    }
 
-      const password = generateRandomCode();
+    // Check for duplicate username
+    const usernameSet = new Set(await collection.distinct('username'));
+    const username = generateUsername(newEmployee.firstName, newEmployee.lastName, usernameSet);
+    if (usernameSet.has(username)) {
+      throw new Error('Error during operation: Duplicate username found.');
+    }
 
-      const employeeDocument = {
-          "First Name": newEmployee.firstName,
-          "Last Name": newEmployee.lastName,
-          "Hire Date": newEmployee.hireDate,
-          "Position Status": 'Active',
-          "Termination Date": '',
-          "Home Department": newEmployee.homeDepartment,
-          "Job Title": newEmployee.jobTitle,
-          "Location": newEmployee.location,
-          "Supervisor First Name": newEmployee.supervisorFirstName,
-          "Supervisor Last Name": newEmployee.supervisorLastName,
-          "Email": newEmployee.email,
-          "Phone": newEmployee.phone,
-          "Worker Category": newEmployee.workCategory,
-          "Pay Category": newEmployee.payCategory,
-          "EEOC Establishment": newEmployee.eeoc,
-          "isActivated": 'false',
-          "Account Active": "Active",
-          username,
-          password
-      };
+    const password = generateRandomCode();
 
-      const result = await collection.insertOne(employeeDocument);
-      console.log('New employee added:', employeeDocument);
+    const employeeDocument = {
+      "First Name": newEmployee.firstName,
+      "Last Name": newEmployee.lastName,
+      "Hire Date": newEmployee.hireDate,
+      "Position Status": 'Active',
+      "Termination Date": '',
+      "Home Department": newEmployee.homeDepartment,
+      "Job Title": newEmployee.jobTitle,
+      "Location": newEmployee.location,
+      "Supervisor First Name": newEmployee.supervisorFirstName,
+      "Supervisor Last Name": newEmployee.supervisorLastName,
+      "Email": newEmployee.email,
+      "Phone": newEmployee.phone,
+      "Worker Category": newEmployee.workCategory,
+      "Pay Category": newEmployee.payCategory,
+      "EEOC Establishment": newEmployee.eeoc,
+      "isActivated": 'false',
+      "Account Active": "Active",
+      username,
+      password
+    };
 
-      // Update the new employee to Novu subscriber
-      await updateEmployeeToNovuSubscriber({
-          'First Name': newEmployee.firstName,
-          'Last Name': newEmployee.lastName,
-          'Email': newEmployee.email,
-          'Phone': newEmployee.phone
-      });
+    const result = await collection.insertOne(employeeDocument);
+    console.log('New employee added:', employeeDocument);
 
-      return result;
+    // Update the new employee to Novu subscriber
+    await updateEmployeeToNovuSubscriber({
+      'First Name': newEmployee.firstName,
+      'Last Name': newEmployee.lastName,
+      'Email': newEmployee.email,
+      'Phone': newEmployee.phone
+    });
+
+    return result;
   } catch (error) {
-      console.error(error.message);  // Only print the message
-      throw error; // Rethrow error to be handled by the caller
+    console.error(error.message);  // Only print the message
+    throw error; // Rethrow error to be handled by the caller
   } finally {
-      await client.close();
+    await client.close();
   }
 }

@@ -13,6 +13,10 @@ const formatPhoneNumber = (phoneNumber) => {
 
 // Function to validate email format
 const validateEmail = (email) => {
+    // Allow empty email, but validate if it's not empty
+    if (!email) {
+        return true; // Return true for empty emails
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 };
@@ -29,7 +33,7 @@ const addEmployee = async (tempFilePath) => {
             throw new Error('Error during operation: Invalid phone number format');
         }
 
-        // Validate the email format
+        // Validate the email format only if email is provided
         if (!validateEmail(newEmployee.email)) {
             throw new Error('Error during operation: Invalid email format');
         }
