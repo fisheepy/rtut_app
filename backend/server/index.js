@@ -248,7 +248,8 @@ app.get('/events', cors(), async (req, res, next) => {
 
 app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
     const { surveyId } = req.params;
-    const loginName = req.query;
+    const loginName = req.query; // Assuming loginName contains { firstName, lastName }
+    
     try {
         // Connect to MongoDB
         await client.connect();
@@ -268,17 +269,28 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
             return;
         }
 
-        // Check if the user is a root user
+        // Access the admin collection
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
-        // Filter data based on user's admin status
 
-        if (isAdmin) {
+        // Check if the user is a root admin
+        const isAdminRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+
+        // If the user is root, return all data
+        if (isAdminRoot) {
             res.json(data);
-        }
-        else {
-            res.status(401).send('Not Authorized');
+        } else {
+            // If the user is not root, check if they are the sender of the survey
+            const filteredData = data.filter(survey => 
+                survey.adminUser.firstName === loginName.firstName &&
+                survey.adminUser.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized to view this survey');
+            }
         }
     } catch (error) {
         console.error('Error:', error);
@@ -289,6 +301,7 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
         console.log('Connection to MongoDB closed');
     }
 });
+
 
 async function updateEmployeeInDatabase(employeeId, updatedEmployee) {
     try {
@@ -563,9 +576,12 @@ app.post('/call-function-send-notification', async(req, res) => {
 app.post('/call-function-send-survey', (req, res) => {
     const surveyJson = req.body.surveyJson;
     const selectedEmployees = req.body.selectedEmployees;
+    const adminUser = req.body.adminUser;
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
     const surveyQuestionsJSON = JSON.stringify(surveyJson);
+    const adminUserJSON = JSON.stringify(adminUser);
+
     const subject = req.body.subject;
     const sender = req.body.sender;
 
@@ -576,8 +592,11 @@ app.post('/call-function-send-survey', (req, res) => {
     const surveyQuestionsFilePath = path.join(__dirname, 'temp', 'surveyQuestions.json');
     fs.writeFileSync(surveyQuestionsFilePath, surveyQuestionsJSON);
 
+    const adminUserJSONFilePath = path.join(__dirname, 'temp', 'adminUser.json');
+    fs.writeFileSync(adminUserJSONFilePath, adminUserJSON);
+
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}" "${adminUserJSONFilePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);

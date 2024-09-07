@@ -102,10 +102,9 @@ function App() {
             <p>Welcome, {userData.firstName}!</p>
             <MenuComponent onItemSelect={handleItemSelect} />
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
-              {RenderSelectedComponent ? <RenderSelectedComponent /> : "Please select a menu item."}
+              {RenderSelectedComponent ? <RenderSelectedComponent userData={userData} /> : "Please select a menu item."}
             </div>
-            {
-              componentKey !== 'reviewNotifications' &&
+            {componentKey !== 'reviewNotifications' &&
               componentKey !== 'reviewSurveys' &&
               componentKey !== 'reviewEvents' &&
               componentKey !== 'sendEvent' &&

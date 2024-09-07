@@ -6,7 +6,7 @@ import SurveyRenderer from './surveyRenderer';
 import { useWindowDimensions } from 'react-native';
 import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
 
-function SurveyCenterComponent() {
+function SurveyCenterComponent({ userData }) {
     const [subject, setSubject] = useState('');
     const [sender, setSender] = useState('');
     const [surveyJson, setSurveyJson] = useState({ elements: [] });
@@ -24,24 +24,22 @@ function SurveyCenterComponent() {
         return selectedEmployees.map(emp => emp.Name).join('/ ');
     };
 
-    function addQuestion() {
+    const addQuestion = () => {
         let newQuestion;
-        // Adjust choices based on whether a custom answer is allowed
         let choices = answerChoices.length > 0 ? answerChoices : ["Choice 1", "Choice 2"];
         if (allowCustomAnswer && (selectedQuestionType === "singleChoice" || selectedQuestionType === "multiChoice") && !choices.includes("Other")) {
-            choices.push("Other"); // Add 'Other' option for custom answer
+            choices.push("Other");
         }
 
         switch (selectedQuestionType) {
             case "text":
                 newQuestion = {
                     name: `Question${surveyJson.elements.length + 1}`,
-                    title: questionTitle || "New Text Question", // Use custom title or default
+                    title: questionTitle || "New Text Question",
                     type: "text"
                 };
                 break;
             case "singleChoice":
-                // Previously "checkbox", now allowing only one choice to be selected
                 newQuestion = {
                     name: `Question${surveyJson.elements.length + 1}`,
                     title: questionTitle || "Select one option",
@@ -51,7 +49,6 @@ function SurveyCenterComponent() {
                 };
                 break;
             case "multiChoice":
-                // New case for multiChoice where multiple answers can be selected
                 newQuestion = {
                     name: `Question${surveyJson.elements.length + 1}`,
                     title: questionTitle || "Select multiple options",
@@ -77,26 +74,36 @@ function SurveyCenterComponent() {
             ...prevSurveyJson,
             elements: [...prevSurveyJson.elements, newQuestion]
         }));
-        console.log(surveyJson);
-        // Reset allowCustomAnswer for the next question
+
         setAllowCustomAnswer(false);
         setAnswerChoices([]);
         setQuestionTitle("");
-    }
+    };
 
-    function removeQuestion(index) {
+    const removeQuestion = (index) => {
         setSurveyJson(prevSurveyJson => ({
             ...prevSurveyJson,
             elements: prevSurveyJson.elements.filter((_, i) => i !== index)
         }));
-    }
+    };
 
     const handleSendSurvey = () => {
         setOpenConfirmDialog(true);
     };
 
     const confirmSendSurveys = () => {
-        const data = { subject, sender, surveyJson, selectedEmployees };
+        const data = {
+            subject,
+            sender,
+            surveyJson,
+            selectedEmployees,
+            adminUser: {
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                email: userData.email,
+            },
+        };
+
         axios.post('/call-function-send-survey', data)
             .then(response => {
                 const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
@@ -106,8 +113,8 @@ function SurveyCenterComponent() {
                 const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
                 setExecutionStatus(`Status:${timeStamp}:\tSend survey failed!`);
             });
-        setOpenConfirmDialog(false); // Close the dialog after sending
-        setSurveyJson({ elements: [] }); // Reset the survey after sending
+        setOpenConfirmDialog(false);
+        setSurveyJson({ elements: [] });
     };
 
     return (
@@ -190,6 +197,7 @@ function SurveyCenterComponent() {
                     <strong>Subject: {subject}</strong><br />
                     <strong>Sender: {sender}</strong><br />
                     <strong>Recipients:</strong> {prepareRecipientNames()}<br />
+                    <strong>Admin User:</strong> {`${userData.firstName} ${userData.lastName}`}<br />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>

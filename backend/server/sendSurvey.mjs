@@ -46,15 +46,18 @@ const transformFilteredValues = (filteredValues) => {
 };
 
 // Function to send notifications
-const sendSurveys = async (subject, sender, surveyQuestionsFilePath, selectedEmployeesFilePath) => {
+const sendSurveys = async (subject, sender, surveyQuestionsFilePath, selectedEmployeesFilePath, adminUserFilePath) => {
     // Read the contents of the temporary file
     const surveyQuestionsJSON = fs.readFileSync(surveyQuestionsFilePath, 'utf-8');
     const selectedEmployeesJSON = fs.readFileSync(selectedEmployeesFilePath, 'utf-8');
+    const adminUserJSON = fs.readFileSync(adminUserFilePath, 'utf-8');
+
     const messageType = 'SURVEY';
     try {
         // Parse the JSON string into an array of objects
         const selectedEmployees = JSON.parse(selectedEmployeesJSON);
         const surveyQuestions = JSON.parse(surveyQuestionsJSON);
+        const adminUser = JSON.parse(adminUserJSON);
         // Transform and format filteredValues
         const formattedValues = transformFilteredValues(selectedEmployees);
         // Trigger notification with unique ID
@@ -72,7 +75,7 @@ const sendSurveys = async (subject, sender, surveyQuestionsFilePath, selectedEmp
                     if (response.success) {
                         console.log('Survey sent successfully:', response.messageId, response.transactionId, response.uniqueId);
                         // Use the extracted MongoDB operation
-                        saveSurveyToDatabase(response.uniqueId, sender, subject, currentDataTime, JSON.stringify(surveyQuestions), recipiantNumber, response.transactionId);
+                        saveSurveyToDatabase(response.uniqueId, sender, subject, currentDataTime, JSON.stringify(surveyQuestions), recipiantNumber, adminUser, response.transactionId);
                     }
                 })
                 .catch(error => {
@@ -87,8 +90,8 @@ const sendSurveys = async (subject, sender, surveyQuestionsFilePath, selectedEmp
 };
 
 // Check if command-line arguments are provided
-if (process.argv.length < 6) {
-    console.error('Usage: node sendNotification.mjs <subject> <sender> <selectedEmployeesFilePath> <surveyQuestionsFilePath>');
+if (process.argv.length < 7) {
+    console.error('Usage: node sendNotification.mjs <subject> <sender> <selectedEmployeesFilePath> <surveyQuestionsFilePath> <adminUserFilePath>');
     process.exit(1);
 }
 
@@ -97,6 +100,7 @@ const subject = process.argv[2];
 const sender = process.argv[3];
 const surveyQuestionsFilePath = process.argv[4];
 const selectedEmployeesFilePath = process.argv[5];
+const adminUserFilePath = process.argv[6];
 
 // Call the function to send notifications
-sendSurveys(subject, sender, surveyQuestionsFilePath, selectedEmployeesFilePath);
+sendSurveys(subject, sender, surveyQuestionsFilePath, selectedEmployeesFilePath, adminUserFilePath);
