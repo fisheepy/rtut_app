@@ -192,8 +192,8 @@ app.get('/surveys', cors(), async (req, res, next) => {
         } else {
             // Filter the surveys to only show the ones created by this admin
             const filteredData = data.filter(survey => 
-                survey.adminUser.firstName === loginName.firstName &&
-                survey.adminUser.lastName === loginName.lastName
+                survey.adminUser?.firstName === loginName.firstName &&
+                survey.adminUser?.lastName === loginName.lastName
             );
 
             if (filteredData.length > 0) {
