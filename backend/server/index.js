@@ -184,14 +184,23 @@ app.get('/surveys', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
-        // Filter data based on user's admin status
+        const isAdminRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
 
-        if (isAdmin) {
+        if (isAdminRoot) {
+            // If the user is root, return all survey data
             res.json(data);
-        }
-        else {
-            res.status(401).send('Not Authorized');
+        } else {
+            // Filter the surveys to only show the ones created by this admin
+            const filteredData = data.filter(survey => 
+                survey.adminUser.firstName === loginName.firstName &&
+                survey.adminUser.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized');
+            }
         }
     } catch (error) {
         console.error('Error:', error);
@@ -202,6 +211,7 @@ app.get('/surveys', cors(), async (req, res, next) => {
         console.log('Connection to MongoDB closed');
     }
 });
+
 
 app.get('/events', cors(), async (req, res, next) => {
     const loginName = req.query; // Extract firstName and lastName from query parameters
