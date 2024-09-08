@@ -64,7 +64,9 @@ const sendOnboarding = async (filePath, sendOptions) => {
 
                 if (response.success) {
                     console.log('Message sent successfully:', response.messageId, response.transactionId);
-                    await saveNotificationToDatabase(sender, subject, messageContent, response.messageId, response.transactionId);
+                    const adminUser = { firstName: 'Admin', lastName: 'RTUT' }; // Replace with actual admin user details
+
+                    await saveNotificationToDatabase(sender, subject, messageContent, adminUser, response.messageId, response.transactionId);
                 }
             } catch (error) {
                 console.error('Failed to send message:', error);

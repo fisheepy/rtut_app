@@ -128,7 +128,7 @@ app.get('/notifications', cors(), async (req, res, next) => {
         const db = client.db(database_name);
         const collection = db.collection('notifications');
 
-        // Query database to retrieve data
+        // Query database to retrieve notification data
         const data = await collection.find().toArray();
 
         // Check if data is retrieved
@@ -141,14 +141,23 @@ app.get('/notifications', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
-        // Filter data based on user's admin status
+        const isAdminRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
 
-        if (isAdmin) {
+        if (isAdminRoot) {
+            // If the user is root, return all notification data
             res.json(data);
-        }
-        else {
-            res.status(401).send('Not Authorized');
+        } else {
+            // Filter the notifications to only show the ones created by this admin
+            const filteredData = data.filter(notification => 
+                notification.adminUser?.firstName === loginName.firstName &&
+                notification.adminUser?.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized');
+            }
         }
     } catch (error) {
         console.error('Error:', error);
@@ -492,35 +501,6 @@ app.post('/call-function-send-onboarding', async (req, res) => {
     });
 });
 
-// Helper function to log notification data to MongoDB
-const logNotificationToDatabase = async (messageContent, subject, sender, selectedEmployees, sendEmail, sendSms, sendApp) => {
-    try {
-        await client.connect();
-        const db = client.db(database_name);
-        const collection = db.collection('notification logs');
-        
-        // Create a log entry
-        const logEntry = {
-            messageContent,
-            subject,
-            sender,
-            selectedEmployees,
-            sendEmail,
-            sendSms,
-            sendApp,
-            timestamp: new Date()
-        };
-        
-        // Insert the log entry into the collection
-        await collection.insertOne(logEntry);
-        console.log('Notification log saved successfully.');
-    } catch (error) {
-        console.error('Error saving notification log:', error);
-    } finally {
-        await client.close();
-    }
-};
-
 // Function to log errors to the database
 const logErrorToDatabase = async (error, context) => {
     try {
@@ -554,21 +534,24 @@ app.post('/call-function-send-notification', async(req, res) => {
     const sendEmail = req.body.sendEmail;
     const sendSms = req.body.sendSms;
     const sendApp = req.body.sendApp;
-    await logNotificationToDatabase(messageContent, subject, sender, selectedEmployees, sendEmail, sendSms, sendApp);
+    const adminUser = req.body.adminUser;
 
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
     const messageContentJSON = JSON.stringify({ messageContent });
+    const adminUserJSON = JSON.stringify(adminUser);
 
     // Write the JSON string to a temporary file
     const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
     const messageContentFilePath = path.join(__dirname, 'temp', 'messageContent.json');
+    const adminUserJSONFilePath = path.join(__dirname, 'temp', 'adminUser.json');
 
     fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
     fs.writeFileSync(messageContentFilePath, messageContentJSON);
+    fs.writeFileSync(adminUserJSONFilePath, adminUserJSON);
 
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/sendNotification.mjs "${messageContentFilePath}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}"`, async (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendNotification.mjs "${messageContentFilePath}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}" "${adminUserJSONFilePath}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             

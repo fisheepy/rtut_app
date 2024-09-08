@@ -349,7 +349,7 @@ export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDat
 };
 
 // Function to save a notification to the database
-export async function saveNotificationToDatabase(sender, subject, messageContent, messageId, transactionId) {
+export async function saveNotificationToDatabase(sender, subject, messageContent, adminUser, messageId, transactionId ) {
   const client = new MongoClient(MONGODB_URI);
   const currentDataTime = Date.now();
 
@@ -360,7 +360,7 @@ export async function saveNotificationToDatabase(sender, subject, messageContent
     const db = client.db(database_name);
     const collection = db.collection('notifications');
 
-    await collection.insertOne({ sender, subject, currentDataTime, messageContent, messageId, transactionId });
+    await collection.insertOne({ sender, subject, currentDataTime, messageContent, adminUser, messageId, transactionId });
     console.log('Notification saved to database successfully');
   } catch (error) {
     console.error('Error handling saving notification to database:', error);

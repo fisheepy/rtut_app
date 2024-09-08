@@ -3,7 +3,7 @@ import axios from 'axios';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import { Button, DialogContentText, Dialog, DialogActions, DialogContent, DialogTitle, Checkbox, FormControlLabel, FormGroup, Typography, TextField } from '@mui/material';
 
-function NotificationCenterComponent() {
+function NotificationCenterComponent({ userData }) {
     const [subject, setSubject] = useState('');
     const [sender, setSender] = useState('');
     const [editContent, setEditContent] = useState('');
@@ -52,6 +52,11 @@ function NotificationCenterComponent() {
             sendApp: sendOptions.app,
             sendEmail: sendOptions.email,
             sendSms: sendOptions.sms,
+            adminUser: {
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                email: userData.email,
+            },
         };
 
         axios.post('/call-function-send-notification', notificationData)
@@ -121,6 +126,7 @@ function NotificationCenterComponent() {
                         <strong>Sender: {sender}</strong><br />
                         <strong>Content: {editContent}</strong><br />
                         <strong>Recipients:</strong> {prepareRecipientNames()}<br />
+                        <strong>Admin User:</strong> {`${userData.firstName} ${userData.lastName}`}<br />
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>

@@ -34,14 +34,16 @@ const transformFilteredValues = (filteredValues) => {
 };
 
 // Function to send notifications
-const sendNotifications = async (messageContentPath, subject, sender, filePath, sendOptions) => {
+const sendNotifications = async (messageContentPath, subject, sender, filePath, sendOptions, adminUserFilePath) => {
     // Read the contents of the temporary file
     const selectedEmployeesJSON = fs.readFileSync(filePath, 'utf-8');
     const messageContent = JSON.parse(fs.readFileSync(messageContentPath)).messageContent;
+    const adminUserJSON = fs.readFileSync(adminUserFilePath, 'utf-8');
 
     try {
         // Parse the JSON string into an array of objects
         const selectedEmployees = JSON.parse(selectedEmployeesJSON);
+        const adminUser = JSON.parse(adminUserJSON);
 
         // Transform and format filteredValues
         const formattedValues = transformFilteredValues(selectedEmployees);
@@ -54,7 +56,7 @@ const sendNotifications = async (messageContentPath, subject, sender, filePath, 
                     if (response.success) {
                         console.log('Message sent successfully:', response.messageId, response.transactionId);
                         // Use the extracted MongoDB operation
-                        saveNotificationToDatabase(sender, subject, messageContent, response.messageId, response.transactionId);
+                        saveNotificationToDatabase(sender, subject, messageContent, adminUser, response.messageId, response.transactionId);
                     }
                 })
                 .catch(error => {
@@ -69,8 +71,8 @@ const sendNotifications = async (messageContentPath, subject, sender, filePath, 
 };
 
 // Check if command-line arguments are provided
-if (process.argv.length < 9) {
-    console.error('Usage: node sendNotification.mjs <messageContent> <subject> <sender> <filePath>');
+if (process.argv.length < 10) {
+    console.error('Usage: node sendNotification.mjs <messageContent> <subject> <sender> <filePath> <adminUserPath> <adminUserJSONFilePath>');
     process.exit(1);
 }
 
@@ -84,6 +86,7 @@ const sendOptions = {
     sms: process.argv[7],
     email: process.argv[8],
 }
+const adminUserFilePath = process.argv[9];
 
 // Call the function to send notifications
-sendNotifications(messageContentPath, subject, sender, filePath, sendOptions);
+sendNotifications(messageContentPath, subject, sender, filePath, sendOptions, adminUserFilePath);
