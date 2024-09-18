@@ -89,7 +89,7 @@ const NotificationsHistoryModule = () => {
     <div>
       <h3>Execution Status</h3>
       <p>{executionStatus}</p>
-      <h2>Notifications</h2>
+      <h2>History Notifications</h2>
       <TableContainer component={Paper}>
         <Table aria-label="simple table">
           <TableHead>

@@ -106,7 +106,7 @@ const SurveysHistoryModule = () => {
 
   return (
     <div>
-      <h2>Surveys History</h2>
+      <h2>History Survey</h2>
       <TableContainer component={Paper}>
         <Table>
           <TableHead>

@@ -90,7 +90,7 @@ const EventsHistoryModule = () => {
 
   return (
     <div>
-      <h2>Events</h2>
+      <h2>History Events</h2>
       <TableContainer component={Paper}>
         <Table aria-label="simple table">
           <TableHead>
