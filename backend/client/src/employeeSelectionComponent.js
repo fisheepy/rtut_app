@@ -270,7 +270,8 @@ function EmployeeSelectionComponent() {
                                             onChange={(e) => handleFilterChange(e, column.id)}
                                             size="small"
                                         >
-                                            {filterValues[column.id]?.map(option => (
+                                            {/* Sorting the options alphabetically before rendering */}
+                                            {filterValues[column.id]?.sort().map(option => (
                                                 <MenuItem key={option} value={option}>
                                                     <Checkbox checked={selectedFilters[column.id]?.includes(option) || false} />
                                                     {option}
@@ -280,6 +281,7 @@ function EmployeeSelectionComponent() {
                                     ) : column.id === 'Hire Date' ? null : null}
                                 </TableCell>
                             ))}
+
                         </TableRow>
                     </TableHead>
 
