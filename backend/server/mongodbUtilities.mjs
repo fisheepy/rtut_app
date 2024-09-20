@@ -88,6 +88,7 @@ export const saveEventToDatabase = async (eventData) => {
     const location = eventData.location;
     const title = eventData.title;
     const detail = eventData.detail;
+    const employees = eventData.employees;
 
     if (allDay === 'true') {
       startDate.setUTCHours(8, 0, 0, 0);
@@ -102,6 +103,7 @@ export const saveEventToDatabase = async (eventData) => {
       title,
       allDay: allDay === 'true',
       detail,
+      employees,
     };
 
     await collection.insertOne(event);

@@ -362,9 +362,13 @@ app.put('/employees/:id', async (req, res) => {
 
 // Define a route to handle the POST request for executing the script
 app.post('/call-function-send-event', (req, res) => {
-    const { creator, endDate, location, startDate, title, allDay, detail } = req.body.data;
+    const { creator, endDate, location, startDate, title, allDay, detail, selectedEmployees } = req.body.data;
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
 
-    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}" "${detail}"`, (error, stdout, stderr) => {
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}" "${detail}" "${tempFilePath}"`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
             res.status(500).send(`Internal Server Error: ${error.message}`);

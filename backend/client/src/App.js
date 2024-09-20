@@ -107,7 +107,7 @@ function App() {
             {componentKey !== 'reviewNotifications' &&
               componentKey !== 'reviewSurveys' &&
               componentKey !== 'reviewEvents' &&
-              componentKey !== 'sendEvent' &&
+              // componentKey !== 'sendEvent' &&
               componentKey !== 'processEmployee' && (
                 <div className="display-area" style={{ flex: 1, padding: '20px' }}>
                   <EmployeeSelectionComponent />

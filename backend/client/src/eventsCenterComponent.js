@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import {
     TextField,
@@ -14,6 +14,7 @@ import {
     MenuItem,
 } from '@mui/material';
 import moment from 'moment';
+import { SelectedEmployeesContext } from './selectedEmployeesContext';
 
 const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
     const [executionStatus, setExecutionStatus] = useState('Status:');
@@ -30,6 +31,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         allDay: false,
         recurrenceEndDate: '', 
     });
+    const { selectedEmployees } = useContext(SelectedEmployeesContext);
 
     useEffect(() => {
         if (event) {
@@ -83,7 +85,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
+    
         const createEvent = async (eventData) => {
             try {
                 await axios.post('/call-function-send-event', eventData);
@@ -94,23 +96,26 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                 setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tSend event failed!`);
             }
         };
-
+    
         const createRecurringEvents = () => {
             let currentDate = moment(formData.startDate);
             const endRecurrenceDate = moment(formData.recurrenceEndDate);
             const events = [];
-
+    
             while (currentDate.isBefore(endRecurrenceDate) || currentDate.isSame(endRecurrenceDate, 'day')) {
-                const endEventDate = formData.allDay ? currentDate.clone().endOf('day').startOf('day') : moment(formData.endDate).clone().add(currentDate.diff(moment(formData.startDate)), 'milliseconds');
-
+                const endEventDate = formData.allDay 
+                    ? currentDate.clone().endOf('day').startOf('day') 
+                    : moment(formData.endDate).clone().add(currentDate.diff(moment(formData.startDate)), 'milliseconds');
+    
                 events.push({
                     data: {
                         ...formData,
+                        selectedEmployees, // Include selectedEmployees in each recurring event
                         startDate: currentDate.toISOString(),
                         endDate: endEventDate.toISOString(),
                     }
                 });
-
+    
                 if (formData.recurrenceType === 'weekly') {
                     currentDate.add(1, 'weeks');
                 } else if (formData.recurrenceType === 'bi-weekly') {
@@ -119,19 +124,20 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                     currentDate.add(1, 'months');
                 }
             }
-
+    
             return events;
         };
-
+    
         if (formData.isRecurring) {
             const events = createRecurringEvents();
             for (const event of events) {
                 await createEvent(event);
             }
         } else {
-            await createEvent({ data: formData });
+            await createEvent({ data: { ...formData, selectedEmployees } }); // Add selectedEmployees in the event data
         }
     };
+    
 
     return (
         <Paper style={{ padding: 16 }}>
