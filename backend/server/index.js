@@ -950,10 +950,9 @@ app.post('/api/forget-password', async (req, res) => {
 });
 
 app.post('/api/accept-disclaimer', async (req, res) => {
-    async function acceptDisclaimer(userInfo, accepted, collection) {
+    async function activateUserIfNeeded(userInfo, accepted, collection) {
         if (userInfo.isActivated !== 'true' && accepted) {
-            console.log('test point');
-            // Update the user document to add 'isActivated' and 'activationDate'
+            // Update user to activate account and set activation date
             await collection.updateOne(
                 { username: { $regex: new RegExp(`^${userInfo.username}$`, 'i') } },
                 {
@@ -964,39 +963,58 @@ app.post('/api/accept-disclaimer', async (req, res) => {
                 }
             );
         }
-        res.status(200).send('Disclaimer Accepted!');
+    }
+
+    async function logDisclaimerAcceptance(userInfo, accepted, appVersion, deviceInfo, db) {
+        // Log acceptance details in a separate collection
+        const acceptanceRecord = {
+            username: userInfo.username,
+            accepted,
+            appVersion,
+            deviceInfo,
+            timestamp: new Date()
+        };
+        const logCollection = db.collection('disclaimer acceptances');
+        await logCollection.insertOne(acceptanceRecord);
     }
 
     try {
-        const { accepted, username } = req.body;
+        const { accepted, username, appVersion, deviceInfo } = req.body;
+
+        if (!accepted || !username) {
+            return res.status(400).send('Missing required fields');
+        }
+
         // Connect to MongoDB
         await client.connect();
         console.log('Connected to MongoDB');
 
-        // Access the database
+        // Access the database and collection
         const db = client.db(database_name);
         const collection = db.collection('employees');
 
-        const user = await collection.find({
-            username: { $regex: new RegExp(`^${username}$`, 'i') },
-        }).toArray();
+        // Fetch the user from the database
+        const user = await collection.findOne({
+            username: { $regex: new RegExp(`^${username}$`, 'i') }
+        });
 
-        if (!user || user.length === 0) {
+        if (!user) {
             console.error('User not found in MongoDB collection');
-            res.status(404).send('Validation failed');
-            return;
+            return res.status(404).send('User not found');
         }
 
-        const userInfo = user[0];
-        // Check if the user has the 'isActivated' field
-        console.log(userInfo);
-        console.log(accepted);
-        await acceptDisclaimer(userInfo, accepted, collection);
+        // Activate user if needed
+        await activateUserIfNeeded(user, accepted, collection);
+
+        // Log the disclaimer acceptance to a separate collection
+        await logDisclaimerAcceptance(user, accepted, appVersion, deviceInfo, db);
+
+        res.status(200).send('Disclaimer Accepted and Logged!');
     } catch (error) {
-        console.error('Error handling accepting disclaimer:', error.message);
+        console.error('Error handling disclaimer acceptance:', error.message);
         res.status(500).send('Internal Server Error');
     } finally {
-        // Close the MongoDB connection
+        // Ensure the MongoDB connection is closed
         await client.close();
         console.log('Connection to MongoDB closed');
     }
