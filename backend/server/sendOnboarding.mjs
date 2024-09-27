@@ -49,7 +49,7 @@ const sendOnboarding = async (filePath, sendOptions) => {
             const sender = 'RTUT App Admin';
             const messageContent = 'Hello ' + employee.firstName + ', '
                 + 'You are invited to use the company App. '
-                + 'You can download it from https://apps.apple.com/app/rtut/id6547833065. '
+                + 'You can download it from iOS: https://apps.apple.com/app/rtut/id6547833065, Android: https://tinyurl.com/mw9t9ens. '
                 + 'Your username is: ' + employee.username + '. Default password is: ' + employee.password + '.';
 
             try {
