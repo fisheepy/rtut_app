@@ -52,7 +52,6 @@ const sendOnboarding = async (filePath, sendOptions) => {
                 + 'For Android: https://github.com/1gemsoftware/rtut_app/releases/download/release/RTUT-release.apk '
                 + 'For iOS: https://apps.apple.com/app/rtut/id6547833065 '
                 + 'Your username is: ' + employee.username + '. Default password is: ' + employee.password + '.';
-            // 'iOS: https://apps.apple.com/app/rtut/id6547833065,';
             try {
                 const response = await sendNovuNotification(
                     employee, 
