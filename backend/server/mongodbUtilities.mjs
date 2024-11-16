@@ -470,46 +470,96 @@ export async function addDocument(collectionName, document) {
   }
 }
 
-// Function to import employee data into the database
 export async function importEmployeesData(employees) {
   const client = new MongoClient(MONGODB_URI);
   try {
     await client.connect();
-    const collectionName = 'employees';
     const db = client.db(database_name);
-    const collection = db.collection(collectionName);
+    const collection = db.collection('employees');
+
+    // Collect all existing usernames for uniqueness
+    const existingUsernames = new Set(await collection.distinct('username'));
 
     for (const employeeData of employees) {
-      const employeeId = employeeData._id;
-      delete employeeData._id;
+      // Define fields using the new structure
+      const {
+        Phone: phone,
+        Email: email,
+        'Payroll Name: Last Name': lastName,
+        'Payroll Name: First Name': firstName,
+        'Hire/Rehire Date': hireDate,
+        'Position Status': positionStatus,
+        'Home Department Description': homeDepartment,
+        'Job Title Description': jobTitle,
+        'Location Description': location,
+        'Reports To Name': reportTo,
+        'Worker Category Description': workCategory,
+        'Regular Pay Rate Description': payCategory,
+        'EEO Establishment': eeoEstablishment
+      } = employeeData;
 
-      const existingEmployee = await collection.findOne({ _id: new ObjectId(employeeId) });
+      // Check if employee already exists by name, phone, or email
+      const duplicateCheck = await collection.findOne({
+        $or: [
+          { "First Name": firstName, "Last Name": lastName },
+          { Phone: phone },
+          { Email: email }
+        ]
+      });
 
-      if (existingEmployee) {
-        const updates = {};
-        let needsUpdate = false;
+      if (duplicateCheck) {
+        console.log(`Skipping duplicate employee: ${firstName} ${lastName}`);
+        continue; // Skip this employee if a duplicate is found
+      }
 
-        // Only prepare updates for fields that exist in employeeData and differ from existingEmployee
-        for (const key in employeeData) {
-          if (employeeData[key] !== existingEmployee[key]) {
-            updates[key] = employeeData[key];
-            needsUpdate = true;
-          }
-        }
+      // Extract supervisor names if provided
+      let supervisorFirstName = '';
+      let supervisorLastName = '';
+      if (reportTo) {
+        const [last, first] = reportTo.split(',').map(name => name.trim());
+        supervisorFirstName = first;
+        supervisorLastName = last;
+      }
 
-        if (needsUpdate) {
-          await collection.updateOne(
-            { _id: new ObjectId(employeeId) },
-            { $set: updates }
-          );
-          console.log(`Employee ${employeeId} updated.`);
-        }
+      // Generate unique username and password if needed
+      const username = generateUsername(firstName, lastName, existingUsernames);
+      existingUsernames.add(username);
+      const password = generateRandomCode();
+
+      // Create or update employee record with the new format
+      const employeeDocument = {
+        "First Name": firstName,
+        "Last Name": lastName,
+        "Phone": phone,
+        "Email": email,
+        "username": username,
+        "password": password,
+        "Hire Date": hireDate,
+        "Position Status": positionStatus,
+        "Home Department": homeDepartment,
+        "Job Title": jobTitle,
+        "Location": location,
+        "Supervisor First Name": supervisorFirstName,
+        "Supervisor Last Name": supervisorLastName,
+        "Worker Category": workCategory,
+        "Pay Category": payCategory,
+        "EEOC Establishment": eeoEstablishment,
+        "isActivated": 'false',
+        "Account Active": "Active",
+        "Activation Date": new Date()
+      };
+
+      if (duplicateCheck) {
+        // If an employee already exists, update their details
+        await collection.updateOne(
+          { _id: duplicateCheck._id },
+          { $set: employeeDocument }
+        );
+        console.log(`Updated existing employee: ${firstName} ${lastName}`);
       } else {
-        await collection.insertOne({
-          ...employeeData,
-          _id: new ObjectId(employeeId),
-        });
-        console.log(`Employee ${employeeId} created.`);
+        // Insert new employee
+        await collection.insertOne(employeeDocument);
+        console.log(`Inserted new employee: ${firstName} ${lastName}`);
       }
     }
   } catch (error) {

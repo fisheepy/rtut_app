@@ -1,4 +1,4 @@
-import fs from 'fs';
+ import fs from 'fs';
 import { addNewEmployee } from './mongodbUtilities.mjs';
 
 // Function to format the phone number

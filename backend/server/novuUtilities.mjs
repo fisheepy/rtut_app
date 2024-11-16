@@ -31,11 +31,11 @@ function generateUniqueSurveyId(subject, sender) {
 
 export async function updateEmployeeToNovuSubscriber(employee) {
   try {
-    const uid = generateUniqueId(employee['First Name'].toUpperCase(), employee['Last Name'].toUpperCase());
+    const uid = generateUniqueId(employee['Payroll Name: First Name'].toUpperCase(), employee['Payroll Name: Last Name'].toUpperCase());
 
     const subscriberData = {
-      firstName: employee['First Name'],
-      lastName: employee['Last Name'],
+      firstName: employee['Payroll Name: First Name'],
+      lastName: employee['Payroll Name: Last Name'],
     };
 
     if (employee['Email'] && typeof employee['Email'] === 'string' && employee['Email'].includes('@')) {
@@ -48,7 +48,7 @@ export async function updateEmployeeToNovuSubscriber(employee) {
 
     await novu.subscribers.identify(uid, subscriberData);
 
-    console.log('Updated', employee['First Name']);
+    console.log('Updated', employee['Payroll Name: First Name']);
   } catch (error) {
     console.error('Error updating employee to Novu subscriber:', error);
     throw error;
