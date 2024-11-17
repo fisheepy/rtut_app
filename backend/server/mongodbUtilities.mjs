@@ -704,8 +704,8 @@ export async function addNewEmployee(newEmployee) {
 
     // Update the new employee to Novu subscriber
     await updateEmployeeToNovuSubscriber({
-      'First Name': newEmployee.firstName,
-      'Last Name': newEmployee.lastName,
+      'Payroll Name: First Name': newEmployee.firstName,
+      'Payroll Name: Last Name': newEmployee.lastName,
       'Email': newEmployee.email,
       'Phone': newEmployee.phone
     });
