@@ -914,13 +914,14 @@ app.post('/api/reset-password',
 // API endpoint to handle forget-password requests
 app.post('/api/forget-password', async (req, res) => {
     const { phone } = req.body;
-
+    console.log(phone)
     try {
         await client.connect();
         const db = client.db(database_name);
         const collection = db.collection('employees');
 
         const user = await collection.findOne({ Phone: phone });
+        console.log(user)
 
         if (!user) {
             console.error('User not found');
@@ -929,6 +930,7 @@ app.post('/api/forget-password', async (req, res) => {
         }
 
         const userId = user.username;
+        console.log(userId)
 
         // Execute the MJS script with necessary parameters
         exec(`node ./backend/server/forgetPassword.mjs "${userId}" "${uri}" "${database_name}"`, (error, stdout, stderr) => {
