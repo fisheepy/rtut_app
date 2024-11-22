@@ -929,13 +929,13 @@ app.post('/api/forget-password', async (req, res) => {
     const { phone } = req.body;
     console.log(phone)
     try {
-        phone = formatPhoneNumber(phone);
-        console.log(`Formatted phone: ${phone}`);
+        const Phone = formatPhoneNumber(phone);
+        console.log(`Formatted phone: ${Phone}`);
         await client.connect();
         const db = client.db(database_name);
         const collection = db.collection('employees');
 
-        const user = await collection.findOne({ Phone: phone });
+        const user = await collection.findOne({ Phone: Phone });
         console.log(user)
 
         if (!user) {
