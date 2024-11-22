@@ -911,11 +911,26 @@ app.post('/api/reset-password',
     }
 );
 
+function formatPhoneNumber(phone) {
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    
+    // Check if the phone number has 10 digits
+    if (digits.length !== 10) {
+        throw new Error('Invalid phone number format. Must contain 10 digits.');
+    }
+
+    // Format the digits to "(xxx) aaa-bbbb"
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 // API endpoint to handle forget-password requests
 app.post('/api/forget-password', async (req, res) => {
     const { phone } = req.body;
     console.log(phone)
     try {
+        phone = formatPhoneNumber(phone);
+        console.log(`Formatted phone: ${phone}`);
         await client.connect();
         const db = client.db(database_name);
         const collection = db.collection('employees');
