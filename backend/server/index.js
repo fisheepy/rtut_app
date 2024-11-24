@@ -928,7 +928,7 @@ app.post('/api/forget-password', async (req, res) => {
         const user = await collection.findOne({
             $expr: {
               $regexMatch: {
-                input: { $replaceAll: { input: { $replaceAll: { input: "$Phone", find: "-", replacement: "" } }, find: " ", replacement: "" } },
+                input: { $regexReplaceAll: { input: "$Phone", regex: "[^0-9]", replacement: "" } }, // Remove all non-digits
                 regex: `^${digits}$` // Match exactly the 10 digits
               }
             }
