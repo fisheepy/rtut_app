@@ -925,7 +925,9 @@ app.post('/api/forget-password', async (req, res) => {
         const db = client.db(database_name);
         const collection = db.collection('employees');
 
-        const user = await collection.findOne({ Phone: Phone });
+        const user = await collection.findOne({
+            Phone: { $regex: new RegExp(`\\b${digits}\\b`) } // Match the exact 10-digit sequence
+          });
         console.log(user)
 
         if (!user) {
