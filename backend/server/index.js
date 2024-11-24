@@ -932,28 +932,29 @@ app.post('/api/forget-password', async (req, res) => {
         const user = await collection.findOne({
             Phone: { $regex: regexPattern }
         });
-        console.log(user)
+        console.log(user);
 
         if (!user) {
             console.error('User not found');
             res.status(404).json({ message: 'User not found' });
             return;
         }
-
-        const userId = user.username;
-        console.log(userId)
-
-        // Execute the MJS script with necessary parameters
-        exec(`node ./backend/server/forgetPassword.mjs "${userId}" "${uri}" "${database_name}"`, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error executing script: ${error.message}`);
-                res.status(500).send(`Internal Server Error: ${error.message}`);
-                return;
-            }
-
-            console.log(stdout);
-            res.status(200).json({ message: 'Password reset successful' });
-        });
+        else {
+            const userId = user.username;
+            console.log(userId);
+    
+            // Execute the MJS script with necessary parameters
+            exec(`node ./backend/server/forgetPassword.mjs "${userId}" "${uri}" "${database_name}"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error executing script: ${error.message}`);
+                    res.status(500).send(`Internal Server Error: ${error.message}`);
+                    return;
+                }
+    
+                console.log(stdout);
+                res.status(200).json({ message: 'Password reset successful' });
+            });
+        }
     } catch (error) {
         console.error('Error handling forget password:', error.message);
         res.status(500).send('Internal Server Error');
