@@ -1,6 +1,6 @@
 import { MongoClient, ObjectId } from 'mongodb';
 import { DateTime } from 'luxon';
-import {updateEmployeeToNovuSubscriber} from './novuUtilities.mjs';
+import { updateEmployeeToNovuSubscriber } from './novuUtilities.mjs';
 
 const username = process.env.MONGODB_USERNAME;
 const password = process.env.MONGODB_PASSWORD;
@@ -121,25 +121,25 @@ export const saveEventToDatabase = async (eventData) => {
 export const deleteEventFromDatabase = async (eventId) => {
   const client = new MongoClient(MONGODB_URI);
   try {
-      await client.connect();
-      console.log('Connected to MongoDB');
+    await client.connect();
+    console.log('Connected to MongoDB');
 
-      const db = client.db(database_name);
-      const collection = db.collection('events');
+    const db = client.db(database_name);
+    const collection = db.collection('events');
 
-      const result = await collection.deleteOne({ _id: new ObjectId(eventId) });
+    const result = await collection.deleteOne({ _id: new ObjectId(eventId) });
 
-      if (result.deletedCount === 1) {
-          console.log('Event deleted successfully');
-      } else {
-          console.error('No event found with the provided ID');
-      }
+    if (result.deletedCount === 1) {
+      console.log('Event deleted successfully');
+    } else {
+      console.error('No event found with the provided ID');
+    }
   } catch (error) {
-      console.error('Error deleting event:', error.message);
-      throw error;
+    console.error('Error deleting event:', error.message);
+    throw error;
   } finally {
-      await client.close();
-      console.log('Connection to MongoDB closed');
+    await client.close();
+    console.log('Connection to MongoDB closed');
   }
 };
 
@@ -147,38 +147,38 @@ export const deleteEventFromDatabase = async (eventId) => {
 export const updateEventInDatabase = async (eventId, updatedEvent) => {
   const client = new MongoClient(MONGODB_URI);
   try {
-      await client.connect();
-      console.log('Connected to MongoDB');
+    await client.connect();
+    console.log('Connected to MongoDB');
 
-      const db = client.db(database_name);
-      const collection = db.collection('events');
+    const db = client.db(database_name);
+    const collection = db.collection('events');
 
-      const startDate = DateTime.fromISO(updatedEvent.startDate, { zone: 'America/New_York' }).toUTC().toJSDate();
-      const endDate = DateTime.fromISO(updatedEvent.endDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+    const startDate = DateTime.fromISO(updatedEvent.startDate, { zone: 'America/New_York' }).toUTC().toJSDate();
+    const endDate = DateTime.fromISO(updatedEvent.endDate, { zone: 'America/New_York' }).toUTC().toJSDate();
 
-      const eventUpdate = {
-          creator: updatedEvent.creator,
-          location: updatedEvent.location,
-          startDate,
-          endDate,
-          title: updatedEvent.title,
-          allDay: updatedEvent.allDay,
-          detail: updatedEvent.detail,
-      };
+    const eventUpdate = {
+      creator: updatedEvent.creator,
+      location: updatedEvent.location,
+      startDate,
+      endDate,
+      title: updatedEvent.title,
+      allDay: updatedEvent.allDay,
+      detail: updatedEvent.detail,
+    };
 
-      const result = await collection.updateOne({ _id: new ObjectId(eventId) }, { $set: eventUpdate });
+    const result = await collection.updateOne({ _id: new ObjectId(eventId) }, { $set: eventUpdate });
 
-      if (result.modifiedCount === 1) {
-          console.log('Event updated successfully');
-      } else {
-          console.log('No changes made to the event');
-      }
+    if (result.modifiedCount === 1) {
+      console.log('Event updated successfully');
+    } else {
+      console.log('No changes made to the event');
+    }
   } catch (error) {
-      console.error('Error updating event in database:', error.message);
-      throw error;
+    console.error('Error updating event in database:', error.message);
+    throw error;
   } finally {
-      await client.close();
-      console.log('Connection to MongoDB closed');
+    await client.close();
+    console.log('Connection to MongoDB closed');
   }
 };
 
@@ -351,7 +351,7 @@ export const saveSurveyToDatabase = async (uniqueId, sender, subject, currentDat
 };
 
 // Function to save a notification to the database
-export async function saveNotificationToDatabase(sender, subject, messageContent, adminUser, messageId, transactionId ) {
+export async function saveNotificationToDatabase(sender, subject, messageContent, adminUser, messageId, transactionId) {
   const client = new MongoClient(MONGODB_URI);
   const currentDataTime = Date.now();
 
@@ -471,6 +471,15 @@ export async function addDocument(collectionName, document) {
 }
 
 export async function importEmployeesData(employees) {
+  function formatPhoneNumber(phone) {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, ''); // Remove non-digit characters
+    if (digits.length !== 10) {
+      console.warn(`Invalid phone number: ${phone}`);
+      return phone; // Return as is if not 10 digits
+    }
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
   const client = new MongoClient(MONGODB_URI);
   try {
     await client.connect();
@@ -483,7 +492,7 @@ export async function importEmployeesData(employees) {
     for (const employeeData of employees) {
       // Define fields using the new structure
       const {
-        Phone: phone,
+        Phone: rawPhone,
         Email: email,
         'Payroll Name: Last Name': lastName,
         'Payroll Name: First Name': firstName,
@@ -497,6 +506,8 @@ export async function importEmployeesData(employees) {
         'Regular Pay Rate Description': payCategory,
         'EEO Establishment': eeoEstablishment
       } = employeeData;
+
+      const phone = formatPhoneNumber(rawPhone);
 
       // Check if employee already exists by name, phone, or email
       const duplicateCheck = await collection.findOne({

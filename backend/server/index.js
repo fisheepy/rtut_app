@@ -148,7 +148,7 @@ app.get('/notifications', cors(), async (req, res, next) => {
             res.json(data);
         } else {
             // Filter the notifications to only show the ones created by this admin
-            const filteredData = data.filter(notification => 
+            const filteredData = data.filter(notification =>
                 notification.adminUser?.firstName === loginName.firstName &&
                 notification.adminUser?.lastName === loginName.lastName
             );
@@ -200,7 +200,7 @@ app.get('/surveys', cors(), async (req, res, next) => {
             res.json(data);
         } else {
             // Filter the surveys to only show the ones created by this admin
-            const filteredData = data.filter(survey => 
+            const filteredData = data.filter(survey =>
                 survey.adminUser?.firstName === loginName.firstName &&
                 survey.adminUser?.lastName === loginName.lastName
             );
@@ -268,7 +268,7 @@ app.get('/events', cors(), async (req, res, next) => {
 app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
     const { surveyId } = req.params;
     const loginName = req.query; // Assuming loginName contains { firstName, lastName }
-    
+
     try {
         // Connect to MongoDB
         await client.connect();
@@ -300,7 +300,7 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
             res.json(data);
         } else {
             // If the user is not root, check if they are the sender of the survey
-            const filteredData = data.filter(survey => 
+            const filteredData = data.filter(survey =>
                 survey.adminUser.firstName === loginName.firstName &&
                 survey.adminUser.lastName === loginName.lastName
             );
@@ -530,7 +530,7 @@ const logErrorToDatabase = async (error, context) => {
 };
 
 // Define a route to handle the POST request for executing the script
-app.post('/call-function-send-notification', async(req, res) => {
+app.post('/call-function-send-notification', async (req, res) => {
     const messageContent = req.body.body;
     const subject = req.body.subject;
     const sender = req.body.sender;
@@ -558,7 +558,7 @@ app.post('/call-function-send-notification', async(req, res) => {
     exec(`node ./backend/server/sendNotification.mjs "${messageContentFilePath}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}" "${adminUserJSONFilePath}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
-            
+
             // Log the error details to the database
             await logErrorToDatabase(error.message, stderr, 'sendNotification.mjs');
 
@@ -618,7 +618,7 @@ app.post('/call-function-add-employee', async (req, res) => {
             // Find the relevant error line
             const errorLines = stderr.split('\n');
             const relevantError = errorLines.find(line => line.includes("Error during operation"));
-            
+
             if (relevantError) {
                 // Remove "Error during operation: " text
                 const cleanErrorMessage = relevantError.replace("Error during operation: ", "");
@@ -925,14 +925,13 @@ app.post('/api/forget-password', async (req, res) => {
         const db = client.db(database_name);
         const collection = db.collection('employees');
 
+        // Construct regex pattern
+        const regexPattern = `.*${digits.split('').join('.*')}.*`;
+
+        // Match user by regex
         const user = await collection.findOne({
-            $expr: {
-              $regexMatch: {
-                input: { $regexReplaceAll: { input: "$Phone", regex: "[^0-9]", replacement: "" } }, // Remove all non-digits
-                regex: `^${digits}$` // Match exactly the 10 digits
-              }
-            }
-          });
+            Phone: { $regex: regexPattern }
+        });
         console.log(user)
 
         if (!user) {
