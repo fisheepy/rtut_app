@@ -41,33 +41,49 @@ function NotificationCenterComponent({ userData }) {
         setOpenConfirmDialog(false);
     };
 
-    const handleConfirmSendNotification = () => {
+    const handleConfirmSendNotification = async () => {
         setOpenConfirmDialog(false); // Close the dialog
-        // Proceed with sending the notification
-        const notificationData = {
-            subject,
-            sender,
-            body: editContent,
-            selectedEmployees,
-            sendApp: sendOptions.app,
-            sendEmail: sendOptions.email,
-            sendSms: sendOptions.sms,
-            adminUser: {
-                firstName: userData.firstName,
-                lastName: userData.lastName,
-                email: userData.email,
-            },
+    
+        const sendInBatches = async (employees, batchSize) => {
+            const totalBatches = Math.ceil(employees.length / batchSize);
+            const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+    
+            try {
+                for (let i = 0; i < totalBatches; i++) {
+                    const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
+    
+                    const notificationData = {
+                        subject,
+                        sender,
+                        body: editContent,
+                        selectedEmployees: batch,
+                        sendApp: sendOptions.app,
+                        sendEmail: sendOptions.email,
+                        sendSms: sendOptions.sms,
+                        adminUser: {
+                            firstName: userData.firstName,
+                            lastName: userData.lastName,
+                            email: userData.email,
+                        },
+                    };
+    
+                    // Send the current batch to the backend
+                    await axios.post('/call-function-send-notification', notificationData);
+    
+                    // Update execution status for success
+                    setExecutionStatus(
+                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`
+                    );
+                }
+            } catch (error) {
+                setExecutionStatus(
+                    `Status:${timeStamp}:\tFailed to send a batch. Error: ${error.message}`
+                );
+            }
         };
-
-        axios.post('/call-function-send-notification', notificationData)
-            .then(response => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tSend notifications succeeded!`);
-            })
-            .catch(error => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tSend notifications failed!`);
-            });
+    
+        // Call the function with a batch size of 100
+        sendInBatches(selectedEmployees, 100);
     };
 
     return (

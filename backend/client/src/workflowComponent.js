@@ -14,15 +14,26 @@ function WorkflowModule() {
     const [fileForActivation, setFileForActivation] = useState(null);
 
     const handleSendOnboarding = async () => {
-        const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-        try {
-            await axios.post('/call-function-send-onboarding', { selectedEmployees });
-            setExecutionStatus(`Status:${timeStamp}:\tOnboarding notifications sent successfully.`);
-        } catch (error) {
-            setExecutionStatus(`Status:${timeStamp}:\tFailed to send onboarding notifications.`);
-        } finally {
-            setIsConfirmOnboardingOpen(false); // Close onboarding confirmation modal after workflow
-        }
+        const sendInBatches = async (employees, batchSize) => {
+            const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+            const totalBatches = Math.ceil(employees.length / batchSize);
+
+            try {
+                for (let i = 0; i < totalBatches; i++) {
+                    const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
+                    console.log(batch);
+                    await axios.post('/call-function-send-onboarding', { batch });
+                    setExecutionStatus(`Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`);
+                }
+            } catch (error) {
+                setExecutionStatus(`Status:${timeStamp}:\tFailed to send a batch. Error: ${error.message}`);
+            } finally {
+                setIsConfirmOnboardingOpen(false);
+            }
+        };
+
+        // Call the function with a batch size of 100
+        sendInBatches(selectedEmployees, 100);
     };
 
     const handleActivateAppUsage = async () => {
@@ -98,7 +109,7 @@ function WorkflowModule() {
                     Activate App Usage
                 </Button>
             </div>
-            
+
             {/* Confirmation dialog for onboarding */}
             <Dialog open={isConfirmOnboardingOpen} onClose={() => setIsConfirmOnboardingOpen(false)}>
                 <DialogTitle>Confirm Onboarding Workflow</DialogTitle>

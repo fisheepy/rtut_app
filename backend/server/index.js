@@ -486,7 +486,7 @@ app.get('/call-function-generate-user-names', async (req, res) => {
 });
 
 app.post('/call-function-send-onboarding', async (req, res) => {
-    const selectedEmployees = req.body.selectedEmployees;
+    const selectedEmployees = req.body.batch;
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
 

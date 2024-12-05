@@ -6,3 +6,5 @@
 /frontend/ios/
 /frontend/android/
 .DS*
+/backend/server/temp/
+/backend/server/uploads/

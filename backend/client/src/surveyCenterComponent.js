@@ -91,28 +91,48 @@ function SurveyCenterComponent({ userData }) {
         setOpenConfirmDialog(true);
     };
 
-    const confirmSendSurveys = () => {
-        const data = {
-            subject,
-            sender,
-            surveyJson,
-            selectedEmployees,
-            adminUser: {
-                firstName: userData.firstName,
-                lastName: userData.lastName,
-                email: userData.email,
-            },
+    const confirmSendSurveys = async () => {
+        const sendInBatches = async (employees, batchSize) => {
+            const totalBatches = Math.ceil(employees.length / batchSize);
+            const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+    
+            for (let i = 0; i < totalBatches; i++) {
+                const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
+    
+                const batchData = {
+                    subject,
+                    sender,
+                    surveyJson,
+                    selectedEmployees: batch,
+                    adminUser: {
+                        firstName: userData.firstName,
+                        lastName: userData.lastName,
+                        email: userData.email,
+                    },
+                };
+    
+                try {
+                    // Send each batch
+                    await axios.post('/call-function-send-survey', batchData);
+    
+                    // Update status for successful batch
+                    setExecutionStatus(
+                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`
+                    );
+                } catch (error) {
+                    // Update status for failed batch
+                    setExecutionStatus(
+                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} failed! Error: ${error.message}`
+                    );
+                }
+            }
         };
-
-        axios.post('/call-function-send-survey', data)
-            .then(response => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tSend survey succeeded!`);
-            })
-            .catch(error => {
-                const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(`Status:${timeStamp}:\tSend survey failed!`);
-            });
+    
+        // Call the function with a batch size of 100
+        const batchSize = 100; // Adjust batch size as needed
+        await sendInBatches(selectedEmployees, batchSize);
+    
+        // Reset dialog and surveyJson after completion
         setOpenConfirmDialog(false);
         setSurveyJson({ elements: [] });
     };

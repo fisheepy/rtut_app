@@ -93,7 +93,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                 setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tSend event succeeded!`);
             } catch (error) {
                 const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-                setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tSend event failed!`);
+                setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tSend event failed! Error: ${error.message}`);
             }
         };
     
@@ -103,17 +103,14 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
             const events = [];
     
             while (currentDate.isBefore(endRecurrenceDate) || currentDate.isSame(endRecurrenceDate, 'day')) {
-                const endEventDate = formData.allDay 
-                    ? currentDate.clone().endOf('day').startOf('day') 
+                const endEventDate = formData.allDay
+                    ? currentDate.clone().endOf('day').startOf('day')
                     : moment(formData.endDate).clone().add(currentDate.diff(moment(formData.startDate)), 'milliseconds');
     
                 events.push({
-                    data: {
-                        ...formData,
-                        selectedEmployees, // Include selectedEmployees in each recurring event
-                        startDate: currentDate.toISOString(),
-                        endDate: endEventDate.toISOString(),
-                    }
+                    ...formData,
+                    startDate: currentDate.toISOString(),
+                    endDate: endEventDate.toISOString(),
                 });
     
                 if (formData.recurrenceType === 'weekly') {
@@ -128,13 +125,34 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
             return events;
         };
     
+        const sendEventInBatches = async (eventData, employees, batchSize) => {
+            const totalBatches = Math.ceil(employees.length / batchSize);
+            const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+    
+            for (let i = 0; i < totalBatches; i++) {
+                const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
+    
+                const eventWithBatch = {
+                    ...eventData,
+                    selectedEmployees: batch,
+                };
+    
+                try {
+                    await createEvent({ data: eventWithBatch });
+                    setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`);
+                } catch (error) {
+                    setExecutionStatus(prev => `${prev}\nStatus:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} failed! Error: ${error.message}`);
+                }
+            }
+        };
+    
         if (formData.isRecurring) {
             const events = createRecurringEvents();
             for (const event of events) {
-                await createEvent(event);
+                await sendEventInBatches(event, selectedEmployees, 100); // Batch size is set to 100 employees
             }
         } else {
-            await createEvent({ data: { ...formData, selectedEmployees } }); // Add selectedEmployees in the event data
+            await sendEventInBatches(formData, selectedEmployees, 100); // Batch size is set to 100 employees
         }
     };
     
