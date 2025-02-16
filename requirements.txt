@@ -1,0 +1,9 @@
+flask
+flask-cors
+gunicorn
+boto3
+faiss-cpu
+numpy
+openai
+docx
+tqdm
