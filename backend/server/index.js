@@ -7,6 +7,8 @@ const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
+const FAISS_SERVER_URL = "https://rtut-app-admin-server-c2d4ae9d37ae.herokuapp.com";
+const axios = require("axios");
 
 const uploadDirectory = path.join(__dirname, 'uploads');
 
@@ -50,6 +52,18 @@ const client = new MongoClient(uri, {
         version: ServerApiVersion.v1,
         strict: true,
         deprecationErrors: true,
+    }
+});
+
+// ✅ Route: Chat with AI
+app.post("/chat", async (req, res) => {
+    try {
+        const { question } = req.body;
+        const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question });
+        res.json(response.data);
+    } catch (error) {
+        console.error("❌ Error calling FAISS server:", error);
+        res.status(500).send("Internal Server Error");
     }
 });
 
