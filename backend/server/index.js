@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
-const FAISS_SERVER_URL = "https://rtut-app-admin-server-c2d4ae9d37ae.herokuapp.com";
+const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL || "http://0.0.0.0:13996"; // Use FAISS assigned port
 const axios = require("axios");
 
 const uploadDirectory = path.join(__dirname, 'uploads');
@@ -55,6 +55,17 @@ const client = new MongoClient(uri, {
     }
 });
 console.time("Request Duration");
+
+app.get("/status", async (req, res) => {
+    try {
+        const response = await axios.get(`${FAISS_SERVER_URL}/status`);
+        res.json(response.data);
+    } catch (error) {
+        console.error("❌ Error calling FAISS server:", error.message);
+        res.status(500).json({ error: "Could not connect to FAISS server." });
+    }
+});
+
 // ✅ Route: Chat with AI
 app.post("/chat", async (req, res) => {
     console.time("Request Duration");
