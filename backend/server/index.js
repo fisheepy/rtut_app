@@ -7,7 +7,12 @@ const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
-const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL || "http://0.0.0.0:13996"; // Use FAISS assigned port
+const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL;
+if (!FAISS_SERVER_URL) {
+    console.error("❌ FAISS_SERVER_URL is not set!");
+    process.exit(1);
+}
+console.log(`🔗 Using FAISS Server URL: ${FAISS_SERVER_URL}`);
 const axios = require("axios");
 
 const uploadDirectory = path.join(__dirname, 'uploads');
