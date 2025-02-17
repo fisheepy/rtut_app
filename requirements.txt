@@ -5,6 +5,6 @@ boto3
 faiss-cpu
 numpy
 openai
-docx
+python-docx
 tqdm
 gevent
