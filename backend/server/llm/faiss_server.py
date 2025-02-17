@@ -16,6 +16,10 @@ AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
 AWS_REGION = 'us-east-2'
+
+print(f"AWS_ACCESS_KEY_ID: {AWS_ACCESS_KEY}")
+print(f"AWS_SECRET_ACCESS_KEY: {'SET' if AWS_SECRET_KEY else 'NOT SET'}")  # Hide key for security
+
 # ✅ Initialize S3 Client
 s3 = boto3.client(
     "s3",
