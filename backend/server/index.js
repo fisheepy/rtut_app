@@ -60,13 +60,21 @@ app.post("/chat", async (req, res) => {
     console.timeLog("Request Duration", "Started processing...");
     try {
         const { question } = req.body;
-        const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question });
-        res.json(response.data);
+
+        // ✅ Add timeout to prevent hanging if FAISS is unresponsive
+        const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question }, { timeout: 10000 });
+
+        console.timeLog("Request Duration", "Finished processing...");
+        return res.json(response.data);
     } catch (error) {
-        console.error("❌ Error calling FAISS server:", error);
-        res.status(500).send("Internal Server Error");
+        console.error("❌ Error calling FAISS server:", error.message);
+
+        if (error.code === 'ECONNABORTED') {
+            return res.status(504).json({ error: "FAISS server timeout. Please try again later." });
+        }
+
+        return res.status(500).json({ error: "Internal Server Error" });
     }
-    console.timeLog("Request Duration", "Finished processing...");
 });
 
 app.get('/employees', cors(), async (req, res, next) => {

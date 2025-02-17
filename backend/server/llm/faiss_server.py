@@ -200,46 +200,39 @@ def chat():
     if not question:
         return jsonify({"error": "Missing question"}), 400
 
-    query_embedding = np.array([get_embedding(question)], dtype=np.float32)
+    query_embedding = get_embedding(question)
+    
+    if query_embedding is None:
+        return jsonify({"error": "Failed to generate embedding. Check OpenAI API key."}), 500
 
-    # Retrieve the top 3 most relevant documents
-    distances, indices = index.search(query_embedding, k=3)
+    # Search FAISS index
+    distances, indices = index.search(np.array([query_embedding], dtype=np.float32), k=3)
 
     results = []
     for idx in indices[0]:
         if idx < len(metadata_store):
             results.append(metadata_store[idx])
 
-    # If no policies are found, return a default response
     if not results:
-        return jsonify({"answer": "No relevant policy found. Please contact HR for more details."})
+        return jsonify({"answer": "No relevant policy found. Please contact HR."})
 
-    # Combine policy texts
     context = "\n\n".join([f"**{r['name']}**: {r['text']}" for r in results])
 
-    # **Send to OpenAI for final response generation**
-    prompt = f"""
-    You are an AI assistant that answers employee questions based on company policies.
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": f"Question: {question}\n\nRelevant Policy: {context}"}],
+            temperature=0.2
+        )
 
-    **Question:** {question}
+        return jsonify({
+            "answer": response.choices[0].message.content,
+            "referenced_documents": list(set([r["name"] for r in results]))
+        })
 
-    **Relevant Policy Sections:**
-    {context}
-
-    **Generate a structured and professional response based on the retrieved policies.**
-    """
-
-    # ✅ Update OpenAI API Call
-    response = openai.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.2
-    )
-
-    return jsonify({
-        "answer": response.choices[0].message.content,
-        "referenced_documents": list(set([r["name"] for r in results]))
-    })
+    except openai._exceptions.OpenAIError as e:
+        print(f"❌ OpenAI Error: {e}")
+        return jsonify({"error": "AI processing error. Please try again later."}), 500
 
 if __name__ == "__main__":
     print("🚀 Running FAISS Server Locally on http://127.0.0.1:5001")
