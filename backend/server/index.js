@@ -57,14 +57,37 @@ const client = new MongoClient(uri, {
 console.time("Request Duration");
 // ✅ Route: Chat with AI
 app.post("/chat", async (req, res) => {
-    console.timeLog("Request Duration", "Started processing...");
+    console.time("Request Duration");
+    console.log("🟢 Received request:", req.body);
+
     try {
         const { question } = req.body;
 
-        // ✅ Add timeout to prevent hanging if FAISS is unresponsive
+        // ✅ Set timeout to 10 seconds for FAISS server response
         const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question }, { timeout: 10000 });
 
-        console.timeLog("Request Duration", "Finished processing...");
+        console.timeLog("Request Duration", "✅ Successfully processed request.");
+        console.timeEnd("Request Duration"); // ✅ Stop timing after request finishes
+        return res.json(response.data);
+    } catch (error) {
+        console.error("❌ Error calling FAISS server:", error.message);
+
+        if (error.code === 'ECONNABORTED') {
+            return res.status(504).json({ error: "FAISS server timeout. Please try again later." });
+        }
+
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+app.post("/search", async (req, res) => {
+    console.log("🟢 Received search request:", req.body);
+
+    try {
+        const { query } = req.body;
+        const response = await axios.post(`${FAISS_SERVER_URL}/search`, { query }, { timeout: 10000 });
+
+        console.log("✅ Search response received.");
         return res.json(response.data);
     } catch (error) {
         console.error("❌ Error calling FAISS server:", error.message);
