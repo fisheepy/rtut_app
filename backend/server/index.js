@@ -54,9 +54,10 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
-
+console.time("Request Duration");
 // ✅ Route: Chat with AI
 app.post("/chat", async (req, res) => {
+    console.timeLog("Request Duration", "Started processing...");
     try {
         const { question } = req.body;
         const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question });
@@ -65,6 +66,7 @@ app.post("/chat", async (req, res) => {
         console.error("❌ Error calling FAISS server:", error);
         res.status(500).send("Internal Server Error");
     }
+    console.timeLog("Request Duration", "Finished processing...");
 });
 
 app.get('/employees', cors(), async (req, res, next) => {
