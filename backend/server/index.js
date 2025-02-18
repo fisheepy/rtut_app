@@ -68,26 +68,26 @@ app.get("/status", async (req, res) => {
 
 // ✅ Route: Chat with AI
 app.post("/chat", async (req, res) => {
-    console.time("Request Duration");
-    console.log("🟢 Received request:", req.body);
+    console.log("🟢 Received chat request:", req.body);
 
     try {
-        const { question } = req.body;
-
-        // ✅ Set timeout to 10 seconds for FAISS server response
-        const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question }, { timeout: 10000 });
-
-        console.timeLog("Request Duration", "✅ Successfully processed request.");
-        console.timeEnd("Request Duration"); // ✅ Stop timing after request finishes
-        return res.json(response.data);
-    } catch (error) {
-        console.error("❌ Error calling FAISS server:", error.message);
-
-        if (error.code === 'ECONNABORTED') {
-            return res.status(504).json({ error: "FAISS server timeout. Please try again later." });
+        const { query } = req.body;  // ❌ This should be "question"
+        if (!query) {
+            return res.status(400).json({ error: "Missing 'query' parameter." });
         }
 
-        return res.status(500).json({ error: "Internal Server Error" });
+        const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question: query }, { timeout: 10000 });
+
+        console.log("✅ Chat response received:", response.data);
+        return res.json(response.data);
+    } catch (error) {
+        console.error("❌ Error calling FAISS server:", error.message, error.response?.data);
+        
+        if (error.response) {
+            return res.status(error.response.status).json(error.response.data);
+        }
+
+        return res.status(500).json({ error: "Internal Server Error", details: error.message });
     }
 });
 
