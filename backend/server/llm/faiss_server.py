@@ -40,6 +40,10 @@ metadata_store = []  # Stores metadata like policy names
 app = Flask(__name__)
 CORS(app)
 
+@app.route("/")
+def home():
+    return "FAISS Server is running."
+
 # ✅ Function to Upload Files to S3
 def upload_to_s3(file_path, s3_key):
     try:
@@ -236,5 +240,5 @@ def chat():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))  # ✅ Use Heroku's assigned port
-    print(f"🚀 Running FAISS Server on port {port}")
+    print(f"🚀 FAISS Server Listening on: http://0.0.0.0:{port}")
     app.run(host="0.0.0.0", port=port, debug=True)
