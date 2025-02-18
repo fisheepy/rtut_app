@@ -7,11 +7,7 @@ const bodyParser = require('body-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
-const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL;
-if (!FAISS_SERVER_URL) {
-    console.error("❌ FAISS_SERVER_URL is not set!");
-    process.exit(1);
-}
+const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL || "https://rtut-app-faiss-0a3485bd0bc8.herokuapp.com/";
 console.log(`🔗 Using FAISS Server URL: ${FAISS_SERVER_URL}`);
 const axios = require("axios");
 
@@ -59,49 +55,6 @@ const client = new MongoClient(uri, {
         deprecationErrors: true,
     }
 });
-console.time("Request Duration");
-
-async function getFaissURL() {
-    try {
-        console.log("🔄 Fetching FAISS server port...");
-
-        // Fetch logs dynamically from Heroku CLI (REQUIRES HEROKU API TOKEN)
-        const { stdout } = await import("child_process")
-            .then(({ execSync }) => execSync(`heroku logs --app rtut-app-admin-server --num=50`).toString());
-
-        // Find the last "Listening at:" log line
-        const listeningLog = stdout.split("\n").find(line => line.includes("Listening at:"));
-        
-        if (listeningLog) {
-            const port = listeningLog.match(/:(\d+)/)[1];  // Extract port number
-            const url = `http://0.0.0.0:${port}`;
-            console.log(`✅ FAISS Server is running at ${url}`);
-            return url;
-        } else {
-            throw new Error("FAISS port not found in logs.");
-        }
-    } catch (error) {
-        console.error("❌ Failed to get FAISS server port:", error.message);
-        return null;
-    }
-}
-
-// Start Express server after getting FAISS URL
-(async () => {
-    process.env.FAISS_SERVER_URL = await getFaissURL();
-    
-    if (!process.env.FAISS_SERVER_URL) {
-        console.error("❌ FAISS_SERVER_URL is not set! Server cannot start.");
-        process.exit(1);
-    }
-
-    console.log(`🔗 Using FAISS Server URL: ${process.env.FAISS_SERVER_URL}`);
-
-    const PORT = process.env.PORT || 3101;
-    app.listen(PORT, () => {
-        console.log(`🚀 Server is running on port ${PORT}`);
-    });
-})();
 
 app.get("/status", async (req, res) => {
     try {
