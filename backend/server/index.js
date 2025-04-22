@@ -76,7 +76,7 @@ app.post("/chat", async (req, res) => {
             return res.status(400).json({ error: "Missing 'query' parameter." });
         }
 
-        const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question: query }, { timeout: 10000 });
+        const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question: query }, { timeout: 30000 });
 
         console.log("✅ Chat response received:", response.data);
         return res.json(response.data);
@@ -96,7 +96,7 @@ app.post("/search", async (req, res) => {
 
     try {
         const { query } = req.body;
-        const response = await axios.post(`${FAISS_SERVER_URL}/search`, { query }, { timeout: 10000 });
+        const response = await axios.post(`${FAISS_SERVER_URL}/search`, { query }, { timeout: 30000 });
 
         console.log("✅ Search response received.");
         return res.json(response.data);
