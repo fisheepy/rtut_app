@@ -91,6 +91,29 @@ app.post("/chat", async (req, res) => {
     }
 });
 
+app.post('/api/hr-question', async (req, res) => {
+  try {
+    const { question, phone, email, userId } = req.body;
+    if (!question) {
+      return res.status(400).send('Question is required');
+    }
+    await client.connect();
+    const db = client.db(database_name);
+    await db.collection('hr_questions').insertOne({
+      question,
+      phone,
+      email,
+      userId,
+      created_at: new Date(),
+      emailed: false,
+    });
+    res.status(200).send('Question submitted');
+  } catch (err) {
+    console.error('Failed to submit HR question', err);
+    res.status(500).send('Internal server error');
+  }
+});
+
 app.post("/search", async (req, res) => {
     console.log("🟢 Received search request:", req.body);
 
