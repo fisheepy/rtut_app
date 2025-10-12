@@ -82,7 +82,7 @@ app.post("/chat", async (req, res) => {
         return res.json(response.data);
     } catch (error) {
         console.error("❌ Error calling FAISS server:", error.message, error.response?.data);
-        
+
         if (error.response) {
             return res.status(error.response.status).json(error.response.data);
         }
@@ -92,39 +92,47 @@ app.post("/chat", async (req, res) => {
 });
 
 app.post('/api/hr-question', async (req, res) => {
-  try {
-    const { question, phone, email, userId } = req.body;
-    if (!question) return res.status(400).send('Question is required');
+    try {
+        const { question, phone, email, userId } = req.body;
+        if (!question) return res.status(400).send('Question is required');
+        await client.connect();
+        console.log('Connected to MongoDB');
 
-    // Insert the question into MongoDB
-    await db.collection('hr_questions').insertOne({
-      question,
-      phone,
-      email,
-      userId,
-      created_at: new Date(),
-      emailed: true, // set true because we're emailing immediately
-    });
+        // Access the database
+        const db = client.db(database_name);
+        // Insert the question into MongoDB
+        await db.collection('hr_questions').insertOne({
+            question,
+            phone,
+            email,
+            userId,
+            created_at: new Date(),
+            emailed: true, // set true because we're emailing immediately
+        });
 
-    // Build email content
-    const subject = 'New HR Question Submitted';
-    const body = [
-      `Question: ${question}`,
-      phone ? `Phone: ${phone}` : '',
-      email ? `Email: ${email}` : '',
-      userId ? `User ID: ${userId}` : '',
-    ].filter(Boolean).join('\n');
+        // Build email content
+        const subject = 'New HR Question Submitted';
+        const body = [
+            `Question: ${question}`,
+            phone ? `Phone: ${phone}` : '',
+            email ? `Email: ${email}` : '',
+            userId ? `User ID: ${userId}` : '',
+        ].filter(Boolean).join('\n');
 
-    // Split recipients and call your existing email-sending logic
-    const to = process.env.HR_QUESTION_RECIPIENTS.split(',');
-    // This sendEmail function could wrap your existing notification code or nodemailer setup
-    await sendEmail({ to, subject, text: body });
+        // Split recipients and call your existing email-sending logic
+        const to = process.env.HR_QUESTION_RECIPIENTS.split(',');
+        // This sendEmail function could wrap your existing notification code or nodemailer setup
+        await sendEmail({ to, subject, text: body });
 
-    res.status(200).send('Question submitted');
-  } catch (err) {
-    console.error('Failed to handle HR question', err);
-    res.status(500).send('Internal server error');
-  }
+        res.status(200).send('Question submitted');
+    } catch (err) {
+        console.error('Failed to handle HR question', err);
+        res.status(500).send('Internal server error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
 });
 
 app.post("/search", async (req, res) => {
@@ -1036,7 +1044,7 @@ app.post('/api/forget-password', async (req, res) => {
         else {
             const userId = user.username;
             console.log(userId);
-    
+
             // Execute the MJS script with necessary parameters
             exec(`node ./backend/server/forgetPassword.mjs "${userId}" "${uri}" "${database_name}"`, (error, stdout, stderr) => {
                 if (error) {
@@ -1044,7 +1052,7 @@ app.post('/api/forget-password', async (req, res) => {
                     res.status(500).send(`Internal Server Error: ${error.message}`);
                     return;
                 }
-    
+
                 console.log(stdout);
                 res.status(200).json({ message: 'Password reset successful' });
             });
