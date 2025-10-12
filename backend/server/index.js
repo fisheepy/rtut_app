@@ -108,6 +108,7 @@ app.post('/api/hr-question', async (req, res) => {
             userId,
             created_at: new Date(),
             emailed: true, // set true because we're emailing immediately
+            resolved: false,
         });
 
         // Build email content
@@ -122,7 +123,7 @@ app.post('/api/hr-question', async (req, res) => {
         // Split recipients and call your existing email-sending logic
         const to = process.env.HR_QUESTION_RECIPIENTS.split(',');
         // This sendEmail function could wrap your existing notification code or nodemailer setup
-        await sendEmail({ to, subject, text: body });
+        // await sendEmail({ to, subject, text: body });
 
         res.status(200).send('Question submitted');
     } catch (err) {
