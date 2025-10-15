@@ -118,7 +118,7 @@ app.post('/api/hr-question', async (req, res) => {
             `Question: ${question}`,
             phone ? `Phone: ${phone}` : '',
             email ? `Email: ${email}` : '',
-            userId ? `User ID: ${userId}` : '',
+            user ? ` Name: ${firstName} ${lastName}` : '',
         ].filter(Boolean).join('\n');
 
         // Split recipients and call your existing email-sending logic
