@@ -93,7 +93,7 @@ app.post("/chat", async (req, res) => {
 
 app.post('/api/hr-question', async (req, res) => {
     try {
-        const { question, phone, email, userId } = req.body;
+        const { question, phone, email, firstName, lastName } = req.body;
         if (!question) return res.status(400).send('Question is required');
         await client.connect();
         console.log('Connected to MongoDB');
@@ -105,7 +105,8 @@ app.post('/api/hr-question', async (req, res) => {
             question,
             phone,
             email,
-            userId,
+            firstName,
+            lastName,
             created_at: new Date(),
             emailed: true, // set true because we're emailing immediately
             resolved: false,
@@ -1175,6 +1176,10 @@ app.post('/api/authentication', async (req, res) => {
     }
 });
 
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() })
+})
+
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname + '/backend/client/public/index.html'))
 });
@@ -1183,3 +1188,4 @@ app.get('*', (req, res) => {
 app.listen(process.env.PORT || port, () => {
     console.log(`Server is running on port ${port}`);
 });
+
