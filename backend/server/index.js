@@ -10,12 +10,116 @@ const multer = require('multer');
 const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL || "https://rtut-app-faiss-0a3485bd0bc8.herokuapp.com/";
 console.log(`🔗 Using FAISS Server URL: ${FAISS_SERVER_URL}`);
 const axios = require("axios");
+const nodemailer = require('nodemailer'); 
+const cron = require('node-cron');
+const { DateTime } = require('luxon');
+const { stringify } = require('fast-csv');
+const { Readable } = require('stream');
+
+function buildDigestHtml({ etDate, rows }) {
+  const total = rows.length;
+  const solved = rows.filter(r => r.resolved === true).length;
+  const unsolved = total - solved;
+  const detail = rows.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${r.createdAtET}</td>
+      <td>${(r.question || '').replace(/</g, '&lt;')}</td>
+      <td>${r.fullName || ''}</td>
+      <td>${r.email || ''}</td>
+      <td>${r.phone || ''}</td>
+      <td>${r.emailed ? 'Yes' : 'No'}</td>
+      <td>${r.resolved ? 'Yes' : 'No'}</td>
+      <td>${r._id}</td>
+    </tr>`).join('');
+
+  return `
+  <div style="font-family:system-ui,Segoe UI,Arial,sans-serif">
+    <h2>每日问题汇总（${etDate} 美东）</h2>
+    <p>总计：<b>${total}</b>；已解决：<b>${solved}</b>；未解决：<b>${unsolved}</b></p>
+    <table border="1" cellspacing="0" cellpadding="6">
+      <thead>
+        <tr>
+          <th>#</th><th>时间(ET)</th><th>问题</th><th>姓名</th><th>邮箱</th>
+          <th>电话</th><th>单发邮件</th><th>已解决</th><th>ID</th>
+        </tr>
+      </thead>
+      <tbody>${detail || '<tr><td colspan="9">（无数据）</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+function rowsToCsvBuffer(rows) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    const csv = stringify({ headers: true })
+      .on('data', c => chunks.push(Buffer.from(c)))
+      .on('end', () => resolve(Buffer.concat(chunks)))
+      .on('error', reject);
+
+    Readable.from(rows.map(r => ({
+      created_at_ET: r.createdAtET,
+      created_at_UTC: r.createdAtUTC,
+      question: r.question || '',
+      firstName: r.firstName || '',
+      lastName: r.lastName || '',
+      fullName: r.fullName || '',
+      email: r.email || '',
+      phone: r.phone || '',
+      emailed: !!r.emailed,
+      resolved: !!r.resolved,
+      id: r._id,
+    }))).pipe(csv);
+  });
+}
+
+// 统一的发信函数（你已引过 nodemailer，不重复改你现有风格）
+function makeTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: false,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+}
+async function sendEmail({ to, subject, text, html, attachments }) {
+  const transporter = makeTransporter();
+  return transporter.sendMail({
+    from: process.env.EMAIL_FROM || 'no-reply@example.com',
+    to: Array.isArray(to) ? to.join(',') : to,
+    subject,
+    text,
+    html,
+    attachments,
+  });
+}
 
 const uploadDirectory = path.join(__dirname, 'uploads');
 
 // Create the uploads directory if it doesn't exist
 if (!fs.existsSync(uploadDirectory)) {
     fs.mkdirSync(uploadDirectory, { recursive: true });
+}
+
+function makeTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: false,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+}
+
+async function sendEmail({ to, subject, text, html, attachments }) {
+  const transporter = makeTransporter();
+  return transporter.sendMail({
+    from: process.env.EMAIL_FROM || 'no-reply@example.com',
+    to: Array.isArray(to) ? to.join(',') : to,
+    subject,
+    text,
+    html,
+    attachments,
+  });
 }
 
 const storage = multer.diskStorage({
@@ -56,6 +160,94 @@ const client = new MongoClient(uri, {
     }
 });
 
+// ======= Daily Digest 主函数（独立连接/独立关闭） =======
+async function runDailyDigest(etDateOpt) {
+  const TZ = process.env.TIMEZONE || 'America/Detroit';
+  const etDate = etDateOpt || DateTime.now().setZone(TZ).minus({ days: 1 }).toISODate(); // 昨日（美东）
+  const startET = DateTime.fromISO(etDate, { zone: TZ }).startOf('day');
+  const endET   = startET.endOf('day');
+  const startUTC = startET.toUTC().toJSDate();
+  const endUTC   = endET.toUTC().toJSDate();
+
+  // 用独立 MongoClient，不干扰你其他路由里的 connect/close
+  const localClient = new MongoClient(uri, {
+    serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+  });
+
+  try {
+    await localClient.connect();
+    const db = localClient.db(database_name);
+
+    // 幂等（可删）：当天已发过就跳过
+    const digests = db.collection('digests');
+    const sent = await digests.findOne({ dateET: etDate });
+    if (sent && !process.env.DIGEST_FORCE_ON_START) {
+      return { ok: true, message: `Already sent for ${etDate}`, skipped: true };
+    }
+
+    const docs = await db.collection('hr_questions')
+      .find({ created_at: { $gte: startUTC, $lte: endUTC } })
+      .sort({ created_at: 1 })
+      .toArray();
+
+    const rows = docs.map(d => {
+      const createdAtET = DateTime.fromJSDate(d.created_at).setZone(TZ).toFormat('yyyy-LL-dd HH:mm:ss');
+      const createdAtUTC = DateTime.fromJSDate(d.created_at).toUTC().toISO();
+      const first = (d.firstName || '').trim();
+      const last  = (d.lastName || '').trim();
+      return {
+        _id: String(d._id),
+        question: d.question,
+        phone: d.phone,
+        email: d.email,
+        firstName: first,
+        lastName: last,
+        fullName: [first, last].filter(Boolean).join(' '),
+        emailed: d.emailed,
+        resolved: d.resolved,
+        createdAtET,
+        createdAtUTC,
+      };
+    });
+
+    const html = buildDigestHtml({ etDate, rows });
+    const csvBuffer = await rowsToCsvBuffer(rows);
+    const to = (process.env.EMAIL_TO || '').split(',').map(s => s.trim()).filter(Boolean);
+
+    if (to.length) {
+      await sendEmail({
+        to,
+        subject: `每日问题汇总 ${etDate}（ET） - 共 ${rows.length} 条`,
+        html,
+        attachments: [{ filename: `questions_${etDate}.csv`, content: csvBuffer, contentType: 'text/csv' }],
+      });
+    }
+
+    await digests.updateOne(
+      { dateET: etDate },
+      { $set: { dateET: etDate, count: rows.length, sentAt: new Date(), recipients: to } },
+      { upsert: true }
+    );
+
+    return { ok: true, count: rows.length, dateET: etDate };
+  } catch (err) {
+    console.error('❌ Daily digest error:', err);
+    const alertTo = (process.env.ALERT_EMAIL || '').split(',').filter(Boolean);
+    if (alertTo.length) {
+      try {
+        await sendEmail({
+          to: alertTo,
+          subject: '【告警】每日问题汇总失败',
+          text: String(err && err.stack || err),
+        });
+      } catch (_) {}
+    }
+    return { ok: false, error: String(err) };
+  } finally {
+    await localClient.close();
+  }
+}
+
 app.get("/status", async (req, res) => {
     try {
         const response = await axios.get(`${FAISS_SERVER_URL}/status`);
@@ -92,49 +284,55 @@ app.post("/chat", async (req, res) => {
 });
 
 app.post('/api/hr-question', async (req, res) => {
-    try {
-        const { question, phone, email, firstName, lastName } = req.body;
-        if (!question) return res.status(400).send('Question is required');
-        await client.connect();
-        console.log('Connected to MongoDB');
+  try {
+    const { question, phone, email, firstName, lastName } = req.body;
+    if (!question) return res.status(400).send('Question is required');
 
-        // Access the database
-        const db = client.db(database_name);
-        // Insert the question into MongoDB
-        await db.collection('hr_questions').insertOne({
-            question,
-            phone,
-            email,
-            firstName,
-            lastName,
-            created_at: new Date(),
-            emailed: true, // set true because we're emailing immediately
-            resolved: false,
-        });
+    await client.connect();
+    const db = client.db(database_name);
 
-        // Build email content
-        const subject = 'New HR Question Submitted';
-        const body = [
-            `Question: ${question}`,
-            phone ? `Phone: ${phone}` : '',
-            email ? `Email: ${email}` : '',
-            firstName ? ` Name: ${firstName} ${lastName}` : '',
-        ].filter(Boolean).join('\n');
+    // 先写入 emailed: false；发邮件成功再改 true（避免“写假”）
+    const insert = await db.collection('hr_questions').insertOne({
+      question,
+      phone,
+      email,
+      firstName,
+      lastName,
+      created_at: new Date(),
+      emailed: false,
+      resolved: false,
+    });
 
-        // Split recipients and call your existing email-sending logic
-        const to = process.env.HR_QUESTION_RECIPIENTS.split(',');
-        // This sendEmail function could wrap your existing notification code or nodemailer setup
-        // await sendEmail({ to, subject, text: body });
+    // 组装并发送邮件（如果没配置收件人就跳过）
+    const to = (process.env.HR_QUESTION_RECIPIENTS || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (to.length) {
+      const subject = 'New HR Question Submitted';
+      const text = [
+        `Question: ${question}`,
+        phone ? `Phone: ${phone}` : '',
+        email ? `Email: ${email}` : '',
+        (firstName || lastName) ? `Name: ${firstName || ''} ${lastName || ''}` : '',
+      ].filter(Boolean).join('\n');
 
-        res.status(200).send('Question submitted');
-    } catch (err) {
-        console.error('Failed to handle HR question', err);
-        res.status(500).send('Internal server error');
-    } finally {
-        // Close the MongoDB connection
-        await client.close();
-        console.log('Connection to MongoDB closed');
+      try {
+        await sendEmail({ to, subject, text });
+        await db.collection('hr_questions').updateOne(
+          { _id: insert.insertedId },
+          { $set: { emailed: true } }
+        );
+      } catch (mailErr) {
+        console.error('⚠️ 发送单条提交通知失败：', mailErr.message);
+        // 不抛出，让提交流程仍然返回 200
+      }
     }
+
+    res.status(200).send('Question submitted');
+  } catch (err) {
+    console.error('Failed to handle HR question', err);
+    res.status(500).send('Internal server error');
+  } finally {
+    await client.close();
+  }
 });
 
 app.post("/search", async (req, res) => {
@@ -1179,6 +1377,27 @@ app.post('/api/authentication', async (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() })
 })
+
+// ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
+cron.schedule(process.env.DIGEST_CRON || '5 7 * * *', async () => {
+  await runDailyDigest(); // 默认汇总“昨日（美东）”
+}, { timezone: process.env.TIMEZONE || 'America/Detroit' });
+
+// ======= 手动触发接口：/admin/digest?date=YYYY-MM-DD =======
+function apiKeyGuard(req, res, next) {
+  const key = req.headers['x-api-key'];
+  if (!process.env.ADMIN_API_KEY || key === process.env.ADMIN_API_KEY) return next();
+  return res.status(401).json({ ok: false, error: 'unauthorized' });
+}
+app.post('/admin/digest', apiKeyGuard, async (req, res) => {
+  try {
+    const dateET = (req.query.date || '').trim(); // 传空=默认昨日
+    const result = await runDailyDigest(dateET || undefined);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname + '/backend/client/public/index.html'))
