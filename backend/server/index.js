@@ -13,7 +13,7 @@ const axios = require("axios");
 const nodemailer = require('nodemailer'); 
 const cron = require('node-cron');
 const { DateTime } = require('luxon');
-const { stringify } = require('fast-csv');
+const { format } = require('@fast-csv/format'); 
 const { Readable } = require('stream');
 
 function buildDigestHtml({ etDate, rows }) {
@@ -52,7 +52,7 @@ function buildDigestHtml({ etDate, rows }) {
 function rowsToCsvBuffer(rows) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    const csv = stringify({ headers: true })
+    const csv = format({ headers: true })            // ← 用 format()
       .on('data', c => chunks.push(Buffer.from(c)))
       .on('end', () => resolve(Buffer.concat(chunks)))
       .on('error', reject);
