@@ -4,9 +4,10 @@
   "description": "",
   "main": "./backend/server/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node ./backend/server/index.js",
-    "heroku-postbuild": "cd backend/client && npm install && npm run build"
+    "build:admin": "cd admin-web && npm ci --include=dev && npm run build",
+    "build:old": "cd backend/client && npm ci --include=dev && npm run build",
+    "heroku-postbuild": "npm run build:admin && npm run build:old"
   },
   "author": "",
   "license": "ISC",
