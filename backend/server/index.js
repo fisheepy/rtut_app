@@ -1389,6 +1389,7 @@ function apiKeyGuard(req, res, next) {
   if (!process.env.ADMIN_API_KEY || key === process.env.ADMIN_API_KEY) return next();
   return res.status(401).json({ ok: false, error: 'unauthorized' });
 }
+
 app.post('/admin/digest', apiKeyGuard, async (req, res) => {
   try {
     const dateET = (req.query.date || '').trim(); // 传空=默认昨日
@@ -1399,8 +1400,21 @@ app.post('/admin/digest', apiKeyGuard, async (req, res) => {
   }
 });
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname + '/backend/client/public/index.html'))
+const oldDir = path.join(__dirname, '../client/build');
+app.use(express.static(oldDir));
+const newDir = path.join(__dirname, '../../admin-web/dist');
+app.use('/admin', express.static(newDir));
+
+app.get('/admin/*', (req, res) => {
+  res.sendFile(path.join(newDir, 'index.html'));
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(oldDir, 'index.html'));
+});
+
+app.get(/^\/(?!api|admin).*/, (req, res) => {
+  res.sendFile(path.join(oldDir, 'index.html'));
 });
 
 // Start the server
