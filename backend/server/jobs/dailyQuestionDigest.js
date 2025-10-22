@@ -41,16 +41,16 @@ function htmlOf({ etDate, total, rows }) {
     </tr>`).join('');
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif">
-    <h2>每日问题汇总（${etDate} 美东）</h2>
-    <p>总计：<b>${total}</b>；已解决：<b>${solved}</b>；未解决：<b>${unsolved}</b></p>
+    <h2>Daily HR Questions Debrief(${etDate} US East)</h2>
+    <p>Total:<b>${total}</b>;Resovled:<b>${solved}</b>;Unresolved:<b>${unsolved}</b></p>
     <table border="1" cellspacing="0" cellpadding="6">
       <thead><tr>
-        <th>#</th><th>时间(ET)</th><th>问题</th><th>姓名</th><th>邮箱</th>
-        <th>电话</th><th>单发邮件</th><th>已解决</th><th>ID</th>
+        <th>#</th><th>Time(EST)</th><th>Question</th><th>Name</th><th>Email</th>
+        <th>Phone</th><th>Emailed</th><th>Resolved</th><th>ID</th>
       </tr></thead>
-      <tbody>${trs || '<tr><td colspan="9">（无数据）</td></tr>'}</tbody>
+      <tbody>${trs || '<tr><td colspan="9">(No Data)</td></tr>'}</tbody>
     </table>
-    <p style="color:#666">* 随邮件附 CSV 明细。</p>
+    <p style="color:#666">* Attached CSV with details</p>
   </div>`;
 }
 
@@ -122,7 +122,7 @@ async function runDigest({ db, dateET = yesterdayETStr(), force = false }) {
   await transporter.sendMail({
     from: EMAIL_FROM,
     to: EMAIL_TO.join(','),
-    subject: `每日问题汇总 ${dateET}（ET） - 共 ${rows.length} 条`,
+    subject: `Daily HR Questions Debrief ${dateET}(EST)) - Total ${rows.length} Items`,
     html,
     attachments: [{ filename:`questions_${dateET}.csv`, content: csv, contentType:'text/csv' }],
   });
@@ -144,7 +144,7 @@ function scheduleDigest({ db }) {
       try {
         await makeTransporter().sendMail({
           from: EMAIL_FROM, to: ALERT_EMAIL,
-          subject: '【告警】每日问题汇总失败',
+          subject: '[Warning]Daily HR Questions Email Failed',
           html: `<pre>${(err && err.stack) || String(err)}</pre>`,
         });
       } catch (_) {}
