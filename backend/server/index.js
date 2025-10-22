@@ -35,16 +35,16 @@ function buildDigestHtml({ etDate, rows }) {
 
   return `
   <div style="font-family:system-ui,Segoe UI,Arial,sans-serif">
-    <h2>每日问题汇总（${etDate} 美东）</h2>
-    <p>总计：<b>${total}</b>；已解决：<b>${solved}</b>；未解决：<b>${unsolved}</b></p>
+    <h2>Daily HR Question Debrief(${etDate} EST)</h2>
+    <p>Total:<b>${total}</b>;Resolved:<b>${solved}</b>;Unresolved:<b>${unsolved}</b></p>
     <table border="1" cellspacing="0" cellpadding="6">
       <thead>
         <tr>
-          <th>#</th><th>时间(ET)</th><th>问题</th><th>姓名</th><th>邮箱</th>
-          <th>电话</th><th>单发邮件</th><th>已解决</th><th>ID</th>
+          <th>#</th><th>Time(ET)</th><th>Question</th><th>Name</th><th>Email</th>
+          <th>Phone</th><th>Emailed</th><th>Resolved</th><th>ID</th>
         </tr>
       </thead>
-      <tbody>${detail || '<tr><td colspan="9">（无数据）</td></tr>'}</tbody>
+      <tbody>${detail || '<tr><td colspan="9">(No Data)</td></tr>'}</tbody>
     </table>
   </div>`;
 }
@@ -217,7 +217,7 @@ async function runDailyDigest(etDateOpt) {
     if (to.length) {
       await sendEmail({
         to,
-        subject: `每日问题汇总 ${etDate}（ET） - 共 ${rows.length} 条`,
+        subject: `Daily HR Question Debrief ${etDate}(EST) - Total ${rows.length} Items`,
         html,
         attachments: [{ filename: `questions_${etDate}.csv`, content: csvBuffer, contentType: 'text/csv' }],
       });
@@ -237,7 +237,7 @@ async function runDailyDigest(etDateOpt) {
       try {
         await sendEmail({
           to: alertTo,
-          subject: '【告警】每日问题汇总失败',
+          subject: '[Error]Daily HR Question Debrief Failed',
           text: String(err && err.stack || err),
         });
       } catch (_) {}
