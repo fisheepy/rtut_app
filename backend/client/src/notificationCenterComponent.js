@@ -1,7 +1,25 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import axios from 'axios';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
-import { Button, DialogContentText, Dialog, DialogActions, DialogContent, DialogTitle, Checkbox, FormControlLabel, FormGroup, Typography, TextField } from '@mui/material';
+import {
+    Button,
+    DialogContentText,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Checkbox,
+    FormControlLabel,
+    FormGroup,
+    Typography,
+    TextField,
+    Box,
+    Chip,
+    List,
+    ListItem,
+    ListItemText,
+    Divider,
+} from '@mui/material';
 
 function NotificationCenterComponent({ userData }) {
     const [subject, setSubject] = useState('');
@@ -14,44 +32,47 @@ function NotificationCenterComponent({ userData }) {
         sms: false,
         email: false,
     });
-    const [openConfirmDialog, setOpenConfirmDialog] = useState(false); // State to control the confirmation dialog
+    const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+
+    const recipientPreview = useMemo(() => {
+        return selectedEmployees.map((employee) => {
+            const firstName = employee['First Name'] || employee.firstName || '';
+            const lastName = employee['Last Name'] || employee.lastName || '';
+            const fullName = `${firstName} ${lastName}`.trim() || employee.Name || 'Unknown Name';
+            const location = employee.Location || employee.location || '-';
+            const department = employee['Home Department'] || employee.homeDepartment || '-';
+            const id = employee.username || employee._id || fullName;
+            return { id, fullName, location, department };
+        }).sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }, [selectedEmployees]);
+
+    const previewLimit = 20;
+    const previewEmployees = recipientPreview.slice(0, previewLimit);
+    const remainingCount = Math.max(recipientPreview.length - previewLimit, 0);
 
     const handleCheckboxChange = (event) => {
         const { name, checked } = event.target;
-        // Update the state based on the checkbox that was clicked
         setSendOptions(prev => ({
             ...prev,
             [name]: checked,
         }));
     };
 
-    const prepareRecipientNames = () => {
-        return selectedEmployees.map(emp => emp.Name).join('/ ');
-    };
-
     const handleEditChange = (event) => {
         setEditContent(event.target.value);
     };
 
-    const handleOpenConfirmDialog = () => {
-        setOpenConfirmDialog(true);
-    };
-
-    const handleCloseConfirmDialog = () => {
-        setOpenConfirmDialog(false);
-    };
-
     const handleConfirmSendNotification = async () => {
-        setOpenConfirmDialog(false); // Close the dialog
-    
+        setOpenConfirmDialog(false);
+
         const sendInBatches = async (employees, batchSize) => {
             const totalBatches = Math.ceil(employees.length / batchSize);
             const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-    
+
             try {
                 for (let i = 0; i < totalBatches; i++) {
                     const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
-    
+
                     const notificationData = {
                         subject,
                         sender,
@@ -66,23 +87,15 @@ function NotificationCenterComponent({ userData }) {
                             email: userData.email,
                         },
                     };
-    
-                    // Send the current batch to the backend
+
                     await axios.post('/call-function-send-notification', notificationData);
-    
-                    // Update execution status for success
-                    setExecutionStatus(
-                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`
-                    );
+                    setExecutionStatus(`Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`);
                 }
             } catch (error) {
-                setExecutionStatus(
-                    `Status:${timeStamp}:\tFailed to send a batch. Error: ${error.message}`
-                );
+                setExecutionStatus(`Status:${timeStamp}:\tFailed to send a batch. Error: ${error.message}`);
             }
         };
-    
-        // Call the function with a batch size of 100
+
         sendInBatches(selectedEmployees, 100);
     };
 
@@ -108,47 +121,80 @@ function NotificationCenterComponent({ userData }) {
                 />
             </div>
             <TextField
-                label="Notification Content" 
-                multiline 
-                rows={10} 
-                placeholder="Type here to compose notification..." 
-                variant="outlined" 
-                value={editContent} 
-                onChange={handleEditChange} 
-                fullWidth 
-                style={{ marginBottom: '10px', width: '50vw',marginTop:'10px' }} 
+                label="Notification Content"
+                multiline
+                rows={10}
+                placeholder="Type here to compose notification..."
+                variant="outlined"
+                value={editContent}
+                onChange={handleEditChange}
+                fullWidth
+                style={{ marginBottom: '10px', width: '50vw', marginTop: '10px' }}
             />
             <div>
                 <FormControlLabel control={<Checkbox checked={sendOptions.app} onChange={handleCheckboxChange} name="app" />} label="App" />
                 <FormControlLabel control={<Checkbox checked={sendOptions.email} onChange={handleCheckboxChange} name="email" />} label="Email" />
                 <FormControlLabel control={<Checkbox checked={sendOptions.sms} onChange={handleCheckboxChange} name="sms" />} label="SMS" />
             </div>
-            <Button variant="contained" onClick={handleOpenConfirmDialog} style={{ marginTop: '10px', width: '50%' }}>
+            <Button variant="contained" onClick={() => setOpenConfirmDialog(true)} style={{ marginTop: '10px', width: '50%' }}>
                 Send Notification
             </Button>
-            {/* Confirmation Dialog */}
-            <Dialog open={openConfirmDialog} onClose={handleCloseConfirmDialog}>
+
+            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)} maxWidth="md" fullWidth>
                 <DialogTitle>Confirm Send Notification</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Are you sure you want to send this notification?<br />
-                        <FormGroup>
-                            <FormControlLabel control={<Checkbox checked={sendOptions.app} disabled />} label="App" />
-                            <FormControlLabel control={<Checkbox checked={sendOptions.email} disabled />} label="Email" />
-                            <FormControlLabel control={<Checkbox checked={sendOptions.sms} disabled />} label="SMS" />
-                        </FormGroup>
-                        {/* Display summary of the notification */}
-                        <strong>Subject: {subject}</strong><br />
-                        <strong>Sender: {sender}</strong><br />
-                        <strong>Content: {editContent}</strong><br />
-                        <strong>Recipients:</strong> {prepareRecipientNames()}<br />
-                        <strong>Admin User:</strong> {`${userData.firstName} ${userData.lastName}`}<br />
+                        Please confirm the exact employees below. Notification will be sent only to this list.
                     </DialogContentText>
+
+                    <FormGroup row>
+                        <FormControlLabel control={<Checkbox checked={sendOptions.app} disabled />} label="App" />
+                        <FormControlLabel control={<Checkbox checked={sendOptions.email} disabled />} label="Email" />
+                        <FormControlLabel control={<Checkbox checked={sendOptions.sms} disabled />} label="SMS" />
+                    </FormGroup>
+
+                    <Typography sx={{ mt: 1 }}><strong>Subject:</strong> {subject || '-'}</Typography>
+                    <Typography><strong>Sender:</strong> {sender || '-'}</Typography>
+                    <Typography><strong>Admin User:</strong> {`${userData.firstName} ${userData.lastName}`}</Typography>
+
+                    <Box sx={{ display: 'flex', gap: 1, my: 2, flexWrap: 'wrap' }}>
+                        <Chip color="warning" label={`Selected: ${recipientPreview.length}`} />
+                        <Chip color="info" label={`Previewing first: ${previewEmployees.length}`} />
+                    </Box>
+
+                    <Box sx={{ border: '1px solid #e4e7ec', borderRadius: 2, maxHeight: 340, overflowY: 'auto', background: '#fcfcfd' }}>
+                        {recipientPreview.length === 0 ? (
+                            <Typography sx={{ p: 2, color: '#b42318', fontWeight: 600 }}>
+                                No employees are selected. Please select employees before sending notification.
+                            </Typography>
+                        ) : (
+                            <List dense>
+                                {previewEmployees.map((employee, index) => (
+                                    <React.Fragment key={employee.id}>
+                                        <ListItem>
+                                            <ListItemText
+                                                primary={`${index + 1}. ${employee.fullName}`}
+                                                secondary={`Location: ${employee.location} • Department: ${employee.department}`}
+                                                primaryTypographyProps={{ fontWeight: 600 }}
+                                            />
+                                        </ListItem>
+                                        {index < previewEmployees.length - 1 && <Divider component="li" />}
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        )}
+                    </Box>
+
+                    {remainingCount > 0 && (
+                        <Typography sx={{ mt: 1, color: '#475467' }}>
+                            ...and {remainingCount} more employee(s) in the selected notification list.
+                        </Typography>
+                    )}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleCloseConfirmDialog}>Cancel</Button>
-                    <Button onClick={handleConfirmSendNotification} autoFocus>
-                        Confirm
+                    <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>
+                    <Button onClick={handleConfirmSendNotification} autoFocus disabled={recipientPreview.length === 0}>
+                        Confirm & Send Notification
                     </Button>
                 </DialogActions>
             </Dialog>
