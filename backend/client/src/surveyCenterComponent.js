@@ -1,10 +1,31 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import axios from 'axios';
 import './App.css';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import SurveyRenderer from './surveyRenderer';
 import { useWindowDimensions } from 'react-native';
-import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
+import {
+    TextField,
+    Button,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Checkbox,
+    FormControlLabel,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    Typography,
+    Box,
+    Chip,
+    List,
+    ListItem,
+    ListItemText,
+    Divider,
+} from '@mui/material';
 
 function SurveyCenterComponent({ userData }) {
     const [subject, setSubject] = useState('');
@@ -18,11 +39,23 @@ function SurveyCenterComponent({ userData }) {
     const [allowCustomAnswer, setAllowCustomAnswer] = useState(false);
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
 
-    const windowDimensions = useWindowDimensions();
+    const recipientPreview = useMemo(() => {
+        return selectedEmployees.map((employee) => {
+            const firstName = employee['First Name'] || employee.firstName || '';
+            const lastName = employee['Last Name'] || employee.lastName || '';
+            const fullName = `${firstName} ${lastName}`.trim() || employee.Name || 'Unknown Name';
+            const location = employee.Location || employee.location || '-';
+            const department = employee['Home Department'] || employee.homeDepartment || '-';
+            const id = employee.username || employee._id || fullName;
+            return { id, fullName, location, department };
+        }).sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }, [selectedEmployees]);
 
-    const prepareRecipientNames = () => {
-        return selectedEmployees.map(emp => emp.Name).join('/ ');
-    };
+    const previewLimit = 20;
+    const previewEmployees = recipientPreview.slice(0, previewLimit);
+    const remainingCount = Math.max(recipientPreview.length - previewLimit, 0);
+
+    const windowDimensions = useWindowDimensions();
 
     const addQuestion = () => {
         let newQuestion;
@@ -95,10 +128,10 @@ function SurveyCenterComponent({ userData }) {
         const sendInBatches = async (employees, batchSize) => {
             const totalBatches = Math.ceil(employees.length / batchSize);
             const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-    
+
             for (let i = 0; i < totalBatches; i++) {
                 const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
-    
+
                 const batchData = {
                     subject,
                     sender,
@@ -110,29 +143,19 @@ function SurveyCenterComponent({ userData }) {
                         email: userData.email,
                     },
                 };
-    
+
                 try {
-                    // Send each batch
                     await axios.post('/call-function-send-survey', batchData);
-    
-                    // Update status for successful batch
-                    setExecutionStatus(
-                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`
-                    );
+                    setExecutionStatus(`Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`);
                 } catch (error) {
-                    // Update status for failed batch
-                    setExecutionStatus(
-                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} failed! Error: ${error.message}`
-                    );
+                    setExecutionStatus(`Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} failed! Error: ${error.message}`);
                 }
             }
         };
-    
-        // Call the function with a batch size of 100
-        const batchSize = 100; // Adjust batch size as needed
+
+        const batchSize = 100;
         await sendInBatches(selectedEmployees, batchSize);
-    
-        // Reset dialog and surveyJson after completion
+
         setOpenConfirmDialog(false);
         setSurveyJson({ elements: [] });
     };
@@ -205,23 +228,57 @@ function SurveyCenterComponent({ userData }) {
                 <SurveyRenderer
                     surveyJson={surveyJson}
                     onRemoveQuestion={removeQuestion}
-                    windowDimensions={{ width: windowDimensions.width * 0.5 }} 
+                    windowDimensions={{ width: windowDimensions.width * 0.5 }}
                 />
             </div>
-            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
+            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)} maxWidth="md" fullWidth>
                 <DialogTitle>Confirm Send Survey</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Are you sure you want to send this survey to the selected employees?
+                        Please confirm the exact employees below. Survey will be sent only to this list.
                     </DialogContentText>
-                    <strong>Subject: {subject}</strong><br />
-                    <strong>Sender: {sender}</strong><br />
-                    <strong>Recipients:</strong> {prepareRecipientNames()}<br />
-                    <strong>Admin User:</strong> {`${userData.firstName} ${userData.lastName}`}<br />
+
+                    <Typography sx={{ mt: 1 }}><strong>Subject:</strong> {subject || '-'}</Typography>
+                    <Typography><strong>Sender:</strong> {sender || '-'}</Typography>
+                    <Typography><strong>Admin User:</strong> {`${userData.firstName} ${userData.lastName}`}</Typography>
+
+                    <Box sx={{ display: 'flex', gap: 1, my: 2, flexWrap: 'wrap' }}>
+                        <Chip color="warning" label={`Selected: ${recipientPreview.length}`} />
+                        <Chip color="info" label={`Previewing first: ${previewEmployees.length}`} />
+                    </Box>
+
+                    <Box sx={{ border: '1px solid #e4e7ec', borderRadius: 2, maxHeight: 340, overflowY: 'auto', background: '#fcfcfd' }}>
+                        {recipientPreview.length === 0 ? (
+                            <Typography sx={{ p: 2, color: '#b42318', fontWeight: 600 }}>
+                                No employees are selected. Please select employees before sending survey.
+                            </Typography>
+                        ) : (
+                            <List dense>
+                                {previewEmployees.map((employee, index) => (
+                                    <React.Fragment key={employee.id}>
+                                        <ListItem>
+                                            <ListItemText
+                                                primary={`${index + 1}. ${employee.fullName}`}
+                                                secondary={`Location: ${employee.location} • Department: ${employee.department}`}
+                                                primaryTypographyProps={{ fontWeight: 600 }}
+                                            />
+                                        </ListItem>
+                                        {index < previewEmployees.length - 1 && <Divider component="li" />}
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        )}
+                    </Box>
+
+                    {remainingCount > 0 && (
+                        <Typography sx={{ mt: 1, color: '#475467' }}>
+                            ...and {remainingCount} more employee(s) in the selected survey list.
+                        </Typography>
+                    )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>
-                    <Button onClick={confirmSendSurveys} color="primary">Send</Button>
+                    <Button onClick={confirmSendSurveys} color="primary" disabled={recipientPreview.length === 0}>Confirm & Send Survey</Button>
                 </DialogActions>
             </Dialog>
             <Button variant="contained" onClick={handleSendSurvey} style={{ marginTop: '10px', width: '50%' }}>

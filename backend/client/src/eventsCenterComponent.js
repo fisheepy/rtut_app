@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import axios from 'axios';
 import {
     TextField,
@@ -12,6 +12,17 @@ import {
     InputLabel,
     Select,
     MenuItem,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
+    Box,
+    Chip,
+    List,
+    ListItem,
+    ListItemText,
+    Divider,
 } from '@mui/material';
 import moment from 'moment';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
@@ -32,6 +43,23 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         recurrenceEndDate: '', 
     });
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
+    const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
+
+    const recipientPreview = useMemo(() => {
+        return selectedEmployees.map((employee) => {
+            const firstName = employee['First Name'] || employee.firstName || '';
+            const lastName = employee['Last Name'] || employee.lastName || '';
+            const fullName = `${firstName} ${lastName}`.trim() || employee.Name || 'Unknown Name';
+            const empLocation = employee.Location || employee.location || '-';
+            const department = employee['Home Department'] || employee.homeDepartment || '-';
+            const id = employee.username || employee._id || fullName;
+            return { id, fullName, location: empLocation, department };
+        }).sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }, [selectedEmployees]);
+
+    const previewLimit = 20;
+    const previewEmployees = recipientPreview.slice(0, previewLimit);
+    const remainingCount = Math.max(recipientPreview.length - previewLimit, 0);
 
     useEffect(() => {
         if (event) {
@@ -83,9 +111,7 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-    
+    const executeSendEvents = async () => {
         const createEvent = async (eventData) => {
             try {
                 await axios.post('/call-function-send-event', eventData);
@@ -149,11 +175,18 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
         if (formData.isRecurring) {
             const events = createRecurringEvents();
             for (const event of events) {
-                await sendEventInBatches(event, selectedEmployees, 100); // Batch size is set to 100 employees
+                await sendEventInBatches(event, selectedEmployees, 100);
             }
         } else {
-            await sendEventInBatches(formData, selectedEmployees, 100); // Batch size is set to 100 employees
+            await sendEventInBatches(formData, selectedEmployees, 100);
         }
+
+        setOpenConfirmDialog(false);
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setOpenConfirmDialog(true);
     };
     
 
@@ -296,6 +329,59 @@ const EventsCenterComponent = ({ event, setEvents, handleClose }) => {
                     </>
                 )}
             </form>
+
+            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)} maxWidth="md" fullWidth>
+                <DialogTitle>Confirm Send Event</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Please confirm the exact employees below. Event will be sent only to this list.
+                    </DialogContentText>
+
+                    <Typography sx={{ mt: 1 }}><strong>Title:</strong> {formData.title || '-'}</Typography>
+                    <Typography><strong>Creator:</strong> {formData.creator || '-'}</Typography>
+                    <Typography><strong>Event Location:</strong> {formData.location || '-'}</Typography>
+
+                    <Box sx={{ display: 'flex', gap: 1, my: 2, flexWrap: 'wrap' }}>
+                        <Chip color="warning" label={`Selected: ${recipientPreview.length}`} />
+                        <Chip color="info" label={`Previewing first: ${previewEmployees.length}`} />
+                    </Box>
+
+                    <Box sx={{ border: '1px solid #e4e7ec', borderRadius: 2, maxHeight: 340, overflowY: 'auto', background: '#fcfcfd' }}>
+                        {recipientPreview.length === 0 ? (
+                            <Typography sx={{ p: 2, color: '#b42318', fontWeight: 600 }}>
+                                No employees are selected. Please select employees before sending event.
+                            </Typography>
+                        ) : (
+                            <List dense>
+                                {previewEmployees.map((employee, index) => (
+                                    <React.Fragment key={employee.id}>
+                                        <ListItem>
+                                            <ListItemText
+                                                primary={`${index + 1}. ${employee.fullName}`}
+                                                secondary={`Location: ${employee.location} • Department: ${employee.department}`}
+                                                primaryTypographyProps={{ fontWeight: 600 }}
+                                            />
+                                        </ListItem>
+                                        {index < previewEmployees.length - 1 && <Divider component="li" />}
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        )}
+                    </Box>
+
+                    {remainingCount > 0 && (
+                        <Typography sx={{ mt: 1, color: '#475467' }}>
+                            ...and {remainingCount} more employee(s) in the selected event list.
+                        </Typography>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>
+                    <Button onClick={executeSendEvents} color="primary" disabled={recipientPreview.length === 0}>
+                        Confirm & Send Event
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Paper>
     );
 };
