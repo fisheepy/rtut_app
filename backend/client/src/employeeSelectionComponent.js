@@ -75,9 +75,34 @@ function EmployeeSelectionComponent() {
                 const uniqueValues = [...new Set(data.map((item) => item[column]))];
                 values[column] = uniqueValues;
             }
-            setFilterValues(values);
         }
+
+        setFilterValues(values);
+
+        setSelectedFilters(prevFilters => {
+            const nextFilters = {};
+
+            Object.entries(prevFilters).forEach(([columnName, selectedOptions]) => {
+                if (!Array.isArray(selectedOptions)) {
+                    nextFilters[columnName] = selectedOptions;
+                    return;
+                }
+
+                const availableOptions = values[columnName] || [];
+                const validOptions = selectedOptions.filter(option => availableOptions.includes(option));
+
+                if (validOptions.length > 0) {
+                    nextFilters[columnName] = validOptions;
+                }
+            });
+
+            return nextFilters;
+        });
     };
+
+    useEffect(() => {
+        extractFilterValues(employees);
+    }, [employees]);
 
     const handleFilterChange = (event, columnName) => {
         const value = event.target.value;

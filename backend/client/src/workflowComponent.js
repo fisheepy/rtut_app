@@ -1,6 +1,20 @@
-import React, { useState, useContext, useCallback } from 'react';
+import React, { useState, useContext, useCallback, useMemo } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
-import { Button, DialogContentText, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import {
+    Button,
+    DialogContentText,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Typography,
+    Box,
+    Chip,
+    List,
+    ListItem,
+    ListItemText,
+    Divider,
+} from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import axios from 'axios';
@@ -8,10 +22,28 @@ import axios from 'axios';
 function WorkflowModule() {
     const [executionStatus, setExecutionStatus] = useState('Status:');
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isConfirmOnboardingOpen, setIsConfirmOnboardingOpen] = useState(false); // State for onboarding confirmation
     const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
     const [fileForActivation, setFileForActivation] = useState(null);
+
+    const onboardingPreview = useMemo(() => {
+        return selectedEmployees
+            .map((employee) => {
+                const firstName = employee['First Name'] || employee.firstName || '';
+                const lastName = employee['Last Name'] || employee.lastName || '';
+                const fullName = `${firstName} ${lastName}`.trim() || employee.Name || 'Unknown Name';
+                const location = employee.Location || employee.location || '-';
+                const department = employee['Home Department'] || employee.homeDepartment || '-';
+                const id = employee.username || employee._id || fullName;
+
+                return { id, fullName, location, department };
+            })
+            .sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }, [selectedEmployees]);
+
+    const previewLimit = 20;
+    const previewEmployees = onboardingPreview.slice(0, previewLimit);
+    const remainingCount = Math.max(onboardingPreview.length - previewLimit, 0);
 
     const handleSendOnboarding = async () => {
         const sendInBatches = async (employees, batchSize) => {
@@ -111,19 +143,53 @@ function WorkflowModule() {
             </div>
 
             {/* Confirmation dialog for onboarding */}
-            <Dialog open={isConfirmOnboardingOpen} onClose={() => setIsConfirmOnboardingOpen(false)}>
+            <Dialog open={isConfirmOnboardingOpen} onClose={() => setIsConfirmOnboardingOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>Confirm Onboarding Workflow</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Are you sure you want to start the onboarding workflow for the selected employees?
+                        Please confirm the exact employees below. Onboarding will be sent only to this list.
                     </DialogContentText>
+
+                    <Box sx={{ display: 'flex', gap: 1, my: 2, flexWrap: 'wrap' }}>
+                        <Chip color="warning" label={`Selected: ${onboardingPreview.length}`} />
+                        <Chip color="info" label={`Previewing first: ${previewEmployees.length}`} />
+                    </Box>
+
+                    <Box sx={{ border: '1px solid #e4e7ec', borderRadius: 2, maxHeight: 340, overflowY: 'auto', background: '#fcfcfd' }}>
+                        {onboardingPreview.length === 0 ? (
+                            <Typography sx={{ p: 2, color: '#b42318', fontWeight: 600 }}>
+                                No employees are selected. Please select employees before confirming onboarding.
+                            </Typography>
+                        ) : (
+                            <List dense>
+                                {previewEmployees.map((employee, index) => (
+                                    <React.Fragment key={employee.id}>
+                                        <ListItem>
+                                            <ListItemText
+                                                primary={`${index + 1}. ${employee.fullName}`}
+                                                secondary={`Location: ${employee.location} • Department: ${employee.department}`}
+                                                primaryTypographyProps={{ fontWeight: 600 }}
+                                            />
+                                        </ListItem>
+                                        {index < previewEmployees.length - 1 && <Divider component="li" />}
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        )}
+                    </Box>
+
+                    {remainingCount > 0 && (
+                        <Typography sx={{ mt: 1, color: '#475467' }}>
+                            ...and {remainingCount} more employee(s) in the selected onboarding list.
+                        </Typography>
+                    )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setIsConfirmOnboardingOpen(false)} color="primary">
                         Cancel
                     </Button>
-                    <Button onClick={handleSendOnboarding} color="primary">
-                        Confirm
+                    <Button onClick={handleSendOnboarding} color="primary" disabled={onboardingPreview.length === 0}>
+                        Confirm & Start Onboarding
                     </Button>
                 </DialogActions>
             </Dialog>
