@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import axios from 'axios';
 import './App.css';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
@@ -6,6 +6,28 @@ import SurveyRenderer from './surveyRenderer';
 import { useWindowDimensions } from 'react-native';
 import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Typography } from '@mui/material';
 import BulkRecipientConfirmDialog from './bulkRecipientConfirmDialog';
+import {
+    TextField,
+    Button,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Checkbox,
+    FormControlLabel,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    Typography,
+    Box,
+    Chip,
+    List,
+    ListItem,
+    ListItemText,
+    Divider,
+} from '@mui/material';
 
 function SurveyCenterComponent({ userData }) {
     const [subject, setSubject] = useState('');
@@ -19,7 +41,17 @@ function SurveyCenterComponent({ userData }) {
     const [allowCustomAnswer, setAllowCustomAnswer] = useState(false);
     const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
 
-    const windowDimensions = useWindowDimensions();
+    const recipientPreview = useMemo(() => {
+        return selectedEmployees.map((employee) => {
+            const firstName = employee['First Name'] || employee.firstName || '';
+            const lastName = employee['Last Name'] || employee.lastName || '';
+            const fullName = `${firstName} ${lastName}`.trim() || employee.Name || 'Unknown Name';
+            const location = employee.Location || employee.location || '-';
+            const department = employee['Home Department'] || employee.homeDepartment || '-';
+            const id = employee.username || employee._id || fullName;
+            return { id, fullName, location, department };
+        }).sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }, [selectedEmployees]);
 
     const addQuestion = () => {
         let newQuestion;

@@ -1,6 +1,21 @@
-import React, { useState, useContext, useCallback } from 'react';
+import React, { useState, useContext, useCallback, useMemo } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
+import {
+    Button,
+    DialogContentText,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Typography,
+    Box,
+    Chip,
+    List,
+    ListItem,
+    ListItemText,
+    Divider,
+} from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import axios from 'axios';
@@ -12,6 +27,25 @@ function WorkflowModule() {
     const [isConfirmOnboardingOpen, setIsConfirmOnboardingOpen] = useState(false);
     const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
     const [fileForActivation, setFileForActivation] = useState(null);
+
+    const onboardingPreview = useMemo(() => {
+        return selectedEmployees
+            .map((employee) => {
+                const firstName = employee['First Name'] || employee.firstName || '';
+                const lastName = employee['Last Name'] || employee.lastName || '';
+                const fullName = `${firstName} ${lastName}`.trim() || employee.Name || 'Unknown Name';
+                const location = employee.Location || employee.location || '-';
+                const department = employee['Home Department'] || employee.homeDepartment || '-';
+                const id = employee.username || employee._id || fullName;
+
+                return { id, fullName, location, department };
+            })
+            .sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }, [selectedEmployees]);
+
+    const previewLimit = 20;
+    const previewEmployees = onboardingPreview.slice(0, previewLimit);
+    const remainingCount = Math.max(onboardingPreview.length - previewLimit, 0);
 
     const handleSendOnboarding = async () => {
         const sendInBatches = async (employees, batchSize) => {
