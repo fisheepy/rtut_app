@@ -1,5 +1,6 @@
 import React, { useState, useContext, useCallback, useMemo } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
 import {
     Button,
     DialogContentText,
@@ -18,11 +19,12 @@ import {
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import axios from 'axios';
+import BulkRecipientConfirmDialog from './bulkRecipientConfirmDialog';
 
 function WorkflowModule() {
     const [executionStatus, setExecutionStatus] = useState('Status:');
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
-    const [isConfirmOnboardingOpen, setIsConfirmOnboardingOpen] = useState(false); // State for onboarding confirmation
+    const [isConfirmOnboardingOpen, setIsConfirmOnboardingOpen] = useState(false);
     const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
     const [fileForActivation, setFileForActivation] = useState(null);
 
@@ -53,7 +55,6 @@ function WorkflowModule() {
             try {
                 for (let i = 0; i < totalBatches; i++) {
                     const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
-                    console.log(batch);
                     await axios.post('/call-function-send-onboarding', { batch });
                     setExecutionStatus(`Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`);
                 }
@@ -64,7 +65,6 @@ function WorkflowModule() {
             }
         };
 
-        // Call the function with a batch size of 100
         sendInBatches(selectedEmployees, 100);
     };
 
@@ -97,12 +97,10 @@ function WorkflowModule() {
                     }));
 
                     await axios.post('/call-function-activate-app-usage', filteredData);
-
                     setExecutionStatus(`Status:${timeStamp}:\tActivation processed successfully.`);
                 },
             });
         } catch (error) {
-            console.error('Error processing activation:', error);
             setExecutionStatus(`Status:${timeStamp}:\tFailed to process activation.`);
         } finally {
             setIsActivateDialogOpen(false);
@@ -111,11 +109,11 @@ function WorkflowModule() {
 
     const onDrop = useCallback(acceptedFiles => {
         setFileForActivation(acceptedFiles[0]);
-        setExecutionStatus("Status: File ready for activation.");
+        setExecutionStatus('Status: File ready for activation.');
     }, []);
 
-    const onDropRejected = useCallback(rejectedFiles => {
-        setExecutionStatus("Status: No valid CSV file selected.");
+    const onDropRejected = useCallback(() => {
+        setExecutionStatus('Status: No valid CSV file selected.');
     }, []);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -142,82 +140,29 @@ function WorkflowModule() {
                 </Button>
             </div>
 
-            {/* Confirmation dialog for onboarding */}
-            <Dialog open={isConfirmOnboardingOpen} onClose={() => setIsConfirmOnboardingOpen(false)} maxWidth="md" fullWidth>
-                <DialogTitle>Confirm Onboarding Workflow</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Please confirm the exact employees below. Onboarding will be sent only to this list.
-                    </DialogContentText>
-
-                    <Box sx={{ display: 'flex', gap: 1, my: 2, flexWrap: 'wrap' }}>
-                        <Chip color="warning" label={`Selected: ${onboardingPreview.length}`} />
-                        <Chip color="info" label={`Previewing first: ${previewEmployees.length}`} />
-                    </Box>
-
-                    <Box sx={{ border: '1px solid #e4e7ec', borderRadius: 2, maxHeight: 340, overflowY: 'auto', background: '#fcfcfd' }}>
-                        {onboardingPreview.length === 0 ? (
-                            <Typography sx={{ p: 2, color: '#b42318', fontWeight: 600 }}>
-                                No employees are selected. Please select employees before confirming onboarding.
-                            </Typography>
-                        ) : (
-                            <List dense>
-                                {previewEmployees.map((employee, index) => (
-                                    <React.Fragment key={employee.id}>
-                                        <ListItem>
-                                            <ListItemText
-                                                primary={`${index + 1}. ${employee.fullName}`}
-                                                secondary={`Location: ${employee.location} • Department: ${employee.department}`}
-                                                primaryTypographyProps={{ fontWeight: 600 }}
-                                            />
-                                        </ListItem>
-                                        {index < previewEmployees.length - 1 && <Divider component="li" />}
-                                    </React.Fragment>
-                                ))}
-                            </List>
-                        )}
-                    </Box>
-
-                    {remainingCount > 0 && (
-                        <Typography sx={{ mt: 1, color: '#475467' }}>
-                            ...and {remainingCount} more employee(s) in the selected onboarding list.
-                        </Typography>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsConfirmOnboardingOpen(false)} color="primary">
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSendOnboarding} color="primary" disabled={onboardingPreview.length === 0}>
-                        Confirm & Start Onboarding
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <BulkRecipientConfirmDialog
+                open={isConfirmOnboardingOpen}
+                onClose={() => setIsConfirmOnboardingOpen(false)}
+                onConfirm={handleSendOnboarding}
+                title="Confirm Onboarding Workflow"
+                instruction="Please confirm the exact employees below. Onboarding will be sent only to this list."
+                confirmLabel="Confirm & Start Onboarding"
+                emptyMessage="No employees are selected. Please select employees before confirming onboarding."
+                selectedEmployees={selectedEmployees}
+            />
 
             <Dialog open={isActivateDialogOpen} onClose={() => setIsActivateDialogOpen(false)}>
                 <DialogTitle>Upload Activation File</DialogTitle>
                 <DialogContent>
-                    <DialogContentText>
-                        Please upload a CSV file with the users to activate.
-                    </DialogContentText>
-                    <div {...getRootProps()} style={{
-                        border: '2px dashed #007bff',
-                        borderRadius: '5px',
-                        padding: '20px',
-                        textAlign: 'center',
-                        marginTop: '20px',
-                    }}>
+                    <DialogContentText>Please upload a CSV file with the users to activate.</DialogContentText>
+                    <div {...getRootProps()} style={{ border: '2px dashed #007bff', borderRadius: '5px', padding: '20px', textAlign: 'center', marginTop: '20px' }}>
                         <input {...getInputProps()} />
                         {isDragActive ? <p>Drop the CSV file here ...</p> : <p>Drag 'n' drop a CSV file here</p>}
                     </div>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setIsActivateDialogOpen(false)} color="primary">
-                        Cancel
-                    </Button>
-                    <Button onClick={handleActivateAppUsage} color="primary">
-                        Confirm
-                    </Button>
+                    <Button onClick={() => setIsActivateDialogOpen(false)} color="primary">Cancel</Button>
+                    <Button onClick={handleActivateAppUsage} color="primary">Confirm</Button>
                 </DialogActions>
             </Dialog>
         </div>
