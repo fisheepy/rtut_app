@@ -4,7 +4,8 @@ import './App.css';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import SurveyRenderer from './surveyRenderer';
 import { useWindowDimensions } from 'react-native';
-import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Typography } from '@mui/material';
+import { TextField, Button, Select, MenuItem, FormControl, InputLabel, Checkbox, FormControlLabel, Typography } from '@mui/material';
+import BulkRecipientConfirmDialog from './bulkRecipientConfirmDialog';
 
 function SurveyCenterComponent({ userData }) {
     const [subject, setSubject] = useState('');
@@ -20,10 +21,6 @@ function SurveyCenterComponent({ userData }) {
 
     const windowDimensions = useWindowDimensions();
 
-    const prepareRecipientNames = () => {
-        return selectedEmployees.map(emp => emp.Name).join('/ ');
-    };
-
     const addQuestion = () => {
         let newQuestion;
         let choices = answerChoices.length > 0 ? answerChoices : ["Choice 1", "Choice 2"];
@@ -33,72 +30,38 @@ function SurveyCenterComponent({ userData }) {
 
         switch (selectedQuestionType) {
             case "text":
-                newQuestion = {
-                    name: `Question${surveyJson.elements.length + 1}`,
-                    title: questionTitle || "New Text Question",
-                    type: "text"
-                };
+                newQuestion = { name: `Question${surveyJson.elements.length + 1}`, title: questionTitle || "New Text Question", type: "text" };
                 break;
             case "singleChoice":
-                newQuestion = {
-                    name: `Question${surveyJson.elements.length + 1}`,
-                    title: questionTitle || "Select one option",
-                    type: "singleChoice",
-                    choices,
-                    allowCustomAnswer
-                };
+                newQuestion = { name: `Question${surveyJson.elements.length + 1}`, title: questionTitle || "Select one option", type: "singleChoice", choices, allowCustomAnswer };
                 break;
             case "multiChoice":
-                newQuestion = {
-                    name: `Question${surveyJson.elements.length + 1}`,
-                    title: questionTitle || "Select multiple options",
-                    type: "multiChoice",
-                    choices,
-                    allowCustomAnswer
-                };
+                newQuestion = { name: `Question${surveyJson.elements.length + 1}`, title: questionTitle || "Select multiple options", type: "multiChoice", choices, allowCustomAnswer };
                 break;
             case "rating":
-                newQuestion = {
-                    name: `Question${surveyJson.elements.length + 1}`,
-                    title: questionTitle || "Rate our service",
-                    type: "rating",
-                    rateMax: 5,
-                };
+                newQuestion = { name: `Question${surveyJson.elements.length + 1}`, title: questionTitle || "Rate our service", type: "rating", rateMax: 5 };
                 break;
             default:
-                console.error("Unsupported question type:", selectedQuestionType);
                 return;
         }
 
-        setSurveyJson(prevSurveyJson => ({
-            ...prevSurveyJson,
-            elements: [...prevSurveyJson.elements, newQuestion]
-        }));
-
+        setSurveyJson(prevSurveyJson => ({ ...prevSurveyJson, elements: [...prevSurveyJson.elements, newQuestion] }));
         setAllowCustomAnswer(false);
         setAnswerChoices([]);
         setQuestionTitle("");
     };
 
     const removeQuestion = (index) => {
-        setSurveyJson(prevSurveyJson => ({
-            ...prevSurveyJson,
-            elements: prevSurveyJson.elements.filter((_, i) => i !== index)
-        }));
-    };
-
-    const handleSendSurvey = () => {
-        setOpenConfirmDialog(true);
+        setSurveyJson(prevSurveyJson => ({ ...prevSurveyJson, elements: prevSurveyJson.elements.filter((_, i) => i !== index) }));
     };
 
     const confirmSendSurveys = async () => {
         const sendInBatches = async (employees, batchSize) => {
             const totalBatches = Math.ceil(employees.length / batchSize);
             const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-    
+
             for (let i = 0; i < totalBatches; i++) {
                 const batch = employees.slice(i * batchSize, (i + 1) * batchSize);
-    
                 const batchData = {
                     subject,
                     sender,
@@ -110,29 +73,17 @@ function SurveyCenterComponent({ userData }) {
                         email: userData.email,
                     },
                 };
-    
+
                 try {
-                    // Send each batch
                     await axios.post('/call-function-send-survey', batchData);
-    
-                    // Update status for successful batch
-                    setExecutionStatus(
-                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`
-                    );
+                    setExecutionStatus(`Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} sent successfully.`);
                 } catch (error) {
-                    // Update status for failed batch
-                    setExecutionStatus(
-                        `Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} failed! Error: ${error.message}`
-                    );
+                    setExecutionStatus(`Status:${timeStamp}:\tBatch ${i + 1} of ${totalBatches} failed! Error: ${error.message}`);
                 }
             }
         };
-    
-        // Call the function with a batch size of 100
-        const batchSize = 100; // Adjust batch size as needed
-        await sendInBatches(selectedEmployees, batchSize);
-    
-        // Reset dialog and surveyJson after completion
+
+        await sendInBatches(selectedEmployees, 100);
         setOpenConfirmDialog(false);
         setSurveyJson({ elements: [] });
     };
@@ -143,90 +94,59 @@ function SurveyCenterComponent({ userData }) {
             <Typography>{executionStatus}</Typography>
             <div>
                 <Typography variant="h6">Customize Survey</Typography>
-                <TextField
-                    label="Subject"
-                    variant="outlined"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    style={{ width: '25%', }}
-                />
-                <TextField
-                    label="Sender"
-                    variant="outlined"
-                    value={sender}
-                    onChange={(e) => setSender(e.target.value)}
-                    style={{ width: '25%', }}
-                />
+                <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} style={{ width: '25%' }} />
+                <TextField label="Sender" variant="outlined" value={sender} onChange={(e) => setSender(e.target.value)} style={{ width: '25%' }} />
             </div>
             <div>
-                <Button onClick={addQuestion}
-                    style={{ marginTop: '10px', marginBottom: '10px', width: '50%', color: 'white', backgroundColor: 'gray', }}>
+                <Button onClick={addQuestion} style={{ marginTop: '10px', marginBottom: '10px', width: '50%', color: 'white', backgroundColor: 'gray' }}>
                     Add Question
                 </Button>
-                <FormControl fullWidth >
-                    <InputLabel >Question Type</InputLabel>
-                    <Select
-                        value={selectedQuestionType}
-                        onChange={(e) => setSelectedQuestionType(e.target.value)}
-                        label="Question Type"
-                        style={{ marginTop: '10px', width: '50%', }}
-                    >
+                <FormControl fullWidth>
+                    <InputLabel>Question Type</InputLabel>
+                    <Select value={selectedQuestionType} onChange={(e) => setSelectedQuestionType(e.target.value)} label="Question Type" style={{ marginTop: '10px', width: '50%' }}>
                         <MenuItem value="text">Text</MenuItem>
                         <MenuItem value="singleChoice">Single Choice</MenuItem>
                         <MenuItem value="rating">Rating</MenuItem>
                         <MenuItem value="multiChoice">Multiple Choice</MenuItem>
                     </Select>
                 </FormControl>
-                <TextField
-                    label="Enter question title"
-                    variant="outlined"
-                    value={questionTitle}
-                    onChange={(e) => setQuestionTitle(e.target.value)}
-                    style={{ marginTop: '10px', width: '50%', }}
-                />
-                {selectedQuestionType === "singleChoice" || selectedQuestionType === "multiChoice" ? (
+                <TextField label="Enter question title" variant="outlined" value={questionTitle} onChange={(e) => setQuestionTitle(e.target.value)} style={{ marginTop: '10px', width: '50%' }} />
+                {(selectedQuestionType === "singleChoice" || selectedQuestionType === "multiChoice") && (
                     <>
                         <TextField
                             label="Enter answer choices (comma-separated)"
                             variant="outlined"
                             value={answerChoices.join(", ")}
                             onChange={(e) => setAnswerChoices(e.target.value.split(",").map(choice => choice.trim()))}
-                            style={{ marginTop: '10px', width: '50%', }}
+                            style={{ marginTop: '10px', width: '50%' }}
                         />
-                        <FormControlLabel
-                            control={<Checkbox checked={allowCustomAnswer} onChange={(e) => setAllowCustomAnswer(e.target.checked)} />}
-                            label="Allow custom answer"
-                        />
+                        <FormControlLabel control={<Checkbox checked={allowCustomAnswer} onChange={(e) => setAllowCustomAnswer(e.target.checked)} />} label="Allow custom answer" />
                     </>
-                ) : null}
+                )}
             </div>
             <div>
                 <Typography variant="h6">Preview</Typography>
-                <SurveyRenderer
-                    surveyJson={surveyJson}
-                    onRemoveQuestion={removeQuestion}
-                    windowDimensions={{ width: windowDimensions.width * 0.5 }} 
-                />
+                <SurveyRenderer surveyJson={surveyJson} onRemoveQuestion={removeQuestion} windowDimensions={{ width: windowDimensions.width * 0.5 }} />
             </div>
-            <Dialog open={openConfirmDialog} onClose={() => setOpenConfirmDialog(false)}>
-                <DialogTitle>Confirm Send Survey</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Are you sure you want to send this survey to the selected employees?
-                    </DialogContentText>
-                    <strong>Subject: {subject}</strong><br />
-                    <strong>Sender: {sender}</strong><br />
-                    <strong>Recipients:</strong> {prepareRecipientNames()}<br />
-                    <strong>Admin User:</strong> {`${userData.firstName} ${userData.lastName}`}<br />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>
-                    <Button onClick={confirmSendSurveys} color="primary">Send</Button>
-                </DialogActions>
-            </Dialog>
-            <Button variant="contained" onClick={handleSendSurvey} style={{ marginTop: '10px', width: '50%' }}>
+            <Button variant="contained" onClick={() => setOpenConfirmDialog(true)} style={{ marginTop: '10px', width: '50%' }}>
                 Send Survey
             </Button>
+
+            <BulkRecipientConfirmDialog
+                open={openConfirmDialog}
+                onClose={() => setOpenConfirmDialog(false)}
+                onConfirm={confirmSendSurveys}
+                title="Confirm Send Survey"
+                instruction="Please confirm the exact employees below. Survey will be sent only to this list."
+                confirmLabel="Confirm & Send Survey"
+                emptyMessage="No employees are selected. Please select employees before sending survey."
+                selectedEmployees={selectedEmployees}
+                metadata={[
+                    { label: 'Subject', value: subject },
+                    { label: 'Sender', value: sender },
+                    { label: 'Admin User', value: `${userData.firstName} ${userData.lastName}` },
+                ]}
+            />
         </div>
     );
 }

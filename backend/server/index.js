@@ -670,13 +670,28 @@ app.post('/call-function-send-event', (req, res) => {
     // Write the JSON string to a temporary file
     const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
     fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
-    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}" "${detail}" "${tempFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}" "${detail}" "${tempFilePath}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_event',
+                adminUser: { firstName: creator },
+                selectedEmployees,
+                payloadSummary: { title, location, allDay, isRecurring: false },
+                status: 'failed',
+                errorMessage: error.message,
+            });
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
 
+        await logOperationToDatabase({
+            action: 'send_event',
+            adminUser: { firstName: creator },
+            selectedEmployees,
+            payloadSummary: { title, location, allDay, isRecurring: false },
+            status: 'success',
+        });
         res.status(200).send('Script executed successfully');
     });
 });
@@ -796,38 +811,88 @@ app.post('/call-function-send-onboarding', async (req, res) => {
     const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
     fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
 
-    exec(`node ./backend/server/sendOnboarding.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendOnboarding.mjs "${tempFilePath}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_onboarding',
+                selectedEmployees,
+                payloadSummary: {},
+                status: 'failed',
+                errorMessage: error.message,
+            });
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
 
+        await logOperationToDatabase({
+            action: 'send_onboarding',
+            selectedEmployees,
+            payloadSummary: {},
+            status: 'success',
+        });
         res.status(200).send('Script executed successfully');
     });
 });
 
+const getOperatorDisplayName = (adminUser) => {
+    if (!adminUser) return 'unknown';
+    if (typeof adminUser === 'string') return adminUser;
+    return [adminUser.firstName, adminUser.lastName].filter(Boolean).join(' ') || adminUser.email || 'unknown';
+};
+
+const getRecipientCount = (selectedEmployees) => Array.isArray(selectedEmployees) ? selectedEmployees.length : 0;
+
+// Unified operation audit log
+const logOperationToDatabase = async ({ action, adminUser, selectedEmployees, payloadSummary, status, errorMessage }) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const collection = db.collection('operation_logs');
+        await collection.insertOne({
+            action,
+            operatorName: getOperatorDisplayName(adminUser),
+            operatorEmail: adminUser?.email || null,
+            recipientCount: getRecipientCount(selectedEmployees),
+            payloadSummary: payloadSummary || {},
+            status,
+            errorMessage: errorMessage || null,
+            timestamp: new Date(),
+        });
+    } catch (error) {
+        console.error('Error saving operation log:', error);
+    } finally {
+        await localClient.close();
+    }
+};
+
 // Function to log errors to the database
 const logErrorToDatabase = async (error, context) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
     try {
-        await client.connect();
-        const db = client.db(database_name);
+        await localClient.connect();
+        const db = localClient.db(database_name);
         const collection = db.collection('error logs');
 
-        // Create an error log entry
         const errorLogEntry = {
-            error: error.message,
+            error: typeof error === 'string' ? error : (error?.message || String(error)),
             context,
             timestamp: new Date()
         };
 
-        // Insert the error log entry into the collection
         await collection.insertOne(errorLogEntry);
         console.log('Error log saved successfully.');
-    } catch (error) {
-        console.error('Error saving error log:', error);
+    } catch (logError) {
+        console.error('Error saving error log:', logError);
     } finally {
-        await client.close();
+        await localClient.close();
     }
 };
 
@@ -861,13 +926,27 @@ app.post('/call-function-send-notification', async (req, res) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
 
-            // Log the error details to the database
-            await logErrorToDatabase(error.message, stderr, 'sendNotification.mjs');
+            await logErrorToDatabase(error.message, 'sendNotification.mjs');
+            await logOperationToDatabase({
+                action: 'send_notification',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { subject, sender, channels: { app: sendApp, sms: sendSms, email: sendEmail } },
+                status: 'failed',
+                errorMessage: error.message,
+            });
 
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
 
+        await logOperationToDatabase({
+            action: 'send_notification',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { subject, sender, channels: { app: sendApp, sms: sendSms, email: sendEmail } },
+            status: 'success',
+        });
         res.status(200).send('Script executed successfully');
     });
 });
@@ -895,13 +974,28 @@ app.post('/call-function-send-survey', (req, res) => {
     fs.writeFileSync(adminUserJSONFilePath, adminUserJSON);
 
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}" "${adminUserJSONFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}" "${adminUserJSONFilePath}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_survey',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { subject, sender, questionCount: Array.isArray(surveyJson?.elements) ? surveyJson.elements.length : null },
+                status: 'failed',
+                errorMessage: error.message,
+            });
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
 
+        await logOperationToDatabase({
+            action: 'send_survey',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { subject, sender, questionCount: Array.isArray(surveyJson?.elements) ? surveyJson.elements.length : null },
+            status: 'success',
+        });
         res.status(200).send('Script executed successfully');
     });
 });
@@ -1004,13 +1098,26 @@ app.post('/call-function-activate-app-usage', async (req, res) => {
     fs.writeFileSync(tempFilePath, users);
 
     // Execute the script and pass the temporary file path as an argument
-    exec(`node ./backend/server/activateAppUsage.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+    exec(`node ./backend/server/activateAppUsage.mjs "${tempFilePath}"`, async (error, stdout, stderr) => {
         if (error) {
             console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'activate_app_usage',
+                selectedEmployees: req.body,
+                payloadSummary: { source: 'csv_workflow' },
+                status: 'failed',
+                errorMessage: error.message,
+            });
             res.status(500).send(`Internal Server Error: ${error.message}`);
             return;
         }
 
+        await logOperationToDatabase({
+            action: 'activate_app_usage',
+            selectedEmployees: req.body,
+            payloadSummary: { source: 'csv_workflow' },
+            status: 'success',
+        });
         res.status(200).send('Script executed successfully');
     });
 });
