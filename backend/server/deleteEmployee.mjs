@@ -1,8 +1,39 @@
 import { deleteDocument } from './mongodbUtilities.mjs';
 
+const normalizeNameInput = (value = '') => value
+    .replace(/\u3000/g, ' ') // convert full-width spaces
+    .trim()
+    .replace(/\s+/g, ' ');
+
+const escapeRegExp = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildTolerantNameRegex = (value) => {
+    const normalized = normalizeNameInput(value);
+    if (!normalized) {
+        return null;
+    }
+
+    const pattern = normalized
+        .split(' ')
+        .map(part => escapeRegExp(part))
+        .join('\\s+');
+
+    return new RegExp(`^\\s*${pattern}\\s*$`, 'i');
+};
+
 const deleteEmployee = async (firstName, lastName) => {
     try {
-        const filter = { "First Name": { $regex: new RegExp(`^${firstName}$`, 'i') }, "Last Name": { $regex: new RegExp(`^${lastName}$`, 'i') } };
+        const firstNameRegex = buildTolerantNameRegex(firstName);
+        const lastNameRegex = buildTolerantNameRegex(lastName);
+
+        if (!firstNameRegex || !lastNameRegex) {
+            throw new Error('Error during operation: First Name and Last Name are required.');
+        }
+
+        const filter = {
+            "First Name": { $regex: firstNameRegex },
+            "Last Name": { $regex: lastNameRegex }
+        };
         const result = await deleteDocument('employees', filter);
         
         if (result.deletedCount === 0) {
