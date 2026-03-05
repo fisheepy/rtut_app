@@ -27,6 +27,27 @@ const buildCandidateRegex = (normalizedValue) => {
     return new RegExp(`^\\s*${pattern}\\s*$`, 'i');
 };
 
+const normalizeNameInput = (value = '') => value
+    .replace(/\u3000/g, ' ') // convert full-width spaces
+    .trim()
+    .replace(/\s+/g, ' ');
+
+const escapeRegExp = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const buildTolerantNameRegex = (value) => {
+    const normalized = normalizeNameInput(value);
+    if (!normalized) {
+        return null;
+    }
+
+    const pattern = normalized
+        .split(' ')
+        .map(part => escapeRegExp(part))
+        .join('\\s+');
+
+    return new RegExp(`^\\s*${pattern}\\s*$`, 'i');
+};
+
 const deleteEmployee = async (firstName, lastName) => {
     const client = new MongoClient(MONGODB_URI);
 
