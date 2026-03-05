@@ -63,7 +63,7 @@ const UtilitiesCenterComponent = () => {
         } catch (error) {
             // Extract the specific error message from the server response
             const errorMessage = error.response?.data || 'An unexpected error occurred';
-            setExecutionStatus(`Failed to delete employee ${newEmployee.firstName} ${newEmployee.lastName}: ${errorMessage}`);
+            setExecutionStatus(`Failed to delete employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}: ${errorMessage}`);
         }
     };
 
