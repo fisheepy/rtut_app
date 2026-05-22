@@ -15,6 +15,7 @@ const cron = require('node-cron');
 const { DateTime } = require('luxon');
 const { format } = require('@fast-csv/format'); 
 const { Readable } = require('stream');
+const { createPayrollVerificationRouter } = require('./payrollVerification/routes');
 
 function buildDigestHtml({ etDate, rows }) {
   const total = rows.length;
@@ -870,6 +871,12 @@ const logOperationToDatabase = async ({ action, adminUser, selectedEmployees, pa
     }
 };
 
+app.use('/api/payroll-verification', createPayrollVerificationRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+
 // Function to log errors to the database
 const logErrorToDatabase = async (error, context) => {
     const localClient = new MongoClient(uri, {
@@ -1528,4 +1535,3 @@ app.get(/^\/(?!api|admin).*/, (req, res) => {
 app.listen(process.env.PORT || port, () => {
     console.log(`Server is running on port ${port}`);
 });
-

@@ -1,6 +1,7 @@
 import { Route, Routes, Link } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
+import PayrollVerification from './pages/PayrollVerification'
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -11,6 +12,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <nav className="flex gap-4 text-sm">
             <Link to="/">Dashboard</Link>
             <Link to="/employees">Employees</Link>
+            <Link to="/payroll-verification">Payroll Verification</Link>
           </nav>
           <a className="ml-auto text-sm underline" href="/old">回到旧版</a>
         </div>
@@ -26,6 +28,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/employees" element={<Employees />} />
+        <Route path="/payroll-verification" element={<PayrollVerification />} />
       </Routes>
     </Shell>
   )
