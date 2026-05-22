@@ -16,6 +16,7 @@ const { DateTime } = require('luxon');
 const { format } = require('@fast-csv/format'); 
 const { Readable } = require('stream');
 const { createPayrollVerificationRouter } = require('./payrollVerification/routes');
+const { createInsuranceBreakoutRouter } = require('./insuranceBreakout/routes');
 
 function buildDigestHtml({ etDate, rows }) {
   const total = rows.length;
@@ -872,6 +873,12 @@ const logOperationToDatabase = async ({ action, adminUser, selectedEmployees, pa
 };
 
 app.use('/api/payroll-verification', createPayrollVerificationRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+
+app.use('/api/insurance-breakout', createInsuranceBreakoutRouter({
     upload,
     uploadDirectory,
     logOperationToDatabase,

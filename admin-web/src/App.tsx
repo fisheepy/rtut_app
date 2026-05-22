@@ -1,12 +1,14 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
-import { ArrowUpRight, LayoutGrid, ReceiptText, UsersRound } from 'lucide-react'
+import { ArrowUpRight, LayoutGrid, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
+import InsuranceBreakout from './pages/InsuranceBreakout'
 import PayrollVerification from './pages/PayrollVerification'
 
 const navItems = [
   { label: 'Tool Hub', to: '/', icon: LayoutGrid },
   { label: 'Payroll Verification', to: '/payroll-verification', icon: ReceiptText },
+  { label: 'Insurance Breakout', to: '/insurance-breakout', icon: ShieldCheck },
   { label: 'Employees', to: '/employees', icon: UsersRound },
 ]
 
@@ -87,6 +89,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/payroll-verification" element={<PayrollVerification />} />
+        <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
       </Routes>
     </Shell>
   )

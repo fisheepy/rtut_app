@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Bell, ClipboardList, ReceiptText, UsersRound } from 'lucide-react'
+import { ArrowRight, Bell, ClipboardList, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
 
 const tools = [
   {
@@ -8,6 +8,14 @@ const tools = [
     to: '/payroll-verification',
     icon: ReceiptText,
     tone: 'from-blue-600 to-cyan-500',
+    status: 'Available',
+  },
+  {
+    title: 'Insurance Breakout',
+    description: 'Cross-check payroll deductions against dental, vision, LTD, life, and supplemental invoices.',
+    to: '/insurance-breakout',
+    icon: ShieldCheck,
+    tone: 'from-violet-600 to-cyan-500',
     status: 'Available',
   },
   {
