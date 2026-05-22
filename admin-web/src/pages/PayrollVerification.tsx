@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+import { AlertTriangle, ArrowRight, CheckCircle2, FileSpreadsheet, FileText, RefreshCw, ReceiptText } from 'lucide-react'
 import { api } from '../shared/api'
 
 type PayrollSummary = {
@@ -48,45 +49,54 @@ function FileDrop({
   caption,
   file,
   onChange,
+  accent,
+  icon,
 }: {
   label: string
   caption: string
   file: File | null
   onChange: (file: File | null) => void
+  accent: 'blue' | 'emerald'
+  icon: ReactNode
 }) {
+  const styles = {
+    blue: {
+      ring: 'border-blue-200 bg-blue-50/80 hover:border-blue-400 hover:bg-blue-50',
+      badge: 'bg-blue-600 text-white',
+      icon: 'bg-blue-600 text-white',
+      text: 'text-blue-700',
+    },
+    emerald: {
+      ring: 'border-emerald-200 bg-emerald-50/80 hover:border-emerald-400 hover:bg-emerald-50',
+      badge: 'bg-emerald-600 text-white',
+      icon: 'bg-emerald-600 text-white',
+      text: 'text-emerald-700',
+    },
+  }[accent]
+
   return (
-    <label className="group flex min-h-36 cursor-pointer flex-col justify-between rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-blue-400 hover:bg-blue-50/60">
+    <label className={`group relative flex min-h-48 cursor-pointer flex-col justify-between overflow-hidden rounded-xl border p-5 shadow-sm transition ${styles.ring}`}>
+      <span className="absolute right-4 top-4 rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-500 shadow-sm">Excel</span>
       <span>
-        <span className="block text-sm font-semibold text-slate-950">{label}</span>
-        <span className="mt-1 block text-xs text-slate-500">{caption}</span>
+        <span className={`grid h-12 w-12 place-items-center rounded-lg shadow-sm ${styles.icon}`}>{icon}</span>
+        <span className="mt-5 block text-lg font-semibold text-slate-950">{label}</span>
+        <span className="mt-1 block text-sm text-slate-600">{caption}</span>
       </span>
-      <span className="mt-5 flex items-center justify-between gap-3 rounded-md border bg-white px-3 py-2 shadow-sm">
-        <span className="min-w-0 truncate text-sm text-slate-700">{file?.name || 'Select Excel file'}</span>
-        <span className="shrink-0 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white group-hover:bg-blue-600">Browse</span>
+      <span className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-white/80 bg-white px-3 py-3 shadow-sm">
+        <span className="min-w-0 truncate text-sm font-medium text-slate-800">{file?.name || 'Choose file'}</span>
+        <span className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold ${styles.badge}`}>Browse</span>
       </span>
-      <input
-        className="sr-only"
-        type="file"
-        accept=".xls,.xlsx"
-        onChange={(event) => onChange(event.target.files?.[0] || null)}
-      />
+      <input className="sr-only" type="file" accept=".xls,.xlsx" onChange={(event) => onChange(event.target.files?.[0] || null)} />
+      <span className={`mt-3 text-xs font-medium ${styles.text}`}>{file ? 'Ready for processing' : 'Required input'}</span>
     </label>
   )
 }
 
-function Metric({
-  label,
-  value,
-  tone = 'text-slate-950',
-}: {
-  label: string
-  value: string | number
-  tone?: string
-}) {
+function Metric({ label, value, tone = 'text-slate-950' }: { label: string; value: string | number; tone?: string }) {
   return (
-    <div className="rounded-lg border bg-white px-4 py-3 shadow-sm">
-      <div className="text-xs font-medium uppercase text-slate-500">{label}</div>
-      <div className={`mt-1 text-2xl font-semibold ${tone}`}>{value}</div>
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-semibold uppercase text-slate-500">{label}</div>
+      <div className={`mt-2 text-2xl font-semibold ${tone}`}>{value}</div>
     </div>
   )
 }
@@ -98,20 +108,22 @@ function ReportActions({ job }: { job: PayrollJob | null }) {
     <div className="flex flex-wrap gap-2">
       {job.htmlReportUrl ? (
         <a
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500"
           href={job.htmlReportUrl}
           target="_blank"
           rel="noreferrer"
         >
-          View HTML Report
+          <FileText className="h-4 w-4" />
+          View HTML
         </a>
       ) : null}
       {job.reportUrl ? (
         <a
-          className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-emerald-200 hover:text-emerald-700"
           href={job.reportUrl}
         >
-          Download Excel
+          <FileSpreadsheet className="h-4 w-4" />
+          Excel
         </a>
       ) : null}
     </div>
@@ -167,76 +179,100 @@ export default function PayrollVerification() {
   const issueCount = summary?.exceptions ?? latestJob?.summary?.exceptions ?? 0
   const ready = Boolean(commissionFile && payrollFile)
   const statusCopy = useMemo(() => {
-    if (isSubmitting) return 'Processing files'
+    if (isSubmitting) return 'Processing'
     if (error) return 'Needs attention'
-    if (latestJob?.status === 'completed') return issueCount ? 'Review required' : 'Ready to approve'
-    return 'Standing by'
+    if (latestJob?.status === 'completed') return issueCount ? 'Review required' : 'Clean match'
+    return 'Waiting for files'
   }, [error, isSubmitting, issueCount, latestJob?.status])
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase text-blue-600">Finance Operations</p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">Payroll Verification</h2>
-          </div>
-          <ReportActions job={latestJob} />
-        </div>
-
-        <div className="grid gap-0 lg:grid-cols-[1.35fr_0.65fr]">
-          <form className="grid gap-4 border-b p-5 lg:grid-cols-2 lg:border-b-0 lg:border-r" onSubmit={handleSubmit}>
-            <FileDrop
-              label="Commission Reference"
-              caption="HR commission list"
-              file={commissionFile}
-              onChange={setCommissionFile}
-            />
-            <FileDrop
-              label="Payroll Register"
-              caption="ADP payroll export"
-              file={payrollFile}
-              onChange={setPayrollFile}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
-              <div className="text-sm text-slate-600">
-                <span className="font-medium text-slate-900">Rule:</span> compare HR commission to payroll earning code COM.
+      <section className="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-xl">
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="relative overflow-hidden bg-slate-950 p-6 text-white md:p-8">
+            <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-blue-500/35 blur-3xl" />
+            <div className="absolute -bottom-20 left-20 h-56 w-56 rounded-full bg-emerald-400/25 blur-3xl" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-blue-100">
+                <ReceiptText className="h-4 w-4" />
+                Finance Operations Tool
               </div>
-              <button
-                className="rounded-md bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300"
-                type="submit"
-                disabled={isSubmitting || !ready}
-              >
-                {isSubmitting ? 'Generating...' : 'Generate Reports'}
-              </button>
+              <h1 className="mt-5 max-w-2xl text-4xl font-semibold tracking-normal md:text-5xl">Payroll Verification</h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+                Upload two Excel files, generate an issue-first HTML report for review, and keep the Excel workbook for audit detail.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-2">
+                <ReportActions job={latestJob} />
+              </div>
             </div>
-          </form>
+          </div>
 
-          <aside className="bg-slate-950 p-5 text-white">
-            <div className="text-xs font-semibold uppercase text-blue-200">Current Run</div>
-            <div className="mt-2 text-2xl font-semibold">{statusCopy}</div>
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-white/10 p-3">
-                <div className="text-xs text-slate-300">Issues</div>
-                <div className="mt-1 text-2xl font-semibold">{issueCount}</div>
+          <div className="bg-white p-6 md:p-8">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase text-slate-500">Current Run</p>
+                <h2 className="mt-1 text-2xl font-semibold text-slate-950">{statusCopy}</h2>
               </div>
-              <div className="rounded-lg bg-white/10 p-3">
-                <div className="text-xs text-slate-300">Last Run</div>
-                <div className="mt-1 text-sm font-semibold">{compactDate(latestJob?.createdAt)}</div>
+              <div className={`grid h-12 w-12 place-items-center rounded-xl ${issueCount ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                {issueCount ? <AlertTriangle className="h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
+              </div>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <div className="text-xs font-semibold uppercase text-slate-500">Issues</div>
+                <div className="mt-2 text-3xl font-semibold text-slate-950">{issueCount}</div>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-4">
+                <div className="text-xs font-semibold uppercase text-slate-500">Last Run</div>
+                <div className="mt-2 text-lg font-semibold text-slate-950">{compactDate(latestJob?.createdAt)}</div>
               </div>
             </div>
             {latestJob?.summary ? (
-              <div className="mt-5 border-t border-white/15 pt-4 text-sm text-slate-200">
-                <div className="flex justify-between gap-3"><span>HR total</span><span>{money(latestJob.summary.totalHrCommission)}</span></div>
-                <div className="mt-2 flex justify-between gap-3"><span>Payroll total</span><span>{money(latestJob.summary.totalPayrollCommission)}</span></div>
-                <div className="mt-2 flex justify-between gap-3 font-semibold text-white"><span>Difference</span><span>{money(latestJob.summary.totalDifference)}</span></div>
+              <div className="mt-5 space-y-2 rounded-xl border border-slate-200 p-4 text-sm">
+                <div className="flex justify-between gap-3"><span className="text-slate-500">HR total</span><span className="font-semibold">{money(latestJob.summary.totalHrCommission)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-500">Payroll total</span><span className="font-semibold">{money(latestJob.summary.totalPayrollCommission)}</span></div>
+                <div className="flex justify-between gap-3 border-t pt-2"><span className="text-slate-500">Difference</span><span className="font-semibold">{money(latestJob.summary.totalDifference)}</span></div>
               </div>
             ) : null}
-          </aside>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
+      <form className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" onSubmit={handleSubmit}>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <FileDrop
+            label="Commission Reference"
+            caption="HR-approved commission source file"
+            file={commissionFile}
+            onChange={setCommissionFile}
+            accent="blue"
+            icon={<FileText className="h-6 w-6" />}
+          />
+          <FileDrop
+            label="Payroll Register"
+            caption="Payroll export containing COM earnings"
+            file={payrollFile}
+            onChange={setPayrollFile}
+            accent="emerald"
+            icon={<FileSpreadsheet className="h-6 w-6" />}
+          />
+        </div>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
+          <div className="text-sm text-slate-600">
+            <span className="font-semibold text-slate-950">Matching rule:</span> HR commission equals payroll earning code COM total.
+          </div>
+          <button
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+            type="submit"
+            disabled={isSubmitting || !ready}
+          >
+            {isSubmitting ? 'Generating...' : 'Generate Reports'}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      </form>
+
+      {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       {summary ? (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -249,10 +285,11 @@ export default function PayrollVerification() {
       ) : null}
 
       {latestJob?.status === 'completed' ? (
-        <section className="rounded-lg border bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-slate-950">Latest Report</h3>
+              <p className="text-xs font-semibold uppercase text-blue-600">Latest Output</p>
+              <h3 className="mt-1 text-xl font-semibold text-slate-950">Report package is ready</h3>
               <p className="mt-1 text-sm text-slate-600">{latestJob.commissionFileName} paired with {latestJob.payrollFileName}</p>
             </div>
             <ReportActions job={latestJob} />
@@ -260,13 +297,14 @@ export default function PayrollVerification() {
         </section>
       ) : null}
 
-      <section className="rounded-lg border bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div>
             <h3 className="text-lg font-semibold text-slate-950">Recent Reports</h3>
-            <p className="mt-1 text-sm text-slate-500">Last 20 generated reports</p>
+            <p className="mt-1 text-sm text-slate-500">Last 20 generated report packages</p>
           </div>
-          <button className="rounded-md border px-3 py-1.5 text-sm font-semibold hover:bg-slate-50" type="button" onClick={() => loadJobs()}>
+          <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button" onClick={() => loadJobs()}>
+            <RefreshCw className="h-4 w-4" />
             Refresh
           </button>
         </div>
@@ -303,7 +341,7 @@ export default function PayrollVerification() {
                     {job.htmlReportUrl || job.reportUrl ? (
                       <div className="flex gap-3">
                         {job.htmlReportUrl ? <a className="font-semibold text-blue-600 hover:text-blue-500" href={job.htmlReportUrl} target="_blank" rel="noreferrer">HTML</a> : null}
-                        {job.reportUrl ? <a className="font-semibold text-slate-700 hover:text-slate-950" href={job.reportUrl}>Excel</a> : null}
+                        {job.reportUrl ? <a className="font-semibold text-emerald-700 hover:text-emerald-600" href={job.reportUrl}>Excel</a> : null}
                       </div>
                     ) : job.error || '-'}
                   </td>
