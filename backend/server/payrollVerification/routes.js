@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { compareCommissionFiles } = require('./parser');
-const { writeCommissionReport } = require('./reportWriter');
+const { writeCommissionReport, writeCommissionHtmlReport } = require('./reportWriter');
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -53,6 +53,18 @@ function createPayrollVerificationRouter({ upload, uploadDirectory, logOperation
     res.download(metadata.reportPath, metadata.reportFileName || 'Commission_Verification_Report.xlsx');
   });
 
+  router.get('/jobs/:jobId/html', (req, res) => {
+    const metadataPath = path.join(jobsDir, req.params.jobId, 'metadata.json');
+    if (!fs.existsSync(metadataPath)) return res.status(404).json({ error: 'Job not found' });
+
+    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    if (metadata.status !== 'completed' || !metadata.htmlReportPath || !fs.existsSync(metadata.htmlReportPath)) {
+      return res.status(404).json({ error: 'HTML report is not available' });
+    }
+
+    res.sendFile(metadata.htmlReportPath);
+  });
+
   router.post('/jobs', upload.fields([
     { name: 'commissionFile', maxCount: 1 },
     { name: 'payrollFile', maxCount: 1 },
@@ -70,7 +82,9 @@ function createPayrollVerificationRouter({ upload, uploadDirectory, logOperation
     ensureDir(jobDir);
 
     const reportFileName = `Commission_Verification_Report_${jobId}.xlsx`;
+    const htmlReportFileName = `Commission_Verification_Report_${jobId}.html`;
     const reportPath = path.join(jobDir, reportFileName);
+    const htmlReportPath = path.join(jobDir, htmlReportFileName);
     const metadataPath = path.join(jobDir, 'metadata.json');
     const createdAt = new Date().toISOString();
 
@@ -81,6 +95,7 @@ function createPayrollVerificationRouter({ upload, uploadDirectory, logOperation
       });
 
       await writeCommissionReport(result, reportPath);
+      writeCommissionHtmlReport(result, htmlReportPath);
 
       const metadata = {
         jobId,
@@ -90,8 +105,11 @@ function createPayrollVerificationRouter({ upload, uploadDirectory, logOperation
         commissionFileName: commissionFile.originalname,
         payrollFileName: payrollFile.originalname,
         reportFileName,
+        htmlReportFileName,
         reportPath,
+        htmlReportPath,
         reportUrl: `/api/payroll-verification/jobs/${jobId}/report`,
+        htmlReportUrl: `/api/payroll-verification/jobs/${jobId}/html`,
         summary: result.summary,
       };
 
