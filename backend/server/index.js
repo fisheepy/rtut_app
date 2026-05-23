@@ -1681,17 +1681,24 @@ const oldDir = path.join(__dirname, '../client/build');
 app.use(express.static(oldDir));
 const newDir = path.join(__dirname, '../../admin-web/dist');
 app.use('/admin', express.static(newDir));
+app.use('/app-console', express.static(oldDir));
 
 app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get('/', (req, res) => {
+app.get('/app-console/*', (req, res) => {
+  const session = getSessionFromRequest(req);
+  if (!session) return res.redirect('/admin');
   res.sendFile(path.join(oldDir, 'index.html'));
 });
 
+app.get('/', (req, res) => {
+  res.redirect('/admin');
+});
+
 app.get(/^\/(?!api|admin).*/, (req, res) => {
-  res.sendFile(path.join(oldDir, 'index.html'));
+  res.redirect('/admin');
 });
 
 // Start the server

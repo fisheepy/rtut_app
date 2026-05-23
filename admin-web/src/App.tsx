@@ -66,9 +66,9 @@ function Shell({ children, user, onLogout }: { children: React.ReactNode; user: 
             ) : null}
             <a
               className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
-              href="/old"
+              href="/app-console"
             >
-              Classic Admin
+              App Console
               <ArrowUpRight className="h-4 w-4" />
             </a>
             <button

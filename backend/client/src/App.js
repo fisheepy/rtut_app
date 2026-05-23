@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import LoginComponent from './loginComponent';
 import EmployeeSelectionComponent from './employeeSelectionComponent';
 import { SelectedEmployeesProvider } from './selectedEmployeesContext';
 import MenuComponent from './menuComponent';
@@ -29,8 +28,9 @@ const componentMapping = {
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [userData, setUserData] = useState({ firstName: null, lastName: null });
-  const [lastActivityTime, setLastActivityTime] = useState(Date.now());
+  const [lastActivityTime] = useState(Date.now());
   const [selectedItem, setSelectedItem] = useState([]);
   const [componentKey, setComponentKey] = useState(null);
 
@@ -56,6 +56,10 @@ function App() {
         setUserData({ firstName: null, lastName: null });
         localStorage.removeItem('user');
         localStorage.removeItem('loginName');
+        window.location.href = '/admin';
+      })
+      .finally(() => {
+        setCheckingSession(false);
       });
   }, []);
 
@@ -74,17 +78,6 @@ function App() {
   };
 
   const RenderSelectedComponent = componentMapping[componentKey];
-
-  const handleLoginSuccess = (data) => {
-    setUserData(data);
-    setLastActivityTime(Date.now());
-    setLoggedIn(true);
-    localStorage.setItem('loginName', JSON.stringify({ firstName: data.firstName, lastName: data.lastName }));
-  };
-
-  const handleLoginStatusChange = (status) => {
-    setLoggedIn(status);
-  };
 
   const handleLogout = async () => {
     await fetch('/api/admin-auth/logout', { method: 'POST' }).catch(() => {});
@@ -107,13 +100,19 @@ function App() {
     return () => clearInterval(interval);
   }, [lastActivityTime]);
 
+  if (checkingSession) {
+    return <div style={{ padding: '32px' }}>Checking admin session...</div>;
+  }
+
   return (
     <div>
-      {!loggedIn ? (
-        <LoginComponent onLoginStatusChange={handleLoginStatusChange} onLoginSuccess={handleLoginSuccess} />
-      ) : (
+      {loggedIn ? (
         <SelectedEmployeesProvider>
           <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px' }}>
+              <a href="/admin">Back to Tool Hub</a>
+              <button onClick={handleLogout}>Logout</button>
+            </div>
             <p>Welcome, {userData.firstName}!</p>
             <MenuComponent onItemSelect={handleItemSelect} />
             <div className="display-area" style={{ flex: 1, padding: '20px' }}>
@@ -130,7 +129,7 @@ function App() {
               )}
           </div>
         </SelectedEmployeesProvider>
-      )}
+      ) : null}
     </div>
   );
 }

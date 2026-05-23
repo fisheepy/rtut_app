@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Bell, ClipboardList, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, Bell, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
 
 const tools = [
   {
@@ -27,20 +27,12 @@ const tools = [
     status: 'Available',
   },
   {
-    title: 'Notifications',
-    description: 'Broadcast messages and app notices through the classic admin workflow.',
-    to: '/old',
+    title: 'App Console',
+    description: 'Open the existing RTUT admin console for notifications, surveys, events, and employee utility workflows.',
+    to: '/app-console',
     icon: Bell,
-    tone: 'from-violet-600 to-fuchsia-500',
-    status: 'Classic',
-  },
-  {
-    title: 'Surveys',
-    description: 'Create and review survey campaigns through the existing admin tools.',
-    to: '/old',
-    icon: ClipboardList,
-    tone: 'from-amber-500 to-orange-500',
-    status: 'Classic',
+    tone: 'from-amber-500 to-fuchsia-500',
+    status: 'Module',
   },
 ]
 
@@ -61,7 +53,7 @@ export default function Dashboard() {
       <section className="grid gap-5 md:grid-cols-2">
         {tools.map((tool) => {
           const Icon = tool.icon
-          const external = tool.to === '/old'
+          const external = tool.to === '/app-console'
           const content = (
             <article className="group h-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg">
               <div className={`h-2 bg-gradient-to-r ${tool.tone}`} />
