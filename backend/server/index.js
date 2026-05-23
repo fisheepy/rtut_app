@@ -812,8 +812,32 @@ app.get('/api/admin-auth/me', (req, res) => {
     return res.json({ authenticated: true, user: publicSession(session) });
 });
 
-app.get('/api/admin-auth/config', (req, res) => {
-    res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || '' });
+async function getAdminAuthConfig(db) {
+    const config = await db.collection('app_config').findOne({
+        $or: [{ key: 'adminAuth' }, { _id: 'adminAuth' }]
+    });
+
+    return {
+        googleClientId: config?.googleClientId || config?.googleOAuthClientId || process.env.GOOGLE_CLIENT_ID || '',
+    };
+}
+
+app.get('/api/admin-auth/config', async (req, res) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const config = await getAdminAuthConfig(db);
+        res.json({ googleClientId: config.googleClientId });
+    } catch (error) {
+        console.error('Failed to load admin auth config:', error);
+        res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || '' });
+    } finally {
+        await localClient.close();
+    }
 });
 
 app.post('/api/admin-auth/request-code', async (req, res) => {
@@ -893,9 +917,10 @@ app.post('/api/admin-auth/google', async (req, res) => {
     });
 
     try {
-        const googleUser = await verifyGoogleCredential(credential);
         await localClient.connect();
         const db = localClient.db(database_name);
+        const config = await getAdminAuthConfig(db);
+        const googleUser = await verifyGoogleCredential(credential, config.googleClientId);
         const admin = await findAdminByEmail(db, googleUser.email);
 
         if (!admin) {

@@ -4,8 +4,6 @@ const { OAuth2Client } = require('google-auth-library');
 const COOKIE_NAME = 'rtut_admin_session';
 const SESSION_HOURS = Number(process.env.ADMIN_SESSION_HOURS || 8);
 const SESSION_MAX_AGE_MS = SESSION_HOURS * 60 * 60 * 1000;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 function getSessionSecret() {
   return process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_API_KEY || process.env.MONGODB_PASSWORD || 'dev-only-session-secret';
@@ -140,11 +138,12 @@ async function validateOtpAdmin(db, firstName, lastName, enteredCode) {
   return null;
 }
 
-async function verifyGoogleCredential(credential) {
-  if (!googleClient || !GOOGLE_CLIENT_ID) {
-    throw new Error('Google sign-in is not configured. Missing GOOGLE_CLIENT_ID.');
+async function verifyGoogleCredential(credential, googleClientId) {
+  if (!googleClientId) {
+    throw new Error('Google sign-in is not configured. Missing Google client ID.');
   }
-  const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
+  const googleClient = new OAuth2Client(googleClientId);
+  const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: googleClientId });
   const payload = ticket.getPayload();
   if (!payload?.email || !payload.email_verified) {
     throw new Error('Google account email is not verified.');
