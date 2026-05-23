@@ -19,7 +19,7 @@ export const menuItems = [
   { id: 'processWorkflow', label: 'App Workflow', group: 'Operations', description: 'Run onboarding and activation workflows.', icon: AccountTreeOutlinedIcon, accent: 'slate' },
 ];
 
-const MenuComponent = ({ onItemSelect, selectedItemId }) => {
+const MenuComponent = ({ onItemSelect, selectedItemId, collapsed = false }) => {
   const handleSelect = (eventKey) => {
     const item = menuItems.find(item => item.id === eventKey);
     if (onItemSelect) {
@@ -47,10 +47,11 @@ const MenuComponent = ({ onItemSelect, selectedItemId }) => {
                 data-accent={item.accent}
                 key={item.id}
                 onClick={() => handleSelect(item.id)}
+                title={collapsed ? `${item.label} - ${item.description}` : undefined}
                 type="button"
               >
                 <span className="console-nav-icon"><Icon fontSize="small" /></span>
-                <span>
+                <span className="console-nav-copy">
                   <strong>{item.label}</strong>
                   <small>{item.description}</small>
                 </span>

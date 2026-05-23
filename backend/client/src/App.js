@@ -13,6 +13,8 @@ import EventsHistoryModule from './eventsHistoryComponent';
 import EventsCenterComponent from './eventsCenterComponent';
 import WorkflowModule from './workflowComponent';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import MenuOpenOutlinedIcon from '@mui/icons-material/MenuOpenOutlined';
+import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 
 const componentMapping = {
   'sendNotification': NotificationCenterModule,
@@ -32,6 +34,7 @@ function App() {
   const [userData, setUserData] = useState({ firstName: null, lastName: null });
   const [selectedItem, setSelectedItem] = useState(menuItems[0]);
   const [componentKey, setComponentKey] = useState(menuItems[0].id);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin-auth/me')
@@ -99,16 +102,25 @@ function App() {
     <div className="console-page">
       {loggedIn ? (
         <SelectedEmployeesProvider>
-          <div className="console-shell">
+          <div className={`console-shell ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
             <aside className="console-sidebar">
               <div className="console-brand">
                 <span className="console-brand-mark">RT</span>
-                <div>
+                <div className="console-brand-copy">
                   <strong>App Console</strong>
                   <small>Employee app operations</small>
                 </div>
+                <button
+                  className="console-sidebar-toggle"
+                  type="button"
+                  aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  onClick={() => setIsSidebarCollapsed(value => !value)}
+                >
+                  {isSidebarCollapsed ? <MenuOutlinedIcon fontSize="small" /> : <MenuOpenOutlinedIcon fontSize="small" />}
+                </button>
               </div>
-              <MenuComponent onItemSelect={handleItemSelect} selectedItemId={componentKey} />
+              <MenuComponent onItemSelect={handleItemSelect} selectedItemId={componentKey} collapsed={isSidebarCollapsed} />
             </aside>
 
             <main className="console-main">
