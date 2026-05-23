@@ -17,6 +17,16 @@ const { format } = require('@fast-csv/format');
 const { Readable } = require('stream');
 const { createPayrollVerificationRouter } = require('./payrollVerification/routes');
 const { createInsuranceBreakoutRouter } = require('./insuranceBreakout/routes');
+const {
+    clearSessionCookie,
+    findAdminByEmail,
+    getSessionFromRequest,
+    publicSession,
+    requireAdminSession,
+    setSessionCookie,
+    validateOtpAdmin,
+    verifyGoogleCredential,
+} = require('./adminAuth');
 
 function buildDigestHtml({ etDate, rows }) {
   const total = rows.length;
@@ -773,19 +783,140 @@ app.post('/call-function-send-one-time-code', async (req, res) => {
 app.post('/call-function-validate-log-in', async (req, res) => {
     const { firstName, lastName, enteredCode } = req.body;
 
-    // Execute the script
-    exec(`node ./backend/server/validateLogin.mjs "${firstName}" "${lastName}" "${enteredCode}"`, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error executing script: ${error.message}`);
-            res.status(500).send(`Internal Server Error: ${error.message}`);
-            return;
-        }
-        if (stdout.includes("Login valid: true")) {
-            res.status(200).send("Login successful");
-        } else {
-            res.status(401).send("Login failed: Invalid code or code expired");
-        }
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
     });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const admin = await validateOtpAdmin(db, firstName, lastName, enteredCode);
+
+        if (!admin) {
+            return res.status(401).send("Login failed: Invalid code or code expired");
+        }
+
+        setSessionCookie(res, admin);
+        return res.status(200).send("Login successful");
+    } catch (error) {
+        console.error('Admin OTP login failed:', error);
+        return res.status(500).send(`Internal Server Error: ${error.message}`);
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.get('/api/admin-auth/me', (req, res) => {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ authenticated: false });
+    return res.json({ authenticated: true, user: publicSession(session) });
+});
+
+app.get('/api/admin-auth/config', (req, res) => {
+    res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || '' });
+});
+
+app.post('/api/admin-auth/request-code', async (req, res) => {
+    const { firstName, lastName } = req.body;
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const adminCollection = localClient.db(database_name).collection('admins');
+        const isAdmin = await adminCollection.findOne({
+            "Last Name": lastName,
+            "First Name": firstName
+        });
+
+        if (!isAdmin) {
+            return res.status(403).json({ error: 'You are not authorized to request a one-time code' });
+        }
+
+        exec(`node ./backend/server/sendOTC.mjs "${firstName}" "${lastName}"`, (error) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                return res.status(500).json({ error: error.message });
+            }
+            return res.json({ ok: true });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/logout', (req, res) => {
+    clearSessionCookie(res);
+    res.json({ ok: true });
+});
+
+app.post('/api/admin-auth/otp-login', async (req, res) => {
+    const { firstName, lastName, enteredCode } = req.body;
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const admin = await validateOtpAdmin(db, firstName, lastName, enteredCode);
+
+        if (!admin) {
+            return res.status(401).json({ error: 'Invalid code or code expired' });
+        }
+
+        setSessionCookie(res, admin);
+        return res.json({ user: publicSession(getSessionFromRequest(req)) || {
+            firstName: admin['First Name'],
+            lastName: admin['Last Name'],
+            email: admin.Email || admin.email || admin['Google Email'] || null,
+            type: admin.Type || 'admin',
+        } });
+    } catch (error) {
+        console.error('Admin OTP login failed:', error);
+        return res.status(500).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/google', async (req, res) => {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Missing Google credential.' });
+
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        const googleUser = await verifyGoogleCredential(credential);
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const admin = await findAdminByEmail(db, googleUser.email);
+
+        if (!admin) {
+            return res.status(403).json({ error: 'This Google account is not authorized for RTUT Admin.' });
+        }
+
+        setSessionCookie(res, admin);
+        return res.json({
+            user: {
+                firstName: admin['First Name'],
+                lastName: admin['Last Name'],
+                email: googleUser.email,
+                type: admin.Type || 'admin',
+            },
+        });
+    } catch (error) {
+        console.error('Google admin login failed:', error);
+        return res.status(401).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
 });
 
 app.get('/call-function-generate-user-names', async (req, res) => {
@@ -872,13 +1003,13 @@ const logOperationToDatabase = async ({ action, adminUser, selectedEmployees, pa
     }
 };
 
-app.use('/api/payroll-verification', createPayrollVerificationRouter({
+app.use('/api/payroll-verification', requireAdminSession, createPayrollVerificationRouter({
     upload,
     uploadDirectory,
     logOperationToDatabase,
 }));
 
-app.use('/api/insurance-breakout', createInsuranceBreakoutRouter({
+app.use('/api/insurance-breakout', requireAdminSession, createInsuranceBreakoutRouter({
     upload,
     uploadDirectory,
     logOperationToDatabase,

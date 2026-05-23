@@ -79,7 +79,7 @@ function createInsuranceBreakoutRouter({ upload, uploadDirectory, logOperationTo
     const dentalFile = req.files?.dentalFile?.[0];
     const visionFile = req.files?.visionFile?.[0];
     const ltdLifeSuppFile = req.files?.ltdLifeSuppFile?.[0];
-    const adminUser = req.body?.adminUser ? safeJsonParse(req.body.adminUser) : null;
+    const adminUser = req.body?.adminUser ? safeJsonParse(req.body.adminUser) : req.adminSession;
     const uploadedFiles = [payrollFile, dentalFile, visionFile, ltdLifeSuppFile].filter(Boolean);
 
     if (!payrollFile || !dentalFile || !visionFile || !ltdLifeSuppFile) {

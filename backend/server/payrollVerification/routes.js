@@ -71,7 +71,7 @@ function createPayrollVerificationRouter({ upload, uploadDirectory, logOperation
   ]), async (req, res) => {
     const commissionFile = req.files?.commissionFile?.[0];
     const payrollFile = req.files?.payrollFile?.[0];
-    const adminUser = req.body?.adminUser ? safeJsonParse(req.body.adminUser) : null;
+    const adminUser = req.body?.adminUser ? safeJsonParse(req.body.adminUser) : req.adminSession;
 
     if (!commissionFile || !payrollFile) {
       return res.status(400).json({ error: 'Both commissionFile and payrollFile are required.' });

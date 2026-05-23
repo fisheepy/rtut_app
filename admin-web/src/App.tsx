@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
-import { ArrowUpRight, LayoutGrid, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowUpRight, LayoutGrid, LogOut, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { api } from './shared/api'
+import AdminLogin from './pages/AdminLogin'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
 import InsuranceBreakout from './pages/InsuranceBreakout'
@@ -12,7 +15,15 @@ const navItems = [
   { label: 'Employees', to: '/employees', icon: UsersRound },
 ]
 
-function Shell({ children }: { children: React.ReactNode }) {
+type AdminUser = {
+  firstName?: string
+  lastName?: string
+  email?: string
+  type?: string
+  expiresAt?: string
+}
+
+function Shell({ children, user, onLogout }: { children: React.ReactNode; user: AdminUser | null; onLogout: () => void }) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe_0,#f3f6fb_28%,#eef2f7_100%)] text-slate-950">
       <header className="sticky top-0 z-20 border-b border-white/70 bg-white/85 backdrop-blur">
@@ -46,13 +57,29 @@ function Shell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <a
-            className="ml-auto inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
-            href="/old"
-          >
-            Classic Admin
-            <ArrowUpRight className="h-4 w-4" />
-          </a>
+          <div className="ml-auto hidden items-center gap-3 lg:flex">
+            {user ? (
+              <div className="text-right">
+                <div className="text-sm font-semibold text-slate-900">{[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email}</div>
+                <div className="text-xs text-slate-500">{user.email || user.type || 'Admin'}</div>
+              </div>
+            ) : null}
+            <a
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:text-blue-700"
+              href="/old"
+            >
+              Classic Admin
+              <ArrowUpRight className="h-4 w-4" />
+            </a>
+            <button
+              className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-600"
+              type="button"
+              onClick={onLogout}
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </button>
+          </div>
         </div>
 
         <nav className="flex gap-2 overflow-x-auto border-t border-slate-200 px-4 py-2 md:hidden">
@@ -74,6 +101,10 @@ function Shell({ children }: { children: React.ReactNode }) {
               </NavLink>
             )
           })}
+          <button className="inline-flex shrink-0 items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white" type="button" onClick={onLogout}>
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
         </nav>
       </header>
 
@@ -83,8 +114,35 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const [user, setUser] = useState<AdminUser | null>(null)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
+  useEffect(() => {
+    api.get('/admin-auth/me')
+      .then((res) => setUser(res.data.user))
+      .catch(() => setUser(null))
+      .finally(() => setIsCheckingAuth(false))
+  }, [])
+
+  async function handleLogout() {
+    await api.post('/admin-auth/logout').catch(() => {})
+    setUser(null)
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-100 text-sm font-semibold text-slate-600">
+        Checking admin session...
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AdminLogin onLogin={setUser} />
+  }
+
   return (
-    <Shell>
+    <Shell user={user} onLogout={handleLogout}>
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/employees" element={<Employees />} />

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import LoginComponent from './loginComponent';
 import EmployeeSelectionComponent from './employeeSelectionComponent';
@@ -35,13 +35,28 @@ function App() {
   const [componentKey, setComponentKey] = useState(null);
 
   useEffect(() => {
-    // Check localStorage for existing login state
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUserData(parsedUser);
-      setLoggedIn(true);
-    }
+    fetch('/api/admin-auth/me')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('No active admin session');
+        }
+        return response.json();
+      })
+      .then(data => {
+        const sessionUser = data.user;
+        setUserData(sessionUser);
+        setLoggedIn(true);
+        localStorage.setItem('loginName', JSON.stringify({
+          firstName: sessionUser.firstName,
+          lastName: sessionUser.lastName,
+        }));
+      })
+      .catch(() => {
+        setLoggedIn(false);
+        setUserData({ firstName: null, lastName: null });
+        localStorage.removeItem('user');
+        localStorage.removeItem('loginName');
+      });
   }, []);
 
   useEffect(() => {
@@ -64,19 +79,19 @@ function App() {
     setUserData(data);
     setLastActivityTime(Date.now());
     setLoggedIn(true);
-    // Save user data to localStorage
-    localStorage.setItem('user', JSON.stringify(data));
+    localStorage.setItem('loginName', JSON.stringify({ firstName: data.firstName, lastName: data.lastName }));
   };
 
   const handleLoginStatusChange = (status) => {
     setLoggedIn(status);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch('/api/admin-auth/logout', { method: 'POST' }).catch(() => {});
     setLoggedIn(false);
     setUserData({ firstName: null, lastName: null });
-    // Remove user data from localStorage
     localStorage.removeItem('user');
+    localStorage.removeItem('loginName');
   };
 
   useEffect(() => {

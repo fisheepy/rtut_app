@@ -51,7 +51,7 @@ function LoginComponent({ onLoginStatusChange, onLoginSuccess }) {
         setMessageType('info');
 
         try {
-            const response = await fetch('/call-function-validate-log-in', {
+            const response = await fetch('/api/admin-auth/otp-login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -60,10 +60,11 @@ function LoginComponent({ onLoginStatusChange, onLoginSuccess }) {
             });
 
             if (response.ok) {
+                const data = await response.json();
                 setUserMessage('Login successful. Redirecting...');
                 setMessageType('success');
                 onLoginStatusChange(true);
-                onLoginSuccess({ firstName: firstName.trim(), lastName: lastName.trim() });
+                onLoginSuccess(data.user || { firstName: firstName.trim(), lastName: lastName.trim() });
                 localStorage.setItem('loginName', JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim() }));
             } else {
                 const errorMsg = await response.text();
@@ -100,7 +101,7 @@ function LoginComponent({ onLoginStatusChange, onLoginSuccess }) {
         setMessageType('info');
 
         try {
-            await axios.post('/call-function-send-one-time-code', {
+            await axios.post('/api/admin-auth/request-code', {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
             });
