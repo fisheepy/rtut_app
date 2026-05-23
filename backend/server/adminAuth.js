@@ -109,11 +109,15 @@ function adminEmailQuery(email) {
       { Email: exact },
       { email: exact },
       { 'Google Email': exact },
+      { 'Google Emails': exact },
       { googleEmail: exact },
+      { googleEmails: exact },
       { 'Test Google Email': exact },
       { testGoogleEmail: exact },
       { 'Allowed Google Emails': exact },
       { allowedGoogleEmails: exact },
+      { 'Allowed Emails': exact },
+      { allowedEmails: exact },
     ],
   };
 }
