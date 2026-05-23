@@ -6,7 +6,7 @@ import App from './App'
 import './index.css'
 
 const queryClient = new QueryClient()
-const basename = '/admin' // 你本地也是 /admin，就固定它
+const basename = window.location.pathname.startsWith('/hr-tools') ? '/hr-tools' : '/admin'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

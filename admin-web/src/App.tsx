@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
-import { ArrowUpRight, LayoutGrid, LogOut, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowUpRight, LayoutGrid, LogOut, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import Dashboard from './pages/Dashboard'
@@ -10,8 +10,6 @@ import PayrollVerification from './pages/PayrollVerification'
 
 const navItems = [
   { label: 'Tool Hub', to: '/', icon: LayoutGrid },
-  { label: 'Payroll Verification', to: '/payroll-verification', icon: ReceiptText },
-  { label: 'Insurance Breakout', to: '/insurance-breakout', icon: ShieldCheck },
   { label: 'Employees', to: '/employees', icon: UsersRound },
 ]
 
@@ -113,20 +111,45 @@ function Shell({ children, user, onLogout }: { children: React.ReactNode; user: 
   )
 }
 
+function HrToolShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe_0,#f3f6fb_28%,#eef2f7_100%)] text-slate-950">
+      <main className="mx-auto max-w-7xl px-5 py-7">{children}</main>
+    </div>
+  )
+}
+
 export default function App() {
   const [user, setUser] = useState<AdminUser | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const isHrTools = window.location.pathname.startsWith('/hr-tools')
 
   useEffect(() => {
+    if (isHrTools) {
+      setIsCheckingAuth(false)
+      return
+    }
+
     api.get('/admin-auth/me')
       .then((res) => setUser(res.data.user))
       .catch(() => setUser(null))
       .finally(() => setIsCheckingAuth(false))
-  }, [])
+  }, [isHrTools])
 
   async function handleLogout() {
     await api.post('/admin-auth/logout').catch(() => {})
     setUser(null)
+  }
+
+  if (isHrTools) {
+    return (
+      <HrToolShell>
+        <Routes>
+          <Route path="/payroll-verification" element={<PayrollVerification />} />
+          <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
+        </Routes>
+      </HrToolShell>
+    )
   }
 
   if (isCheckingAuth) {
@@ -146,8 +169,6 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/employees" element={<Employees />} />
-        <Route path="/payroll-verification" element={<PayrollVerification />} />
-        <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
       </Routes>
     </Shell>
   )

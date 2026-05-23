@@ -1055,13 +1055,13 @@ const logOperationToDatabase = async ({ action, adminUser, selectedEmployees, pa
     }
 };
 
-app.use('/api/payroll-verification', requireAdminSession, createPayrollVerificationRouter({
+app.use('/api/payroll-verification', createPayrollVerificationRouter({
     upload,
     uploadDirectory,
     logOperationToDatabase,
 }));
 
-app.use('/api/insurance-breakout', requireAdminSession, createInsuranceBreakoutRouter({
+app.use('/api/insurance-breakout', createInsuranceBreakoutRouter({
     upload,
     uploadDirectory,
     logOperationToDatabase,
@@ -1710,9 +1710,14 @@ const oldDir = path.join(__dirname, '../client/build');
 app.use(express.static(oldDir, { index: false }));
 const newDir = path.join(__dirname, '../../admin-web/dist');
 app.use('/admin', express.static(newDir));
+app.use('/hr-tools', express.static(newDir, { index: false }));
 app.use('/app-console', express.static(oldDir, { index: false }));
 
 app.get('/admin/*', (req, res) => {
+  res.sendFile(path.join(newDir, 'index.html'));
+});
+
+app.get(['/hr-tools/payroll-verification', '/hr-tools/insurance-breakout'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
@@ -1726,7 +1731,7 @@ app.get('/', (req, res) => {
   res.redirect('/admin');
 });
 
-app.get(/^\/(?!api|admin).*/, (req, res) => {
+app.get(/^\/(?!api|admin|hr-tools).*/, (req, res) => {
   res.redirect('/admin');
 });
 

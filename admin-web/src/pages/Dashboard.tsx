@@ -1,23 +1,7 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Bell, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, Bell, UsersRound } from 'lucide-react'
 
 const tools = [
-  {
-    title: 'Payroll Verification',
-    description: 'Compare HR commission references against payroll COM earnings and open a browser-ready issue report.',
-    to: '/payroll-verification',
-    icon: ReceiptText,
-    tone: 'from-blue-600 to-cyan-500',
-    status: 'Available',
-  },
-  {
-    title: 'Insurance Breakout',
-    description: 'Cross-check payroll deductions against dental, vision, LTD, life, and supplemental invoices.',
-    to: '/insurance-breakout',
-    icon: ShieldCheck,
-    tone: 'from-violet-600 to-cyan-500',
-    status: 'Available',
-  },
   {
     title: 'Employee Management',
     description: 'Review employee records and account status from the admin roster.',
@@ -45,7 +29,7 @@ export default function Dashboard() {
           <p className="text-sm font-semibold uppercase text-cyan-200">Admin Tool Hub</p>
           <h1 className="mt-3 text-4xl font-semibold tracking-normal md:text-5xl">One workspace for operational tools.</h1>
           <p className="mt-4 max-w-2xl text-base text-slate-300">
-            Start with payroll verification today, then keep adding focused admin utilities here as the platform grows.
+            Admin-only access stays here. Public HR utilities live on direct links outside the login workspace.
           </p>
         </div>
       </section>
