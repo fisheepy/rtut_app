@@ -1717,7 +1717,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools/payroll-verification', '/hr-tools/insurance-breakout'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
