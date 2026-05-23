@@ -1,160 +1,325 @@
-.App {
-  text-align: center;
+* {
+  box-sizing: border-box;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+body {
+  margin: 0;
+  background: #eef2f6;
+  color: #162033;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-#preview-section {
-  background-color: #f2f4f8; /* Light grey background */
-  border: 1px solid #d1d5da; /* Slight border for definition */
-  border-radius: 8px; /* Rounded corners for modern appearance */
-  padding: 20px; /* Padding for inner spacing */
-  margin-top: 20px; /* Margin to separate from the section above */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
-}
-
-#preview-section h3 {
-  color: #333; /* Dark color for the header text */
-  margin-bottom: 15px; /* Space below the header */
-}
-
-.execution-status {
-  color: #007bff; /* Use a color that stands out for execution status */
-  font-weight: bold; /* Make it bold to catch attention */
-  margin-bottom: 20px; /* Separate from content below */
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 .datePicker {
   width: 100%;
-  background-color: 'white';
+  background-color: #fff;
 }
-.login-page {
+
+.console-page {
   min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(33, 72, 118, 0.12), rgba(0, 139, 116, 0.08) 45%, rgba(247, 156, 53, 0.1)),
+    #eef2f6;
+}
+
+.console-shell {
+  display: grid;
+  grid-template-columns: 304px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.console-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  padding: 22px 16px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.86);
+  border-right: 1px solid rgba(16, 32, 51, 0.08);
+  box-shadow: 12px 0 38px rgba(16, 32, 51, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.console-brand {
   display: flex;
   align-items: center;
+  gap: 12px;
+  padding: 6px 8px 20px;
+}
+
+.console-brand-mark {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #f4f7fb 0%, #e9eef8 100%);
-  padding: 24px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #163b5f;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
-.login-card {
-  width: 100%;
-  max-width: 560px;
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 18px 42px rgba(16, 24, 40, 0.12);
-  padding: 28px;
+.console-brand strong,
+.console-user-panel span {
+  display: block;
+  color: #102033;
+  font-size: 15px;
+}
+
+.console-brand small,
+.console-user-panel small,
+.console-topbar p,
+.console-nav-item small {
+  display: block;
+  color: #66768a;
+  font-size: 12px;
+}
+
+.console-nav {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
-.login-header h1 {
-  margin: 0;
-  font-size: 28px;
-  color: #101828;
-}
-
-.login-header p {
-  margin: 8px 0 0;
-  color: #475467;
-}
-
-.login-section {
-  border: 1px solid #e4e7ec;
-  border-radius: 10px;
-  padding: 14px;
+.console-nav-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 7px;
 }
 
-.login-section h2 {
-  font-size: 16px;
+.console-nav-section p {
   margin: 0;
-  color: #1d2939;
+  padding: 0 10px;
+  color: #7b8797;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.login-input-row {
+.console-nav-item {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #1c2d42;
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
-.login-input-row.single {
-  grid-template-columns: 1fr;
+.console-nav-item:hover,
+.console-nav-item.active {
+  transform: translateY(-1px);
+  border-color: rgba(16, 32, 51, 0.08);
+  background: #fff;
+  box-shadow: 0 12px 26px rgba(16, 32, 51, 0.08);
 }
 
-.login-input-row input {
-  border: 1px solid #d0d5dd;
-  border-radius: 8px;
-  padding: 10px 12px;
+.console-nav-item strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.console-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: #fff;
+}
+
+.console-nav-item[data-accent="blue"] .console-nav-icon { background: #2563eb; }
+.console-nav-item[data-accent="green"] .console-nav-icon { background: #079455; }
+.console-nav-item[data-accent="orange"] .console-nav-icon { background: #ea580c; }
+.console-nav-item[data-accent="purple"] .console-nav-icon { background: #7c3aed; }
+.console-nav-item[data-accent="teal"] .console-nav-icon { background: #0f766e; }
+.console-nav-item[data-accent="slate"] .console-nav-icon { background: #475569; }
+
+.console-main {
+  min-width: 0;
+  padding: 26px;
+}
+
+.console-topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.console-back-link {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: #175cd3;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.console-back-link:hover {
+  text-decoration: underline;
+}
+
+.console-topbar h1 {
+  margin: 0;
+  color: #102033;
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.console-topbar p {
+  margin: 7px 0 0;
   font-size: 14px;
 }
 
-.login-section button {
-  align-self: flex-start;
-  background: #175cd3;
+.console-user-panel {
+  display: grid;
+  gap: 2px;
+  min-width: 210px;
+  padding: 12px;
+  border: 1px solid rgba(16, 32, 51, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 14px 30px rgba(16, 32, 51, 0.08);
+}
+
+.console-user-panel button {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: #102033;
   color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.login-section button:disabled {
-  background: #98a2b3;
-  cursor: not-allowed;
+.console-workspace {
+  display: grid;
+  gap: 18px;
 }
 
-.user-message {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
+.console-module-panel {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid rgba(16, 32, 51, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 45px rgba(16, 32, 51, 0.08);
 }
 
-.user-message.info {
-  color: #175cd3;
+.console-module-panel h1,
+.console-module-panel h2,
+.console-module-panel h3,
+.console-module-panel h4,
+.console-module-panel h5,
+.console-module-panel h6 {
+  color: #102033;
+  letter-spacing: 0;
 }
 
-.user-message.success {
-  color: #027a48;
+.console-module-panel .MuiButton-contained {
+  background-color: #175cd3;
+  border-radius: 10px;
+  box-shadow: none;
+  text-transform: none;
+  font-weight: 700;
 }
 
-.user-message.error {
-  color: #b42318;
+.console-module-panel .MuiButton-contained:hover {
+  background-color: #124aa8;
+  box-shadow: none;
+}
+
+.console-module-panel .MuiOutlinedInput-root,
+.console-module-panel .MuiPaper-root {
+  border-radius: 12px;
+}
+
+.employee-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.employee-panel > div {
+  padding: 22px;
+}
+
+.console-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  gap: 14px;
+  color: #344054;
+  background: #eef2f6;
+}
+
+.console-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid #d6deea;
+  border-top-color: #175cd3;
+  border-radius: 999px;
+  animation: console-spin 800ms linear infinite;
+}
+
+@keyframes console-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 980px) {
+  .console-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .console-sidebar {
+    position: relative;
+    height: auto;
+  }
+
+  .console-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
+
+  .console-topbar {
+    flex-direction: column;
+  }
+
+  .console-user-panel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .console-main {
+    padding: 16px;
+  }
+
+  .console-module-panel {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .console-topbar h1 {
+    font-size: 26px;
+  }
 }

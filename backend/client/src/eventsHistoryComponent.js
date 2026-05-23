@@ -28,8 +28,7 @@ const EventsHistoryModule = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const loginName = JSON.parse(localStorage.getItem('loginName'));
-        const response = await axios.get(`/events?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+        const response = await axios.get('/events');
         setEvents(response.data);
       } catch (error) {
         console.error('Error fetching events:', error);

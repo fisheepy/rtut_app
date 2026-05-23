@@ -25,8 +25,7 @@ const NotificationsHistoryModule = () => {
 
   const fetchNotifications = async () => {
     try {
-      const loginName = JSON.parse(localStorage.getItem('loginName'));
-      const response = await axios.get(`/notifications?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+      const response = await axios.get('/notifications');
       const sortedNotifications = response.data.sort((a, b) => new Date(b.currentDataTime) - new Date(a.currentDataTime));
       setNotifications(sortedNotifications);
     } catch (error) {

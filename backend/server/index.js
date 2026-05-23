@@ -149,7 +149,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, '../client/build')))
+app.use(express.static(path.join(__dirname, '../client/build'), { index: false }))
 
 // Set the limit to 10MB or more as needed
 app.use(express.json({ limit: '10mb' }));
@@ -367,8 +367,8 @@ app.post("/search", async (req, res) => {
     }
 });
 
-app.get('/employees', cors(), async (req, res, next) => {
-    const loginName = req.query; // Extract firstName and lastName from query parameters
+app.get('/employees', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
     try {
         // Connect to MongoDB
         await client.connect();
@@ -391,8 +391,15 @@ app.get('/employees', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName);
-        const isRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        const isAdmin = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName
+        );
+        const isRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
 
         let filteredData = [];
 
@@ -431,8 +438,8 @@ app.get('/employees', cors(), async (req, res, next) => {
     }
 });
 
-app.get('/notifications', cors(), async (req, res, next) => {
-    const loginName = req.query; // Extract firstName and lastName from query parameters
+app.get('/notifications', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
     try {
         // Connect to MongoDB
         await client.connect();
@@ -455,7 +462,11 @@ app.get('/notifications', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdminRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
 
         if (isAdminRoot) {
             // If the user is root, return all notification data
@@ -483,8 +494,8 @@ app.get('/notifications', cors(), async (req, res, next) => {
     }
 });
 
-app.get('/surveys', cors(), async (req, res, next) => {
-    const loginName = req.query; // Extract firstName and lastName from query parameters
+app.get('/surveys', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
     try {
         // Connect to MongoDB
         await client.connect();
@@ -507,7 +518,11 @@ app.get('/surveys', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdminRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
 
         if (isAdminRoot) {
             // If the user is root, return all survey data
@@ -536,8 +551,8 @@ app.get('/surveys', cors(), async (req, res, next) => {
 });
 
 
-app.get('/events', cors(), async (req, res, next) => {
-    const loginName = req.query; // Extract firstName and lastName from query parameters
+app.get('/events', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
     try {
         // Connect to MongoDB
         await client.connect();
@@ -560,7 +575,11 @@ app.get('/events', cors(), async (req, res, next) => {
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
-        const isAdmin = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        const isAdmin = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
         // Filter data based on user's admin status
 
         if (isAdmin) {
@@ -579,9 +598,9 @@ app.get('/events', cors(), async (req, res, next) => {
     }
 });
 
-app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
+app.get('/survey-results/:surveyId', cors(), requireAdminSession, async (req, res, next) => {
     const { surveyId } = req.params;
-    const loginName = req.query; // Assuming loginName contains { firstName, lastName }
+    const loginName = req.adminSession;
 
     try {
         // Connect to MongoDB
@@ -607,7 +626,11 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
         const admins = await adminCollection.find().toArray();
 
         // Check if the user is a root admin
-        const isAdminRoot = admins.some(admin => admin['First Name'] === loginName.firstName && admin['Type'] === 'root');
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
 
         // If the user is root, return all data
         if (isAdminRoot) {
@@ -615,8 +638,8 @@ app.get('/survey-results/:surveyId', cors(), async (req, res, next) => {
         } else {
             // If the user is not root, check if they are the sender of the survey
             const filteredData = data.filter(survey =>
-                survey.adminUser.firstName === loginName.firstName &&
-                survey.adminUser.lastName === loginName.lastName
+                survey.adminUser?.firstName === loginName.firstName &&
+                survey.adminUser?.lastName === loginName.lastName
             );
 
             if (filteredData.length > 0) {
@@ -658,7 +681,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee) {
     }
 }
 
-app.put('/employees/:id', async (req, res) => {
+app.put('/employees/:id', requireAdminSession, async (req, res) => {
     const employeeId = req.params.id;
     const updatedEmployee = req.body;
 
@@ -675,8 +698,10 @@ app.put('/employees/:id', async (req, res) => {
 });
 
 // Define a route to handle the POST request for executing the script
-app.post('/call-function-send-event', (req, res) => {
-    const { creator, endDate, location, startDate, title, allDay, detail, selectedEmployees } = req.body.data;
+app.post('/call-function-send-event', requireAdminSession, (req, res) => {
+    const { endDate, location, startDate, title, allDay, detail, selectedEmployees } = req.body.data;
+    const adminUser = req.adminSession;
+    const creator = getOperatorDisplayName(adminUser);
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
 
     // Write the JSON string to a temporary file
@@ -687,7 +712,7 @@ app.post('/call-function-send-event', (req, res) => {
             console.error(`Error executing script: ${error.message}`);
             await logOperationToDatabase({
                 action: 'send_event',
-                adminUser: { firstName: creator },
+                adminUser,
                 selectedEmployees,
                 payloadSummary: { title, location, allDay, isRecurring: false },
                 status: 'failed',
@@ -699,7 +724,7 @@ app.post('/call-function-send-event', (req, res) => {
 
         await logOperationToDatabase({
             action: 'send_event',
-            adminUser: { firstName: creator },
+            adminUser,
             selectedEmployees,
             payloadSummary: { title, location, allDay, isRecurring: false },
             status: 'success',
@@ -709,7 +734,7 @@ app.post('/call-function-send-event', (req, res) => {
 });
 
 // Define a route to handle the POST request for deleting an event
-app.post('/call-function-delete-event', (req, res) => {
+app.post('/call-function-delete-event', requireAdminSession, (req, res) => {
     const { eventId } = req.body;
 
     exec(`node ./backend/server/deleteEvent.mjs "${eventId}"`, (error, stdout, stderr) => {
@@ -724,7 +749,7 @@ app.post('/call-function-delete-event', (req, res) => {
 });
 
 // Define a route to handle the POST request for updating an event
-app.post('/call-function-update-event', (req, res) => {
+app.post('/call-function-update-event', requireAdminSession, (req, res) => {
     const { eventId, updatedEvent } = req.body;
 
     const tempFilePath = path.join(__dirname, 'temp', 'updatedEvent.json');
@@ -944,7 +969,7 @@ app.post('/api/admin-auth/google', async (req, res) => {
     }
 });
 
-app.get('/call-function-generate-user-names', async (req, res) => {
+app.get('/call-function-generate-user-names', requireAdminSession, async (req, res) => {
     // Execute the script
     exec(`node ./backend/server/generateUserNames.mjs`, (error, stdout, stderr) => {
         if (error) {
@@ -960,7 +985,7 @@ app.get('/call-function-generate-user-names', async (req, res) => {
     });
 });
 
-app.post('/call-function-send-onboarding', async (req, res) => {
+app.post('/call-function-send-onboarding', requireAdminSession, async (req, res) => {
     const selectedEmployees = req.body.batch;
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
@@ -974,6 +999,7 @@ app.post('/call-function-send-onboarding', async (req, res) => {
             console.error(`Error executing script: ${error.message}`);
             await logOperationToDatabase({
                 action: 'send_onboarding',
+                adminUser: req.adminSession,
                 selectedEmployees,
                 payloadSummary: {},
                 status: 'failed',
@@ -985,6 +1011,7 @@ app.post('/call-function-send-onboarding', async (req, res) => {
 
         await logOperationToDatabase({
             action: 'send_onboarding',
+            adminUser: req.adminSession,
             selectedEmployees,
             payloadSummary: {},
             status: 'success',
@@ -1067,7 +1094,7 @@ const logErrorToDatabase = async (error, context) => {
 };
 
 // Define a route to handle the POST request for executing the script
-app.post('/call-function-send-notification', async (req, res) => {
+app.post('/call-function-send-notification', requireAdminSession, async (req, res) => {
     const messageContent = req.body.body;
     const subject = req.body.subject;
     const sender = req.body.sender;
@@ -1075,7 +1102,7 @@ app.post('/call-function-send-notification', async (req, res) => {
     const sendEmail = req.body.sendEmail;
     const sendSms = req.body.sendSms;
     const sendApp = req.body.sendApp;
-    const adminUser = req.body.adminUser;
+    const adminUser = req.adminSession;
 
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
@@ -1121,10 +1148,10 @@ app.post('/call-function-send-notification', async (req, res) => {
     });
 });
 
-app.post('/call-function-send-survey', (req, res) => {
+app.post('/call-function-send-survey', requireAdminSession, (req, res) => {
     const surveyJson = req.body.surveyJson;
     const selectedEmployees = req.body.selectedEmployees;
-    const adminUser = req.body.adminUser;
+    const adminUser = req.adminSession;
     // Construct the JSON string with proper formatting
     const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
     const surveyQuestionsJSON = JSON.stringify(surveyJson);
@@ -1170,7 +1197,7 @@ app.post('/call-function-send-survey', (req, res) => {
     });
 });
 
-app.post('/call-function-add-employee', async (req, res) => {
+app.post('/call-function-add-employee', requireAdminSession, async (req, res) => {
     const newEmployee = req.body;
     const newEmployeeJSON = JSON.stringify(newEmployee);
 
@@ -1199,7 +1226,7 @@ app.post('/call-function-add-employee', async (req, res) => {
 });
 
 
-app.post('/call-function-delete-employee', async (req, res) => {
+app.post('/call-function-delete-employee', requireAdminSession, async (req, res) => {
     const firstName = req.body.firstName;
     const lastName = req.body.lastName;
 
@@ -1223,7 +1250,7 @@ app.post('/call-function-delete-employee', async (req, res) => {
     });
 });
 
-app.post('/call-function-import-employees', upload.single('file'), (req, res) => {
+app.post('/call-function-import-employees', requireAdminSession, upload.single('file'), (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
@@ -1246,7 +1273,7 @@ app.post('/call-function-import-employees', upload.single('file'), (req, res) =>
     });
 });
 
-app.post('/call-function-delete-notification', (req, res) => {
+app.post('/call-function-delete-notification', requireAdminSession, (req, res) => {
     const transactionId = req.body.transactionId;
 
     // Execute the script and pass the temporary file path as an argument
@@ -1261,7 +1288,7 @@ app.post('/call-function-delete-notification', (req, res) => {
     });
 });
 
-app.post('/call-function-activate-app-usage', async (req, res) => {
+app.post('/call-function-activate-app-usage', requireAdminSession, async (req, res) => {
     const users = JSON.stringify(req.body);
     // Write the JSON string to a temporary file
     const tempFilePath = path.join(__dirname, 'temp', 'activateUsers.json');
@@ -1273,6 +1300,7 @@ app.post('/call-function-activate-app-usage', async (req, res) => {
             console.error(`Error executing script: ${error.message}`);
             await logOperationToDatabase({
                 action: 'activate_app_usage',
+                adminUser: req.adminSession,
                 selectedEmployees: req.body,
                 payloadSummary: { source: 'csv_workflow' },
                 status: 'failed',
@@ -1284,6 +1312,7 @@ app.post('/call-function-activate-app-usage', async (req, res) => {
 
         await logOperationToDatabase({
             action: 'activate_app_usage',
+            adminUser: req.adminSession,
             selectedEmployees: req.body,
             payloadSummary: { source: 'csv_workflow' },
             status: 'success',
@@ -1678,16 +1707,16 @@ app.post('/admin/digest', apiKeyGuard, async (req, res) => {
 });
 
 const oldDir = path.join(__dirname, '../client/build');
-app.use(express.static(oldDir));
+app.use(express.static(oldDir, { index: false }));
 const newDir = path.join(__dirname, '../../admin-web/dist');
 app.use('/admin', express.static(newDir));
-app.use('/app-console', express.static(oldDir));
+app.use('/app-console', express.static(oldDir, { index: false }));
 
 app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get('/app-console/*', (req, res) => {
+app.get(['/app-console', '/app-console/*'], (req, res) => {
   const session = getSessionFromRequest(req);
   if (!session) return res.redirect('/admin');
   res.sendFile(path.join(oldDir, 'index.html'));

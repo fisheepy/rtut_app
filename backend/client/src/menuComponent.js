@@ -1,41 +1,65 @@
-import React, { useState } from 'react';
-import { Dropdown } from 'react-bootstrap';
+import React from 'react';
+import NotificationsActiveOutlinedIcon from '@mui/icons-material/NotificationsActiveOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import EventAvailableOutlinedIcon from '@mui/icons-material/EventAvailableOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
+import PersonAddAltOutlinedIcon from '@mui/icons-material/PersonAddAltOutlined';
+import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 
-const MenuComponent = ({ onItemSelect }) => {
-  const [selectedItem, setSelectedItem] = useState("Select");
+export const menuItems = [
+  { id: 'sendNotification', label: 'Send Notification', group: 'Communications', description: 'Push, email, and SMS announcements.', icon: NotificationsActiveOutlinedIcon, accent: 'blue' },
+  { id: 'sendSurvey', label: 'Send Survey', group: 'Communications', description: 'Build and send employee surveys.', icon: AssignmentOutlinedIcon, accent: 'green' },
+  { id: 'sendEvent', label: 'Send Event', group: 'Communications', description: 'Create app calendar events.', icon: EventAvailableOutlinedIcon, accent: 'orange' },
+  { id: 'reviewNotifications', label: 'Notification History', group: 'Review', description: 'Audit sent notifications.', icon: HistoryOutlinedIcon, accent: 'blue' },
+  { id: 'reviewSurveys', label: 'Survey History', group: 'Review', description: 'Review surveys and responses.', icon: HistoryOutlinedIcon, accent: 'green' },
+  { id: 'reviewEvents', label: 'Event History', group: 'Review', description: 'Manage published events.', icon: HistoryOutlinedIcon, accent: 'orange' },
+  { id: 'processEmployeeCsv', label: 'Employee Import', group: 'Operations', description: 'Import and export employee files.', icon: UploadFileOutlinedIcon, accent: 'purple' },
+  { id: 'processEmployee', label: 'Employee Maintenance', group: 'Operations', description: 'Add or remove individual employees.', icon: PersonAddAltOutlinedIcon, accent: 'teal' },
+  { id: 'processWorkflow', label: 'App Workflow', group: 'Operations', description: 'Run onboarding and activation workflows.', icon: AccountTreeOutlinedIcon, accent: 'slate' },
+];
 
-  const menuItems = [
-    { id: 'sendNotification', label: 'Send Notification' },
-    { id: 'sendSurvey', label: 'Send Survey' },
-    { id: 'sendEvent', label: 'Send Event'},
-    { id: 'reviewNotifications', label: 'History Notification' },
-    { id: 'reviewSurveys', label: 'History Surveys' },
-    { id: 'reviewEvents', label: 'History Event'},
-    { id: 'processEmployeeCsv', label: 'Import/Export Employees'},
-    { id: 'processEmployee', label: 'Add/Remove Individual Employee'},
-    { id: 'processWorkflow', label: 'Process Workflow'},
-    // Add other items as necessary
-  ];
-
+const MenuComponent = ({ onItemSelect, selectedItemId }) => {
   const handleSelect = (eventKey) => {
     const item = menuItems.find(item => item.id === eventKey);
-    setSelectedItem(item.label);
     if (onItemSelect) {
-      onItemSelect(item); // Invoke the callback with the selected item
+      onItemSelect(item);
     }
   };
 
+  const groups = menuItems.reduce((acc, item) => {
+    acc[item.group] = acc[item.group] || [];
+    acc[item.group].push(item);
+    return acc;
+  }, {});
+
   return (
-    <Dropdown onSelect={handleSelect}>
-      <Dropdown.Toggle variant="success" id="dropdown-basic">
-        {selectedItem}
-      </Dropdown.Toggle>
-      <Dropdown.Menu>
-        {menuItems.map(item => (
-          <Dropdown.Item key={item.id} eventKey={item.id}>{item.label}</Dropdown.Item>
-        ))}
-      </Dropdown.Menu>
-    </Dropdown>
+    <nav className="console-nav" aria-label="App Console modules">
+      {Object.entries(groups).map(([group, items]) => (
+        <section className="console-nav-section" key={group}>
+          <p>{group}</p>
+          {items.map(item => {
+            const Icon = item.icon;
+            const isActive = selectedItemId === item.id;
+            return (
+              <button
+                className={`console-nav-item ${isActive ? 'active' : ''}`}
+                data-accent={item.accent}
+                key={item.id}
+                onClick={() => handleSelect(item.id)}
+                type="button"
+              >
+                <span className="console-nav-icon"><Icon fontSize="small" /></span>
+                <span>
+                  <strong>{item.label}</strong>
+                  <small>{item.description}</small>
+                </span>
+              </button>
+            );
+          })}
+        </section>
+      ))}
+    </nav>
   );
 };
 

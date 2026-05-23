@@ -27,8 +27,7 @@ const SurveysHistoryModule = () => {
   useEffect(() => {
     const fetchSurveys = async () => {
       try {
-        const loginName = JSON.parse(localStorage.getItem('loginName'));
-        const response = await axios.get(`/surveys?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+        const response = await axios.get('/surveys');
         const sortedNotifications = response.data.sort((a, b) => new Date(b.currentDataTime) - new Date(a.currentDataTime));
         setSurveys(sortedNotifications);
       } catch (error) {
@@ -50,8 +49,7 @@ const SurveysHistoryModule = () => {
 
   const handleViewResults = async (surveyId) => {
     try {
-      const loginName = JSON.parse(localStorage.getItem('loginName'));
-      const response = await axios.get(`/survey-results/${surveyId}?lastName=${loginName.lastName}&firstName=${loginName.firstName}`);
+      const response = await axios.get(`/survey-results/${surveyId}`);
       setSurveyResults(response.data);
       setIsResultsDialogOpen(true);
     } catch (error) {

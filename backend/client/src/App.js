@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import EmployeeSelectionComponent from './employeeSelectionComponent';
 import { SelectedEmployeesProvider } from './selectedEmployeesContext';
-import MenuComponent from './menuComponent';
+import MenuComponent, { menuItems } from './menuComponent';
 import NotificationCenterModule from './notificationCenterComponent';
 import SurveyCenterComponent from './surveyCenterComponent';
 import UtilityToolsComponent from './utilityToolsComponent';
@@ -30,9 +30,8 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [userData, setUserData] = useState({ firstName: null, lastName: null });
-  const [lastActivityTime] = useState(Date.now());
-  const [selectedItem, setSelectedItem] = useState([]);
-  const [componentKey, setComponentKey] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(menuItems[0]);
+  const [componentKey, setComponentKey] = useState(menuItems[0].id);
 
   useEffect(() => {
     fetch('/api/admin-auth/me')
@@ -64,13 +63,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Perform any setup or actions required when selectedItem changes
     setComponentKey(selectedItem.id);
-
-    // Optional: Any cleanup actions can go here in the return function
-    return () => {
-      // Cleanup actions
-    };
   }, [selectedItem]);
 
   const handleItemSelect = (item) => {
@@ -85,48 +78,64 @@ function App() {
     setUserData({ firstName: null, lastName: null });
     localStorage.removeItem('user');
     localStorage.removeItem('loginName');
+    window.location.href = '/admin';
   };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const elapsedTime = now - lastActivityTime;
-
-      if (elapsedTime >= 30 * 60 * 1000) {
-        handleLogout();
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [lastActivityTime]);
-
   if (checkingSession) {
-    return <div style={{ padding: '32px' }}>Checking admin session...</div>;
+    return (
+      <div className="console-loading">
+        <div className="console-spinner" />
+        <p>Checking admin session...</p>
+      </div>
+    );
   }
 
+  const showEmployeeSelection = componentKey !== 'reviewNotifications' &&
+    componentKey !== 'reviewSurveys' &&
+    componentKey !== 'reviewEvents' &&
+    componentKey !== 'processEmployee';
+
   return (
-    <div>
+    <div className="console-page">
       {loggedIn ? (
         <SelectedEmployeesProvider>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px' }}>
-              <a href="/admin">Back to Tool Hub</a>
-              <button onClick={handleLogout}>Logout</button>
-            </div>
-            <p>Welcome, {userData.firstName}!</p>
-            <MenuComponent onItemSelect={handleItemSelect} />
-            <div className="display-area" style={{ flex: 1, padding: '20px' }}>
-              {RenderSelectedComponent ? <RenderSelectedComponent userData={userData} /> : "Please select a menu item."}
-            </div>
-            {componentKey !== 'reviewNotifications' &&
-              componentKey !== 'reviewSurveys' &&
-              componentKey !== 'reviewEvents' &&
-              // componentKey !== 'sendEvent' &&
-              componentKey !== 'processEmployee' && (
-                <div className="display-area" style={{ flex: 1, padding: '20px' }}>
-                  <EmployeeSelectionComponent />
+          <div className="console-shell">
+            <aside className="console-sidebar">
+              <div className="console-brand">
+                <span className="console-brand-mark">RT</span>
+                <div>
+                  <strong>App Console</strong>
+                  <small>Employee app operations</small>
                 </div>
-              )}
+              </div>
+              <MenuComponent onItemSelect={handleItemSelect} selectedItemId={componentKey} />
+            </aside>
+
+            <main className="console-main">
+              <header className="console-topbar">
+                <div>
+                  <a className="console-back-link" href="/admin">Back to Tool Hub</a>
+                  <h1>{selectedItem?.label || 'App Console'}</h1>
+                  <p>{selectedItem?.description || 'Manage RTUT operational tools.'}</p>
+                </div>
+                <div className="console-user-panel">
+                  <span>{userData.firstName} {userData.lastName}</span>
+                  <small>{userData.email || userData.type || 'Admin'}</small>
+                  <button onClick={handleLogout} type="button">Logout</button>
+                </div>
+              </header>
+
+              <section className="console-workspace">
+                <div className="console-module-panel">
+                  {RenderSelectedComponent ? <RenderSelectedComponent userData={userData} /> : "Please select a menu item."}
+                </div>
+                {showEmployeeSelection && (
+                  <div className="console-module-panel employee-panel">
+                    <EmployeeSelectionComponent />
+                  </div>
+                )}
+              </section>
+            </main>
           </div>
         </SelectedEmployeesProvider>
       ) : null}
