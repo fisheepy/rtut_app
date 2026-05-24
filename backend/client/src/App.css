@@ -348,6 +348,52 @@ select {
   border-radius: 12px;
 }
 
+.notification-compose {
+  display: grid;
+  gap: 14px;
+}
+
+.notification-compose-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.notification-compose-header .MuiTypography-h6 {
+  line-height: 1.2;
+}
+
+.notification-compose-header .MuiButton-root {
+  flex-shrink: 0;
+}
+
+.notification-status {
+  margin-top: 4px !important;
+  color: #66768a;
+  font-size: 13px !important;
+  white-space: pre-wrap;
+}
+
+.notification-compose-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1.2fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.notification-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.notification-channel-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding: 2px 0;
+}
+
 .employee-panel {
   padding: 0;
   overflow: hidden;
@@ -450,6 +496,10 @@ select {
 
   .console-topbar {
     flex-direction: column;
+  }
+
+  .notification-compose-grid {
+    grid-template-columns: 1fr;
   }
 
   .console-user-panel {

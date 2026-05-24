@@ -67,33 +67,39 @@ function NotificationCenterComponent({ userData }) {
     );
 
     return (
-        <div>
-            <div>
-                <Typography variant="h6">Execution Status</Typography>
-                <Typography>{executionStatus}</Typography>
-                <Typography variant="h6">Compose Notification</Typography>
-                <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} style={{ width: '25%' }} />
-                <TextField label="Sender" variant="outlined" value={sender} onChange={(e) => setSender(e.target.value)} style={{ width: '25%' }} />
+        <div className="notification-compose">
+            <div className="notification-compose-header">
+                <div>
+                    <Typography variant="h6">Compose Notification</Typography>
+                    <Typography className="notification-status">{executionStatus}</Typography>
+                </div>
+                <Button variant="contained" onClick={() => setOpenConfirmDialog(true)}>
+                    Send Notification
+                </Button>
             </div>
-            <TextField
-                label="Notification Content"
-                multiline
-                rows={10}
-                placeholder="Type here to compose notification..."
-                variant="outlined"
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                fullWidth
-                style={{ marginBottom: '10px', width: '50vw', marginTop: '10px' }}
-            />
-            <div>
-                <FormControlLabel control={<Checkbox checked={sendOptions.app} onChange={handleCheckboxChange} name="app" />} label="App" />
-                <FormControlLabel control={<Checkbox checked={sendOptions.email} onChange={handleCheckboxChange} name="email" />} label="Email" />
-                <FormControlLabel control={<Checkbox checked={sendOptions.sms} onChange={handleCheckboxChange} name="sms" />} label="SMS" />
+
+            <div className="notification-compose-grid">
+                <div className="notification-fields">
+                    <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth size="small" />
+                    <TextField label="Sender" variant="outlined" value={sender} onChange={(e) => setSender(e.target.value)} fullWidth size="small" />
+                    <div className="notification-channel-row">
+                        <FormControlLabel control={<Checkbox checked={sendOptions.app} onChange={handleCheckboxChange} name="app" />} label="App" />
+                        <FormControlLabel control={<Checkbox checked={sendOptions.email} onChange={handleCheckboxChange} name="email" />} label="Email" />
+                        <FormControlLabel control={<Checkbox checked={sendOptions.sms} onChange={handleCheckboxChange} name="sms" />} label="SMS" />
+                    </div>
+                </div>
+                <TextField
+                    label="Notification Content"
+                    multiline
+                    rows={4}
+                    placeholder="Type here to compose notification..."
+                    variant="outlined"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    fullWidth
+                    size="small"
+                />
             </div>
-            <Button variant="contained" onClick={() => setOpenConfirmDialog(true)} style={{ marginTop: '10px', width: '50%' }}>
-                Send Notification
-            </Button>
 
             <BulkRecipientConfirmDialog
                 open={openConfirmDialog}
