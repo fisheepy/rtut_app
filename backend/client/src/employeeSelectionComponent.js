@@ -227,7 +227,7 @@ function EmployeeSelectionComponent() {
     return (
         <div>
             <h3>Selected Employees</h3>
-            <TableContainer component={Paper} style={{ maxHeight: 600 }}>
+            <TableContainer className="employee-table-container" component={Paper}>
                 <Table aria-label="employee selection table" stickyHeader>
                     <TableHead>
                         <TableRow style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'white' }}>

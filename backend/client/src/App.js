@@ -125,7 +125,7 @@ function App() {
 
             <main className="console-main">
               <header className="console-topbar">
-                <div>
+                <div className="console-title-row">
                   <a className="console-back-link" href="/admin">Back to Tool Hub</a>
                   <h1>{selectedItem?.label || 'App Console'}</h1>
                   <p>{selectedItem?.description || 'Manage RTUT operational tools.'}</p>

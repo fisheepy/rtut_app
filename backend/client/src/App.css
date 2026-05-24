@@ -22,7 +22,8 @@ select {
 }
 
 .console-page {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background:
     linear-gradient(135deg, rgba(33, 72, 118, 0.12), rgba(0, 139, 116, 0.08) 45%, rgba(247, 156, 53, 0.1)),
     #eef2f6;
@@ -247,24 +248,29 @@ select {
 
 .console-main {
   min-width: 0;
-  padding: 26px;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 22px 26px;
+  display: flex;
+  flex-direction: column;
 }
 
 .console-topbar {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  align-items: flex-start;
-  margin-bottom: 18px;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 14px;
 }
 
 .console-back-link {
   display: inline-flex;
-  margin-bottom: 8px;
   color: #175cd3;
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .console-back-link:hover {
@@ -274,30 +280,49 @@ select {
 .console-topbar h1 {
   margin: 0;
   color: #102033;
-  font-size: 32px;
+  font-size: 28px;
   line-height: 1.15;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .console-topbar p {
-  margin: 7px 0 0;
+  margin: 0;
   font-size: 14px;
+  color: #66768a;
+  white-space: nowrap;
+}
+
+.console-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.console-title-row p {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .console-user-panel {
   display: grid;
-  gap: 2px;
-  min-width: 210px;
-  padding: 12px;
+  grid-template-columns: minmax(92px, auto) auto;
+  gap: 2px 12px;
+  align-items: center;
+  min-width: 248px;
+  padding: 9px 10px;
   border: 1px solid rgba(16, 32, 51, 0.08);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 14px 30px rgba(16, 32, 51, 0.08);
 }
 
 .console-user-panel button {
-  margin-top: 8px;
-  padding: 8px 10px;
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  padding: 9px 22px;
   border: 0;
   border-radius: 10px;
   background: #102033;
@@ -308,12 +333,15 @@ select {
 
 .console-workspace {
   display: grid;
-  gap: 18px;
+  grid-template-rows: auto minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  gap: 14px;
 }
 
 .console-module-panel {
   min-width: 0;
-  padding: 22px;
+  padding: 18px;
   border: 1px solid rgba(16, 32, 51, 0.08);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.9);
@@ -350,7 +378,7 @@ select {
 
 .notification-compose {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .notification-compose-header {
@@ -378,7 +406,7 @@ select {
 .notification-compose-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1.2fr);
-  gap: 14px;
+  gap: 12px;
   align-items: start;
 }
 
@@ -395,12 +423,30 @@ select {
 }
 
 .employee-panel {
+  min-height: 0;
   padding: 0;
   overflow: hidden;
+  display: flex;
 }
 
 .employee-panel > div {
-  padding: 22px;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  padding: 18px;
+}
+
+.employee-panel h3 {
+  margin: 0 0 10px;
+  font-size: 24px;
+}
+
+.employee-table-container {
+  flex: 1;
+  min-height: 0;
+  max-height: none !important;
+  overflow: auto;
 }
 
 .console-loading {
@@ -496,6 +542,16 @@ select {
 
   .console-topbar {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .console-title-row {
+    flex-wrap: wrap;
+  }
+
+  .console-topbar h1,
+  .console-topbar p {
+    white-space: normal;
   }
 
   .notification-compose-grid {
@@ -509,7 +565,15 @@ select {
 
 @media (max-width: 640px) {
   .console-main {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
     padding: 16px;
+  }
+
+  .console-page {
+    height: auto;
+    overflow: visible;
   }
 
   .console-module-panel {
