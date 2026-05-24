@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import {
     TextField,
     Button,
-    Grid,
-    Paper,
     Typography,
     FormControlLabel,
     Checkbox,
@@ -12,17 +10,6 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogContentText,
-    DialogActions,
-    Box,
-    Chip,
-    List,
-    ListItem,
-    ListItemText,
-    Divider,
 } from '@mui/material';
 import moment from 'moment';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
@@ -152,40 +139,42 @@ const EventsCenterComponent = ({ event }) => {
     };
 
     return (
-        <Paper style={{ padding: 16 }}>
-            <div>
-                <h3>Execution Status</h3>
-                <p className="execution-status">{executionStatus}</p>
+        <div className="compact-tool event-compose">
+            <div className="compact-tool-header">
+                <div>
+                    <Typography variant="h6">{event ? 'Edit Event' : 'Create Event'}</Typography>
+                    <Typography className="compact-tool-status">{executionStatus}</Typography>
+                </div>
+                <Button type="submit" form="event-compose-form" variant="contained" color="primary">{event ? 'Update' : 'Create Event'}</Button>
             </div>
-            <Typography variant="h6">{event ? 'Edit Event' : 'Create Event'}</Typography>
-            <form onSubmit={handleSubmit}>
-                <Grid container alignItems="flex-start" spacing={2}>
-                    <Grid item xs={12}><TextField name="title" label="Title" fullWidth value={formData.title} onChange={handleChange} /></Grid>
-                    <Grid item xs={6}><TextField name="startDate" label="Start Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth InputLabelProps={{ shrink: true }} value={formData.startDate} onChange={handleChange} /></Grid>
-                    <Grid item xs={6}><TextField name="endDate" label="End Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth InputLabelProps={{ shrink: true }} value={formData.endDate} onChange={handleChange} /></Grid>
-                    <Grid item xs={12}><TextField name="creator" label="Creator" fullWidth value={formData.creator} onChange={handleChange} /></Grid>
-                    <Grid item xs={12}><TextField name="location" label="Location" fullWidth value={formData.location} onChange={handleChange} /></Grid>
-                    <Grid item xs={12}><TextField name="detail" label="Detail" fullWidth multiline rows={4} value={formData.detail} onChange={handleChange} /></Grid>
-                    <Grid item xs={12}><FormControlLabel control={<Checkbox checked={formData.allDay} onChange={handleCheckboxChange} name="allDay" />} label="All Day" /></Grid>
-                    <Grid item style={{ marginTop: 16 }}><Button type="submit" variant="contained" color="primary">{event ? 'Update' : 'Create'}</Button></Grid>
-                </Grid>
-                <Grid item xs={12}><FormControlLabel control={<Checkbox checked={formData.isRecurring} onChange={() => setFormData(prev => ({ ...prev, isRecurring: !prev.isRecurring }))} />} label="Is Recurring" /></Grid>
 
-                {formData.isRecurring && (
-                    <>
-                        <Grid item xs={12}>
-                            <FormControl fullWidth>
+            <form id="event-compose-form" onSubmit={handleSubmit}>
+                <div className="event-compose-grid">
+                    <TextField name="title" label="Title" fullWidth size="small" value={formData.title} onChange={handleChange} />
+                    <TextField name="creator" label="Creator" fullWidth size="small" value={formData.creator} onChange={handleChange} />
+                    <TextField name="location" label="Location" fullWidth size="small" value={formData.location} onChange={handleChange} />
+                    <TextField name="startDate" label="Start Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth size="small" InputLabelProps={{ shrink: true }} value={formData.startDate} onChange={handleChange} />
+                    <TextField name="endDate" label="End Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth size="small" InputLabelProps={{ shrink: true }} value={formData.endDate} onChange={handleChange} />
+                    <div className="event-toggle-row">
+                        <FormControlLabel control={<Checkbox checked={formData.allDay} onChange={handleCheckboxChange} name="allDay" />} label="All Day" />
+                        <FormControlLabel control={<Checkbox checked={formData.isRecurring} onChange={() => setFormData(prev => ({ ...prev, isRecurring: !prev.isRecurring }))} />} label="Recurring" />
+                    </div>
+                    <TextField className="event-detail-field" name="detail" label="Detail" fullWidth multiline rows={2} size="small" value={formData.detail} onChange={handleChange} />
+
+                    {formData.isRecurring && (
+                        <>
+                            <FormControl fullWidth size="small">
                                 <InputLabel>Recurrence Type</InputLabel>
-                                <Select name="recurrenceType" value={formData.recurrenceType} onChange={handleChange}>
+                                <Select name="recurrenceType" value={formData.recurrenceType} onChange={handleChange} label="Recurrence Type">
                                     <MenuItem value="weekly">Weekly</MenuItem>
                                     <MenuItem value="bi-weekly">Bi-weekly</MenuItem>
                                     <MenuItem value="monthly">Monthly</MenuItem>
                                 </Select>
                             </FormControl>
-                        </Grid>
-                        <Grid item xs={6}><TextField name="recurrenceEndDate" label="Recurrence End Date" type="date" fullWidth InputLabelProps={{ shrink: true }} value={formData.recurrenceEndDate} onChange={handleChange} /></Grid>
-                    </>
-                )}
+                            <TextField name="recurrenceEndDate" label="Recurrence End Date" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }} value={formData.recurrenceEndDate} onChange={handleChange} />
+                        </>
+                    )}
+                </div>
             </form>
 
             <BulkRecipientConfirmDialog
@@ -203,7 +192,7 @@ const EventsCenterComponent = ({ event }) => {
                     { label: 'Event Location', value: formData.location },
                 ]}
             />
-        </Paper>
+        </div>
     );
 };
 

@@ -422,6 +422,83 @@ select {
   padding: 2px 0;
 }
 
+.compact-tool {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-tool-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.compact-tool-header .MuiTypography-h6 {
+  line-height: 1.2;
+}
+
+.compact-tool-header .MuiButton-root {
+  flex-shrink: 0;
+}
+
+.compact-tool-status {
+  margin-top: 4px !important;
+  color: #66768a;
+  font-size: 13px !important;
+  white-space: pre-wrap;
+}
+
+.compact-secondary-action {
+  min-height: 40px;
+  border-radius: 10px !important;
+  background: #475569 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+}
+
+.survey-compose-grid,
+.event-compose-grid {
+  display: grid;
+  gap: 10px;
+  align-items: start;
+}
+
+.survey-compose-grid {
+  grid-template-columns: repeat(3, minmax(180px, 1fr)) auto;
+}
+
+.survey-preview-compact {
+  max-height: 150px;
+  overflow: auto;
+  border: 1px solid rgba(16, 32, 51, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.survey-preview-compact .MuiTypography-subtitle1 {
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.event-compose-grid {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+}
+
+.event-detail-field {
+  grid-column: span 2;
+}
+
+.event-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  min-height: 40px;
+}
+
 .employee-panel {
   min-height: 0;
   padding: 0;
@@ -556,6 +633,15 @@ select {
 
   .notification-compose-grid {
     grid-template-columns: 1fr;
+  }
+
+  .survey-compose-grid,
+  .event-compose-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-detail-field {
+    grid-column: auto;
   }
 
   .console-user-panel {

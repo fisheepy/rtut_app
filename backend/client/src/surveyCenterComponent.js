@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo } from 'react';
+import React, { useState, useContext } from 'react';
 import axios from 'axios';
 import './App.css';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
@@ -89,28 +89,30 @@ function SurveyCenterComponent({ userData }) {
     };
 
     return (
-        <div>
-            <Typography variant="h6">Execution Status</Typography>
-            <Typography>{executionStatus}</Typography>
-            <div>
-                <Typography variant="h6">Customize Survey</Typography>
-                <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} style={{ width: '25%' }} />
-                <TextField label="Sender" variant="outlined" value={sender} onChange={(e) => setSender(e.target.value)} style={{ width: '25%' }} />
-            </div>
-            <div>
-                <Button onClick={addQuestion} style={{ marginTop: '10px', marginBottom: '10px', width: '50%', color: 'white', backgroundColor: 'gray' }}>
-                    Add Question
+        <div className="compact-tool survey-compose">
+            <div className="compact-tool-header">
+                <div>
+                    <Typography variant="h6">Customize Survey</Typography>
+                    <Typography className="compact-tool-status">{executionStatus}</Typography>
+                </div>
+                <Button variant="contained" onClick={() => setOpenConfirmDialog(true)}>
+                    Send Survey
                 </Button>
-                <FormControl fullWidth>
+            </div>
+
+            <div className="survey-compose-grid">
+                <TextField label="Subject" variant="outlined" value={subject} onChange={(e) => setSubject(e.target.value)} fullWidth size="small" />
+                <TextField label="Sender" variant="outlined" value={sender} onChange={(e) => setSender(e.target.value)} fullWidth size="small" />
+                <FormControl fullWidth size="small">
                     <InputLabel>Question Type</InputLabel>
-                    <Select value={selectedQuestionType} onChange={(e) => setSelectedQuestionType(e.target.value)} label="Question Type" style={{ marginTop: '10px', width: '50%' }}>
+                    <Select value={selectedQuestionType} onChange={(e) => setSelectedQuestionType(e.target.value)} label="Question Type">
                         <MenuItem value="text">Text</MenuItem>
                         <MenuItem value="singleChoice">Single Choice</MenuItem>
                         <MenuItem value="rating">Rating</MenuItem>
                         <MenuItem value="multiChoice">Multiple Choice</MenuItem>
                     </Select>
                 </FormControl>
-                <TextField label="Enter question title" variant="outlined" value={questionTitle} onChange={(e) => setQuestionTitle(e.target.value)} style={{ marginTop: '10px', width: '50%' }} />
+                <TextField label="Enter question title" variant="outlined" value={questionTitle} onChange={(e) => setQuestionTitle(e.target.value)} fullWidth size="small" />
                 {(selectedQuestionType === "singleChoice" || selectedQuestionType === "multiChoice") && (
                     <>
                         <TextField
@@ -118,19 +120,21 @@ function SurveyCenterComponent({ userData }) {
                             variant="outlined"
                             value={answerChoices.join(", ")}
                             onChange={(e) => setAnswerChoices(e.target.value.split(",").map(choice => choice.trim()))}
-                            style={{ marginTop: '10px', width: '50%' }}
+                            fullWidth
+                            size="small"
                         />
                         <FormControlLabel control={<Checkbox checked={allowCustomAnswer} onChange={(e) => setAllowCustomAnswer(e.target.checked)} />} label="Allow custom answer" />
                     </>
                 )}
+                <Button onClick={addQuestion} className="compact-secondary-action">
+                    Add Question
+                </Button>
             </div>
-            <div>
-                <Typography variant="h6">Preview</Typography>
-                <SurveyRenderer surveyJson={surveyJson} onRemoveQuestion={removeQuestion} windowDimensions={{ width: windowDimensions.width * 0.5 }} />
+
+            <div className="survey-preview-compact">
+                <Typography variant="subtitle1">Preview</Typography>
+                <SurveyRenderer surveyJson={surveyJson} onRemoveQuestion={removeQuestion} windowDimensions={{ width: windowDimensions.width * 0.42 }} />
             </div>
-            <Button variant="contained" onClick={() => setOpenConfirmDialog(true)} style={{ marginTop: '10px', width: '50%' }}>
-                Send Survey
-            </Button>
 
             <BulkRecipientConfirmDialog
                 open={openConfirmDialog}
