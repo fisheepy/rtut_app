@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { KeyRound, Mail, ShieldCheck } from 'lucide-react'
+import { KeyRound, ShieldCheck } from 'lucide-react'
 import { api } from '../shared/api'
 
 type AdminUser = {
@@ -15,70 +15,16 @@ type AdminLoginProps = {
   onLogin: (user: AdminUser) => void
 }
 
-declare global {
-  interface Window {
-    google?: any
-  }
-}
-
 export default function AdminLogin({ onLogin }: AdminLoginProps) {
-  const googleButtonRef = useRef<HTMLDivElement | null>(null)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [enteredCode, setEnteredCode] = useState('')
-  const [googleClientId, setGoogleClientId] = useState('')
   const [message, setMessage] = useState('')
   const [isRequestingCode, setIsRequestingCode] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   const canRequestCode = useMemo(() => firstName.trim() && lastName.trim() && !isRequestingCode, [firstName, lastName, isRequestingCode])
   const canLogin = useMemo(() => firstName.trim() && lastName.trim() && enteredCode.trim() && !isLoggingIn, [firstName, lastName, enteredCode, isLoggingIn])
-
-  useEffect(() => {
-    api.get('/admin-auth/config')
-      .then((res) => setGoogleClientId(res.data.googleClientId || ''))
-      .catch(() => setGoogleClientId(''))
-  }, [])
-
-  useEffect(() => {
-    if (!googleClientId) return
-
-    const scriptId = 'google-identity-services'
-    const initialize = () => {
-      if (!window.google || !googleButtonRef.current) return
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: async (response: { credential: string }) => {
-          try {
-            setMessage('Validating Google account...')
-            const res = await api.post('/admin-auth/google', { credential: response.credential })
-            onLogin(res.data.user)
-          } catch (error: any) {
-            setMessage(error.response?.data?.error || 'Google sign-in failed.')
-          }
-        },
-      })
-      googleButtonRef.current.innerHTML = ''
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'outline',
-        size: 'large',
-        width: 320,
-        text: 'signin_with',
-      })
-    }
-
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script')
-      script.id = scriptId
-      script.src = 'https://accounts.google.com/gsi/client'
-      script.async = true
-      script.defer = true
-      script.onload = initialize
-      document.head.appendChild(script)
-    } else {
-      initialize()
-    }
-  }, [googleClientId, onLogin])
 
   async function requestCode(event: FormEvent) {
     event.preventDefault()
@@ -139,31 +85,10 @@ export default function AdminLogin({ onLogin }: AdminLoginProps) {
           <section className="p-6 md:p-8">
             <div>
               <h2 className="text-2xl font-semibold text-slate-950">Sign in</h2>
-              <p className="mt-1 text-sm text-slate-500">Use Google Workspace or request a one-time code.</p>
+              <p className="mt-1 text-sm text-slate-500">Request a one-time code to access App Console.</p>
             </div>
 
-            <div className="mt-6 rounded-xl border border-slate-200 p-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-lg bg-blue-100 text-blue-700">
-                  <Mail className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-950">Google sign-in</h3>
-                  <p className="text-sm text-slate-500">Authorized Gmail or company Google Workspace account.</p>
-                </div>
-              </div>
-              <div className="mt-4 min-h-11" ref={googleButtonRef}>
-                {!googleClientId ? <p className="text-sm text-slate-500">Google sign-in is not configured yet.</p> : null}
-              </div>
-            </div>
-
-            <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" />
-              or
-              <span className="h-px flex-1 bg-slate-200" />
-            </div>
-
-            <form className="space-y-4" onSubmit={loginWithCode}>
+            <form className="mt-6 space-y-4" onSubmit={loginWithCode}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <input className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400" placeholder="First Name" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
                 <input className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400" placeholder="Last Name" value={lastName} onChange={(event) => setLastName(event.target.value)} />
