@@ -17,6 +17,7 @@ const { format } = require('@fast-csv/format');
 const { Readable } = require('stream');
 const { createPayrollVerificationRouter } = require('./payrollVerification/routes');
 const { createInsuranceBreakoutRouter } = require('./insuranceBreakout/routes');
+const { createCommissionRosterRouter } = require('./commissionRoster/routes');
 const {
     clearSessionCookie,
     findAdminByEmail,
@@ -1067,6 +1068,12 @@ app.use('/api/insurance-breakout', createInsuranceBreakoutRouter({
     logOperationToDatabase,
 }));
 
+app.use('/api/commission-roster', createCommissionRosterRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+
 // Function to log errors to the database
 const logErrorToDatabase = async (error, context) => {
     const localClient = new MongoClient(uri, {
@@ -1717,7 +1724,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 

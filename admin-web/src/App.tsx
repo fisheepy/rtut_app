@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, FileSpreadsheet, ReceiptText, ShieldCheck } from 'lucide-react'
+import { ArrowRight, FileSpreadsheet, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
 import PayrollVerification from './pages/PayrollVerification'
+import CommissionRoster from './pages/CommissionRoster'
 
 type AdminUser = {
   firstName?: string
@@ -38,6 +39,14 @@ const hrTools = [
     icon: ShieldCheck,
     tone: 'from-violet-600 to-cyan-500',
     badge: 'Benefits',
+  },
+  {
+    title: 'Commission Roster Mapping',
+    description: 'Map technician quarterly commissions to the roster and flag departed, missing, duplicate, or ambiguous employees.',
+    to: '/commission-roster',
+    icon: UsersRound,
+    tone: 'from-teal-700 to-blue-500',
+    badge: 'Commission',
   },
 ]
 
@@ -117,6 +126,7 @@ export default function App() {
           <Route path="/" element={<HrToolsHub />} />
           <Route path="/payroll-verification" element={<PayrollVerification />} />
           <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
+          <Route path="/commission-roster" element={<CommissionRoster />} />
         </Routes>
       </HrToolShell>
     )
