@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import axios from 'axios';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import {
@@ -22,6 +22,8 @@ import {
 
 function EmployeeSelectionComponent() {
     const { selectedEmployees, setSelectedEmployees } = useContext(SelectedEmployeesContext);
+    const tableContainerRef = useRef(null);
+    const topScrollRef = useRef(null);
     const [employees, setEmployees] = useState([]);
     const [filteredEmployees, setFilteredEmployees] = useState([]);
     const [filterValues, setFilterValues] = useState({});
@@ -224,11 +226,31 @@ function EmployeeSelectionComponent() {
         { id: 'select', label: '(Override Remove)', filter: false },
     ];
 
+    const handleTopHorizontalScroll = (event) => {
+        if (tableContainerRef.current) {
+            tableContainerRef.current.scrollLeft = event.currentTarget.scrollLeft;
+        }
+    };
+
+    const handleTableScroll = (event) => {
+        if (topScrollRef.current) {
+            topScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
+        }
+    };
+
     return (
         <div>
             <h3>Selected Employees</h3>
-            <TableContainer className="employee-table-container" component={Paper}>
-                <Table aria-label="employee selection table" stickyHeader>
+            <div className="employee-scrollbar-proxy" ref={topScrollRef} onScroll={handleTopHorizontalScroll}>
+                <div className="employee-scrollbar-proxy-inner" />
+            </div>
+            <TableContainer
+                className="employee-table-container"
+                component={Paper}
+                ref={tableContainerRef}
+                onScroll={handleTableScroll}
+            >
+                <Table className="employee-selection-table" aria-label="employee selection table" stickyHeader>
                     <TableHead>
                         <TableRow style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'white' }}>
                             {columns.map((column) => (

@@ -405,7 +405,7 @@ select {
 
 .notification-compose-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1.2fr);
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
 }
@@ -509,7 +509,10 @@ select {
 .employee-panel > div {
   display: flex;
   flex: 1;
+  width: 100%;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   flex-direction: column;
   padding: 18px;
 }
@@ -521,9 +524,53 @@ select {
 
 .employee-table-container {
   flex: 1;
+  width: 100%;
+  max-width: 100%;
   min-height: 0;
+  min-width: 0;
   max-height: none !important;
-  overflow: auto;
+  display: block;
+  overflow-x: scroll !important;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable both-edges;
+}
+
+.employee-scrollbar-proxy {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 18px;
+  margin-bottom: 8px;
+  overflow-x: scroll;
+  overflow-y: hidden;
+}
+
+.employee-scrollbar-proxy-inner {
+  width: 1780px;
+  height: 1px;
+}
+
+.employee-selection-table {
+  width: max-content !important;
+  min-width: max(1780px, 100%);
+  table-layout: auto;
+}
+
+.employee-selection-table .MuiTableCell-root {
+  min-width: 128px;
+  white-space: nowrap;
+}
+
+.employee-selection-table .MuiTableCell-root:nth-child(2),
+.employee-selection-table .MuiTableCell-root:nth-child(4),
+.employee-selection-table .MuiTableCell-root:nth-child(5),
+.employee-selection-table .MuiTableCell-root:nth-child(7),
+.employee-selection-table .MuiTableCell-root:nth-child(9) {
+  min-width: 180px;
+}
+
+.employee-selection-table .MuiTableCell-root:last-child {
+  min-width: 150px;
 }
 
 .console-loading {

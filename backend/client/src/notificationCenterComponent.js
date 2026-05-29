@@ -91,7 +91,7 @@ function NotificationCenterComponent({ userData }) {
                 <TextField
                     label="Notification Content"
                     multiline
-                    rows={4}
+                    rows={6}
                     placeholder="Type here to compose notification..."
                     variant="outlined"
                     value={editContent}
