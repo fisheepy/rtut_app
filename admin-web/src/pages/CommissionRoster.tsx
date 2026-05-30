@@ -6,6 +6,9 @@ import { api } from '../shared/api'
 type CommissionRosterSummary = {
   rosterEmployees: number
   quarterlyRows: number
+  finalRosterCommissionRows: number
+  reviewRows: number
+  removedNoCommission: number
   matched: number
   reportMarkedDeparted: number
   missingInRoster: number
@@ -231,8 +234,8 @@ export default function CommissionRoster() {
             </div>
             {latestJob?.summary ? (
               <div className="mt-5 space-y-2 rounded-xl border border-slate-200 p-4 text-sm">
-                <div className="flex justify-between gap-3"><span className="text-slate-500">Report rows</span><span className="font-semibold">{latestJob.summary.quarterlyRows}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-slate-500">Matched</span><span className="font-semibold">{latestJob.summary.matched}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-500">Final rows</span><span className="font-semibold">{latestJob.summary.finalRosterCommissionRows}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-500">Review rows</span><span className="font-semibold">{latestJob.summary.reviewRows}</span></div>
                 <div className="flex justify-between gap-3 border-t pt-2"><span className="text-slate-500">Report commission</span><span className="font-semibold">{money(latestJob.summary.totalReportCommission)}</span></div>
               </div>
             ) : null}
@@ -278,10 +281,10 @@ export default function CommissionRoster() {
 
       {summary ? (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <Metric label="Matched" value={summary.matched} tone="text-emerald-600" />
+          <Metric label="Final Rows" value={summary.finalRosterCommissionRows} tone="text-emerald-600" />
+          <Metric label="Review Rows" value={summary.reviewRows} tone={summary.reviewRows ? 'text-amber-600' : 'text-slate-950'} />
           <Metric label="Missing Roster" value={summary.missingInRoster} tone={summary.missingInRoster ? 'text-red-600' : 'text-slate-950'} />
-          <Metric label="Ambiguous" value={summary.ambiguous} tone={summary.ambiguous ? 'text-amber-600' : 'text-slate-950'} />
-          <Metric label="Marked Departed" value={summary.reportMarkedDeparted} tone={summary.reportMarkedDeparted ? 'text-amber-600' : 'text-slate-950'} />
+          <Metric label="Removed" value={summary.removedNoCommission} tone="text-slate-950" />
           <Metric label="Report Total" value={money(summary.totalReportCommission)} tone="text-slate-950" />
         </section>
       ) : null}
@@ -317,9 +320,9 @@ export default function CommissionRoster() {
                 <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Created</th>
                 <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th>
                 <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Files</th>
-                <th className="border-b px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Matched</th>
+                <th className="border-b px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Final Rows</th>
                 <th className="border-b px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Issues</th>
-                <th className="border-b px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Marked</th>
+                <th className="border-b px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Removed</th>
                 <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Open</th>
               </tr>
             </thead>
@@ -336,9 +339,9 @@ export default function CommissionRoster() {
                     <div className="max-w-[360px] truncate font-medium text-slate-900">{job.rosterFileName}</div>
                     <div className="max-w-[360px] truncate text-xs text-slate-500">{job.quarterlyReportFileName}</div>
                   </td>
-                  <td className="border-b px-4 py-3 text-right tabular-nums">{job.summary?.matched ?? '-'}</td>
+                  <td className="border-b px-4 py-3 text-right tabular-nums">{job.summary?.finalRosterCommissionRows ?? '-'}</td>
                   <td className="border-b px-4 py-3 text-right tabular-nums">{job.summary?.issues ?? '-'}</td>
-                  <td className="border-b px-4 py-3 text-right tabular-nums">{job.summary?.reportMarkedDeparted ?? '-'}</td>
+                  <td className="border-b px-4 py-3 text-right tabular-nums">{job.summary?.removedNoCommission ?? '-'}</td>
                   <td className="border-b px-4 py-3">
                     {job.htmlReportUrl || job.reportUrl ? (
                       <div className="flex gap-3">

@@ -7,6 +7,8 @@ function money(value) {
 
 const STATUS_COLORS = {
   Matched: { className: 'status-ok', fill: 'FFE7F8EF' },
+  'No Commission': { className: 'status-slate', fill: 'FFF1F5F9' },
+  'Duplicate Roster Name': { className: 'status-purple', fill: 'FFF3E8FF' },
   'Report Flagged Departed': { className: 'status-teal', fill: 'FFCCFBF1' },
   'Report Flagged - Roster Active': { className: 'status-amber', fill: 'FFFEF3C7' },
   'Terminated in Roster With Commission': { className: 'status-red', fill: 'FFFFE4E6' },
@@ -39,6 +41,17 @@ function addSheet(workbook, name, columns, rows) {
       const fill = statusColor(rowData.status).fill;
       sheetRow.eachCell((cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+      });
+    });
+  }
+
+  if (columns.some((column) => column.key === 'error')) {
+    sheet.eachRow((sheetRow, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowData = rows[rowNumber - 2];
+      if (!rowData?.error) return;
+      sheetRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } };
       });
     });
   }
@@ -87,10 +100,50 @@ const mappingColumns = [
   { header: 'Notes', key: 'notes', width: 70 },
 ];
 
+const rosterCommissionColumns = [
+  { header: 'Position Status', key: 'positionStatus', width: 16 },
+  { header: 'Payroll Name', key: 'payrollName', width: 28 },
+  { header: 'Location Code', key: 'locationCode', width: 14 },
+  { header: 'Home Department Description', key: 'homeDepartmentDescription', width: 30 },
+  { header: 'Basis of Pay', key: 'basisOfPay', width: 16 },
+  { header: 'Reports To Name', key: 'reportsToName', width: 26 },
+  { header: 'Commission', key: 'commission', width: 16, numFmt: '$#,##0.00' },
+  { header: 'Error', key: 'error', width: 34 },
+  { header: 'Recommended Action', key: 'recommendedAction', width: 56 },
+  { header: 'Report Name', key: 'reportName', width: 26 },
+  { header: 'Report Marked Departed', key: 'reportMarkedDeparted', width: 20 },
+  { header: 'Report Rows', key: 'reportRows', width: 14 },
+  { header: 'Roster Row', key: 'rosterRow', width: 12 },
+  { header: 'Match Score', key: 'matchScore', width: 12 },
+];
+
+const reviewColumns = [
+  { header: 'Review Type', key: 'reviewType', width: 28 },
+  { header: 'Status', key: 'status', width: 28 },
+  { header: 'Reason', key: 'reason', width: 70 },
+  { header: 'Report Name', key: 'reportName', width: 26 },
+  { header: 'Report Raw Name', key: 'reportRawName', width: 26 },
+  { header: 'Report Marked Departed', key: 'reportMarkedDeparted', width: 20 },
+  { header: 'Report Location', key: 'reportLocation', width: 18 },
+  { header: 'Report Commission', key: 'reportCommission', width: 18, numFmt: '$#,##0.00' },
+  { header: 'Report Row', key: 'reportRow', width: 14 },
+  { header: 'Roster Name', key: 'rosterName', width: 28 },
+  { header: 'Roster Status', key: 'rosterStatus', width: 16 },
+  { header: 'Roster Location Code', key: 'rosterLocationCode', width: 18 },
+  { header: 'Roster Department', key: 'rosterDepartment', width: 28 },
+  { header: 'Roster Reports To', key: 'rosterReportsTo', width: 24 },
+  { header: 'Roster Row', key: 'rosterRow', width: 12 },
+  { header: 'Match Candidates', key: 'matchCandidates', width: 70 },
+  { header: 'Notes', key: 'notes', width: 70 },
+];
+
 async function writeCommissionRosterReport(result, outputPath) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'RTUT Admin';
   workbook.created = new Date();
+
+  addSheet(workbook, 'Roster Commission Output', rosterCommissionColumns, result.rosterCommissionRows);
+  addSheet(workbook, 'Review Errors Removed', reviewColumns, result.reviewRows);
 
   addSheet(workbook, 'Summary', [
     { header: 'Metric', key: 'metric', width: 34 },
@@ -98,6 +151,9 @@ async function writeCommissionRosterReport(result, outputPath) {
   ], [
     { metric: 'Roster Employees', value: result.summary.rosterEmployees },
     { metric: 'Quarterly Report Rows', value: result.summary.quarterlyRows },
+    { metric: 'Final Roster Commission Rows', value: result.summary.finalRosterCommissionRows },
+    { metric: 'Review Rows', value: result.summary.reviewRows },
+    { metric: 'Removed Rows', value: result.summary.removedNoCommission },
     { metric: 'Matched', value: result.summary.matched },
     { metric: 'Report Marked Departed', value: result.summary.reportMarkedDeparted },
     { metric: 'Missing in Roster', value: result.summary.missingInRoster },
@@ -204,6 +260,39 @@ function renderRows(rows) {
   `).join('');
 }
 
+function renderRosterCommissionRows(rows) {
+  if (!rows.length) return '<tr><td colspan="9" class="empty">No commission rows ready for roster output.</td></tr>';
+  return rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.positionStatus)}</td>
+      <td>${escapeHtml(row.payrollName)}</td>
+      <td>${escapeHtml(row.locationCode)}</td>
+      <td>${escapeHtml(row.homeDepartmentDescription)}</td>
+      <td>${escapeHtml(row.basisOfPay)}</td>
+      <td>${escapeHtml(row.reportsToName)}</td>
+      <td class="num">${formatMoney(row.commission)}</td>
+      <td>${row.error ? `<span class="pill status-red">${escapeHtml(row.error)}</span>` : ''}</td>
+      <td>${escapeHtml(row.recommendedAction)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderReviewRows(rows) {
+  if (!rows.length) return '<tr><td colspan="8" class="empty">No review rows found.</td></tr>';
+  return rows.slice(0, 250).map((row) => `
+    <tr>
+      <td>${escapeHtml(row.reviewType)}</td>
+      <td><span class="pill ${statusClass(row.status)}">${escapeHtml(row.status)}</span></td>
+      <td>${escapeHtml(row.reason)}</td>
+      <td>${escapeHtml(row.reportName)}</td>
+      <td class="num">${formatMoney(row.reportCommission)}</td>
+      <td>${escapeHtml(row.rosterName)}</td>
+      <td>${escapeHtml(row.rosterStatus)}</td>
+      <td>${escapeHtml(row.notes || row.matchCandidates)}</td>
+    </tr>
+  `).join('');
+}
+
 function renderRosterOnlyRows(rows) {
   if (!rows.length) return '<tr><td colspan="6" class="empty">No active service roster-only rows found.</td></tr>';
   return rows.slice(0, 80).map((row) => `
@@ -302,47 +391,47 @@ function writeCommissionRosterHtmlReport(result, outputPath) {
 
     <div class="grid stats">
       <div class="stat"><span>Matched</span><strong class="ok">${result.summary.matched}</strong></div>
+      <div class="stat"><span>Final Rows</span><strong class="ok">${result.summary.finalRosterCommissionRows}</strong></div>
+      <div class="stat"><span>Review Rows</span><strong class="${result.summary.reviewRows ? 'danger' : ''}">${result.summary.reviewRows}</strong></div>
       <div class="stat"><span>Missing Roster</span><strong class="${result.summary.missingInRoster ? 'danger' : ''}">${result.summary.missingInRoster}</strong></div>
-      <div class="stat"><span>Ambiguous</span><strong class="${result.summary.ambiguous ? 'danger' : ''}">${result.summary.ambiguous}</strong></div>
-      <div class="stat"><span>Marked Departed</span><strong>${result.summary.reportMarkedDeparted}</strong></div>
       <div class="stat"><span>Total Commission</span><strong>${formatMoney(result.summary.totalReportCommission)}</strong></div>
     </div>
 
     <section>
       <div class="section-head">
-        <h2>Important Issues</h2>
-        <p>Rows needing roster updates, spelling corrections, departed-status verification, or manual matching.</p>
+        <h2>Roster Commission Output</h2>
+        <p>Roster-format rows that should receive commission. Rows with errors are also listed in the review sheet.</p>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Status</th><th>Report Name</th><th>Roster Name</th><th>Marked</th><th>Location</th><th class="num">Commission</th><th>Recommended Action</th><th>Notes</th></tr></thead>
-          <tbody>${renderRows(result.issues)}</tbody>
+          <thead><tr><th>Position Status</th><th>Payroll Name</th><th>Location Code</th><th>Home Department</th><th>Basis of Pay</th><th>Reports To</th><th class="num">Commission</th><th>Error</th><th>Recommended Action</th></tr></thead>
+          <tbody>${renderRosterCommissionRows(result.rosterCommissionRows)}</tbody>
         </table>
       </div>
     </section>
 
     <section>
       <div class="section-head">
-        <h2>Full Report Mapping</h2>
-        <p>Every quarterly report row mapped to the best roster record where possible.</p>
+        <h2>Review Errors And Removed Rows</h2>
+        <p>Every error, attention item, and employee removed from the final roster output. Excel contains the complete list.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Review Type</th><th>Status</th><th>Reason</th><th>Report Name</th><th class="num">Commission</th><th>Roster Name</th><th>Roster Status</th><th>Notes</th></tr></thead>
+          <tbody>${renderReviewRows(result.reviewRows)}</tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Quarterly Report Mapping Detail</h2>
+        <p>Diagnostic mapping from report names to roster rows.</p>
       </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Status</th><th>Report Name</th><th>Roster Name</th><th>Marked</th><th>Location</th><th class="num">Commission</th><th>Recommended Action</th><th>Notes</th></tr></thead>
           <tbody>${renderRows(result.mapping)}</tbody>
-        </table>
-      </div>
-    </section>
-
-    <section>
-      <div class="section-head">
-        <h2>Active Service Roster Not In Report</h2>
-        <p>Shown for coverage review only. The full list is included in Excel.</p>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Roster Name</th><th>Status</th><th>Location</th><th>Department</th><th>Reports To</th><th>Note</th></tr></thead>
-          <tbody>${renderRosterOnlyRows(result.activeServiceRosterOnly)}</tbody>
         </table>
       </div>
     </section>

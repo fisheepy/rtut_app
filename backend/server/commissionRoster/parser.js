@@ -343,6 +343,172 @@ function actionFor(status, reportRow, rosterRow) {
   }
 }
 
+function buildRosterCommissionOutputs({ rosterRows, mapping, quarterlyExceptions, activeServiceRosterOnly, duplicateExceptionRows }) {
+  const outputByRosterRow = new Map();
+  const reviewRows = [];
+  const mappedRosterRows = new Set();
+
+  mapping.forEach((row) => {
+    if (row.rosterRow) mappedRosterRows.add(row.rosterRow);
+
+    const hasCommission = (row.reportCommission || 0) !== 0;
+    const hasError = row.status !== 'Matched';
+    const isDefinitiveRosterMatch = Boolean(row.rosterRow) && row.status !== 'Missing in Roster' && row.status !== 'Ambiguous Roster Match';
+
+    if (isDefinitiveRosterMatch && hasCommission) {
+      const existing = outputByRosterRow.get(row.rosterRow);
+      const combinedCommission = roundMoney((existing?.commission || 0) + (row.reportCommission || 0));
+      const combinedError = [existing?.error, hasError ? row.status : ''].filter(Boolean).join('; ');
+      const combinedAction = [existing?.recommendedAction, hasError ? row.action : ''].filter(Boolean).join('; ');
+      const combinedReportRows = [existing?.reportRows, row.reportRow].filter(Boolean).join(', ');
+
+      outputByRosterRow.set(row.rosterRow, {
+        positionStatus: row.rosterStatus,
+        payrollName: row.rosterName,
+        locationCode: row.rosterLocationCode,
+        homeDepartmentDescription: row.rosterDepartment,
+        basisOfPay: row.rosterBasisOfPay,
+        reportsToName: row.rosterReportsTo,
+        commission: combinedCommission,
+        error: combinedError,
+        recommendedAction: combinedAction || 'Ready to update.',
+        reportName: [existing?.reportName, row.reportName].filter(Boolean).join('; '),
+        reportMarkedDeparted: [existing?.reportMarkedDeparted, row.reportMarkedDeparted === 'Yes' ? 'Yes' : ''].filter(Boolean).join('; ') || 'No',
+        reportRows: combinedReportRows,
+        rosterRow: row.rosterRow,
+        matchScore: row.matchScore,
+      });
+    }
+
+    if (hasError || !hasCommission) {
+      reviewRows.push({
+        reviewType: hasError ? 'Error / Needs Review' : 'Removed - No Commission',
+        status: hasError ? row.status : 'No Commission',
+        reason: hasError ? row.action : 'Matched to roster, but quarterly report commission is blank or zero, so this employee was removed from the final roster output.',
+        reportName: row.reportName,
+        reportRawName: row.reportRawName,
+        reportMarkedDeparted: row.reportMarkedDeparted,
+        reportLocation: row.reportLocation,
+        reportCommission: row.reportCommission,
+        reportRow: row.reportRow,
+        rosterName: row.rosterName,
+        rosterStatus: row.rosterStatus,
+        rosterLocationCode: row.rosterLocationCode,
+        rosterDepartment: row.rosterDepartment,
+        rosterReportsTo: row.rosterReportsTo,
+        rosterRow: row.rosterRow,
+        matchCandidates: row.matchCandidates,
+        notes: row.notes,
+      });
+    }
+  });
+
+  activeServiceRosterOnly.forEach((row) => {
+    reviewRows.push({
+      reviewType: 'Removed - Not In Quarterly Report',
+      status: 'No Commission',
+      reason: 'Roster employee was not matched to a quarterly report commission row, so this employee was removed from the final roster output.',
+      reportName: '',
+      reportRawName: '',
+      reportMarkedDeparted: 'No',
+      reportLocation: '',
+      reportCommission: null,
+      reportRow: '',
+      rosterName: row.payrollName,
+      rosterStatus: row.positionStatus,
+      rosterLocationCode: row.locationCode,
+      rosterDepartment: row.department,
+      rosterReportsTo: row.reportsToName,
+      rosterRow: row.sourceRow,
+      matchCandidates: '',
+      notes: row.note,
+    });
+  });
+
+  quarterlyExceptions.forEach((exception) => {
+    reviewRows.push({
+      reviewType: 'Error / Needs Review',
+      status: exception.type,
+      reason: exception.action,
+      reportName: exception.name,
+      reportRawName: '',
+      reportMarkedDeparted: '',
+      reportLocation: '',
+      reportCommission: null,
+      reportRow: exception.source,
+      rosterName: '',
+      rosterStatus: '',
+      rosterLocationCode: '',
+      rosterDepartment: '',
+      rosterReportsTo: '',
+      rosterRow: '',
+      matchCandidates: '',
+      notes: exception.details,
+    });
+  });
+
+  duplicateExceptionRows.forEach((row) => {
+    reviewRows.push({
+      reviewType: 'Error / Needs Review',
+      status: 'Duplicate Roster Name',
+      reason: row.duplicateActiveRosterName
+        ? 'Roster contains more than one active row with the same normalized employee name.'
+        : 'This employee also has historical duplicate roster rows.',
+      reportName: '',
+      reportRawName: '',
+      reportMarkedDeparted: '',
+      reportLocation: '',
+      reportCommission: null,
+      reportRow: '',
+      rosterName: row.payrollName,
+      rosterStatus: row.positionStatus,
+      rosterLocationCode: row.locationCode,
+      rosterDepartment: row.department,
+      rosterReportsTo: row.reportsToName,
+      rosterRow: row.sourceRow,
+      matchCandidates: '',
+      notes: 'Verify duplicate roster rows are expected; remove stale duplicates if needed.',
+    });
+  });
+
+
+  rosterRows
+    .filter((row) => !mappedRosterRows.has(row.sourceRow))
+    .filter((row) => !activeServiceRosterOnly.some((activeOnly) => activeOnly.sourceRow === row.sourceRow))
+    .forEach((row) => {
+      reviewRows.push({
+        reviewType: 'Removed - Not In Quarterly Report',
+        status: 'No Commission',
+        reason: 'Roster employee was not matched to a quarterly report commission row, so this employee was removed from the final roster output.',
+        reportName: '',
+        reportRawName: '',
+        reportMarkedDeparted: 'No',
+        reportLocation: '',
+        reportCommission: null,
+        reportRow: '',
+        rosterName: row.payrollName,
+        rosterStatus: row.positionStatus,
+        rosterLocationCode: row.locationCode,
+        rosterDepartment: row.department,
+        rosterReportsTo: row.reportsToName,
+        rosterRow: row.sourceRow,
+        matchCandidates: '',
+        notes: '',
+      });
+    });
+
+  const rosterCommissionRows = Array.from(outputByRosterRow.values())
+    .sort((a, b) => a.payrollName.localeCompare(b.payrollName));
+
+  reviewRows.sort((a, b) => {
+    const typeSort = a.reviewType.localeCompare(b.reviewType);
+    if (typeSort) return typeSort;
+    return String(a.rosterName || a.reportName).localeCompare(String(b.rosterName || b.reportName));
+  });
+
+  return { rosterCommissionRows, reviewRows };
+}
+
 function compareCommissionRosterFiles({ rosterFilePath, quarterlyReportFilePath }) {
   const roster = parseRoster(rosterFilePath);
   const quarterly = parseQuarterlyReport(quarterlyReportFilePath);
@@ -436,9 +602,19 @@ function compareCommissionRosterFiles({ rosterFilePath, quarterlyReportFilePath 
   });
 
   const issueRows = mapping.filter((row) => row.status !== 'Matched');
+  const { rosterCommissionRows, reviewRows } = buildRosterCommissionOutputs({
+    rosterRows: roster.rows,
+    mapping,
+    quarterlyExceptions: quarterly.exceptions,
+    activeServiceRosterOnly,
+    duplicateExceptionRows,
+  });
   const summary = {
     rosterEmployees: roster.rows.length,
     quarterlyRows: quarterly.rows.length,
+    finalRosterCommissionRows: rosterCommissionRows.length,
+    reviewRows: reviewRows.length,
+    removedNoCommission: reviewRows.filter((row) => row.reviewType.startsWith('Removed')).length,
     matched: mapping.filter((row) => row.status === 'Matched').length,
     reportMarkedDeparted: mapping.filter((row) => row.reportMarkedDeparted === 'Yes').length,
     missingInRoster: mapping.filter((row) => row.status === 'Missing in Roster').length,
@@ -454,6 +630,8 @@ function compareCommissionRosterFiles({ rosterFilePath, quarterlyReportFilePath 
   return {
     summary,
     mapping,
+    rosterCommissionRows,
+    reviewRows,
     issues: issueRows,
     activeServiceRosterOnly,
     rosterRows: roster.rows,
