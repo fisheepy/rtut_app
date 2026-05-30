@@ -5,6 +5,20 @@ function money(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+const STATUS_COLORS = {
+  Matched: { className: 'status-ok', fill: 'FFE7F8EF' },
+  'Report Flagged Departed': { className: 'status-teal', fill: 'FFCCFBF1' },
+  'Report Flagged - Roster Active': { className: 'status-amber', fill: 'FFFEF3C7' },
+  'Terminated in Roster With Commission': { className: 'status-red', fill: 'FFFFE4E6' },
+  'Terminated in Roster': { className: 'status-orange', fill: 'FFFFEDD5' },
+  'Missing in Roster': { className: 'status-blue', fill: 'FFDBEAFE' },
+  'Ambiguous Roster Match': { className: 'status-purple', fill: 'FFF3E8FF' },
+};
+
+function statusColor(status) {
+  return STATUS_COLORS[status] || { className: 'status-slate', fill: 'FFF1F5F9' };
+}
+
 function addSheet(workbook, name, columns, rows) {
   const sheet = workbook.addWorksheet(name);
   sheet.columns = columns.map((column) => ({
@@ -16,6 +30,18 @@ function addSheet(workbook, name, columns, rows) {
   sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
   sheet.views = [{ state: 'frozen', ySplit: 1 }];
   rows.forEach((row) => sheet.addRow(row));
+
+  if (columns.some((column) => column.key === 'status')) {
+    sheet.eachRow((sheetRow, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowData = rows[rowNumber - 2];
+      if (!rowData?.status || rowData.status === 'Matched') return;
+      const fill = statusColor(rowData.status).fill;
+      sheetRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+      });
+    });
+  }
 
   sheet.eachRow((row) => {
     row.eachCell((cell) => {
@@ -159,9 +185,7 @@ function formatMoney(value) {
 }
 
 function statusClass(status) {
-  if (status === 'Matched') return 'status-ok';
-  if (/Missing|Ambiguous|Terminated|Flagged/.test(status)) return 'status-danger';
-  return 'status-warn';
+  return statusColor(status).className;
 }
 
 function renderRows(rows) {
@@ -209,7 +233,9 @@ function writeCommissionRosterHtmlReport(result, outputPath) {
     :root {
       --bg: #f4f7fb; --panel: #ffffff; --ink: #111827; --muted: #64748b; --line: #dbe3ee;
       --blue: #2563eb; --ok: #047857; --ok-bg: #d1fae5; --warn: #b45309; --warn-bg: #fef3c7;
-      --danger: #b91c1c; --danger-bg: #fee2e2;
+      --danger: #b91c1c; --danger-bg: #fee2e2; --red:#be123c; --red-bg:#ffe4e6; --amber:#b45309; --amber-bg:#fef3c7;
+      --blue:#1d4ed8; --blue-bg:#dbeafe; --purple:#7e22ce; --purple-bg:#f3e8ff; --orange:#c2410c; --orange-bg:#ffedd5;
+      --teal:#0f766e; --teal-bg:#ccfbf1; --slate:#475569; --slate-bg:#f1f5f9;
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; line-height: 1.45; }
@@ -239,8 +265,13 @@ function writeCommissionRosterHtmlReport(result, outputPath) {
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .pill { display: inline-flex; border-radius: 999px; padding: 4px 9px; font-weight: 700; font-size: 12px; white-space: nowrap; }
     .status-ok { color: var(--ok); background: var(--ok-bg); }
-    .status-warn { color: var(--warn); background: var(--warn-bg); }
-    .status-danger { color: var(--danger); background: var(--danger-bg); }
+    .status-red { color: var(--red); background: var(--red-bg); }
+    .status-amber { color: var(--amber); background: var(--amber-bg); }
+    .status-blue { color: var(--blue); background: var(--blue-bg); }
+    .status-purple { color: var(--purple); background: var(--purple-bg); }
+    .status-orange { color: var(--orange); background: var(--orange-bg); }
+    .status-teal { color: var(--teal); background: var(--teal-bg); }
+    .status-slate { color: var(--slate); background: var(--slate-bg); }
     .empty { text-align: center; color: var(--muted); padding: 24px; }
     .danger { color: var(--danger); }
     .ok { color: var(--ok); }

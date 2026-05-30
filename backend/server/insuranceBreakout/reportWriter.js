@@ -21,6 +21,17 @@ function escapeHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+const ISSUE_COLORS = {
+  'Amount Mismatch': { className: 'issue-red', fill: 'FFFFE4E6' },
+  'Missing in Invoice': { className: 'issue-amber', fill: 'FFFEF3C7' },
+  'Missing in Payroll': { className: 'issue-blue', fill: 'FFDBEAFE' },
+  'Duplicate Invoice Record': { className: 'issue-purple', fill: 'FFF3E8FF' },
+};
+
+function issueColor(issueType) {
+  return ISSUE_COLORS[issueType] || { className: 'issue-slate', fill: 'FFF1F5F9' };
+}
+
 function addSheet(workbook, name, columns, rows) {
   const sheet = workbook.addWorksheet(name);
   sheet.columns = columns.map((column) => ({ header: column.header, key: column.key, width: column.width || 18 }));
@@ -28,6 +39,17 @@ function addSheet(workbook, name, columns, rows) {
   sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
   sheet.views = [{ state: 'frozen', ySplit: 1 }];
   rows.forEach((row) => sheet.addRow(row));
+  if (columns.some((column) => column.key === 'issueType')) {
+    sheet.eachRow((sheetRow, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowData = rows[rowNumber - 2];
+      if (!rowData?.issueType) return;
+      const fill = issueColor(rowData.issueType).fill;
+      sheetRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+      });
+    });
+  }
   columns.forEach((column, index) => {
     if (column.numFmt) sheet.getColumn(index + 1).numFmt = column.numFmt;
   });
@@ -84,9 +106,7 @@ async function writeInsuranceExcelReport(result, outputPath) {
 }
 
 function issueClass(issueType) {
-  if (issueType === 'Amount Mismatch') return 'danger';
-  if (issueType === 'Missing in Invoice') return 'warn';
-  return 'info';
+  return issueColor(issueType).className;
 }
 
 function renderIssueRows(rows) {
@@ -139,7 +159,7 @@ function writeInsuranceHtmlReport(result, outputPath) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Insurance Breakout Report</title>
   <style>
-    :root { --bg:#f4f7fb; --panel:#fff; --ink:#111827; --muted:#64748b; --line:#dbe3ee; --danger:#b91c1c; --warn:#b45309; --info:#1d4ed8; --ok:#047857; }
+    :root { --bg:#f4f7fb; --panel:#fff; --ink:#111827; --muted:#64748b; --line:#dbe3ee; --danger:#b91c1c; --warn:#b45309; --info:#1d4ed8; --ok:#047857; --red:#be123c; --amber:#b45309; --blue:#1d4ed8; --purple:#7e22ce; --slate:#475569; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--bg); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
     .wrap { max-width:1180px; margin:0 auto; padding:32px 22px 48px; }
@@ -167,7 +187,7 @@ function writeInsuranceHtmlReport(result, outputPath) {
     th { background:#f8fafc; color:#475569; font-size:11px; text-transform:uppercase; }
     .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .pill { display:inline-flex; border-radius:999px; padding:4px 9px; font-weight:800; font-size:12px; white-space:nowrap; }
-    .danger { color:var(--danger); background:#fee2e2; } .warn { color:var(--warn); background:#fef3c7; } .info { color:var(--info); background:#dbeafe; }
+    .issue-red { color:var(--red); background:#ffe4e6; } .issue-amber { color:var(--amber); background:#fef3c7; } .issue-blue { color:var(--blue); background:#dbeafe; } .issue-purple { color:var(--purple); background:#f3e8ff; } .issue-slate { color:var(--slate); background:#f1f5f9; }
     .danger-text { color:#fecaca; } .ok-text { color:#bbf7d0; }
     .empty { text-align:center; color:var(--muted); padding:24px; }
     @media (max-width:860px) { .wrap{padding:18px 12px 34px;} .hero-grid{grid-template-columns:1fr;} .stats{grid-template-columns:repeat(2,minmax(0,1fr));} }

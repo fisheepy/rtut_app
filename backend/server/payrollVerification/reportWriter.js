@@ -4,6 +4,19 @@ function money(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+const STATUS_COLORS = {
+  Match: { className: 'status-ok', fill: 'FFE7F8EF' },
+  Mismatch: { className: 'status-red', fill: 'FFFFE4E6' },
+  'Missing in Payroll': { className: 'status-amber', fill: 'FFFEF3C7' },
+  'Missing in HR': { className: 'status-blue', fill: 'FFDBEAFE' },
+  'Ambiguous HR Name': { className: 'status-purple', fill: 'FFF3E8FF' },
+  'Multiple COM Rows': { className: 'status-orange', fill: 'FFFFEDD5' },
+};
+
+function statusColor(status) {
+  return STATUS_COLORS[status] || { className: 'status-slate', fill: 'FFF1F5F9' };
+}
+
 function addSheet(workbook, name, columns, rows) {
   const sheet = workbook.addWorksheet(name);
   sheet.columns = columns.map((column) => ({
@@ -24,6 +37,18 @@ function addSheet(workbook, name, columns, rows) {
   };
 
   rows.forEach((row) => sheet.addRow(row));
+
+  if (columns.some((column) => column.key === 'status')) {
+    sheet.eachRow((sheetRow, rowNumber) => {
+      if (rowNumber === 1) return;
+      const rowData = rows[rowNumber - 2];
+      if (!rowData?.status || rowData.status === 'Match') return;
+      const fill = statusColor(rowData.status).fill;
+      sheetRow.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+      });
+    });
+  }
 
   sheet.eachRow((row) => {
     row.eachCell((cell) => {
@@ -135,9 +160,7 @@ function formatMoney(value) {
 }
 
 function statusClass(status) {
-  if (status === 'Match') return 'status-ok';
-  if (status === 'Mismatch') return 'status-danger';
-  return 'status-warn';
+  return statusColor(status).className;
 }
 
 function renderIssueRows(rows) {
@@ -216,6 +239,18 @@ function writeCommissionHtmlReport(result, outputPath) {
       --warn-bg: #fef3c7;
       --danger: #b91c1c;
       --danger-bg: #fee2e2;
+      --red: #be123c;
+      --red-bg: #ffe4e6;
+      --amber: #b45309;
+      --amber-bg: #fef3c7;
+      --blue: #1d4ed8;
+      --blue-bg: #dbeafe;
+      --purple: #7e22ce;
+      --purple-bg: #f3e8ff;
+      --orange: #c2410c;
+      --orange-bg: #ffedd5;
+      --slate: #475569;
+      --slate-bg: #f1f5f9;
     }
     * { box-sizing: border-box; }
     body {
@@ -269,8 +304,12 @@ function writeCommissionHtmlReport(result, outputPath) {
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 9px; font-weight: 700; font-size: 12px; white-space: nowrap; }
     .status-ok { color: var(--ok); background: var(--ok-bg); }
-    .status-warn { color: var(--warn); background: var(--warn-bg); }
-    .status-danger { color: var(--danger); background: var(--danger-bg); }
+    .status-red { color: var(--red); background: var(--red-bg); }
+    .status-amber { color: var(--amber); background: var(--amber-bg); }
+    .status-blue { color: var(--blue); background: var(--blue-bg); }
+    .status-purple { color: var(--purple); background: var(--purple-bg); }
+    .status-orange { color: var(--orange); background: var(--orange-bg); }
+    .status-slate { color: var(--slate); background: var(--slate-bg); }
     .empty { text-align: center; color: var(--muted); padding: 24px; }
     .danger { color: var(--danger); }
     .ok { color: var(--ok); }
