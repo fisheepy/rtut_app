@@ -164,6 +164,8 @@ async function writeCommissionRosterReport(result, outputPath) {
     { metric: 'Issues', value: result.summary.issues },
     { metric: 'Total Report Commission', value: money(result.summary.totalReportCommission) },
     { metric: 'Total Mapped Commission', value: money(result.summary.totalMappedCommission) },
+    { metric: 'Total Review Commission', value: money(result.summary.totalReviewCommission) },
+    { metric: 'Total Reconciled Commission', value: money(result.summary.totalReconciledCommission) },
   ]);
 
   addSheet(workbook, 'Important Issues', mappingColumns, result.issues);
@@ -395,6 +397,7 @@ function writeCommissionRosterHtmlReport(result, outputPath) {
       <div class="stat"><span>Review Rows</span><strong class="${result.summary.reviewRows ? 'danger' : ''}">${result.summary.reviewRows}</strong></div>
       <div class="stat"><span>Missing Roster</span><strong class="${result.summary.missingInRoster ? 'danger' : ''}">${result.summary.missingInRoster}</strong></div>
       <div class="stat"><span>Total Commission</span><strong>${formatMoney(result.summary.totalReportCommission)}</strong></div>
+      <div class="stat"><span>Reconciled</span><strong>${formatMoney(result.summary.totalReconciledCommission)}</strong></div>
     </div>
 
     <section>

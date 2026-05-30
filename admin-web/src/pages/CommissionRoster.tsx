@@ -19,6 +19,8 @@ type CommissionRosterSummary = {
   issues: number
   totalReportCommission: number
   totalMappedCommission: number
+  totalReviewCommission: number
+  totalReconciledCommission: number
 }
 
 type CommissionRosterJob = {
@@ -237,6 +239,7 @@ export default function CommissionRoster() {
                 <div className="flex justify-between gap-3"><span className="text-slate-500">Final rows</span><span className="font-semibold">{latestJob.summary.finalRosterCommissionRows}</span></div>
                 <div className="flex justify-between gap-3"><span className="text-slate-500">Review rows</span><span className="font-semibold">{latestJob.summary.reviewRows}</span></div>
                 <div className="flex justify-between gap-3 border-t pt-2"><span className="text-slate-500">Report commission</span><span className="font-semibold">{money(latestJob.summary.totalReportCommission)}</span></div>
+                <div className="flex justify-between gap-3"><span className="text-slate-500">Reconciled</span><span className="font-semibold">{money(latestJob.summary.totalReconciledCommission)}</span></div>
               </div>
             ) : null}
           </div>
@@ -280,12 +283,13 @@ export default function CommissionRoster() {
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
 
       {summary ? (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <Metric label="Final Rows" value={summary.finalRosterCommissionRows} tone="text-emerald-600" />
           <Metric label="Review Rows" value={summary.reviewRows} tone={summary.reviewRows ? 'text-amber-600' : 'text-slate-950'} />
           <Metric label="Missing Roster" value={summary.missingInRoster} tone={summary.missingInRoster ? 'text-red-600' : 'text-slate-950'} />
           <Metric label="Removed" value={summary.removedNoCommission} tone="text-slate-950" />
           <Metric label="Report Total" value={money(summary.totalReportCommission)} tone="text-slate-950" />
+          <Metric label="Reconciled" value={money(summary.totalReconciledCommission)} tone={summary.totalReconciledCommission === summary.totalReportCommission ? 'text-emerald-600' : 'text-red-600'} />
         </section>
       ) : null}
 
