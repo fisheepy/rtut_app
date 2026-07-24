@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, FileSpreadsheet, KeyRound, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, FileSpreadsheet, GraduationCap, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
@@ -49,11 +49,11 @@ const hrTools = [
     badge: 'Commission',
   },
   {
-    title: 'Permission Management',
-    description: 'Manage access permissions for HR tools and administrative workflows.',
+    title: 'Training Tool',
+    description: 'Support employee training workflows and learning resources.',
     to: '',
-    icon: KeyRound,
-    tone: 'from-amber-600 to-orange-500',
+    icon: GraduationCap,
+    tone: 'from-emerald-600 to-teal-500',
     badge: 'Coming soon',
   },
 ]
