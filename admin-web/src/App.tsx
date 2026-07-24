@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, FileSpreadsheet, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, FileSpreadsheet, KeyRound, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
@@ -48,6 +48,14 @@ const hrTools = [
     tone: 'from-teal-700 to-blue-500',
     badge: 'Commission',
   },
+  {
+    title: 'Permission Management',
+    description: 'Manage access permissions for HR tools and administrative workflows.',
+    to: '',
+    icon: KeyRound,
+    tone: 'from-amber-600 to-orange-500',
+    badge: 'Coming soon',
+  },
 ]
 
 function HrToolsHub() {
@@ -71,26 +79,36 @@ function HrToolsHub() {
       <section className="grid gap-5 md:grid-cols-2">
         {hrTools.map((tool) => {
           const Icon = tool.icon
-          return (
-            <Link key={tool.title} to={tool.to}>
-              <article className="group h-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg">
-                <div className={`h-2 bg-gradient-to-r ${tool.tone}`} />
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className={`grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br ${tool.tone} text-white shadow-sm`}>
-                      <Icon className="h-6 w-6" />
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{tool.badge}</span>
+          const card = (
+            <article className={`group h-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${tool.to ? 'transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg' : ''}`}>
+              <div className={`h-2 bg-gradient-to-r ${tool.tone}`} />
+              <div className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className={`grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br ${tool.tone} text-white shadow-sm`}>
+                    <Icon className="h-6 w-6" />
                   </div>
-                  <h2 className="mt-5 text-xl font-semibold text-slate-950">{tool.title}</h2>
-                  <p className="mt-2 min-h-16 text-sm leading-6 text-slate-600">{tool.description}</p>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{tool.badge}</span>
+                </div>
+                <h2 className="mt-5 text-xl font-semibold text-slate-950">{tool.title}</h2>
+                <p className="mt-2 min-h-16 text-sm leading-6 text-slate-600">{tool.description}</p>
+                {tool.to ? (
                   <div className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
                     Open tool
                     <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                   </div>
-                </div>
-              </article>
+                ) : (
+                  <div className="mt-5 text-sm font-semibold text-slate-400">Feature coming soon</div>
+                )}
+              </div>
+            </article>
+          )
+
+          return tool.to ? (
+            <Link key={tool.title} to={tool.to}>
+              {card}
             </Link>
+          ) : (
+            <div key={tool.title}>{card}</div>
           )
         })}
       </section>
