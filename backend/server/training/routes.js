@@ -1,8 +1,9 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { normalizeEmployee } = require('./employeeData');
+const { isAllowedFolderUrl } = require('./folderLink');
 
-function createTrainingRouter({ uri, databaseName }) {
+function createTrainingRouter({ uri, databaseName, requireAdminSession }) {
   const router = express.Router();
   const createClient = () => new MongoClient(uri, {
     serverApi: {
@@ -11,6 +12,8 @@ function createTrainingRouter({ uri, databaseName }) {
       deprecationErrors: true,
     },
   });
+
+  router.use(requireAdminSession);
 
   router.get('/employees', async (_req, res) => {
     const client = createClient();
@@ -67,6 +70,43 @@ function createTrainingRouter({ uri, databaseName }) {
       res.status(500).json({
         error: 'Employee training information could not be loaded. Please try again.',
       });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.put('/employees/:employeeId/folder-link', async (req, res) => {
+    const folderUrl = String(req.body?.folderUrl || '').trim();
+    if (!isAllowedFolderUrl(folderUrl)) {
+      return res.status(400).json({
+        error: 'Please enter a valid royaltruck.sharepoint.com folder link.',
+      });
+    }
+
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employee = ObjectId.isValid(req.params.employeeId)
+        ? await db.collection('employees').findOne({ _id: new ObjectId(req.params.employeeId) })
+        : null;
+      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+
+      await db.collection('employee_training').updateOne(
+        { employeeId: req.params.employeeId },
+        {
+          $set: {
+            folderUrl,
+            folderUrlUpdatedAt: new Date(),
+            folderUrlUpdatedBy: req.adminSession?.email || null,
+          },
+        },
+        { upsert: true },
+      );
+      return res.json({ folderUrl });
+    } catch (error) {
+      console.error('Unable to save employee folder link:', error);
+      return res.status(500).json({ error: 'The employee folder link could not be saved.' });
     } finally {
       await client.close();
     }

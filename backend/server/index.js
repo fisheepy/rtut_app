@@ -1077,6 +1077,7 @@ app.use('/api/commission-roster', createCommissionRosterRouter({
 app.use('/api/training', createTrainingRouter({
   uri,
   databaseName: database_name,
+  requireAdminSession,
 }));
 
 // Function to log errors to the database

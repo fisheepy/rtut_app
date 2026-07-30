@@ -45,6 +45,7 @@ function normalizeEmployee(employee, trainingRecord) {
       text(employee['Supervisor First Name']),
       text(employee['Supervisor Last Name']),
     ].filter(Boolean).join(' '),
+    folderUrl: text(trainingRecord?.folderUrl),
     employmentStatus: isTerminated ? 'Terminated' : 'Active',
     training: normalizeTraining(trainingRecord),
   };

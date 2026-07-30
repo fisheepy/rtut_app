@@ -19,9 +19,22 @@ test('maps Company App roster fields and supplies both training types', () => {
   assert.equal(employee.employeeName, 'Alex Morgan');
   assert.equal(employee.department, 'Service');
   assert.equal(employee.reportingTo, 'Sam Lee');
+  assert.equal(employee.folderUrl, '');
   assert.equal(employee.employmentStatus, 'Active');
   assert.equal(employee.training.orientation.status, 'Not started');
   assert.equal(employee.training.monthly.status, 'Not started');
+});
+
+test('keeps a manually assigned SharePoint employee folder link', () => {
+  const employee = normalizeEmployee({
+    _id: 'employee-3',
+    'First Name': 'Xuan',
+    'Last Name': 'Yu',
+  }, {
+    folderUrl: 'https://royaltruck.sharepoint.com/sites/Safety/example',
+  });
+
+  assert.equal(employee.folderUrl, 'https://royaltruck.sharepoint.com/sites/Safety/example');
 });
 
 test('shows employees with a termination date as terminated', () => {
