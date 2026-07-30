@@ -6,6 +6,7 @@ import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
 import PayrollVerification from './pages/PayrollVerification'
 import CommissionRoster from './pages/CommissionRoster'
+import TrainingTools from './pages/TrainingTools'
 
 type AdminUser = {
   firstName?: string
@@ -49,12 +50,12 @@ const hrTools = [
     badge: 'Commission',
   },
   {
-    title: 'Training Tool',
-    description: 'Support employee training workflows and learning resources.',
-    to: '',
+    title: 'Training Tools',
+    description: 'Review employee details and track Orientation Training and Monthly Training.',
+    to: '/training',
     icon: GraduationCap,
     tone: 'from-emerald-600 to-teal-500',
-    badge: 'Coming soon',
+    badge: 'Training',
   },
 ]
 
@@ -145,6 +146,7 @@ export default function App() {
           <Route path="/payroll-verification" element={<PayrollVerification />} />
           <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
           <Route path="/commission-roster" element={<CommissionRoster />} />
+          <Route path="/training" element={<TrainingTools />} />
         </Routes>
       </HrToolShell>
     )

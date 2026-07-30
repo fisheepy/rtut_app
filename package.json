@@ -5,6 +5,7 @@
   "main": "./backend/server/index.js",
   "scripts": {
     "start": "node ./backend/server/index.js",
+    "test": "node --test backend/server/**/*.test.js",
     "build:admin": "cd admin-web && npm ci --include=dev && npm run build",
     "build:old": "cd backend/client && npm ci --include=dev && npm run build",
     "heroku-postbuild": "npm run build:admin && npm run build:old"

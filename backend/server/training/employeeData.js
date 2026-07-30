@@ -1,0 +1,57 @@
+const TRAINING_TYPES = ['orientation', 'monthly'];
+
+function text(value) {
+  return value == null ? '' : String(value).trim();
+}
+
+function dateValue(employee, names) {
+  for (const name of names) {
+    if (employee[name]) return employee[name];
+  }
+  return '';
+}
+
+function normalizeTraining(record) {
+  const result = {};
+  for (const type of TRAINING_TYPES) {
+    const source = record?.[type] || {};
+    result[type] = {
+      status: text(source.status) || 'Not started',
+      completedAt: source.completedAt || null,
+    };
+  }
+  return result;
+}
+
+function normalizeEmployee(employee, trainingRecord) {
+  const firstName = text(employee['First Name']);
+  const lastName = text(employee['Last Name']);
+  const terminationDay = dateValue(employee, ['Termination Date', 'Termination Day']);
+  const accountStatus = text(employee['Account Active']).toLowerCase();
+  const positionStatus = text(employee['Position Status']).toLowerCase();
+  const isTerminated = Boolean(terminationDay)
+    || ['inactive', 'terminated'].includes(accountStatus)
+    || ['inactive', 'terminated'].includes(positionStatus);
+
+  return {
+    id: String(employee._id),
+    employeeName: [firstName, lastName].filter(Boolean).join(' '),
+    jobTitle: text(employee['Job Title']),
+    location: text(employee.Location),
+    department: text(employee['Home Department'] || employee.Department),
+    firstDay: dateValue(employee, ['Hire Date', 'First Day']),
+    terminationDay: terminationDay || null,
+    reportingTo: [
+      text(employee['Supervisor First Name']),
+      text(employee['Supervisor Last Name']),
+    ].filter(Boolean).join(' '),
+    employmentStatus: isTerminated ? 'Terminated' : 'Active',
+    training: normalizeTraining(trainingRecord),
+  };
+}
+
+module.exports = {
+  normalizeEmployee,
+  normalizeTraining,
+  TRAINING_TYPES,
+};
