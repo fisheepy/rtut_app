@@ -63,13 +63,23 @@ const deleteEmployee = async (firstName, lastName) => {
         }
 
         const [employeeToDelete] = exactNormalizedMatches;
-        const result = await collection.deleteOne({ _id: employeeToDelete._id });
+        const terminationDate = new Date().toISOString().slice(0, 10);
+        const result = await collection.updateOne(
+            { _id: employeeToDelete._id },
+            {
+                $set: {
+                    'Termination Date': terminationDate,
+                    'Position Status': 'Terminated',
+                    'Account Active': 'Inactive',
+                },
+            },
+        );
 
-        if (result.deletedCount === 0) {
+        if (result.matchedCount === 0) {
             throw new Error('Error during operation: Employee not found.');
         }
 
-        console.log(`${result.deletedCount} document(s) deleted`);
+        console.log(`Employee archived as terminated effective ${terminationDate}.`);
         return result;
     } catch (error) {
         console.error('Error during operation:', error.message);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpenCheck, CalendarDays, GraduationCap, RefreshCw, Search, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpenCheck, GraduationCap, RefreshCw, Search, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
 
@@ -62,13 +62,9 @@ export default function TrainingTools() {
   const [view, setView] = useState<'active' | 'terminated'>('active')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [terminationEmployee, setTerminationEmployee] = useState<TrainingEmployee | null>(null)
-  const [terminationDate, setTerminationDate] = useState('')
-  const [isSavingTermination, setIsSavingTermination] = useState(false)
-  const [terminationError, setTerminationError] = useState('')
 
-  async function loadEmployees() {
-    setIsLoading(true)
+  async function loadEmployees(showLoading = true) {
+    if (showLoading) setIsLoading(true)
     setError('')
     try {
       const response = await api.get('/training/employees')
@@ -83,6 +79,8 @@ export default function TrainingTools() {
 
   useEffect(() => {
     loadEmployees()
+    const refreshTimer = window.setInterval(() => loadEmployees(false), 30_000)
+    return () => window.clearInterval(refreshTimer)
   }, [])
 
   const visibleEmployees = useMemo(() => {
@@ -102,36 +100,6 @@ export default function TrainingTools() {
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
-
-  function openTermination(employee: TrainingEmployee) {
-    setTerminationEmployee(employee)
-    setTerminationDate(new Date().toISOString().slice(0, 10))
-    setTerminationError('')
-  }
-
-  async function saveTermination() {
-    if (!terminationEmployee || !terminationDate) {
-      setTerminationError('Please select a termination date.')
-      return
-    }
-
-    setIsSavingTermination(true)
-    setTerminationError('')
-    try {
-      const response = await api.patch(`/training/employees/${terminationEmployee.id}/termination`, {
-        terminationDate,
-      })
-      setEmployees((current) => current.map((employee) => (
-        employee.id === terminationEmployee.id ? response.data.employee : employee
-      )))
-      setTerminationEmployee(null)
-      setTerminationDate('')
-    } catch (requestError: any) {
-      setTerminationError(requestError.response?.data?.error || 'The termination date could not be saved. Please try again.')
-    } finally {
-      setIsSavingTermination(false)
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -181,7 +149,7 @@ export default function TrainingTools() {
               </div>
               <p className="mt-1 text-sm text-slate-500">{source ? `Employee data: ${source}` : 'Employee and training records'}</p>
             </div>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={loadEmployees} type="button">
+            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => loadEmployees()} type="button">
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
@@ -208,7 +176,7 @@ export default function TrainingTools() {
           <div className="m-5 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
             <div className="font-semibold">Unable to load employee training information</div>
             <div className="mt-1">{error}</div>
-            <button className="mt-3 font-semibold underline" onClick={loadEmployees} type="button">Try again</button>
+            <button className="mt-3 font-semibold underline" onClick={() => loadEmployees()} type="button">Try again</button>
           </div>
         ) : isLoading ? (
           <div className="grid min-h-64 place-items-center p-8 text-center">
@@ -230,7 +198,7 @@ export default function TrainingTools() {
             <table className="w-full min-w-[1320px] text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {['Employee Name', 'Job Title', 'Location', 'Department', 'First Day', 'Termination Day', 'Reporting To', 'Orientation Training', 'Monthly Training', ...(view === 'active' ? ['Action'] : [])].map((heading) => (
+                  {['Employee Name', 'Job Title', 'Location', 'Department', 'Reporting To', 'First Day', 'Status', 'Orientation Training', 'Monthly Training'].map((heading) => (
                     <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500" key={heading}>{heading}</th>
                   ))}
                 </tr>
@@ -245,19 +213,15 @@ export default function TrainingTools() {
                     <td className="border-b px-4 py-3">{employee.jobTitle || '—'}</td>
                     <td className="border-b px-4 py-3">{employee.location || '—'}</td>
                     <td className="border-b px-4 py-3">{employee.department || '—'}</td>
-                    <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
-                    <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.terminationDay)}</td>
                     <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
+                    <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
+                    <td className="border-b px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {employee.employmentStatus}
+                      </span>
+                    </td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.orientation} /></td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.monthly} /></td>
-                    {view === 'active' ? (
-                      <td className="border-b px-4 py-3">
-                        <button className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700" onClick={() => openTermination(employee)} type="button">
-                          <CalendarDays className="h-4 w-4" />
-                          Add termination date
-                        </button>
-                      </td>
-                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -271,26 +235,6 @@ export default function TrainingTools() {
         ) : null}
       </section>
 
-      {terminationEmployee ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-700"><CalendarDays className="h-5 w-5" /></div>
-            <h2 className="mt-4 text-2xl font-semibold text-slate-950">Add Termination Date</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              After saving, <span className="font-semibold text-slate-900">{terminationEmployee.employeeName}</span> will move from Active Employees to Terminated Employees.
-            </p>
-            <label className="mt-5 block">
-              <span className="text-sm font-semibold text-slate-700">Termination Date</span>
-              <input className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" onChange={(event) => setTerminationDate(event.target.value)} type="date" value={terminationDate} />
-            </label>
-            {terminationError ? <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{terminationError}</div> : null}
-            <div className="mt-6 flex justify-end gap-3">
-              <button className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" disabled={isSavingTermination} onClick={() => setTerminationEmployee(null)} type="button">Cancel</button>
-              <button className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:bg-slate-300" disabled={isSavingTermination || !terminationDate} onClick={saveTermination} type="button">{isSavingTermination ? 'Saving...' : 'Confirm termination'}</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }

@@ -670,6 +670,46 @@ export async function addNewEmployee(newEmployee) {
     });
 
     if (duplicateCheck) {
+      const isInactive = ['inactive', 'terminated'].includes(
+        String(duplicateCheck['Account Active'] || duplicateCheck['Position Status'] || '').toLowerCase()
+      ) || Boolean(duplicateCheck['Termination Date']);
+
+      if (isInactive) {
+        await collection.updateOne(
+          { _id: duplicateCheck._id },
+          {
+            $set: {
+              "First Name": newEmployee.firstName,
+              "Last Name": newEmployee.lastName,
+              "Hire Date": newEmployee.hireDate,
+              "Position Status": 'Active',
+              "Termination Date": '',
+              "Home Department": newEmployee.homeDepartment,
+              "Job Title": newEmployee.jobTitle,
+              "Location": newEmployee.location,
+              "Supervisor First Name": newEmployee.supervisorFirstName,
+              "Supervisor Last Name": newEmployee.supervisorLastName,
+              "Email": newEmployee.email,
+              "Phone": newEmployee.phone,
+              "Worker Category": newEmployee.workCategory,
+              "Pay Category": newEmployee.payCategory,
+              "EEOC Establishment": newEmployee.eeoc,
+              "Account Active": "Active",
+              "Reactivation Date": new Date(),
+            },
+          },
+        );
+
+        await updateEmployeeToNovuSubscriber({
+          'Payroll Name: First Name': newEmployee.firstName,
+          'Payroll Name: Last Name': newEmployee.lastName,
+          'Email': newEmployee.email,
+          'Phone': newEmployee.phone
+        });
+
+        return { insertedId: duplicateCheck._id, reactivated: true };
+      }
+
       if (newEmployee.email && duplicateCheck.Email === newEmployee.email) {
         throw new Error('Error during operation: Duplicate email found.');
       }
