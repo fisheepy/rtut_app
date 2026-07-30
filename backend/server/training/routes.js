@@ -13,8 +13,6 @@ function createTrainingRouter({ uri, databaseName, requireAdminSession }) {
     },
   });
 
-  router.use(requireAdminSession);
-
   router.get('/employees', async (_req, res) => {
     const client = createClient();
 
@@ -75,7 +73,7 @@ function createTrainingRouter({ uri, databaseName, requireAdminSession }) {
     }
   });
 
-  router.put('/employees/:employeeId/folder-link', async (req, res) => {
+  router.put('/employees/:employeeId/folder-link', requireAdminSession, async (req, res) => {
     const folderUrl = String(req.body?.folderUrl || '').trim();
     if (!isAllowedFolderUrl(folderUrl)) {
       return res.status(400).json({

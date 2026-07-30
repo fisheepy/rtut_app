@@ -273,7 +273,11 @@ export default function TrainingTools() {
       )))
       setLinkEmployee(null)
     } catch (requestError: any) {
-      setLinkError(requestError.response?.data?.error || 'The employee folder link could not be saved.')
+      setLinkError(
+        requestError.response?.status === 401
+          ? 'Please sign in to the Company App admin area before editing employee folder links.'
+          : requestError.response?.data?.error || 'The employee folder link could not be saved.',
+      )
     } finally {
       setIsSavingLink(false)
     }
