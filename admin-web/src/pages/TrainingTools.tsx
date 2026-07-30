@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpenCheck, GraduationCap, RefreshCw, Search, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpenCheck, CalendarDays, GraduationCap, RefreshCw, Search, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
 
@@ -59,9 +59,13 @@ export default function TrainingTools() {
   const [employees, setEmployees] = useState<TrainingEmployee[]>([])
   const [source, setSource] = useState('')
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<'all' | 'active' | 'terminated'>('all')
+  const [view, setView] = useState<'active' | 'terminated'>('active')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [terminationEmployee, setTerminationEmployee] = useState<TrainingEmployee | null>(null)
+  const [terminationDate, setTerminationDate] = useState('')
+  const [isSavingTermination, setIsSavingTermination] = useState(false)
+  const [terminationError, setTerminationError] = useState('')
 
   async function loadEmployees() {
     setIsLoading(true)
@@ -84,7 +88,7 @@ export default function TrainingTools() {
   const visibleEmployees = useMemo(() => {
     const query = search.trim().toLowerCase()
     return employees.filter((employee) => {
-      const matchesStatus = status === 'all' || employee.employmentStatus.toLowerCase() === status
+      const matchesStatus = employee.employmentStatus.toLowerCase() === view
       const matchesSearch = !query || [
         employee.employeeName,
         employee.jobTitle,
@@ -94,10 +98,40 @@ export default function TrainingTools() {
       ].some((value) => value.toLowerCase().includes(query))
       return matchesStatus && matchesSearch
     })
-  }, [employees, search, status])
+  }, [employees, search, view])
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
+
+  function openTermination(employee: TrainingEmployee) {
+    setTerminationEmployee(employee)
+    setTerminationDate(new Date().toISOString().slice(0, 10))
+    setTerminationError('')
+  }
+
+  async function saveTermination() {
+    if (!terminationEmployee || !terminationDate) {
+      setTerminationError('Please select a termination date.')
+      return
+    }
+
+    setIsSavingTermination(true)
+    setTerminationError('')
+    try {
+      const response = await api.patch(`/training/employees/${terminationEmployee.id}/termination`, {
+        terminationDate,
+      })
+      setEmployees((current) => current.map((employee) => (
+        employee.id === terminationEmployee.id ? response.data.employee : employee
+      )))
+      setTerminationEmployee(null)
+      setTerminationDate('')
+    } catch (requestError: any) {
+      setTerminationError(requestError.response?.data?.error || 'The termination date could not be saved. Please try again.')
+    } finally {
+      setIsSavingTermination(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -125,14 +159,16 @@ export default function TrainingTools() {
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500"><UsersRound className="h-4 w-4" />Employees</div>
           <div className="mt-2 text-3xl font-semibold text-slate-950">{employees.length}</div>
         </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+        <button className={`rounded-xl border p-4 text-left shadow-sm transition ${view === 'active' ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-100' : 'border-slate-200 bg-white hover:border-emerald-200'}`} onClick={() => setView('active')} type="button">
           <div className="text-xs font-semibold uppercase text-emerald-700">Active</div>
           <div className="mt-2 text-3xl font-semibold text-emerald-800">{activeCount}</div>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mt-1 text-xs text-emerald-700">Open active employees</div>
+        </button>
+        <button className={`rounded-xl border p-4 text-left shadow-sm transition ${view === 'terminated' ? 'border-slate-500 bg-slate-100 ring-2 ring-slate-200' : 'border-slate-200 bg-white hover:border-slate-300'}`} onClick={() => setView('terminated')} type="button">
           <div className="text-xs font-semibold uppercase text-slate-500">Terminated</div>
           <div className="mt-2 text-3xl font-semibold text-slate-700">{terminatedCount}</div>
-        </div>
+          <div className="mt-1 text-xs text-slate-500">Open terminated employees</div>
+        </button>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -141,7 +177,7 @@ export default function TrainingTools() {
             <div>
               <div className="flex items-center gap-2">
                 <BookOpenCheck className="h-5 w-5 text-emerald-700" />
-                <h2 className="text-xl font-semibold text-slate-950">Employee Training Overview</h2>
+                <h2 className="text-xl font-semibold text-slate-950">{view === 'active' ? 'Active Employees' : 'Terminated Employees'}</h2>
               </div>
               <p className="mt-1 text-sm text-slate-500">{source ? `Employee data: ${source}` : 'Employee and training records'}</p>
             </div>
@@ -161,11 +197,10 @@ export default function TrainingTools() {
                 value={search}
               />
             </label>
-            <select className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setStatus(event.target.value as typeof status)} value={status}>
-              <option value="all">All employees</option>
-              <option value="active">Active employees</option>
-              <option value="terminated">Terminated employees</option>
-            </select>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'active' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`} onClick={() => setView('active')} type="button">Active Employees</button>
+              <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'terminated' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`} onClick={() => setView('terminated')} type="button">Terminated Employees</button>
+            </div>
           </div>
         </div>
 
@@ -186,8 +221,8 @@ export default function TrainingTools() {
           <div className="grid min-h-64 place-items-center p-8 text-center">
             <div>
               <GraduationCap className="mx-auto h-9 w-9 text-slate-400" />
-              <div className="mt-3 font-semibold text-slate-800">{employees.length ? 'No employees match these filters.' : 'No employee records are available.'}</div>
-              <div className="mt-1 text-sm text-slate-500">{employees.length ? 'Try a different search or employee status.' : 'Employee records will appear after they are added to Company App.'}</div>
+              <div className="mt-3 font-semibold text-slate-800">{employees.length ? `No ${view} employees match this search.` : 'No employee records are available.'}</div>
+              <div className="mt-1 text-sm text-slate-500">{employees.length ? 'Try a different search.' : 'Employee records will appear after they are added to Company App.'}</div>
             </div>
           </div>
         ) : (
@@ -195,7 +230,7 @@ export default function TrainingTools() {
             <table className="w-full min-w-[1320px] text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {['Employee Name', 'Job Title', 'Location', 'Department', 'First Day', 'Termination Day', 'Reporting To', 'Orientation Training', 'Monthly Training'].map((heading) => (
+                  {['Employee Name', 'Job Title', 'Location', 'Department', 'First Day', 'Termination Day', 'Reporting To', 'Orientation Training', 'Monthly Training', ...(view === 'active' ? ['Action'] : [])].map((heading) => (
                     <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500" key={heading}>{heading}</th>
                   ))}
                 </tr>
@@ -215,6 +250,14 @@ export default function TrainingTools() {
                     <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.orientation} /></td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.monthly} /></td>
+                    {view === 'active' ? (
+                      <td className="border-b px-4 py-3">
+                        <button className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700" onClick={() => openTermination(employee)} type="button">
+                          <CalendarDays className="h-4 w-4" />
+                          Add termination date
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -223,10 +266,31 @@ export default function TrainingTools() {
         )}
         {!isLoading && !error && employees.length ? (
           <div className="border-t border-slate-200 bg-slate-50 px-5 py-3 text-sm text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{visibleEmployees.length}</span> of {employees.length} employees. Terminated employees remain visible and are shown in gray.
+            Showing <span className="font-semibold text-slate-900">{visibleEmployees.length}</span> {view} employees.
           </div>
         ) : null}
       </section>
+
+      {terminationEmployee ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-700"><CalendarDays className="h-5 w-5" /></div>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-950">Add Termination Date</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              After saving, <span className="font-semibold text-slate-900">{terminationEmployee.employeeName}</span> will move from Active Employees to Terminated Employees.
+            </p>
+            <label className="mt-5 block">
+              <span className="text-sm font-semibold text-slate-700">Termination Date</span>
+              <input className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100" onChange={(event) => setTerminationDate(event.target.value)} type="date" value={terminationDate} />
+            </label>
+            {terminationError ? <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{terminationError}</div> : null}
+            <div className="mt-6 flex justify-end gap-3">
+              <button className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50" disabled={isSavingTermination} onClick={() => setTerminationEmployee(null)} type="button">Cancel</button>
+              <button className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:bg-slate-300" disabled={isSavingTermination || !terminationDate} onClick={saveTermination} type="button">{isSavingTermination ? 'Saving...' : 'Confirm termination'}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

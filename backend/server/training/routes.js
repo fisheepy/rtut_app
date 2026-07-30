@@ -1,18 +1,19 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { normalizeEmployee } = require('./employeeData');
 
 function createTrainingRouter({ uri, databaseName }) {
   const router = express.Router();
+  const createClient = () => new MongoClient(uri, {
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+  });
 
   router.get('/employees', async (_req, res) => {
-    const client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-      },
-    });
+    const client = createClient();
 
     try {
       await client.connect();
@@ -65,6 +66,49 @@ function createTrainingRouter({ uri, databaseName }) {
       console.error('Unable to load training employees:', error);
       res.status(500).json({
         error: 'Employee training information could not be loaded. Please try again.',
+      });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.patch('/employees/:id/termination', async (req, res) => {
+    const { terminationDate } = req.body;
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'The employee record is invalid.' });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(terminationDate || '')) {
+      return res.status(400).json({ error: 'A valid termination date is required.' });
+    }
+
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const result = await db.collection('employees').findOneAndUpdate(
+        { _id: new ObjectId(req.params.id) },
+        {
+          $set: {
+            'Termination Date': terminationDate,
+            'Position Status': 'Terminated',
+            'Account Active': 'Inactive',
+          },
+        },
+        { returnDocument: 'after' },
+      );
+
+      if (!result) {
+        return res.status(404).json({ error: 'Employee record was not found.' });
+      }
+
+      const trainingRecord = await db.collection('employee_training').findOne({
+        employeeId: String(result._id),
+      });
+      return res.json({ employee: normalizeEmployee(result, trainingRecord) });
+    } catch (error) {
+      console.error('Unable to terminate employee:', error);
+      return res.status(500).json({
+        error: 'The termination date could not be saved. Please try again.',
       });
     } finally {
       await client.close();
