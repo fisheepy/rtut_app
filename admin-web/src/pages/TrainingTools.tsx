@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpenCheck, GraduationCap, RefreshCw, Search, UsersRound } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, GraduationCap, RefreshCw, Search, UsersRound, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
 
@@ -24,6 +24,43 @@ type TrainingEmployee = {
   }
 }
 
+type ColumnKey =
+  | 'employeeName'
+  | 'jobTitle'
+  | 'location'
+  | 'department'
+  | 'reportingTo'
+  | 'firstDay'
+  | 'employmentStatus'
+  | 'orientation'
+  | 'monthly'
+
+type SortDirection = 'asc' | 'desc'
+
+const columns: { key: ColumnKey; label: string; filterPlaceholder: string }[] = [
+  { key: 'employeeName', label: 'Employee Name', filterPlaceholder: 'Filter names' },
+  { key: 'jobTitle', label: 'Job Title', filterPlaceholder: 'Filter jobs' },
+  { key: 'location', label: 'Location', filterPlaceholder: 'Filter locations' },
+  { key: 'department', label: 'Department', filterPlaceholder: 'Filter departments' },
+  { key: 'reportingTo', label: 'Reporting To', filterPlaceholder: 'Filter managers' },
+  { key: 'firstDay', label: 'First Day', filterPlaceholder: 'Filter dates' },
+  { key: 'employmentStatus', label: 'Status', filterPlaceholder: 'Filter status' },
+  { key: 'orientation', label: 'Orientation Training', filterPlaceholder: 'Filter training' },
+  { key: 'monthly', label: 'Monthly Training', filterPlaceholder: 'Filter training' },
+]
+
+const emptyColumnFilters: Record<ColumnKey, string> = {
+  employeeName: '',
+  jobTitle: '',
+  location: '',
+  department: '',
+  reportingTo: '',
+  firstDay: '',
+  employmentStatus: '',
+  orientation: '',
+  monthly: '',
+}
+
 function displayDate(value?: string | null) {
   if (!value) return '—'
   const date = new Date(value)
@@ -34,6 +71,12 @@ function displayDate(value?: string | null) {
     year: 'numeric',
     timeZone: 'UTC',
   })
+}
+
+function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
+  if (key === 'orientation') return employee.training.orientation.status
+  if (key === 'monthly') return employee.training.monthly.status
+  return employee[key] || ''
 }
 
 function TrainingBadge({ training }: { training: TrainingStatus }) {
@@ -60,6 +103,11 @@ export default function TrainingTools() {
   const [source, setSource] = useState('')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'active' | 'terminated'>('active')
+  const [columnFilters, setColumnFilters] = useState<Record<ColumnKey, string>>(emptyColumnFilters)
+  const [sort, setSort] = useState<{ key: ColumnKey; direction: SortDirection }>({
+    key: 'employeeName',
+    direction: 'asc',
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -85,18 +133,46 @@ export default function TrainingTools() {
 
   const visibleEmployees = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return employees.filter((employee) => {
-      const matchesStatus = employee.employmentStatus.toLowerCase() === view
-      const matchesSearch = !query || [
-        employee.employeeName,
-        employee.jobTitle,
-        employee.location,
-        employee.department,
-        employee.reportingTo,
-      ].some((value) => value.toLowerCase().includes(query))
-      return matchesStatus && matchesSearch
-    })
-  }, [employees, search, view])
+    return employees
+      .filter((employee) => {
+        const matchesStatus = employee.employmentStatus.toLowerCase() === view
+        const matchesSearch = !query || [
+          employee.employeeName,
+          employee.jobTitle,
+          employee.location,
+          employee.department,
+          employee.reportingTo,
+        ].some((value) => value.toLowerCase().includes(query))
+        const matchesColumnFilters = columns.every(({ key }) => {
+          const filter = columnFilters[key].trim().toLowerCase()
+          if (!filter) return true
+          const rawValue = getColumnValue(employee, key)
+          const searchableValue = key === 'firstDay'
+            ? `${rawValue} ${displayDate(rawValue)}`
+            : rawValue
+          return searchableValue.toLowerCase().includes(filter)
+        })
+        return matchesStatus && matchesSearch && matchesColumnFilters
+      })
+      .sort((left, right) => {
+        const leftValue = getColumnValue(left, sort.key)
+        const rightValue = getColumnValue(right, sort.key)
+        const comparison = leftValue.localeCompare(rightValue, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        })
+        return sort.direction === 'asc' ? comparison : -comparison
+      })
+  }, [columnFilters, employees, search, sort, view])
+
+  const hasColumnFilters = Object.values(columnFilters).some((value) => value.trim())
+
+  function toggleSort(key: ColumnKey) {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }))
+  }
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
@@ -170,6 +246,19 @@ export default function TrainingTools() {
               <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'terminated' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`} onClick={() => setView('terminated')} type="button">Terminated Employees</button>
             </div>
           </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span>Employee Name stays visible while you scroll horizontally. Use the fields below each heading to filter.</span>
+            {hasColumnFilters ? (
+              <button
+                className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800"
+                onClick={() => setColumnFilters(emptyColumnFilters)}
+                type="button"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear column filters
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {error ? (
@@ -198,15 +287,64 @@ export default function TrainingTools() {
             <table className="w-full min-w-[1320px] text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  {['Employee Name', 'Job Title', 'Location', 'Department', 'Reporting To', 'First Day', 'Status', 'Orientation Training', 'Monthly Training'].map((heading) => (
-                    <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500" key={heading}>{heading}</th>
+                  {columns.map((column, index) => (
+                    <th
+                      className={`border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 ${
+                        index === 0
+                          ? 'sticky left-0 z-30 min-w-[220px] border-r border-slate-200 bg-slate-50 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]'
+                          : ''
+                      }`}
+                      key={column.key}
+                    >
+                      <button
+                        aria-label={`Sort ${column.label} ${sort.key === column.key && sort.direction === 'asc' ? 'descending' : 'ascending'}`}
+                        className="inline-flex w-full items-center justify-between gap-2 text-left hover:text-slate-800"
+                        onClick={() => toggleSort(column.key)}
+                        type="button"
+                      >
+                        <span>{column.label}</span>
+                        {sort.key !== column.key ? (
+                          <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        ) : sort.direction === 'asc' ? (
+                          <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                        ) : (
+                          <ArrowDown className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
+                        )}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+                <tr>
+                  {columns.map((column, index) => (
+                    <th
+                      className={`border-b px-3 pb-3 ${
+                        index === 0
+                          ? 'sticky left-0 z-30 min-w-[220px] border-r border-slate-200 bg-slate-50 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]'
+                          : 'bg-slate-50'
+                      }`}
+                      key={`${column.key}-filter`}
+                    >
+                      <input
+                        aria-label={`Filter ${column.label}`}
+                        className="w-full min-w-[120px] rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-normal text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                        onChange={(event) => setColumnFilters((current) => ({
+                          ...current,
+                          [column.key]: event.target.value,
+                        }))}
+                        placeholder={column.filterPlaceholder}
+                        type="search"
+                        value={columnFilters[column.key]}
+                      />
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {visibleEmployees.map((employee) => (
                   <tr className={employee.employmentStatus === 'Terminated' ? 'bg-slate-50 text-slate-500' : 'even:bg-slate-50/50'} key={employee.id}>
-                    <td className="border-b px-4 py-3">
+                    <td className={`sticky left-0 z-20 min-w-[220px] border-b border-r border-slate-200 px-4 py-3 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)] ${
+                      employee.employmentStatus === 'Terminated' ? 'bg-slate-50' : 'bg-white'
+                    }`}>
                       <div className="font-semibold text-slate-900">{employee.employeeName || 'Unnamed employee'}</div>
                       <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{employee.employmentStatus}</span>
                     </td>
