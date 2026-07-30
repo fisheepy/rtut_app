@@ -37,28 +37,28 @@ type ColumnKey =
 
 type SortDirection = 'asc' | 'desc'
 
-const columns: { key: ColumnKey; label: string; filterPlaceholder: string }[] = [
-  { key: 'employeeName', label: 'Employee Name', filterPlaceholder: 'Filter names' },
-  { key: 'jobTitle', label: 'Job Title', filterPlaceholder: 'Filter jobs' },
-  { key: 'location', label: 'Location', filterPlaceholder: 'Filter locations' },
-  { key: 'department', label: 'Department', filterPlaceholder: 'Filter departments' },
-  { key: 'reportingTo', label: 'Reporting To', filterPlaceholder: 'Filter managers' },
-  { key: 'firstDay', label: 'First Day', filterPlaceholder: 'Filter dates' },
-  { key: 'employmentStatus', label: 'Status', filterPlaceholder: 'Filter status' },
-  { key: 'orientation', label: 'Orientation Training', filterPlaceholder: 'Filter training' },
-  { key: 'monthly', label: 'Monthly Training', filterPlaceholder: 'Filter training' },
+const columns: { key: ColumnKey; label: string }[] = [
+  { key: 'employeeName', label: 'Employee Name' },
+  { key: 'jobTitle', label: 'Job Title' },
+  { key: 'location', label: 'Location' },
+  { key: 'department', label: 'Department' },
+  { key: 'reportingTo', label: 'Reporting To' },
+  { key: 'firstDay', label: 'First Day' },
+  { key: 'employmentStatus', label: 'Status' },
+  { key: 'orientation', label: 'Orientation Training' },
+  { key: 'monthly', label: 'Monthly Training' },
 ]
 
-const emptyColumnFilters: Record<ColumnKey, string> = {
-  employeeName: '',
-  jobTitle: '',
-  location: '',
-  department: '',
-  reportingTo: '',
-  firstDay: '',
-  employmentStatus: '',
-  orientation: '',
-  monthly: '',
+const emptyColumnFilters: Record<ColumnKey, string[]> = {
+  employeeName: [],
+  jobTitle: [],
+  location: [],
+  department: [],
+  reportingTo: [],
+  firstDay: [],
+  employmentStatus: [],
+  orientation: [],
+  monthly: [],
 }
 
 function displayDate(value?: string | null) {
@@ -77,6 +77,63 @@ function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
   if (key === 'orientation') return employee.training.orientation.status
   if (key === 'monthly') return employee.training.monthly.status
   return employee[key] || ''
+}
+
+function getColumnFilterValue(employee: TrainingEmployee, key: ColumnKey) {
+  const value = getColumnValue(employee, key)
+  if (!value) return 'Not specified'
+  return key === 'firstDay' ? displayDate(value) : value
+}
+
+function ColumnMultiFilter({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string
+  options: string[]
+  selected: string[]
+  onChange: (values: string[]) => void
+}) {
+  return (
+    <details className="group relative">
+      <summary
+        aria-label={`Filter ${label}`}
+        className={`flex min-w-[130px] cursor-pointer list-none items-center justify-between gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-normal outline-none marker:hidden focus:ring-2 focus:ring-emerald-100 ${
+          selected.length ? 'border-emerald-400 text-emerald-800' : 'border-slate-200 text-slate-600'
+        }`}
+      >
+        <span className="truncate">{selected.length ? `${selected.length} selected` : 'All'}</span>
+        <span className="text-[10px] text-slate-400 group-open:rotate-180">▼</span>
+      </summary>
+      <div className="absolute left-0 z-50 mt-1 max-h-64 min-w-[220px] overflow-auto rounded-lg border border-slate-200 bg-white p-2 text-left shadow-xl">
+        <div className="mb-1 flex items-center justify-between gap-3 border-b border-slate-100 px-1 pb-2">
+          <span className="text-xs font-semibold text-slate-700">{label}</span>
+          {selected.length ? (
+            <button className="text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => onChange([])} type="button">
+              Clear
+            </button>
+          ) : null}
+        </div>
+        {options.map((option) => (
+          <label className="flex cursor-pointer items-start gap-2 rounded px-1 py-1.5 text-xs font-normal text-slate-700 hover:bg-slate-50" key={option}>
+            <input
+              checked={selected.includes(option)}
+              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              onChange={(event) => onChange(
+                event.target.checked
+                  ? [...selected, option]
+                  : selected.filter((value) => value !== option),
+              )}
+              type="checkbox"
+            />
+            <span>{option}</span>
+          </label>
+        ))}
+      </div>
+    </details>
+  )
 }
 
 function TrainingBadge({ training }: { training: TrainingStatus }) {
@@ -103,7 +160,7 @@ export default function TrainingTools() {
   const [source, setSource] = useState('')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'active' | 'terminated'>('active')
-  const [columnFilters, setColumnFilters] = useState<Record<ColumnKey, string>>(emptyColumnFilters)
+  const [columnFilters, setColumnFilters] = useState<Record<ColumnKey, string[]>>(emptyColumnFilters)
   const [sort, setSort] = useState<{ key: ColumnKey; direction: SortDirection }>({
     key: 'employeeName',
     direction: 'asc',
@@ -143,15 +200,10 @@ export default function TrainingTools() {
           employee.department,
           employee.reportingTo,
         ].some((value) => value.toLowerCase().includes(query))
-        const matchesColumnFilters = columns.every(({ key }) => {
-          const filter = columnFilters[key].trim().toLowerCase()
-          if (!filter) return true
-          const rawValue = getColumnValue(employee, key)
-          const searchableValue = key === 'firstDay'
-            ? `${rawValue} ${displayDate(rawValue)}`
-            : rawValue
-          return searchableValue.toLowerCase().includes(filter)
-        })
+        const matchesColumnFilters = columns.every(({ key }) => (
+          !columnFilters[key].length
+          || columnFilters[key].includes(getColumnFilterValue(employee, key))
+        ))
         return matchesStatus && matchesSearch && matchesColumnFilters
       })
       .sort((left, right) => {
@@ -165,13 +217,29 @@ export default function TrainingTools() {
       })
   }, [columnFilters, employees, search, sort, view])
 
-  const hasColumnFilters = Object.values(columnFilters).some((value) => value.trim())
+  const columnOptions = useMemo(() => Object.fromEntries(
+    columns.map(({ key }) => [
+      key,
+      Array.from(new Set(
+        employees
+          .filter((employee) => employee.employmentStatus.toLowerCase() === view)
+          .map((employee) => getColumnFilterValue(employee, key)),
+      )).sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })),
+    ]),
+  ) as Record<ColumnKey, string[]>, [employees, view])
+
+  const hasColumnFilters = Object.values(columnFilters).some((values) => values.length)
 
   function toggleSort(key: ColumnKey) {
     setSort((current) => ({
       key,
       direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
     }))
+  }
+
+  function changeView(nextView: 'active' | 'terminated') {
+    setView(nextView)
+    setColumnFilters(emptyColumnFilters)
   }
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
@@ -203,12 +271,12 @@ export default function TrainingTools() {
           <div className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-500"><UsersRound className="h-4 w-4" />Employees</div>
           <div className="mt-2 text-3xl font-semibold text-slate-950">{employees.length}</div>
         </div>
-        <button className={`rounded-xl border p-4 text-left shadow-sm transition ${view === 'active' ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-100' : 'border-slate-200 bg-white hover:border-emerald-200'}`} onClick={() => setView('active')} type="button">
+        <button className={`rounded-xl border p-4 text-left shadow-sm transition ${view === 'active' ? 'border-emerald-400 bg-emerald-50 ring-2 ring-emerald-100' : 'border-slate-200 bg-white hover:border-emerald-200'}`} onClick={() => changeView('active')} type="button">
           <div className="text-xs font-semibold uppercase text-emerald-700">Active</div>
           <div className="mt-2 text-3xl font-semibold text-emerald-800">{activeCount}</div>
           <div className="mt-1 text-xs text-emerald-700">Open active employees</div>
         </button>
-        <button className={`rounded-xl border p-4 text-left shadow-sm transition ${view === 'terminated' ? 'border-slate-500 bg-slate-100 ring-2 ring-slate-200' : 'border-slate-200 bg-white hover:border-slate-300'}`} onClick={() => setView('terminated')} type="button">
+        <button className={`rounded-xl border p-4 text-left shadow-sm transition ${view === 'terminated' ? 'border-slate-500 bg-slate-100 ring-2 ring-slate-200' : 'border-slate-200 bg-white hover:border-slate-300'}`} onClick={() => changeView('terminated')} type="button">
           <div className="text-xs font-semibold uppercase text-slate-500">Terminated</div>
           <div className="mt-2 text-3xl font-semibold text-slate-700">{terminatedCount}</div>
           <div className="mt-1 text-xs text-slate-500">Open terminated employees</div>
@@ -242,12 +310,12 @@ export default function TrainingTools() {
               />
             </label>
             <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
-              <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'active' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`} onClick={() => setView('active')} type="button">Active Employees</button>
-              <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'terminated' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`} onClick={() => setView('terminated')} type="button">Terminated Employees</button>
+              <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'active' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('active')} type="button">Active Employees</button>
+              <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'terminated' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('terminated')} type="button">Terminated Employees</button>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-            <span>Employee Name stays visible while you scroll horizontally. Use the fields below each heading to filter.</span>
+            <span>Employee Name stays visible while you scroll horizontally. Open a filter below any heading and check one or more values.</span>
             {hasColumnFilters ? (
               <button
                 className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-800"
@@ -324,16 +392,14 @@ export default function TrainingTools() {
                       }`}
                       key={`${column.key}-filter`}
                     >
-                      <input
-                        aria-label={`Filter ${column.label}`}
-                        className="w-full min-w-[120px] rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-normal text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                        onChange={(event) => setColumnFilters((current) => ({
+                      <ColumnMultiFilter
+                        label={column.label}
+                        onChange={(values) => setColumnFilters((current) => ({
                           ...current,
-                          [column.key]: event.target.value,
+                          [column.key]: values,
                         }))}
-                        placeholder={column.filterPlaceholder}
-                        type="search"
-                        value={columnFilters[column.key]}
+                        options={columnOptions[column.key]}
+                        selected={columnFilters[column.key]}
                       />
                     </th>
                   ))}
