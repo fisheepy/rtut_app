@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, Download, ExternalLink, GraduationCap, KeyRound, Link2, LogOut, Mail, Plus, RefreshCw, Search, Settings, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, CheckCircle2, Clock3, Download, ExternalLink, GraduationCap, KeyRound, Link2, LogOut, Mail, Plus, RefreshCw, Search, Settings, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
 
@@ -663,6 +663,15 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       : 'In Process'
   const monthlyRequiredAssignments = monthlyAssignments.filter((assignment) => assignment.requirement === 'Required')
   const monthlyFinishedCount = monthlyRequiredAssignments.filter((assignment) => assignment.completionStatus === 'Finished' && assignment.completionDate).length
+  const monthlyRequiredCourseCount = monthlyRequiredAssignments.reduce((total, assignment) => total + assignment.topic.courses.length, 0)
+  const monthlyCompletedCourseCount = monthlyRequiredAssignments.reduce((total, assignment) => total + assignment.topic.courses.filter((course) => {
+    const progress = assignment.courseProgress?.[course.id]
+    return Boolean(progress?.completedAt && progress.folderUpdated)
+  }).length, 0)
+  const monthlyFolderPendingCount = monthlyRequiredAssignments.reduce((total, assignment) => total + assignment.topic.courses.filter((course) => {
+    const progress = assignment.courseProgress?.[course.id]
+    return Boolean(progress?.completedAt && !progress.folderUpdated)
+  }).length, 0)
   const monthlyDraftStatus = !monthlyAssignments.length || monthlyAssignments.every((assignment) => assignment.requirement === 'Unassigned')
     ? 'Unassigned'
     : monthlyAssignments.some((assignment) => assignment.requirement === 'Unassigned')
@@ -1410,7 +1419,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
       {monthlyEmployee ? (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/60 p-4" role="presentation">
-          <section aria-labelledby="monthly-training-title" aria-modal="true" className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
+          <section aria-labelledby="monthly-training-title" aria-modal="true" className="flex max-h-[94vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
             <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950" id="monthly-training-title">Monthly Training</h2>
@@ -1426,6 +1435,20 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 <button aria-label="Close monthly training" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setMonthlyEmployee(null)} type="button"><X className="h-5 w-5" /></button>
               </div>
             </div>
+            <div className="grid gap-3 border-b border-slate-200 bg-slate-50/80 px-5 py-4 sm:grid-cols-3 md:px-6">
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Required Courses</div>
+                <div className="mt-1 text-2xl font-semibold text-slate-900">{monthlyRequiredCourseCount}</div>
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Courses Complete</div>
+                <div className="mt-1 flex items-center gap-2 text-2xl font-semibold text-emerald-800"><CheckCircle2 className="h-5 w-5" />{monthlyCompletedCourseCount}</div>
+              </div>
+              <div className={`rounded-xl border px-4 py-3 ${monthlyFolderPendingCount ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                <div className={`text-xs font-semibold uppercase tracking-wide ${monthlyFolderPendingCount ? 'text-amber-700' : 'text-slate-400'}`}>Folder Updates Pending</div>
+                <div className={`mt-1 flex items-center gap-2 text-2xl font-semibold ${monthlyFolderPendingCount ? 'text-amber-800' : 'text-slate-900'}`}><Clock3 className="h-5 w-5" />{monthlyFolderPendingCount}</div>
+              </div>
+            </div>
             <div className="overflow-auto p-5 md:p-6">
               {!monthlyAssignments.length ? (
                 <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
@@ -1435,9 +1458,13 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 <div className="space-y-4">
                   {monthlyAssignments.map((assignment) => {
                     const required = assignment.requirement === 'Required'
+                    const completedCourses = assignment.topic.courses.filter((course) => {
+                      const progress = assignment.courseProgress?.[course.id]
+                      return Boolean(progress?.completedAt && progress.folderUpdated)
+                    }).length
                     return (
-                      <section className="overflow-hidden rounded-xl border border-slate-200" key={assignment.topic.id}>
-                        <div className="flex flex-wrap items-start justify-between gap-3 bg-slate-50 px-4 py-3">
+                      <section className={`overflow-hidden rounded-xl border ${assignment.completionStatus === 'Finished' ? 'border-emerald-200' : required ? 'border-blue-200' : 'border-slate-200'}`} key={assignment.topic.id}>
+                        <div className={`flex flex-wrap items-start justify-between gap-3 px-4 py-3 ${assignment.completionStatus === 'Finished' ? 'bg-emerald-50/70' : required ? 'bg-blue-50/50' : 'bg-slate-50'}`}>
                           <div>
                             <h3 className="font-semibold text-slate-900">{assignment.topic.name}</h3>
                             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
@@ -1446,17 +1473,19 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                               {assignment.topic.link ? <a className="inline-flex items-center gap-1 font-semibold text-blue-700" href={assignment.topic.link} rel="noreferrer" target="_blank"><ExternalLink className="h-3.5 w-3.5" />Open Training</a> : null}
                             </div>
                           </div>
-                          <div className="text-xs text-slate-500">{assignment.topic.courses.length} courses</div>
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment.completionStatus === 'Finished' ? 'bg-emerald-100 text-emerald-800' : required ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'}`}>{required ? `${completedCourses}/${assignment.topic.courses.length} complete` : assignment.requirement}</span>
                         </div>
                         <div className="grid gap-5 p-4 lg:grid-cols-[1fr_260px]">
                           <div>
-                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Course Completion Dates</div>
+                            <div className="hidden grid-cols-[1fr_170px_160px] gap-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:grid"><span>Course</span><span>Completion Date</span><span>Training Folder</span></div>
                             <div className="mt-2 space-y-2">{assignment.topic.courses.map((course) => {
                               const progress = assignment.courseProgress?.[course.id] || { completedAt: null, folderUpdated: false }
-                              return <div className="grid items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_170px_150px]" key={course.id}><span className="text-sm font-medium text-slate-700">{course.title}</span><input className="rounded-lg border border-slate-200 px-2.5 py-2 text-sm disabled:bg-slate-100" disabled={!required} onChange={(event) => updateMonthlyCourseDate(assignment.topic.id, course.id, event.target.value || null)} type="date" value={progress.completedAt || ''} /><label className="flex items-center gap-2 text-sm font-medium text-slate-700"><input checked={progress.folderUpdated} className="h-4 w-4 rounded border-slate-300 text-emerald-600" disabled={!required || !progress.completedAt} onChange={(event) => updateMonthlyCourseFolder(assignment.topic.id, course.id, event.target.checked)} type="checkbox" />Folder Updated</label></div>
+                              const complete = Boolean(progress.completedAt && progress.folderUpdated)
+                              const folderPending = Boolean(progress.completedAt && !progress.folderUpdated)
+                              return <div className={`grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_170px_160px] ${complete ? 'border-emerald-200 bg-emerald-50/40' : folderPending ? 'border-amber-200 bg-amber-50/40' : 'border-slate-200 bg-white'}`} key={course.id}><div><span className="text-sm font-medium text-slate-800">{course.title}</span><div className={`mt-1 flex items-center gap-1 text-xs font-semibold ${complete ? 'text-emerald-700' : folderPending ? 'text-amber-700' : 'text-slate-400'}`}>{complete ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />}{complete ? 'Finished' : folderPending ? 'Folder update needed' : 'Unfinished'}</div></div><input aria-label={`${course.title} completion date`} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm disabled:bg-slate-100" disabled={!required} onChange={(event) => updateMonthlyCourseDate(assignment.topic.id, course.id, event.target.value || null)} type="date" value={progress.completedAt || ''} /><label className={`flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium ${progress.folderUpdated ? 'text-emerald-700' : 'text-slate-600'}`}><input checked={progress.folderUpdated} className="h-4 w-4 rounded border-slate-300 text-emerald-600" disabled={!required || !progress.completedAt} onChange={(event) => updateMonthlyCourseFolder(assignment.topic.id, course.id, event.target.checked)} type="checkbox" />{progress.folderUpdated ? 'Updated' : 'Folder Updated'}</label></div>
                             })}</div>
                           </div>
-                          <div className="space-y-4"><label className="block">
+                          <div className="space-y-4 rounded-xl bg-slate-50 p-4"><label className="block">
                             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Requirement</span>
                             <select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm" onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { requirement: event.target.value as MonthlyAssignment['requirement'] })} value={assignment.requirement}>
                               <option>Unassigned</option><option>Required</option><option>Not Required</option>
