@@ -67,11 +67,10 @@ function EmployeeSelectionComponent() {
     const [employees, setEmployees] = useState([]);
     const [filteredEmployees, setFilteredEmployees] = useState([]);
     const [filterValues, setFilterValues] = useState({});
-    const [selectedFilters, setSelectedFilters] = useState({ isActivated: ['true'] }); // Default to "true" for "Activated"
+    const [selectedFilters, setSelectedFilters] = useState({ isActivated: [true] });
     const [startDate, setStartDate] = useState('1980-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
-    const [selectAllChecked, setSelectAllChecked] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [employeeSearch, setEmployeeSearch] = useState('');
@@ -88,13 +87,15 @@ function EmployeeSelectionComponent() {
                 const processedData = response.data.map(employee => ({
                     ...employee,
                     'Name': `${employee['Last Name']}, ${employee['First Name']}`,
-                    'Supervisor': `${employee['Supervisor Last Name']}, ${employee['Supervisor First Name']}`
+                    'Supervisor': `${employee['Supervisor Last Name']}, ${employee['Supervisor First Name']}`,
+                    isActivated: employee.isActivated === true || String(employee.isActivated).toLowerCase() === 'true',
                 }));
                 const sortedData = processedData.sort((a, b) => a['Last Name'].localeCompare(b['Last Name']));
+                const activatedEmployees = sortedData.filter(employee => employee.isActivated === true);
                 setEmployees(sortedData);
-                setFilteredEmployees(sortedData);
+                setFilteredEmployees(activatedEmployees);
                 extractFilterValues(sortedData);
-                setSelectedEmployees(sortedData);
+                setSelectedEmployees(activatedEmployees);
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
@@ -159,48 +160,36 @@ function EmployeeSelectionComponent() {
     };
 
     const resetFilters = () => {
-        setSelectedFilters({ isActivated: ['true'] });
+        setSelectedFilters({ isActivated: [true] });
         setStartDate('1980-01-01');
         setEndDate(new Date().toISOString().split('T')[0]);
         setEmployeeSearch('');
     };
 
     const applyFilters = () => {
-        const payrollNameFilter = selectedFilters['Name'];
         const defaultStartDate = new Date('1995/01/01');
         const defaultEndDate = new Date();
         const start = startDate ? new Date(startDate) : defaultStartDate;
         const end = endDate ? new Date(endDate) : defaultEndDate;
 
-        const filteredByPayrollName = payrollNameFilter && payrollNameFilter.length > 0
-            ? employees.filter(employee => payrollNameFilter.includes(employee['Name']))
-            : [];
-
-        const filteredByOtherCriteria = employees.filter(employee => {
+        const matchingEmployees = employees.filter(employee => {
             const hireDate = new Date(employee['Hire Date']);
             const isInDateRange = hireDate >= start && hireDate <= end;
             const normalizedSearch = employeeSearch.trim().toLowerCase();
             const matchesSearch = !normalizedSearch || [employee.Name, employee.Email, employee.Phone]
                 .some(value => String(value || '').toLowerCase().includes(normalizedSearch));
             const matchesOtherFilters = Object.entries(selectedFilters).every(([columnName, filterValues]) =>
-                columnName === 'Name' ||
                 filterValues.length === 0 || filterValues.includes(employee[columnName])
             );
 
             return isInDateRange && matchesSearch && matchesOtherFilters;
         });
 
-        const combinedFilteredEmployees = [
-            ...filteredByPayrollName,
-            ...filteredByOtherCriteria.filter(employee =>
-                !filteredByPayrollName.some(filteredEmployee => filteredEmployee['Name'] === employee['Name'])
-            )
-        ];
-        const finalFilteredEmployees = combinedFilteredEmployees.filter(employee =>
-            !deselectedEmployees.has(employee._id)
+        const finalFilteredEmployees = matchingEmployees.filter(employee =>
+            employee.isActivated === true && !deselectedEmployees.has(employee._id)
         );
 
-        setFilteredEmployees(combinedFilteredEmployees);
+        setFilteredEmployees(matchingEmployees);
         setSelectedEmployees(finalFilteredEmployees);
     };
 
@@ -217,13 +206,17 @@ function EmployeeSelectionComponent() {
     };
 
     const handleSelectAllChange = () => {
-        setSelectAllChecked(!selectAllChecked);
-        if (!selectAllChecked) {
-            setDeselectedEmployees(new Set());
-        } else {
-            const allEmployeeIds = new Set(filteredEmployees.map(emp => emp._id));
-            setDeselectedEmployees(allEmployeeIds);
-        }
+        const selectableEmployees = filteredEmployees.filter(employee => employee.isActivated === true);
+        const allVisibleSelected = selectableEmployees.length > 0
+            && selectableEmployees.every(employee => !deselectedEmployees.has(employee._id));
+        setDeselectedEmployees(current => {
+            const next = new Set(current);
+            selectableEmployees.forEach(employee => {
+                if (allVisibleSelected) next.add(employee._id);
+                else next.delete(employee._id);
+            });
+            return next;
+        });
     };
 
     const handleRowDoubleClick = (employee) => {
@@ -257,8 +250,8 @@ function EmployeeSelectionComponent() {
 
     const columns = [
         { id: 'Hire Date', label: 'Hire Date', filter: false },
-        { id: 'Name', label: 'Name (Override Add)', filter: true },
-        { id: 'Position Status', label: 'Position Status', filter: true },
+        { id: 'Name', label: 'Name', filter: true },
+        { id: 'Position Status', label: 'Status', filter: true },
         { id: 'Home Department', label: 'Home Department', filter: true },
         { id: 'Job Title', label: 'Job Title', filter: true },
         { id: 'Location', label: 'Location', filter: true },
@@ -269,11 +262,11 @@ function EmployeeSelectionComponent() {
         { id: 'Pay Category', label: 'Pay', filter: true },
         { id: 'EEOC Establishment', label: 'EEOC', filter: true },
         { id: 'isActivated', label: 'Activated', filter: true },
-        { id: 'select', label: '(Override Remove)', filter: false },
+        { id: 'select', label: 'Select', filter: false },
     ];
 
     const primaryFilterColumns = [
-        { id: 'Position Status', label: 'Position Status' },
+        { id: 'Position Status', label: 'Status' },
         { id: 'Home Department', label: 'Department' },
         { id: 'Job Title', label: 'Job Title' },
         { id: 'Location', label: 'Location' },
@@ -289,6 +282,7 @@ function EmployeeSelectionComponent() {
 
     const activeFilterCount = Object.values(selectedFilters)
         .reduce((total, values) => total + (Array.isArray(values) ? values.length : 0), 0);
+    const selectableVisibleEmployees = filteredEmployees.filter(employee => employee.isActivated === true);
 
     const renderFilter = ({ id, label }) => (
         <Autocomplete
@@ -383,7 +377,7 @@ function EmployeeSelectionComponent() {
                                         options={(filterValues.Name || []).filter(Boolean).sort()}
                                         value={selectedFilters.Name || []}
                                         onChange={(_event, values) => setFilterSelection('Name', values)}
-                                        renderInput={(params) => <TextField {...params} label="Add specific employees" helperText="Selected names are included even if they do not match other filters." size="small" />}
+                                        renderInput={(params) => <TextField {...params} label="Name" helperText="Choose one or more employee names." size="small" />}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6} md={3.5}>
@@ -418,11 +412,12 @@ function EmployeeSelectionComponent() {
                                     {column.id === 'select' ? (
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Checkbox
-                                                checked={selectAllChecked}
+                                                checked={selectableVisibleEmployees.length > 0 && selectableVisibleEmployees.every(employee => !deselectedEmployees.has(employee._id))}
+                                                indeterminate={selectableVisibleEmployees.some(employee => !deselectedEmployees.has(employee._id)) && selectableVisibleEmployees.some(employee => deselectedEmployees.has(employee._id))}
                                                 onChange={handleSelectAllChange}
                                                 color="primary"
                                             />
-                                            <span>(Override Remove)</span>
+                                            <span>Select</span>
                                         </div>
                                     ) : column.label}
                                 </TableCell>
@@ -441,12 +436,17 @@ function EmployeeSelectionComponent() {
                                     <TableCell key={column.id}>
                                         {column.id === 'select' ? (
                                             <Checkbox
-                                                checked={!deselectedEmployees.has(employee._id)}
+                                                checked={employee.isActivated === true && !deselectedEmployees.has(employee._id)}
+                                                disabled={employee.isActivated !== true}
                                                 onChange={() => handleCheckboxChange(employee._id)}
                                                 color="primary"
                                             />
                                         ) : (
-                                            column.id === 'Hire Date' ? formatEmployeeDate(employee[column.id]) : employee[column.id] || ''
+                                            column.id === 'Hire Date'
+                                                ? formatEmployeeDate(employee[column.id])
+                                                : column.id === 'isActivated'
+                                                    ? String(employee[column.id])
+                                                    : employee[column.id] || ''
                                         )}
                                     </TableCell>
                                 ))}
