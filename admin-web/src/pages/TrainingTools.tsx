@@ -44,6 +44,7 @@ type MonthlyAssignment = {
   requirement: 'Unassigned' | 'Required' | 'Not Required'
   completionStatus: 'Unfinished' | 'Finished'
   completionDate: string | null
+  courseProgress: Record<string, { completedAt: string | null }>
   folderUpdated: boolean
 }
 
@@ -85,7 +86,7 @@ type StaticColumnKey =
   | 'orientation'
   | 'monthlyOverview'
 
-type MonthlyColumnField = 'requirement' | 'completionStatus' | 'completionDate' | 'folderUpdated'
+type MonthlyColumnField = 'requirement' | 'completionStatus' | 'folderUpdated'
 type MonthlyColumnKey = `monthly:${string}:${MonthlyColumnField}`
 type ColumnKey = StaticColumnKey | MonthlyColumnKey
 
@@ -117,7 +118,6 @@ const columns: { key: ColumnKey; label: string }[] = [
 const monthlySubcolumns: { field: MonthlyColumnField; label: string }[] = [
   { field: 'requirement', label: 'Required' },
   { field: 'completionStatus', label: 'Completion' },
-  { field: 'completionDate', label: 'Date' },
   { field: 'folderUpdated', label: 'Folder' },
 ]
 
@@ -155,7 +155,6 @@ function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
     if (field === 'requirement') return assignment.requirement
     const hasFinishedHistory = assignment.completionStatus === 'Finished' && Boolean(assignment.completionDate)
     if (field === 'completionStatus') return assignment.requirement === 'Required' || hasFinishedHistory ? assignment.completionStatus : 'Blocked'
-    if (field === 'completionDate') return assignment.requirement === 'Required' || hasFinishedHistory ? assignment.completionDate || '' : 'Blocked'
     return assignment.requirement === 'Required' || hasFinishedHistory ? assignment.folderUpdated ? 'Updated' : 'Not Updated' : 'Blocked'
   }
   if (key === 'orientation') return employee.training.orientation.status
@@ -172,7 +171,7 @@ function isTestMonthlyTopic(name: string) {
 function getColumnFilterValue(employee: TrainingEmployee, key: ColumnKey) {
   const value = getColumnValue(employee, key)
   if (!value) return 'Not specified'
-  return key === 'firstDay' || key.endsWith(':completionDate') ? displayDate(value) : value
+  return key === 'firstDay' ? displayDate(value) : value
 }
 
 function ColumnMultiFilter({
@@ -627,6 +626,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         trainingType: 'monthly' as const,
         label: `${topic.name} - ${course.title} (${topic.targetDate?.slice(0, 4) || 'No year'})`,
         topicId: topic.id,
+        courseId: course.id,
       }))), [allMonthlyTopics, allOrientationLibraries, reportTargetDateFrom, reportTargetDateTo, reportTrainingType])
 
   const selectedReportCourses = reportCourseOptions.filter((option) => reportCourseIds.includes(option.id))
@@ -641,10 +641,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     }
     const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === course.topicId)
     if (!assignment) return 'Unassigned'
-    if (assignment.completionStatus === 'Finished' && assignment.completionDate) return 'Finished'
+    if (assignment.courseProgress?.[course.courseId || '']?.completedAt) return 'Finished'
     if (assignment.requirement === 'Unassigned') return 'Unassigned'
     if (assignment.requirement === 'Not Required') return 'Not Required'
-    return assignment.completionStatus
+    return assignment.courseProgress?.[course.courseId || '']?.completedAt ? 'Finished' : 'Unfinished'
   }
 
   const reportStatusOptions = selectedReportCourses.length
@@ -777,7 +777,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         employee.department,
         employee.reportingTo,
         employee.firstDay,
-        orientationProgress?.completedAt || monthlyAssignment?.completionDate || '',
+        orientationProgress?.completedAt || monthlyAssignment?.courseProgress?.[course.courseId || '']?.completedAt || '',
         orientationProgress?.folderUpdated || monthlyAssignment?.folderUpdated ? 'Yes' : 'No',
       ]
     }).filter((row): row is string[] => Boolean(row)))
@@ -811,7 +811,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     }))
     employee.training.monthly.assignments.forEach((assignment) => {
       if (!isTestMonthlyTopic(assignment.topic.name) && (assignment.requirement === 'Required' || (assignment.completionStatus === 'Finished' && assignment.completionDate))) {
-        rows.push(['Monthly Training', assignment.topic.name, assignment.topic.courses.map((course) => course.title).join('; '), assignment.completionStatus, assignment.completionDate || '', assignment.folderUpdated ? 'Yes' : 'No'])
+        assignment.topic.courses.forEach((course) => {
+          const completedAt = assignment.courseProgress?.[course.id]?.completedAt || ''
+          rows.push(['Monthly Training', assignment.topic.name, course.title, completedAt ? 'Finished' : 'Unfinished', completedAt, assignment.folderUpdated ? 'Yes' : 'No'])
+        })
       }
     })
     rows.sort((left, right) => left[3].localeCompare(right[3]) || left[4].localeCompare(right[4]) || left[1].localeCompare(right[1]))
@@ -924,18 +927,29 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     setMonthlyAssignments((current) => current.map((assignment) => {
       if (assignment.topic.id !== topicId) return assignment
       const next = { ...assignment, ...update }
-      if (update.requirement && update.requirement !== 'Required') {
+      if (update.requirement === 'Not Required' || update.requirement === 'Unassigned' && assignment.completionStatus !== 'Finished') {
         next.completionStatus = 'Unfinished'
         next.completionDate = null
+        next.courseProgress = {}
         next.folderUpdated = false
       }
-      if (update.requirement === 'Required' && assignment.requirement !== 'Required') {
-        next.completionStatus = 'Unfinished'
-        next.completionDate = null
-        next.folderUpdated = false
-      }
-      if (update.completionStatus === 'Unfinished') next.completionDate = null
       return next
+    }))
+  }
+
+  function updateMonthlyCourseDate(topicId: string, courseId: string, completedAt: string | null) {
+    setMonthlyAssignments((current) => current.map((assignment) => {
+      if (assignment.topic.id !== topicId) return assignment
+      const courseProgress = { ...assignment.courseProgress, [courseId]: { completedAt } }
+      const dates = assignment.topic.courses.map((course) => courseProgress[course.id]?.completedAt).filter((date): date is string => Boolean(date)).sort()
+      const finished = assignment.topic.courses.length > 0 && dates.length === assignment.topic.courses.length
+      return {
+        ...assignment,
+        courseProgress,
+        completionStatus: finished ? 'Finished' : 'Unfinished',
+        completionDate: finished ? dates.at(-1) || null : null,
+        folderUpdated: finished ? assignment.folderUpdated : false,
+      }
     }))
   }
 
@@ -950,6 +964,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           requirement: assignment.requirement,
           completionStatus: assignment.completionStatus,
           completionDate: assignment.completionDate,
+          courseProgress: assignment.courseProgress,
           folderUpdated: assignment.folderUpdated,
         },
       ]))
@@ -1175,7 +1190,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             onScroll={() => syncHorizontalScroll('table')}
             ref={tableScrollRef}
           >
-            <table className="w-full text-sm" style={{ minWidth: `${1850 + displayedMonthlyTopics.length * 620}px` }}>
+            <table className="w-full text-sm" style={{ minWidth: `${1850 + displayedMonthlyTopics.length * 465}px` }}>
               <thead className="bg-slate-50">
                 <tr>
                   {columns.map((column, index) => (
@@ -1205,7 +1220,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     </th>
                   ))}
                   {displayedMonthlyTopics.map((topic) => (
-                    <th className="border-b border-l-2 border-emerald-200 bg-emerald-50/70 px-4 py-3 text-left" colSpan={4} key={`${topic.id}-group`}>
+                    <th className="border-b border-l-2 border-emerald-200 bg-emerald-50/70 px-4 py-3 text-left" colSpan={3} key={`${topic.id}-group`}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-emerald-950">{topic.name}</div>
@@ -1334,7 +1349,6 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                         <td className="min-w-[145px] border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-completion`}>
                           {required || hasFinishedHistory ? <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment?.completionStatus === 'Finished' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{assignment?.completionStatus || 'Unfinished'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}
                         </td>,
-                        <td className="min-w-[145px] whitespace-nowrap border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-date`}>{hasFinishedHistory ? displayDate(assignment?.completionDate) : '—'}</td>,
                         <td className="min-w-[145px] border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-folder`}>{required || hasFinishedHistory ? <span className={`text-xs font-semibold ${assignment?.folderUpdated ? 'text-emerald-700' : 'text-slate-500'}`}>{assignment?.folderUpdated ? 'Updated' : 'Not Updated'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}</td>,
                       ]
                     })}
@@ -1420,31 +1434,22 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                           </div>
                           <div className="text-xs text-slate-500">{assignment.topic.courses.length} courses</div>
                         </div>
-                        <div className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]">
+                        <div className="grid gap-5 p-4 lg:grid-cols-[1fr_260px]">
                           <div>
-                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Courses</div>
-                            <ul className="mt-2 space-y-1 text-sm text-slate-700">{assignment.topic.courses.map((course) => <li key={course.id}>• {course.title}</li>)}</ul>
+                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Course Completion Dates</div>
+                            <div className="mt-2 space-y-2">{assignment.topic.courses.map((course) => <label className="grid items-center gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_170px]" key={course.id}><span className="text-sm font-medium text-slate-700">{course.title}</span><input className="rounded-lg border border-slate-200 px-2.5 py-2 text-sm disabled:bg-slate-100" disabled={!required} onChange={(event) => updateMonthlyCourseDate(assignment.topic.id, course.id, event.target.value || null)} type="date" value={assignment.courseProgress?.[course.id]?.completedAt || ''} /></label>)}</div>
                           </div>
-                          <label>
+                          <div className="space-y-4"><label className="block">
                             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Requirement</span>
                             <select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm" onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { requirement: event.target.value as MonthlyAssignment['requirement'] })} value={assignment.requirement}>
                               <option>Unassigned</option><option>Required</option><option>Not Required</option>
                             </select>
                           </label>
-                          <label>
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion</span>
-                            <select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400" disabled={!required} onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { completionStatus: event.target.value as MonthlyAssignment['completionStatus'] })} value={assignment.completionStatus}>
-                              <option>Unfinished</option><option>Finished</option>
-                            </select>
-                          </label>
-                          <label>
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion Date</span>
-                            <input className="mt-2 w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm disabled:bg-slate-100" disabled={!required || assignment.completionStatus !== 'Finished'} onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { completionDate: event.target.value || null })} type="date" value={assignment.completionDate || ''} />
-                          </label>
-                          <label className="flex items-center gap-2 self-center pt-5 text-sm font-medium text-slate-700">
-                            <input checked={assignment.folderUpdated} className="h-4 w-4 rounded border-slate-300 text-emerald-600" disabled={!required} onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { folderUpdated: event.target.checked })} type="checkbox" />
+                          <div><div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Automatic Completion</div><span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment.completionStatus === 'Finished' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{assignment.completionStatus}</span></div>
+                          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                            <input checked={assignment.folderUpdated} className="h-4 w-4 rounded border-slate-300 text-emerald-600" disabled={assignment.completionStatus !== 'Finished'} onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { folderUpdated: event.target.checked })} type="checkbox" />
                             Folder Updated
-                          </label>
+                          </label></div>
                         </div>
                       </section>
                     )
@@ -1453,7 +1458,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               )}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-4">
-              <div className="text-xs text-slate-500">Completion controls are available only when the topic is Required.</div>
+              <div className="text-xs text-slate-500">Enter a date for each course. Completion becomes Finished automatically when every course has a date.</div>
               <div className="flex gap-3">
                 <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => setMonthlyEmployee(null)} type="button">Cancel</button>
                 <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={isSavingMonthly} onClick={saveMonthly} type="button">{isSavingMonthly ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}Save Monthly Training</button>

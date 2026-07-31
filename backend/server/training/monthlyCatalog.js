@@ -87,19 +87,24 @@ function normalizeMonthly(record, currentTopics = []) {
       ? normalizeTopic(stored.topicSnapshot)
       : currentById.get(topicId);
     if (!topic) return null;
-    const completionStatus = ['Required', 'Unassigned'].includes(requirement) && stored.completionStatus === 'Finished'
-      ? 'Finished'
-      : 'Unfinished';
-    const completionDate = completionStatus === 'Finished'
-      && typeof stored.completionDate === 'string'
-      && /^\d{4}-\d{2}-\d{2}$/.test(stored.completionDate)
-      ? stored.completionDate
+    const legacyCompletionDate = stored.completionStatus === 'Finished' && /^\d{4}-\d{2}-\d{2}$/.test(String(stored.completionDate || ''))
+      ? String(stored.completionDate)
       : null;
+    const courseProgress = Object.fromEntries(topic.courses.map((course) => {
+      const storedDate = stored.courseProgress?.[course.id]?.completedAt;
+      const completedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(storedDate || '')) ? String(storedDate) : legacyCompletionDate;
+      return [course.id, { completedAt: completedAt || null }];
+    }));
+    const courseDates = Object.values(courseProgress).map((progress) => progress.completedAt).filter(Boolean).sort();
+    const allCoursesFinished = topic.courses.length > 0 && courseDates.length === topic.courses.length;
+    const completionStatus = ['Required', 'Unassigned'].includes(requirement) && allCoursesFinished ? 'Finished' : 'Unfinished';
+    const completionDate = completionStatus === 'Finished' ? courseDates.at(-1) : null;
     return {
       topic,
       requirement,
       completionStatus,
       completionDate,
+      courseProgress,
       folderUpdated: completionStatus === 'Finished' && stored.folderUpdated === true,
     };
   }).filter(Boolean);
@@ -141,22 +146,28 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
       ? existing.topicSnapshot || currentById.get(topicId)
       : null;
     if (!topicSnapshot && requirement !== 'Unassigned') continue;
-    const completionStatus = requirement === 'Required' && requestedFinished
-      || requirement === 'Unassigned' && hasFinishedHistory
-      ? 'Finished'
-      : 'Unfinished';
-    const completionDate = completionStatus === 'Finished' && /^\d{4}-\d{2}-\d{2}$/.test(String(value.completionDate || ''))
-      ? String(value.completionDate)
-      : null;
-    if (completionStatus === 'Finished' && !completionDate) {
-      return { error: `Enter a completion date for ${topicSnapshot.name}.` };
+    const normalizedTopic = topicSnapshot ? normalizeTopic(topicSnapshot) : currentById.get(topicId);
+    const courseProgress = Object.fromEntries((normalizedTopic?.courses || []).map((course) => {
+      const incomingDate = value.courseProgress?.[course.id]?.completedAt;
+      const legacyDate = hasFinishedHistory ? String(value.completionDate) : null;
+      const completedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(incomingDate || '')) ? String(incomingDate) : legacyDate;
+      return [course.id, { completedAt: completedAt || null }];
+    }));
+    const courseDates = Object.values(courseProgress).map((progress) => progress.completedAt).filter(Boolean).sort();
+    const allCoursesFinished = Boolean(normalizedTopic?.courses.length) && courseDates.length === normalizedTopic.courses.length;
+    if (requirement === 'Required' && requestedFinished && !allCoursesFinished) {
+      return { error: `Enter a completion date for every course in ${normalizedTopic.name}.` };
     }
+    const keepCourseProgress = requirement === 'Required' || requirement === 'Unassigned' && allCoursesFinished;
+    const completionStatus = keepCourseProgress && allCoursesFinished ? 'Finished' : 'Unfinished';
+    const completionDate = completionStatus === 'Finished' ? courseDates.at(-1) : null;
     topicAssignments[topicId] = {
       requirement,
       completionStatus,
       completionDate,
+      courseProgress: keepCourseProgress ? courseProgress : {},
       folderUpdated: completionStatus === 'Finished' && value.folderUpdated === true,
-      ...(topicSnapshot ? { topicSnapshot: normalizeTopic(topicSnapshot) } : {}),
+      ...(requirement !== 'Unassigned' || completionStatus === 'Finished' ? { topicSnapshot: normalizedTopic } : {}),
     };
   }
 

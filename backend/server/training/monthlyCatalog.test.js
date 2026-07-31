@@ -37,6 +37,32 @@ test('finished monthly training requires and keeps a completion date', () => {
   assert.equal(result.monthly.assignments[0].folderUpdated, true);
 });
 
+test('tracks a different completion date for every monthly course', () => {
+  const twoCourseTopic = { ...topic, courses: [
+    { id: 'course-1', title: 'Heat Safety' },
+    { id: 'course-2', title: 'PPE Safety' },
+  ] };
+  const partial = sanitizeMonthlyInput({ topicAssignments: { 'topic-1': {
+    requirement: 'Required',
+    courseProgress: { 'course-1': { completedAt: '2026-08-10' } },
+  } } }, [twoCourseTopic]);
+  assert.equal(partial.monthly.assignments[0].completionStatus, 'Unfinished');
+
+  const finished = sanitizeMonthlyInput({ topicAssignments: { 'topic-1': {
+    requirement: 'Required',
+    courseProgress: {
+      'course-1': { completedAt: '2026-08-10' },
+      'course-2': { completedAt: '2026-08-20' },
+    },
+    folderUpdated: true,
+  } } }, [twoCourseTopic]);
+  const assignment = finished.monthly.assignments[0];
+  assert.equal(assignment.completionStatus, 'Finished');
+  assert.equal(assignment.courseProgress['course-1'].completedAt, '2026-08-10');
+  assert.equal(assignment.courseProgress['course-2'].completedAt, '2026-08-20');
+  assert.equal(assignment.completionDate, '2026-08-20');
+});
+
 test('not required blocks completion fields', () => {
   const result = sanitizeMonthlyInput({ topicAssignments: {
     'topic-1': { requirement: 'Not Required', completionStatus: 'Finished', completionDate: '2026-08-15', folderUpdated: true },

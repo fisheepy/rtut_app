@@ -53,6 +53,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           requirement: assignment.requirement,
           completionStatus: assignment.completionStatus,
           completionDate: assignment.completionDate,
+          courseProgress: assignment.courseProgress,
           folderUpdated: assignment.folderUpdated,
         }];
         const keepFinished = assignment.completionStatus === 'Finished' && Boolean(assignment.completionDate);
@@ -60,6 +61,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           requirement: matches ? 'Required' : 'Unassigned',
           completionStatus: keepFinished ? 'Finished' : 'Unfinished',
           completionDate: keepFinished ? assignment.completionDate : null,
+          courseProgress: matches || keepFinished ? assignment.courseProgress : {},
           folderUpdated: keepFinished && assignment.folderUpdated,
         }];
       }));
