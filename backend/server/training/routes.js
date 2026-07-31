@@ -4,6 +4,7 @@ const { normalizeEmployee } = require('./employeeData');
 const { isAllowedFolderUrl } = require('./folderLink');
 const {
   getOrientationLibraries,
+  resolveAssignedLibraries,
   sanitizeOrientationInput,
   validateLibraryInput,
 } = require('./orientationCatalog');
@@ -52,6 +53,22 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           employeeId: { $in: employeeIds },
         }).toArray()
         : [];
+      const legacyOrientationRecords = trainingRecords.filter((record) => (
+        record.orientation?.assignedLibraryIds?.length
+        && !Array.isArray(record.orientation.assignedLibraries)
+      ));
+      if (legacyOrientationRecords.length) {
+        await db.collection('employee_training').bulkWrite(legacyOrientationRecords.map((record) => {
+          const assignedLibraries = resolveAssignedLibraries(record.orientation, orientationLibraries);
+          record.orientation.assignedLibraries = assignedLibraries;
+          return {
+            updateOne: {
+              filter: { _id: record._id },
+              update: { $set: { 'orientation.assignedLibraries': assignedLibraries } },
+            },
+          };
+        }));
+      }
       const trainingByEmployeeId = new Map(
         trainingRecords.map((record) => [String(record.employeeId), record]),
       );
@@ -92,7 +109,8 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
       await client.connect();
       const db = client.db(databaseName);
       const orientationLibraries = await getOrientationLibraries(db);
-      const orientation = sanitizeOrientationInput(req.body, orientationLibraries);
+      const existingTraining = await db.collection('employee_training').findOne({ employeeId: req.params.employeeId });
+      const orientation = sanitizeOrientationInput(req.body, orientationLibraries, existingTraining);
       const employee = ObjectId.isValid(req.params.employeeId)
         ? await db.collection('employees').findOne({ _id: new ObjectId(req.params.employeeId) })
         : null;
@@ -104,6 +122,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           $set: {
             orientation: {
               assignedLibraryIds: orientation.assignedLibraryIds,
+              assignedLibraries: orientation.assignedLibraries,
               courseProgress: orientation.courseProgress,
             },
             orientationUpdatedAt: new Date(),

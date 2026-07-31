@@ -15,6 +15,7 @@ type CourseProgress = {
 
 type OrientationTraining = TrainingStatus & {
   assignedLibraryIds: string[]
+  assignedLibraries: OrientationLibrary[]
   courseProgress: Record<string, CourseProgress>
   completedCourseCount: number
   requiredCourseCount: number
@@ -351,6 +352,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [isSavingLink, setIsSavingLink] = useState(false)
   const [orientationEmployee, setOrientationEmployee] = useState<TrainingEmployee | null>(null)
   const [assignedLibraryIds, setAssignedLibraryIds] = useState<string[]>([])
+  const [assignedLibrarySnapshots, setAssignedLibrarySnapshots] = useState<OrientationLibrary[]>([])
   const [courseProgress, setCourseProgress] = useState<Record<string, CourseProgress>>({})
   const [orientationError, setOrientationError] = useState('')
   const [isSavingOrientation, setIsSavingOrientation] = useState(false)
@@ -361,7 +363,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [isSavingLibrary, setIsSavingLibrary] = useState(false)
   const [libraryPendingDelete, setLibraryPendingDelete] = useState<OrientationLibrary | null>(null)
   const [showReportOptions, setShowReportOptions] = useState(false)
-  const [reportStatus, setReportStatus] = useState<'All Statuses' | 'Unassigned' | 'In Process' | 'Finished'>('All Statuses')
+  const [reportTrainingType, setReportTrainingType] = useState<'orientation' | 'monthly'>('orientation')
+  const [reportStatus, setReportStatus] = useState('All Statuses')
   const [tableScrollWidth, setTableScrollWidth] = useState(0)
   const [showBackToTop, setShowBackToTop] = useState(false)
 
@@ -493,7 +496,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
-  const selectedOrientationLibraries = orientationLibraries.filter((library) => assignedLibraryIds.includes(library.id))
+  const reportStatusOptions = Array.from(new Set(
+    employees.map((employee) => employee.training[reportTrainingType].status),
+  )).sort()
+  const selectedOrientationLibraries = assignedLibrarySnapshots.filter((library) => assignedLibraryIds.includes(library.id))
   const orientationRequiredCount = selectedOrientationLibraries.reduce((total, library) => total + library.courses.length, 0)
   const orientationCompletedCount = selectedOrientationLibraries.reduce((total, library) => (
     total + library.courses.filter((course) => {
@@ -530,16 +536,21 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   function editOrientation(employee: TrainingEmployee) {
     setOrientationEmployee(employee)
     setAssignedLibraryIds([...employee.training.orientation.assignedLibraryIds])
+    setAssignedLibrarySnapshots(JSON.parse(JSON.stringify(employee.training.orientation.assignedLibraries || [])))
     setCourseProgress(JSON.parse(JSON.stringify(employee.training.orientation.courseProgress || {})))
     setOrientationError('')
   }
 
   function toggleOrientationLibrary(libraryId: string) {
-    setAssignedLibraryIds((current) => (
-      current.includes(libraryId)
-        ? current.filter((id) => id !== libraryId)
-        : [...current, libraryId]
-    ))
+    setAssignedLibraryIds((current) => {
+      if (current.includes(libraryId)) {
+        setAssignedLibrarySnapshots((snapshots) => snapshots.filter((library) => library.id !== libraryId))
+        return current.filter((id) => id !== libraryId)
+      }
+      const library = orientationLibraries.find((item) => item.id === libraryId)
+      if (library) setAssignedLibrarySnapshots((snapshots) => [...snapshots, JSON.parse(JSON.stringify(library))])
+      return [...current, libraryId]
+    })
   }
 
   function updateCourseProgress(key: string, update: Partial<CourseProgress>) {
@@ -583,17 +594,18 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     }
   }
 
-  function downloadOrientationReport() {
-    const libraryNames = new Map(orientationLibraries.map((library) => [library.id, library.name]))
+  function downloadTrainingReport() {
+    const trainingTypeName = reportTrainingType === 'orientation' ? 'Orientation Training' : 'Monthly Training'
     const rows = employees
-      .filter((employee) => reportStatus === 'All Statuses' || employee.training.orientation.status === reportStatus)
+      .filter((employee) => reportStatus === 'All Statuses' || employee.training[reportTrainingType].status === reportStatus)
       .slice()
       .sort((left, right) => (
-        left.training.orientation.status.localeCompare(right.training.orientation.status)
+        left.training[reportTrainingType].status.localeCompare(right.training[reportTrainingType].status)
         || left.employeeName.localeCompare(right.employeeName)
       ))
       .map((employee) => [
-        employee.training.orientation.status,
+        trainingTypeName,
+        employee.training[reportTrainingType].status,
         employee.employeeName,
         employee.email,
         employee.contactNumber,
@@ -603,20 +615,24 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         employee.department,
         employee.reportingTo,
         employee.firstDay,
-        employee.training.orientation.assignedLibraryIds.map((id) => libraryNames.get(id) || id).join('; '),
-        `${employee.training.orientation.completedCourseCount}/${employee.training.orientation.requiredCourseCount}`,
-        employee.training.orientation.completedAt || '',
+        reportTrainingType === 'orientation'
+          ? employee.training.orientation.assignedLibraries.map((library) => library.name).join('; ')
+          : '',
+        reportTrainingType === 'orientation'
+          ? `${employee.training.orientation.completedCourseCount}/${employee.training.orientation.requiredCourseCount}`
+          : '',
+        employee.training[reportTrainingType].completedAt || '',
       ])
     const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
     const csv = [
-      ['Orientation Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Libraries', 'Courses Complete', 'Orientation Finished Date'],
+      ['Training Type', 'Training Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Libraries', 'Courses Complete', 'Training Finished Date'],
       ...rows,
     ].map((row) => row.map(csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
     const statusName = reportStatus === 'All Statuses' ? 'all-statuses' : reportStatus.toLowerCase().replace(' ', '-')
-    link.download = `orientation-${statusName}-report-${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `${reportTrainingType}-training-${statusName}-report-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -757,7 +773,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             <div className="flex flex-wrap gap-2">
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReportOptions(true)} type="button">
                 <Download className="h-4 w-4" />
-                Download Orientation Report
+                Download Training Report
               </button>
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={openOrientationSettings} type="button">
                 <Settings className="h-4 w-4" />
@@ -989,36 +1005,48 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           <section aria-labelledby="orientation-report-title" aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="dialog">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-950" id="orientation-report-title">Download Orientation Report</h2>
-                <p className="mt-1 text-sm text-slate-500">Choose which automatic Orientation status to include.</p>
+                <h2 className="text-xl font-semibold text-slate-950" id="orientation-report-title">Download Training Report</h2>
+                <p className="mt-1 text-sm text-slate-500">Choose a training type and status to include.</p>
               </div>
               <button aria-label="Close orientation report options" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowReportOptions(false)} type="button">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <label className="mt-5 block">
+              <span className="text-sm font-semibold text-slate-700">Training Type</span>
+              <select
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                onChange={(event) => {
+                  setReportTrainingType(event.target.value as typeof reportTrainingType)
+                  setReportStatus('All Statuses')
+                }}
+                value={reportTrainingType}
+              >
+                <option value="orientation">Orientation Training</option>
+                <option value="monthly">Monthly Training</option>
+              </select>
+            </label>
+            <label className="mt-4 block">
               <span className="text-sm font-semibold text-slate-700">Training Status</span>
               <select
                 className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                onChange={(event) => setReportStatus(event.target.value as typeof reportStatus)}
+                onChange={(event) => setReportStatus(event.target.value)}
                 value={reportStatus}
               >
-                <option>All Statuses</option>
-                <option>Unassigned</option>
-                <option>In Process</option>
-                <option>Finished</option>
+                <option value="All Statuses">All Statuses</option>
+                {reportStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
               </select>
             </label>
             <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
               This report will include <span className="font-semibold text-slate-900">{
                 reportStatus === 'All Statuses'
                   ? employees.length
-                  : employees.filter((employee) => employee.training.orientation.status === reportStatus).length
+                  : employees.filter((employee) => employee.training[reportTrainingType].status === reportStatus).length
               }</span> employees, including their email and contact number.
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReportOptions(false)} type="button">Cancel</button>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" onClick={downloadOrientationReport} type="button">
+              <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" onClick={downloadTrainingReport} type="button">
                 <Download className="h-4 w-4" />
                 Download CSV
               </button>
@@ -1230,12 +1258,15 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                               </a>
                             ) : null}
                           </div>
-                          <span className="text-xs font-semibold text-slate-500">
-                            {library.courses.filter((course) => {
-                              const progress = courseProgress[`${library.id}:${course.id}`]
-                              return progress?.completedAt && progress?.folderUpdated
-                            }).length}/{library.courses.length} complete
-                          </span>
+                          <div className="text-right">
+                            <span className="block text-xs font-semibold text-slate-500">
+                              {library.courses.filter((course) => {
+                                const progress = courseProgress[`${library.id}:${course.id}`]
+                                return progress?.completedAt && progress?.folderUpdated
+                              }).length}/{library.courses.length} complete
+                            </span>
+                            <button className="mt-1 text-xs font-semibold text-red-600 hover:text-red-700" onClick={() => toggleOrientationLibrary(library.id)} type="button">Remove Assignment</button>
+                          </div>
                         </div>
                         <div className="overflow-x-auto">
                           <table className="w-full min-w-[700px] text-sm">

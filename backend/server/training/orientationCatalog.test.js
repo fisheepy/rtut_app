@@ -62,6 +62,38 @@ test('migrates existing index-based course progress to stable course IDs', () =>
   });
 });
 
+test('keeps an assigned library snapshot unchanged when the catalog is edited or deleted', () => {
+  const assignedLibrary = ORIENTATION_LIBRARIES.find((library) => library.id === 'maintenance-janitorial');
+  const courseProgress = Object.fromEntries(assignedLibrary.courses.map((course) => [
+    courseKey(assignedLibrary.id, course.id),
+    { completedAt: '2026-07-01', folderUpdated: true },
+  ]));
+  const existingRecord = {
+    orientation: {
+      assignedLibraryIds: [assignedLibrary.id],
+      assignedLibraries: [assignedLibrary],
+      courseProgress,
+    },
+  };
+  const changedCatalog = [{
+    ...assignedLibrary,
+    name: 'Changed Name',
+    courses: [...assignedLibrary.courses, { id: 'new-course', title: 'New Course' }],
+  }];
+
+  const saved = sanitizeOrientationInput({
+    assignedLibraryIds: [assignedLibrary.id],
+    courseProgress,
+  }, changedCatalog, existingRecord);
+  const afterCatalogDeletion = normalizeOrientation({ orientation: saved }, []);
+
+  assert.equal(saved.assignedLibraries[0].name, assignedLibrary.name);
+  assert.equal(saved.requiredCourseCount, assignedLibrary.courses.length);
+  assert.equal(saved.status, 'Finished');
+  assert.equal(afterCatalogDeletion.status, 'Finished');
+  assert.equal(afterCatalogDeletion.assignedLibraries[0].courses.length, assignedLibrary.courses.length);
+});
+
 test('validates editable library details and preserves existing course IDs', () => {
   const existing = ORIENTATION_LIBRARIES[0];
   const result = validateLibraryInput({

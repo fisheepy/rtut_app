@@ -123,13 +123,23 @@ function courseKey(libraryId, courseId) {
   return `${libraryId}:${courseId}`;
 }
 
+function resolveAssignedLibraries(source, currentLibraries = ORIENTATION_LIBRARIES) {
+  const currentById = new Map(currentLibraries.map((library) => [library.id, normalizeLibrary(library)]));
+  const snapshotById = new Map(
+    (Array.isArray(source?.assignedLibraries) ? source.assignedLibraries : [])
+      .map(normalizeLibrary)
+      .map((library) => [library.id, library]),
+  );
+  return Array.from(new Set(Array.isArray(source?.assignedLibraryIds) ? source.assignedLibraryIds : []))
+    .map((id) => snapshotById.get(id) || currentById.get(id))
+    .filter(Boolean);
+}
+
 function normalizeOrientation(record, libraries = ORIENTATION_LIBRARIES) {
   const source = record?.orientation || {};
-  const libraryById = new Map(libraries.map((library) => [library.id, normalizeLibrary(library)]));
-  const assignedLibraryIds = Array.from(new Set(
-    (Array.isArray(source.assignedLibraryIds) ? source.assignedLibraryIds : [])
-      .filter((id) => libraryById.has(id)),
-  ));
+  const assignedLibraries = resolveAssignedLibraries(source, libraries);
+  const libraryById = new Map(assignedLibraries.map((library) => [library.id, library]));
+  const assignedLibraryIds = assignedLibraries.map((library) => library.id);
   const storedProgress = source.courseProgress && typeof source.courseProgress === 'object'
     ? source.courseProgress
     : {};
@@ -166,16 +176,23 @@ function normalizeOrientation(record, libraries = ORIENTATION_LIBRARIES) {
     status,
     completedAt: status === 'Finished' ? completionDates.sort().at(-1) || null : null,
     assignedLibraryIds,
+    assignedLibraries,
     courseProgress,
     completedCourseCount,
     requiredCourseCount,
   };
 }
 
-function sanitizeOrientationInput(body, libraries = ORIENTATION_LIBRARIES) {
+function sanitizeOrientationInput(body, libraries = ORIENTATION_LIBRARIES, existingRecord = null) {
+  const existingSource = existingRecord?.orientation || {};
+  const assignedLibraries = resolveAssignedLibraries({
+    assignedLibraryIds: body?.assignedLibraryIds,
+    assignedLibraries: existingSource.assignedLibraries,
+  }, libraries);
   return normalizeOrientation({
     orientation: {
-      assignedLibraryIds: body?.assignedLibraryIds,
+      assignedLibraryIds: assignedLibraries.map((library) => library.id),
+      assignedLibraries,
       courseProgress: body?.courseProgress,
     },
   }, libraries);
@@ -186,6 +203,7 @@ module.exports = {
   courseKey,
   getOrientationLibraries,
   normalizeOrientation,
+  resolveAssignedLibraries,
   sanitizeOrientationInput,
   validateLibraryInput,
 };
