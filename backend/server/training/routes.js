@@ -54,7 +54,6 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           completionStatus: assignment.completionStatus,
           completionDate: assignment.completionDate,
           courseProgress: assignment.courseProgress,
-          folderUpdated: assignment.folderUpdated,
         }];
         const keepFinished = assignment.completionStatus === 'Finished' && Boolean(assignment.completionDate);
         return [assignment.topic.id, {
@@ -62,7 +61,6 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           completionStatus: keepFinished ? 'Finished' : 'Unfinished',
           completionDate: keepFinished ? assignment.completionDate : null,
           courseProgress: matches || keepFinished ? assignment.courseProgress : {},
-          folderUpdated: keepFinished && assignment.folderUpdated,
         }];
       }));
       const sanitized = sanitizeMonthlyInput({ topicAssignments }, monthlyTopics, existing);

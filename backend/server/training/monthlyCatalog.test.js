@@ -34,7 +34,7 @@ test('finished monthly training requires and keeps a completion date', () => {
   } }, [topic]);
   assert.equal(result.monthly.status, 'Finished');
   assert.equal(result.monthly.completedAt, '2026-08-15');
-  assert.equal(result.monthly.assignments[0].folderUpdated, true);
+  assert.equal(result.monthly.assignments[0].courseProgress['course-1'].folderUpdated, true);
 });
 
 test('tracks a different completion date for every monthly course', () => {
@@ -51,15 +51,16 @@ test('tracks a different completion date for every monthly course', () => {
   const finished = sanitizeMonthlyInput({ topicAssignments: { 'topic-1': {
     requirement: 'Required',
     courseProgress: {
-      'course-1': { completedAt: '2026-08-10' },
-      'course-2': { completedAt: '2026-08-20' },
+      'course-1': { completedAt: '2026-08-10', folderUpdated: true },
+      'course-2': { completedAt: '2026-08-20', folderUpdated: false },
     },
-    folderUpdated: true,
   } } }, [twoCourseTopic]);
   const assignment = finished.monthly.assignments[0];
   assert.equal(assignment.completionStatus, 'Finished');
   assert.equal(assignment.courseProgress['course-1'].completedAt, '2026-08-10');
   assert.equal(assignment.courseProgress['course-2'].completedAt, '2026-08-20');
+  assert.equal(assignment.courseProgress['course-1'].folderUpdated, true);
+  assert.equal(assignment.courseProgress['course-2'].folderUpdated, false);
   assert.equal(assignment.completionDate, '2026-08-20');
 });
 
@@ -70,7 +71,7 @@ test('not required blocks completion fields', () => {
   const assignment = result.monthly.assignments[0];
   assert.equal(assignment.completionStatus, 'Unfinished');
   assert.equal(assignment.completionDate, null);
-  assert.equal(assignment.folderUpdated, false);
+  assert.deepEqual(assignment.courseProgress['course-1'], { completedAt: null, folderUpdated: false });
 });
 
 test('keeps finished history when an employee becomes unassigned', () => {
@@ -85,7 +86,7 @@ test('keeps finished history when an employee becomes unassigned', () => {
   assert.equal(assignment.requirement, 'Unassigned');
   assert.equal(assignment.completionStatus, 'Finished');
   assert.equal(assignment.completionDate, '2026-08-15');
-  assert.equal(assignment.folderUpdated, true);
+  assert.equal(assignment.courseProgress['course-1'].folderUpdated, true);
 });
 
 test('assigned monthly topic snapshot survives catalog edits and deletion', () => {

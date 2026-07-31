@@ -93,7 +93,9 @@ function normalizeMonthly(record, currentTopics = []) {
     const courseProgress = Object.fromEntries(topic.courses.map((course) => {
       const storedDate = stored.courseProgress?.[course.id]?.completedAt;
       const completedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(storedDate || '')) ? String(storedDate) : legacyCompletionDate;
-      return [course.id, { completedAt: completedAt || null }];
+      const folderUpdated = stored.courseProgress?.[course.id]?.folderUpdated === true
+        || stored.folderUpdated === true && Boolean(completedAt);
+      return [course.id, { completedAt: completedAt || null, folderUpdated }];
     }));
     const courseDates = Object.values(courseProgress).map((progress) => progress.completedAt).filter(Boolean).sort();
     const allCoursesFinished = topic.courses.length > 0 && courseDates.length === topic.courses.length;
@@ -105,7 +107,6 @@ function normalizeMonthly(record, currentTopics = []) {
       completionStatus,
       completionDate,
       courseProgress,
-      folderUpdated: completionStatus === 'Finished' && stored.folderUpdated === true,
     };
   }).filter(Boolean);
 
@@ -151,7 +152,9 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
       const incomingDate = value.courseProgress?.[course.id]?.completedAt;
       const legacyDate = hasFinishedHistory ? String(value.completionDate) : null;
       const completedAt = /^\d{4}-\d{2}-\d{2}$/.test(String(incomingDate || '')) ? String(incomingDate) : legacyDate;
-      return [course.id, { completedAt: completedAt || null }];
+      const folderUpdated = Boolean(completedAt) && (value.courseProgress?.[course.id]?.folderUpdated === true
+        || value.folderUpdated === true);
+      return [course.id, { completedAt: completedAt || null, folderUpdated }];
     }));
     const courseDates = Object.values(courseProgress).map((progress) => progress.completedAt).filter(Boolean).sort();
     const allCoursesFinished = Boolean(normalizedTopic?.courses.length) && courseDates.length === normalizedTopic.courses.length;
@@ -166,7 +169,6 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
       completionStatus,
       completionDate,
       courseProgress: keepCourseProgress ? courseProgress : {},
-      folderUpdated: completionStatus === 'Finished' && value.folderUpdated === true,
       ...(requirement !== 'Unassigned' || completionStatus === 'Finished' ? { topicSnapshot: normalizedTopic } : {}),
     };
   }
