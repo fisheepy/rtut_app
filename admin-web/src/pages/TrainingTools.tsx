@@ -88,6 +88,15 @@ type MonthlyColumnField = 'requirement' | 'completionStatus' | 'completionDate' 
 type MonthlyColumnKey = `monthly:${string}:${MonthlyColumnField}`
 type ColumnKey = StaticColumnKey | MonthlyColumnKey
 
+type ReportCourseOption = {
+  id: string
+  trainingType: 'orientation' | 'monthly'
+  label: string
+  libraryId?: string
+  courseId?: string
+  topicId?: string
+}
+
 type SortDirection = 'asc' | 'desc'
 
 const columns: { key: ColumnKey; label: string }[] = [
@@ -409,7 +418,9 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [libraryPendingDelete, setLibraryPendingDelete] = useState<OrientationLibrary | null>(null)
   const [showReportOptions, setShowReportOptions] = useState(false)
   const [reportTrainingType, setReportTrainingType] = useState<'orientation' | 'monthly'>('orientation')
+  const [reportCourseId, setReportCourseId] = useState('')
   const [reportStatus, setReportStatus] = useState('All Statuses')
+  const [selectedMonthlyYear, setSelectedMonthlyYear] = useState(String(new Date().getFullYear()))
   const [monthlyEmployee, setMonthlyEmployee] = useState<TrainingEmployee | null>(null)
   const [monthlyAssignments, setMonthlyAssignments] = useState<MonthlyAssignment[]>([])
   const [monthlyError, setMonthlyError] = useState('')
@@ -461,13 +472,39 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     return () => window.removeEventListener('scroll', updateBackToTop)
   }, [])
 
+  const allMonthlyTopics = useMemo(() => {
+    const byId = new Map<string, MonthlyTopic>()
+    employees.forEach((employee) => employee.training.monthly.assignments.forEach((assignment) => {
+      byId.set(assignment.topic.id, assignment.topic)
+    }))
+    monthlyTopics.forEach((topic) => byId.set(topic.id, topic))
+    return Array.from(byId.values())
+  }, [employees, monthlyTopics])
+
+  const allOrientationLibraries = useMemo(() => {
+    const byId = new Map<string, OrientationLibrary>()
+    employees.forEach((employee) => employee.training.orientation.assignedLibraries.forEach((library) => byId.set(library.id, library)))
+    orientationLibraries.forEach((library) => byId.set(library.id, library))
+    return Array.from(byId.values())
+  }, [employees, orientationLibraries])
+
+  const monthlyYears = useMemo(() => Array.from(new Set([
+    String(new Date().getFullYear()),
+    ...allMonthlyTopics.map((topic) => topic.targetDate?.slice(0, 4)).filter(Boolean),
+  ]))
+    .sort((left, right) => right.localeCompare(left)), [allMonthlyTopics])
+
+  const displayedMonthlyTopics = useMemo(() => allMonthlyTopics.filter((topic) => (
+    topic.targetDate?.slice(0, 4) === selectedMonthlyYear
+  )).sort((left, right) => left.targetDate.localeCompare(right.targetDate) || left.name.localeCompare(right.name)), [allMonthlyTopics, selectedMonthlyYear])
+
   const allColumns = useMemo(() => [
     ...columns,
-    ...monthlyTopics.flatMap((topic): { key: ColumnKey; label: string }[] => monthlySubcolumns.map((column) => ({
+    ...displayedMonthlyTopics.flatMap((topic): { key: ColumnKey; label: string }[] => monthlySubcolumns.map((column) => ({
       key: `monthly:${topic.id}:${column.field}`,
       label: `${topic.name} — ${column.label}`,
     }))),
-  ], [monthlyTopics])
+  ], [displayedMonthlyTopics])
 
   const visibleEmployees = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -560,9 +597,40 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
-  const reportStatusOptions = Array.from(new Set(
-    employees.map((employee) => employee.training[reportTrainingType].status),
-  )).sort()
+  const reportCourseOptions = useMemo<ReportCourseOption[]>(() => reportTrainingType === 'orientation'
+    ? allOrientationLibraries.flatMap((library) => library.courses.map((course) => ({
+        id: `orientation:${library.id}:${course.id}`,
+        trainingType: 'orientation' as const,
+        label: `${library.name} - ${course.title}`,
+        libraryId: library.id,
+        courseId: course.id,
+      })))
+    : allMonthlyTopics.flatMap((topic) => (topic.courses.length ? topic.courses : [{ id: 'topic', title: topic.name }]).map((course) => ({
+        id: `monthly:${topic.id}:${course.id}`,
+        trainingType: 'monthly' as const,
+        label: `${topic.name} - ${course.title} (${topic.targetDate?.slice(0, 4) || 'No year'})`,
+        topicId: topic.id,
+      }))), [allMonthlyTopics, allOrientationLibraries, reportTrainingType])
+
+  const selectedReportCourse = reportCourseOptions.find((option) => option.id === reportCourseId) || reportCourseOptions[0]
+
+  function getCourseReportStatus(employee: TrainingEmployee, course = selectedReportCourse) {
+    if (!course) return 'Unassigned'
+    if (course.trainingType === 'orientation') {
+      const assigned = employee.training.orientation.assignedLibraries.some((library) => library.id === course.libraryId)
+      if (!assigned) return 'Unassigned'
+      const progress = employee.training.orientation.courseProgress[`${course.libraryId}:${course.courseId}`]
+      return progress?.completedAt ? 'Finished' : 'Unfinished'
+    }
+    const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === course.topicId)
+    if (!assignment || assignment.requirement === 'Unassigned') return 'Unassigned'
+    if (assignment.requirement === 'Not Required') return 'Not Required'
+    return assignment.completionStatus
+  }
+
+  const reportStatusOptions = selectedReportCourse
+    ? Array.from(new Set(employees.map((employee) => getCourseReportStatus(employee)))).sort()
+    : []
   const selectedOrientationLibraries = assignedLibrarySnapshots.filter((library) => assignedLibraryIds.includes(library.id))
   const orientationRequiredCount = selectedOrientationLibraries.reduce((total, library) => total + library.courses.length, 0)
   const orientationCompletedCount = selectedOrientationLibraries.reduce((total, library) => (
@@ -667,25 +735,22 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   }
 
   function downloadTrainingReport() {
-    const trainingTypeName = reportTrainingType === 'orientation' ? 'Orientation Training' : 'Monthly Training'
-    const trainingDetails = (employee: TrainingEmployee) => reportTrainingType === 'orientation'
-      ? employee.training.orientation.assignedLibraries.flatMap((library) => library.courses.map((course) => {
-          const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
-          return `${library.name} - ${course.title}: ${progress?.completedAt || 'Unfinished'}, Folder Updated: ${progress?.folderUpdated ? 'Yes' : 'No'}`
-        })).join('; ')
-      : employee.training.monthly.assignments.map((assignment) => (
-          `${assignment.topic.name}: ${assignment.requirement}, ${assignment.requirement === 'Required' ? assignment.completionStatus : 'Completion blocked'}, Completion Date: ${assignment.completionDate || '—'}, Folder Updated: ${assignment.folderUpdated ? 'Yes' : 'No'}`
-        )).join('; ')
+    if (!selectedReportCourse) return
     const rows = employees
-      .filter((employee) => reportStatus === 'All Statuses' || employee.training[reportTrainingType].status === reportStatus)
+      .filter((employee) => reportStatus === 'All Statuses' || getCourseReportStatus(employee) === reportStatus)
       .slice()
-      .sort((left, right) => (
-        left.training[reportTrainingType].status.localeCompare(right.training[reportTrainingType].status)
-        || left.employeeName.localeCompare(right.employeeName)
-      ))
-      .map((employee) => [
-        trainingTypeName,
-        employee.training[reportTrainingType].status,
+      .sort((left, right) => getCourseReportStatus(left).localeCompare(getCourseReportStatus(right)) || left.employeeName.localeCompare(right.employeeName))
+      .map((employee) => {
+        const orientationProgress = selectedReportCourse.trainingType === 'orientation'
+          ? employee.training.orientation.courseProgress[`${selectedReportCourse.libraryId}:${selectedReportCourse.courseId}`]
+          : null
+        const monthlyAssignment = selectedReportCourse.trainingType === 'monthly'
+          ? employee.training.monthly.assignments.find((item) => item.topic.id === selectedReportCourse.topicId)
+          : null
+        return [
+        selectedReportCourse.trainingType === 'orientation' ? 'Orientation Training' : 'Monthly Training',
+        selectedReportCourse.label,
+        getCourseReportStatus(employee),
         employee.employeeName,
         employee.email,
         employee.contactNumber,
@@ -695,30 +760,60 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         employee.department,
         employee.reportingTo,
         employee.firstDay,
-        reportTrainingType === 'orientation'
-          ? employee.training.orientation.assignedLibraries.map((library) => library.name).join('; ')
-          : employee.training.monthly.assignments.map((assignment) => `${assignment.topic.name} (${assignment.requirement})`).join('; '),
-        reportTrainingType === 'orientation'
-          ? `${employee.training.orientation.completedCourseCount}/${employee.training.orientation.requiredCourseCount}`
-          : `${employee.training.monthly.finishedCount}/${employee.training.monthly.requiredCount}`,
-        trainingDetails(employee),
-        employee.training[reportTrainingType].completedAt || '',
-      ])
+        orientationProgress?.completedAt || monthlyAssignment?.completionDate || '',
+        orientationProgress?.folderUpdated || monthlyAssignment?.folderUpdated ? 'Yes' : 'No',
+      ]})
     const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
     const csv = [
-      ['Training Type', 'Training Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Training', 'Progress', 'Training Details', 'Training Finished Date'],
+      ['Training Type', 'Training Course', 'Course Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Completion Date', 'Folder Updated'],
       ...rows,
     ].map((row) => row.map(csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
     const statusName = reportStatus === 'All Statuses' ? 'all-statuses' : reportStatus.toLowerCase().replace(' ', '-')
-    link.download = `${reportTrainingType}-training-${statusName}-report-${new Date().toISOString().slice(0, 10)}.csv`
+    const courseName = selectedReportCourse.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+    link.download = `${courseName}-${statusName}-report-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
     setShowReportOptions(false)
+  }
+
+  function downloadEmployeeTrainingReport(employee: TrainingEmployee) {
+    const rows: string[][] = []
+    employee.training.orientation.assignedLibraries.forEach((library) => library.courses.forEach((course) => {
+      const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
+      if (progress?.completedAt) rows.push(['Orientation Training', library.name, course.title, progress.completedAt, progress.folderUpdated ? 'Yes' : 'No'])
+    }))
+    employee.training.monthly.assignments.forEach((assignment) => {
+      if (assignment.requirement === 'Required' && assignment.completionStatus === 'Finished' && assignment.completionDate) {
+        rows.push(['Monthly Training', assignment.topic.name, assignment.topic.courses.map((course) => course.title).join('; '), assignment.completionDate, assignment.folderUpdated ? 'Yes' : 'No'])
+      }
+    })
+    rows.sort((left, right) => left[3].localeCompare(right[3]) || left[1].localeCompare(right[1]))
+    const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
+    const employeeDetails = [
+      ['Employee Name', employee.employeeName],
+      ['Email', employee.email],
+      ['Job Title', employee.jobTitle],
+      ['Location', employee.location],
+      ['Department', employee.department],
+      ['Hire Date', employee.firstDay],
+      [],
+      ['Training Type', 'Training Program / Topic', 'Course(s)', 'Completion Date', 'Folder Updated'],
+      ...rows,
+    ]
+    const csv = employeeDetails.map((row) => row.map(csvCell).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${employee.employeeName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-completed-training-report-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
   }
 
   function openOrientationSettings() {
@@ -1003,6 +1098,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'active' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('active')} type="button">Active Employees</button>
               <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'terminated' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('terminated')} type="button">Terminated Employees</button>
             </div>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span className="whitespace-nowrap text-xs font-semibold uppercase text-slate-500">Monthly Year</span>
+              <select className="bg-white text-sm font-semibold text-slate-800 outline-none" onChange={(event) => { setSelectedMonthlyYear(event.target.value); setColumnFilters(emptyColumnFilters) }} value={selectedMonthlyYear}>
+                {monthlyYears.length ? monthlyYears.map((year) => <option key={year} value={year}>{year}{year === String(new Date().getFullYear()) ? ' (Current)' : ' History'}</option>) : <option value={selectedMonthlyYear}>{selectedMonthlyYear} (Current)</option>}
+              </select>
+            </label>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
             <span>Employee Name stays visible while you scroll horizontally. Open a filter below any heading and check one or more values.</span>
@@ -1046,7 +1147,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             onScroll={() => syncHorizontalScroll('table')}
             ref={tableScrollRef}
           >
-            <table className="w-full text-sm" style={{ minWidth: `${1850 + monthlyTopics.length * 620}px` }}>
+            <table className="w-full text-sm" style={{ minWidth: `${1850 + displayedMonthlyTopics.length * 620}px` }}>
               <thead className="bg-slate-50">
                 <tr>
                   {columns.map((column, index) => (
@@ -1075,7 +1176,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       </button>
                     </th>
                   ))}
-                  {monthlyTopics.map((topic) => (
+                  {displayedMonthlyTopics.map((topic) => (
                     <th className="border-b border-l-2 border-emerald-200 bg-emerald-50/70 px-4 py-3 text-left" colSpan={4} key={`${topic.id}-group`}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1108,7 +1209,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       />
                     </th>
                   ))}
-                  {monthlyTopics.flatMap((topic) => monthlySubcolumns.map((subcolumn, subcolumnIndex) => {
+                  {displayedMonthlyTopics.flatMap((topic) => monthlySubcolumns.map((subcolumn, subcolumnIndex) => {
                     const key = `monthly:${topic.id}:${subcolumn.field}` as MonthlyColumnKey
                     const label = `${topic.name} — ${subcolumn.label}`
                     return (
@@ -1136,6 +1237,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     }`}>
                       <div className="font-semibold text-slate-900">{employee.employeeName || 'Unnamed employee'}</div>
                       <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{employee.employmentStatus}</span>
+                      <button className="mt-2 flex items-center gap-1 text-left text-[11px] font-semibold text-blue-700 hover:text-blue-800" onClick={() => downloadEmployeeTrainingReport(employee)} type="button"><Download className="h-3.5 w-3.5" />Completed Training Report</button>
                     </td>
                     <td className="border-b px-4 py-3">
                       <div className="flex flex-col items-start gap-1.5">
@@ -1194,7 +1296,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       {employee.training.monthly.requiredCount > 0 ? <div className="mt-1 text-xs text-slate-500">{employee.training.monthly.finishedCount}/{employee.training.monthly.requiredCount} required finished</div> : null}
                       <button className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => editMonthly(employee)} type="button"><BookOpenCheck className="h-3.5 w-3.5" />Manage Monthly</button>
                     </td>
-                    {monthlyTopics.map((topic) => {
+                    {displayedMonthlyTopics.map((topic) => {
                       const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topic.id)
                       const requirement = assignment?.requirement || 'Unassigned'
                       const required = requirement === 'Required'
@@ -1341,7 +1443,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950" id="orientation-report-title">Download Training Report</h2>
-                <p className="mt-1 text-sm text-slate-500">Choose a training type and status to include.</p>
+                <p className="mt-1 text-sm text-slate-500">Choose a specific training course and each employee status to include.</p>
               </div>
               <button aria-label="Close orientation report options" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowReportOptions(false)} type="button">
                 <X className="h-5 w-5" />
@@ -1353,12 +1455,23 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 onChange={(event) => {
                   setReportTrainingType(event.target.value as typeof reportTrainingType)
+                  setReportCourseId('')
                   setReportStatus('All Statuses')
                 }}
                 value={reportTrainingType}
               >
                 <option value="orientation">Orientation Training</option>
                 <option value="monthly">Monthly Training</option>
+              </select>
+            </label>
+            <label className="mt-4 block">
+              <span className="text-sm font-semibold text-slate-700">Training Course</span>
+              <select
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                onChange={(event) => { setReportCourseId(event.target.value); setReportStatus('All Statuses') }}
+                value={selectedReportCourse?.id || ''}
+              >
+                {reportCourseOptions.length ? reportCourseOptions.map((course) => <option key={course.id} value={course.id}>{course.label}</option>) : <option value="">No training courses available</option>}
               </select>
             </label>
             <label className="mt-4 block">
@@ -1376,12 +1489,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               This report will include <span className="font-semibold text-slate-900">{
                 reportStatus === 'All Statuses'
                   ? employees.length
-                  : employees.filter((employee) => employee.training[reportTrainingType].status === reportStatus).length
+                  : employees.filter((employee) => getCourseReportStatus(employee) === reportStatus).length
               }</span> employees, including their email and contact number.
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReportOptions(false)} type="button">Cancel</button>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" onClick={downloadTrainingReport} type="button">
+              <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={!selectedReportCourse} onClick={downloadTrainingReport} type="button">
                 <Download className="h-4 w-4" />
                 Download CSV
               </button>
