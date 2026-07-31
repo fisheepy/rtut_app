@@ -1,4 +1,5 @@
 const TRAINING_TYPES = ['orientation', 'monthly'];
+const { normalizeOrientation } = require('./orientationCatalog');
 
 function text(value) {
   return value == null ? '' : String(value).trim();
@@ -12,15 +13,14 @@ function dateValue(employee, names) {
 }
 
 function normalizeTraining(record) {
-  const result = {};
-  for (const type of TRAINING_TYPES) {
-    const source = record?.[type] || {};
-    result[type] = {
-      status: text(source.status) || 'Not started',
-      completedAt: source.completedAt || null,
-    };
-  }
-  return result;
+  const monthly = record?.monthly || {};
+  return {
+    orientation: normalizeOrientation(record),
+    monthly: {
+      status: text(monthly.status) || 'Not started',
+      completedAt: monthly.completedAt || null,
+    },
+  };
 }
 
 function normalizeEmployee(employee, trainingRecord) {

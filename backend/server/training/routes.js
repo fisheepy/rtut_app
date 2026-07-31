@@ -2,6 +2,10 @@ const express = require('express');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { normalizeEmployee } = require('./employeeData');
 const { isAllowedFolderUrl } = require('./folderLink');
+const {
+  ORIENTATION_LIBRARIES,
+  sanitizeOrientationInput,
+} = require('./orientationCatalog');
 
 function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
   const router = express.Router();
@@ -64,12 +68,49 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
         employees: data,
         source: 'Company App employee roster',
         trainingTypes: ['Orientation Training', 'Monthly Training'],
+        orientationLibraries: ORIENTATION_LIBRARIES,
       });
     } catch (error) {
       console.error('Unable to load training employees:', error);
       res.status(500).json({
         error: 'Employee training information could not be loaded. Please try again.',
       });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.put('/employees/:employeeId/orientation', async (req, res) => {
+    const orientation = sanitizeOrientationInput(req.body);
+    const client = createClient();
+
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employee = ObjectId.isValid(req.params.employeeId)
+        ? await db.collection('employees').findOne({ _id: new ObjectId(req.params.employeeId) })
+        : null;
+      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+
+      await db.collection('employee_training').updateOne(
+        { employeeId: req.params.employeeId },
+        {
+          $set: {
+            orientation: {
+              assignedLibraryIds: orientation.assignedLibraryIds,
+              courseProgress: orientation.courseProgress,
+            },
+            orientationUpdatedAt: new Date(),
+            orientationUpdatedBy: req.adminSession?.email || null,
+          },
+        },
+        { upsert: true },
+      );
+
+      return res.json({ orientation });
+    } catch (error) {
+      console.error('Unable to save employee orientation training:', error);
+      return res.status(500).json({ error: 'Orientation training could not be saved.' });
     } finally {
       await client.close();
     }

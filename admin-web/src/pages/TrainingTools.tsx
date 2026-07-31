@@ -8,6 +8,25 @@ type TrainingStatus = {
   completedAt: string | null
 }
 
+type CourseProgress = {
+  completedAt: string | null
+  folderUpdated: boolean
+}
+
+type OrientationTraining = TrainingStatus & {
+  assignedLibraryIds: string[]
+  courseProgress: Record<string, CourseProgress>
+  completedCourseCount: number
+  requiredCourseCount: number
+}
+
+type OrientationLibrary = {
+  id: string
+  name: string
+  accessCode: string
+  courses: string[]
+}
+
 type TrainingEmployee = {
   id: string
   employeeName: string
@@ -20,7 +39,7 @@ type TrainingEmployee = {
   folderUrl: string
   employmentStatus: 'Active' | 'Terminated'
   training: {
-    orientation: TrainingStatus
+    orientation: OrientationTraining
     monthly: TrainingStatus
   }
 }
@@ -139,8 +158,8 @@ function ColumnMultiFilter({
 }
 
 function TrainingBadge({ training }: { training: TrainingStatus }) {
-  const completed = training.status.toLowerCase() === 'completed'
-  const inProgress = training.status.toLowerCase() === 'in progress'
+  const completed = ['completed', 'finished'].includes(training.status.toLowerCase())
+  const inProgress = ['in progress', 'in process'].includes(training.status.toLowerCase())
   const tone = completed
     ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
     : inProgress
@@ -306,6 +325,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const tableScrollRef = useRef<HTMLDivElement>(null)
   const stickyScrollRef = useRef<HTMLDivElement>(null)
   const [employees, setEmployees] = useState<TrainingEmployee[]>([])
+  const [orientationLibraries, setOrientationLibraries] = useState<OrientationLibrary[]>([])
   const [source, setSource] = useState('')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'active' | 'terminated'>('active')
@@ -320,6 +340,11 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [folderUrl, setFolderUrl] = useState('')
   const [linkError, setLinkError] = useState('')
   const [isSavingLink, setIsSavingLink] = useState(false)
+  const [orientationEmployee, setOrientationEmployee] = useState<TrainingEmployee | null>(null)
+  const [assignedLibraryIds, setAssignedLibraryIds] = useState<string[]>([])
+  const [courseProgress, setCourseProgress] = useState<Record<string, CourseProgress>>({})
+  const [orientationError, setOrientationError] = useState('')
+  const [isSavingOrientation, setIsSavingOrientation] = useState(false)
   const [tableScrollWidth, setTableScrollWidth] = useState(0)
   const [showBackToTop, setShowBackToTop] = useState(false)
 
@@ -329,6 +354,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     try {
       const response = await api.get('/training/employees')
       setEmployees(response.data.employees || [])
+      setOrientationLibraries(response.data.orientationLibraries || [])
       setSource(response.data.source || '')
     } catch (requestError: any) {
       if (requestError.response?.status === 401) {
@@ -448,6 +474,19 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
+  const selectedOrientationLibraries = orientationLibraries.filter((library) => assignedLibraryIds.includes(library.id))
+  const orientationRequiredCount = selectedOrientationLibraries.reduce((total, library) => total + library.courses.length, 0)
+  const orientationCompletedCount = selectedOrientationLibraries.reduce((total, library) => (
+    total + library.courses.filter((_course, courseIndex) => {
+      const progress = courseProgress[`${library.id}:${courseIndex}`]
+      return Boolean(progress?.completedAt && progress?.folderUpdated)
+    }).length
+  ), 0)
+  const orientationDraftStatus = !assignedLibraryIds.length
+    ? 'Unassigned'
+    : orientationCompletedCount === orientationRequiredCount
+      ? 'Finished'
+      : 'In Process'
 
   useEffect(() => {
     const tableScroller = tableScrollRef.current
@@ -467,6 +506,62 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     if (!tableScroller || !stickyScroller) return
     if (source === 'table') stickyScroller.scrollLeft = tableScroller.scrollLeft
     else tableScroller.scrollLeft = stickyScroller.scrollLeft
+  }
+
+  function editOrientation(employee: TrainingEmployee) {
+    setOrientationEmployee(employee)
+    setAssignedLibraryIds([...employee.training.orientation.assignedLibraryIds])
+    setCourseProgress(JSON.parse(JSON.stringify(employee.training.orientation.courseProgress || {})))
+    setOrientationError('')
+  }
+
+  function toggleOrientationLibrary(libraryId: string) {
+    setAssignedLibraryIds((current) => (
+      current.includes(libraryId)
+        ? current.filter((id) => id !== libraryId)
+        : [...current, libraryId]
+    ))
+  }
+
+  function updateCourseProgress(key: string, update: Partial<CourseProgress>) {
+    setCourseProgress((current) => ({
+      ...current,
+      [key]: {
+        completedAt: current[key]?.completedAt || null,
+        folderUpdated: current[key]?.folderUpdated || false,
+        ...update,
+      },
+    }))
+  }
+
+  async function saveOrientation() {
+    if (!orientationEmployee) return
+    setIsSavingOrientation(true)
+    setOrientationError('')
+    try {
+      const response = await api.put(`/training/employees/${orientationEmployee.id}/orientation`, {
+        assignedLibraryIds,
+        courseProgress,
+      })
+      setEmployees((current) => current.map((employee) => (
+        employee.id === orientationEmployee.id
+          ? {
+              ...employee,
+              training: { ...employee.training, orientation: response.data.orientation },
+            }
+          : employee
+      )))
+      setOrientationEmployee(null)
+    } catch (requestError: any) {
+      if (requestError.response?.status === 401) {
+        setOrientationEmployee(null)
+        onLogout()
+        return
+      }
+      setOrientationError(requestError.response?.data?.error || 'Orientation training could not be saved.')
+    } finally {
+      setIsSavingOrientation(false)
+    }
   }
 
   return (
@@ -678,7 +773,22 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     <td className="border-b px-4 py-3">{employee.department || '—'}</td>
                     <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
                     <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
-                    <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.orientation} /></td>
+                    <td className="border-b px-4 py-3">
+                      <TrainingBadge training={employee.training.orientation} />
+                      {employee.training.orientation.requiredCourseCount > 0 ? (
+                        <div className="mt-1 text-xs text-slate-500">
+                          {employee.training.orientation.completedCourseCount}/{employee.training.orientation.requiredCourseCount} courses complete
+                        </div>
+                      ) : null}
+                      <button
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                        onClick={() => editOrientation(employee)}
+                        type="button"
+                      >
+                        <BookOpenCheck className="h-3.5 w-3.5" />
+                        Manage Orientation
+                      </button>
+                    </td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.monthly} /></td>
                   </tr>
                 ))}
@@ -720,6 +830,162 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           <ArrowUp className="h-4 w-4" />
           Back to Top
         </button>
+      ) : null}
+
+      {orientationEmployee ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/60 p-4" role="presentation">
+          <section
+            aria-labelledby="orientation-title"
+            aria-modal="true"
+            className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            role="dialog"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950" id="orientation-title">Orientation Training</h2>
+                <p className="mt-1 text-sm text-slate-500">{orientationEmployee.employeeName}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</div>
+                  <div className={`mt-1 text-sm font-semibold ${orientationDraftStatus === 'Finished' ? 'text-emerald-700' : orientationDraftStatus === 'In Process' ? 'text-blue-700' : 'text-slate-600'}`}>
+                    {orientationDraftStatus}
+                    {orientationRequiredCount ? ` · ${orientationCompletedCount}/${orientationRequiredCount}` : ''}
+                  </div>
+                </div>
+                <button
+                  aria-label="Close orientation training"
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                  onClick={() => setOrientationEmployee(null)}
+                  type="button"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[330px_1fr]">
+              <aside className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-5 lg:border-b-0 lg:border-r">
+                <h3 className="font-semibold text-slate-900">Assign Libraries</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Select one or more orientation programs for this employee.</p>
+                <div className="mt-4 space-y-2">
+                  {orientationLibraries.map((library) => (
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 hover:border-emerald-300" key={library.id}>
+                      <input
+                        checked={assignedLibraryIds.includes(library.id)}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        onChange={() => toggleOrientationLibrary(library.id)}
+                        type="checkbox"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-slate-800">{library.name}</span>
+                        <span className="mt-1 block text-xs text-slate-500">Access Code: <span className="font-mono font-semibold text-slate-700">{library.accessCode}</span></span>
+                        <span className="mt-0.5 block text-xs text-slate-400">{library.courses.length} courses</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </aside>
+
+              <div className="overflow-y-auto p-5 md:p-6">
+                {!selectedOrientationLibraries.length ? (
+                  <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                    <div>
+                      <BookOpenCheck className="mx-auto h-10 w-10 text-slate-400" />
+                      <div className="mt-3 font-semibold text-slate-800">No orientation library assigned</div>
+                      <p className="mt-1 text-sm text-slate-500">Select one or more libraries from the left to begin tracking courses.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {selectedOrientationLibraries.map((library) => (
+                      <section className="overflow-hidden rounded-xl border border-slate-200" key={library.id}>
+                        <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-4 py-3">
+                          <div>
+                            <h3 className="font-semibold text-slate-900">{library.name}</h3>
+                            <p className="mt-0.5 text-xs text-slate-500">Access Code: <span className="font-mono font-semibold text-slate-700">{library.accessCode}</span></p>
+                          </div>
+                          <span className="text-xs font-semibold text-slate-500">
+                            {library.courses.filter((_course, index) => {
+                              const progress = courseProgress[`${library.id}:${index}`]
+                              return progress?.completedAt && progress?.folderUpdated
+                            }).length}/{library.courses.length} complete
+                          </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[700px] text-sm">
+                            <thead>
+                              <tr className="border-y border-slate-200 bg-white text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                <th className="px-4 py-2.5">Training Course</th>
+                                <th className="w-48 px-4 py-2.5">Completion Date</th>
+                                <th className="w-52 px-4 py-2.5">Training Folder Updated</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {library.courses.map((course, courseIndex) => {
+                                const key = `${library.id}:${courseIndex}`
+                                const progress = courseProgress[key] || { completedAt: null, folderUpdated: false }
+                                const courseFinished = Boolean(progress.completedAt && progress.folderUpdated)
+                                return (
+                                  <tr className={courseFinished ? 'bg-emerald-50/50' : 'even:bg-slate-50/60'} key={key}>
+                                    <td className="border-b border-slate-100 px-4 py-3 font-medium text-slate-800">{course}</td>
+                                    <td className="border-b border-slate-100 px-4 py-3">
+                                      <input
+                                        aria-label={`${course} completion date`}
+                                        className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                                        onChange={(event) => updateCourseProgress(key, { completedAt: event.target.value || null })}
+                                        type="date"
+                                        value={progress.completedAt || ''}
+                                      />
+                                    </td>
+                                    <td className="border-b border-slate-100 px-4 py-3">
+                                      <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+                                        <input
+                                          checked={progress.folderUpdated}
+                                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                          onChange={(event) => updateCourseProgress(key, { folderUpdated: event.target.checked })}
+                                          type="checkbox"
+                                        />
+                                        {progress.folderUpdated ? 'Updated' : 'Not updated'}
+                                      </label>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-6 py-4">
+              <div className="text-xs text-slate-500">A course is complete only after both its completion date and folder update are recorded.</div>
+              <div className="flex gap-3">
+                <button
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  onClick={() => setOrientationEmployee(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isSavingOrientation}
+                  onClick={saveOrientation}
+                  type="button"
+                >
+                  {isSavingOrientation ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}
+                  Save Orientation
+                </button>
+              </div>
+              {orientationError ? <div className="w-full rounded-lg bg-red-50 p-3 text-sm text-red-700">{orientationError}</div> : null}
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {linkEmployee ? (
