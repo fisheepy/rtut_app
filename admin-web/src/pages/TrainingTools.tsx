@@ -157,7 +157,7 @@ function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
     return assignment.requirement === 'Required' ? assignment.folderUpdated ? 'Updated' : 'Not Updated' : 'Blocked'
   }
   if (key === 'orientation') return employee.training.orientation.status
-  if (key === 'monthlyOverview') return employee.training.monthly.status
+  if (key === 'monthlyOverview') return 'Manage'
   if (key === 'folderLink') return employee.folderUrl ? 'Linked' : 'Not linked'
   const employeeKey = key as Exclude<StaticColumnKey, 'folderLink' | 'orientation' | 'monthlyOverview'>
   return String(employee[employeeKey] || '')
@@ -418,9 +418,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [libraryPendingDelete, setLibraryPendingDelete] = useState<OrientationLibrary | null>(null)
   const [showReportOptions, setShowReportOptions] = useState(false)
   const [reportTrainingType, setReportTrainingType] = useState<'orientation' | 'monthly'>('orientation')
-  const [reportCourseId, setReportCourseId] = useState('')
+  const [reportCourseIds, setReportCourseIds] = useState<string[]>([])
   const [reportStatus, setReportStatus] = useState('All Statuses')
-  const [selectedMonthlyYear, setSelectedMonthlyYear] = useState(String(new Date().getFullYear()))
+  const [reportTargetDateFrom, setReportTargetDateFrom] = useState(`${new Date().getFullYear()}-01-01`)
+  const [reportTargetDateTo, setReportTargetDateTo] = useState(`${new Date().getFullYear()}-12-31`)
   const [monthlyEmployee, setMonthlyEmployee] = useState<TrainingEmployee | null>(null)
   const [monthlyAssignments, setMonthlyAssignments] = useState<MonthlyAssignment[]>([])
   const [monthlyError, setMonthlyError] = useState('')
@@ -478,7 +479,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       byId.set(assignment.topic.id, assignment.topic)
     }))
     monthlyTopics.forEach((topic) => byId.set(topic.id, topic))
-    return Array.from(byId.values())
+    return Array.from(byId.values()).filter((topic) => topic.name.trim().toLowerCase() !== 'hr testing training')
   }, [employees, monthlyTopics])
 
   const allOrientationLibraries = useMemo(() => {
@@ -488,15 +489,9 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     return Array.from(byId.values())
   }, [employees, orientationLibraries])
 
-  const monthlyYears = useMemo(() => Array.from(new Set([
-    String(new Date().getFullYear()),
-    ...allMonthlyTopics.map((topic) => topic.targetDate?.slice(0, 4)).filter(Boolean),
-  ]))
-    .sort((left, right) => right.localeCompare(left)), [allMonthlyTopics])
-
   const displayedMonthlyTopics = useMemo(() => allMonthlyTopics.filter((topic) => (
-    topic.targetDate?.slice(0, 4) === selectedMonthlyYear
-  )).sort((left, right) => left.targetDate.localeCompare(right.targetDate) || left.name.localeCompare(right.name)), [allMonthlyTopics, selectedMonthlyYear])
+    topic.targetDate?.slice(0, 4) === String(new Date().getFullYear())
+  )).sort((left, right) => left.targetDate.localeCompare(right.targetDate) || left.name.localeCompare(right.name)), [allMonthlyTopics])
 
   const allColumns = useMemo(() => [
     ...columns,
@@ -605,16 +600,18 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         libraryId: library.id,
         courseId: course.id,
       })))
-    : allMonthlyTopics.flatMap((topic) => (topic.courses.length ? topic.courses : [{ id: 'topic', title: topic.name }]).map((course) => ({
+    : allMonthlyTopics
+      .filter((topic) => (!reportTargetDateFrom || topic.targetDate >= reportTargetDateFrom) && (!reportTargetDateTo || topic.targetDate <= reportTargetDateTo))
+      .flatMap((topic) => (topic.courses.length ? topic.courses : [{ id: 'topic', title: topic.name }]).map((course) => ({
         id: `monthly:${topic.id}:${course.id}`,
         trainingType: 'monthly' as const,
         label: `${topic.name} - ${course.title} (${topic.targetDate?.slice(0, 4) || 'No year'})`,
         topicId: topic.id,
-      }))), [allMonthlyTopics, allOrientationLibraries, reportTrainingType])
+      }))), [allMonthlyTopics, allOrientationLibraries, reportTargetDateFrom, reportTargetDateTo, reportTrainingType])
 
-  const selectedReportCourse = reportCourseOptions.find((option) => option.id === reportCourseId) || reportCourseOptions[0]
+  const selectedReportCourses = reportCourseOptions.filter((option) => reportCourseIds.includes(option.id))
 
-  function getCourseReportStatus(employee: TrainingEmployee, course = selectedReportCourse) {
+  function getCourseReportStatus(employee: TrainingEmployee, course: ReportCourseOption) {
     if (!course) return 'Unassigned'
     if (course.trainingType === 'orientation') {
       const assigned = employee.training.orientation.assignedLibraries.some((library) => library.id === course.libraryId)
@@ -628,8 +625,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     return assignment.completionStatus
   }
 
-  const reportStatusOptions = selectedReportCourse
-    ? Array.from(new Set(employees.map((employee) => getCourseReportStatus(employee)))).sort()
+  const reportStatusOptions = selectedReportCourses.length
+    ? Array.from(new Set(selectedReportCourses.flatMap((course) => employees.map((employee) => getCourseReportStatus(employee, course))))).sort()
     : []
   const selectedOrientationLibraries = assignedLibrarySnapshots.filter((library) => assignedLibraryIds.includes(library.id))
   const orientationRequiredCount = selectedOrientationLibraries.reduce((total, library) => total + library.courses.length, 0)
@@ -735,22 +732,20 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   }
 
   function downloadTrainingReport() {
-    if (!selectedReportCourse) return
-    const rows = employees
-      .filter((employee) => reportStatus === 'All Statuses' || getCourseReportStatus(employee) === reportStatus)
-      .slice()
-      .sort((left, right) => getCourseReportStatus(left).localeCompare(getCourseReportStatus(right)) || left.employeeName.localeCompare(right.employeeName))
-      .map((employee) => {
-        const orientationProgress = selectedReportCourse.trainingType === 'orientation'
-          ? employee.training.orientation.courseProgress[`${selectedReportCourse.libraryId}:${selectedReportCourse.courseId}`]
-          : null
-        const monthlyAssignment = selectedReportCourse.trainingType === 'monthly'
-          ? employee.training.monthly.assignments.find((item) => item.topic.id === selectedReportCourse.topicId)
-          : null
-        return [
-        selectedReportCourse.trainingType === 'orientation' ? 'Orientation Training' : 'Monthly Training',
-        selectedReportCourse.label,
-        getCourseReportStatus(employee),
+    if (!selectedReportCourses.length) return
+    const rows = selectedReportCourses.flatMap((course) => employees.map((employee) => {
+      const courseStatus = getCourseReportStatus(employee, course)
+      if (reportStatus !== 'All Statuses' && courseStatus !== reportStatus) return null
+      const orientationProgress = course.trainingType === 'orientation'
+        ? employee.training.orientation.courseProgress[`${course.libraryId}:${course.courseId}`]
+        : null
+      const monthlyAssignment = course.trainingType === 'monthly'
+        ? employee.training.monthly.assignments.find((item) => item.topic.id === course.topicId)
+        : null
+      return [
+        course.trainingType === 'orientation' ? 'Orientation Training' : 'Monthly Training',
+        course.label,
+        courseStatus,
         employee.employeeName,
         employee.email,
         employee.contactNumber,
@@ -762,7 +757,9 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         employee.firstDay,
         orientationProgress?.completedAt || monthlyAssignment?.completionDate || '',
         orientationProgress?.folderUpdated || monthlyAssignment?.folderUpdated ? 'Yes' : 'No',
-      ]})
+      ]
+    }).filter((row): row is string[] => Boolean(row)))
+      .sort((left, right) => left[1].localeCompare(right[1]) || left[2].localeCompare(right[2]) || left[3].localeCompare(right[3]))
     const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
     const csv = [
       ['Training Type', 'Training Course', 'Course Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Completion Date', 'Folder Updated'],
@@ -772,8 +769,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     const link = document.createElement('a')
     link.href = url
     const statusName = reportStatus === 'All Statuses' ? 'all-statuses' : reportStatus.toLowerCase().replace(' ', '-')
-    const courseName = selectedReportCourse.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-    link.download = `${courseName}-${statusName}-report-${new Date().toISOString().slice(0, 10)}.csv`
+    const reportName = selectedReportCourses.length === 1
+      ? selectedReportCourses[0].label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      : `${selectedReportCourses.length}-training-courses`
+    link.download = `${reportName}-${statusName}-report-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -788,7 +787,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       if (progress?.completedAt) rows.push(['Orientation Training', library.name, course.title, progress.completedAt, progress.folderUpdated ? 'Yes' : 'No'])
     }))
     employee.training.monthly.assignments.forEach((assignment) => {
-      if (assignment.requirement === 'Required' && assignment.completionStatus === 'Finished' && assignment.completionDate) {
+      if (assignment.topic.name.trim().toLowerCase() !== 'hr testing training' && assignment.requirement === 'Required' && assignment.completionStatus === 'Finished' && assignment.completionDate) {
         rows.push(['Monthly Training', assignment.topic.name, assignment.topic.courses.map((course) => course.title).join('; '), assignment.completionDate, assignment.folderUpdated ? 'Yes' : 'No'])
       }
     })
@@ -894,7 +893,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   function editMonthly(employee: TrainingEmployee) {
     setMonthlyEmployee(employee)
-    setMonthlyAssignments(JSON.parse(JSON.stringify(employee.training.monthly.assignments || [])))
+    setMonthlyAssignments(JSON.parse(JSON.stringify((employee.training.monthly.assignments || []).filter((assignment) => assignment.topic.name.trim().toLowerCase() !== 'hr testing training'))))
     setMonthlyError('')
   }
 
@@ -1098,12 +1097,6 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'active' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('active')} type="button">Active Employees</button>
               <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'terminated' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('terminated')} type="button">Terminated Employees</button>
             </div>
-            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
-              <span className="whitespace-nowrap text-xs font-semibold uppercase text-slate-500">Monthly Year</span>
-              <select className="bg-white text-sm font-semibold text-slate-800 outline-none" onChange={(event) => { setSelectedMonthlyYear(event.target.value); setColumnFilters(emptyColumnFilters) }} value={selectedMonthlyYear}>
-                {monthlyYears.length ? monthlyYears.map((year) => <option key={year} value={year}>{year}{year === String(new Date().getFullYear()) ? ' (Current)' : ' History'}</option>) : <option value={selectedMonthlyYear}>{selectedMonthlyYear} (Current)</option>}
-              </select>
-            </label>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
             <span>Employee Name stays visible while you scroll horizontally. Open a filter below any heading and check one or more values.</span>
@@ -1292,9 +1285,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       </button>
                     </td>
                     <td className="min-w-[190px] border-b px-4 py-3">
-                      <TrainingBadge training={employee.training.monthly} />
-                      {employee.training.monthly.requiredCount > 0 ? <div className="mt-1 text-xs text-slate-500">{employee.training.monthly.finishedCount}/{employee.training.monthly.requiredCount} required finished</div> : null}
-                      <button className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => editMonthly(employee)} type="button"><BookOpenCheck className="h-3.5 w-3.5" />Manage Monthly</button>
+                      <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" onClick={() => editMonthly(employee)} type="button"><BookOpenCheck className="h-4 w-4" />Manage Monthly Training</button>
                     </td>
                     {displayedMonthlyTopics.map((topic) => {
                       const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topic.id)
@@ -1439,7 +1430,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
       {showReportOptions ? (
         <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/60 p-4" role="presentation">
-          <section aria-labelledby="orientation-report-title" aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="dialog">
+          <section aria-labelledby="orientation-report-title" aria-modal="true" className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" role="dialog">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950" id="orientation-report-title">Download Training Report</h2>
@@ -1455,7 +1446,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 onChange={(event) => {
                   setReportTrainingType(event.target.value as typeof reportTrainingType)
-                  setReportCourseId('')
+                  setReportCourseIds([])
                   setReportStatus('All Statuses')
                 }}
                 value={reportTrainingType}
@@ -1464,16 +1455,18 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 <option value="monthly">Monthly Training</option>
               </select>
             </label>
-            <label className="mt-4 block">
-              <span className="text-sm font-semibold text-slate-700">Training Course</span>
-              <select
-                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                onChange={(event) => { setReportCourseId(event.target.value); setReportStatus('All Statuses') }}
-                value={selectedReportCourse?.id || ''}
-              >
-                {reportCourseOptions.length ? reportCourseOptions.map((course) => <option key={course.id} value={course.id}>{course.label}</option>) : <option value="">No training courses available</option>}
-              </select>
-            </label>
+            {reportTrainingType === 'monthly' ? (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <label><span className="text-sm font-semibold text-slate-700">Target Date From</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => { setReportTargetDateFrom(event.target.value); setReportCourseIds([]); setReportStatus('All Statuses') }} type="date" value={reportTargetDateFrom} /></label>
+                <label><span className="text-sm font-semibold text-slate-700">Target Date To</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => { setReportTargetDateTo(event.target.value); setReportCourseIds([]); setReportStatus('All Statuses') }} type="date" value={reportTargetDateTo} /></label>
+              </div>
+            ) : null}
+            <fieldset className="mt-4">
+              <div className="flex items-center justify-between gap-3"><legend className="text-sm font-semibold text-slate-700">Training Courses</legend>{reportCourseOptions.length ? <button className="text-xs font-semibold text-emerald-700" onClick={() => { setReportCourseIds(reportCourseIds.length === reportCourseOptions.length ? [] : reportCourseOptions.map((course) => course.id)); setReportStatus('All Statuses') }} type="button">{reportCourseIds.length === reportCourseOptions.length ? 'Clear All' : 'Select All'}</button> : null}</div>
+              <div className="mt-2 max-h-52 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                {reportCourseOptions.length ? reportCourseOptions.map((course) => <label className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-sm text-slate-700 hover:bg-slate-50" key={course.id}><input checked={reportCourseIds.includes(course.id)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600" onChange={(event) => { setReportCourseIds((current) => event.target.checked ? [...current, course.id] : current.filter((id) => id !== course.id)); setReportStatus('All Statuses') }} type="checkbox" /><span>{course.label}</span></label>) : <div className="px-2 py-3 text-sm text-slate-500">No courses match this date range.</div>}
+              </div>
+            </fieldset>
             <label className="mt-4 block">
               <span className="text-sm font-semibold text-slate-700">Training Status</span>
               <select
@@ -1486,15 +1479,11 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               </select>
             </label>
             <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-              This report will include <span className="font-semibold text-slate-900">{
-                reportStatus === 'All Statuses'
-                  ? employees.length
-                  : employees.filter((employee) => getCourseReportStatus(employee) === reportStatus).length
-              }</span> employees, including their email and contact number.
+              <span className="font-semibold text-slate-900">{selectedReportCourses.length}</span> course{selectedReportCourses.length === 1 ? '' : 's'} selected. The CSV will include one row per selected course and employee matching the chosen status.
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReportOptions(false)} type="button">Cancel</button>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={!selectedReportCourse} onClick={downloadTrainingReport} type="button">
+              <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={!selectedReportCourses.length} onClick={downloadTrainingReport} type="button">
                 <Download className="h-4 w-4" />
                 Download CSV
               </button>
@@ -1513,7 +1502,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_1fr]">
               <aside className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-4 lg:border-b-0 lg:border-r">
                 <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white" onClick={() => editTopic()} type="button"><Plus className="h-4 w-4" />Add Topic</button>
-                <div className="mt-4 space-y-2">{monthlyTopics.map((topic) => (
+                <div className="mt-4 space-y-2">{monthlyTopics.filter((topic) => topic.name.trim().toLowerCase() !== 'hr testing training').map((topic) => (
                   <button className={`w-full rounded-lg border p-3 text-left ${topicEditor?.id === topic.id ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-200'}`} key={topic.id} onClick={() => editTopic(topic)} type="button">
                     <span className="block text-sm font-semibold text-slate-800">{topic.name}</span><span className="mt-1 block text-xs text-slate-500">Target: {displayDate(topic.targetDate)} · {topic.courses.length} courses</span>
                   </button>
