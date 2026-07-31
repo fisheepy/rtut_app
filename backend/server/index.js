@@ -19,6 +19,8 @@ const { createPayrollVerificationRouter } = require('./payrollVerification/route
 const { createInsuranceBreakoutRouter } = require('./insuranceBreakout/routes');
 const { createCommissionRosterRouter } = require('./commissionRoster/routes');
 const { createTrainingRouter } = require('./training/routes');
+const { createTrainingAuthRouter } = require('./training/authRoutes');
+const { createRequireTrainingSession } = require('./training/access');
 const {
     clearSessionCookie,
     findAdminByEmail,
@@ -1074,10 +1076,20 @@ app.use('/api/commission-roster', createCommissionRosterRouter({
     uploadDirectory,
     logOperationToDatabase,
 }));
+const requireTrainingSession = createRequireTrainingSession(getSessionFromRequest);
+app.use('/api/training-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-training-secret',
+}));
 app.use('/api/training', createTrainingRouter({
   uri,
   databaseName: database_name,
-  requireAdminSession,
+  requireTrainingSession,
 }));
 
 // Function to log errors to the database

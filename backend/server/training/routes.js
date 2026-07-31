@@ -3,7 +3,7 @@ const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { normalizeEmployee } = require('./employeeData');
 const { isAllowedFolderUrl } = require('./folderLink');
 
-function createTrainingRouter({ uri, databaseName, requireAdminSession }) {
+function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
   const router = express.Router();
   const createClient = () => new MongoClient(uri, {
     serverApi: {
@@ -12,6 +12,8 @@ function createTrainingRouter({ uri, databaseName, requireAdminSession }) {
       deprecationErrors: true,
     },
   });
+
+  router.use(requireTrainingSession);
 
   router.get('/employees', async (_req, res) => {
     const client = createClient();
@@ -73,7 +75,7 @@ function createTrainingRouter({ uri, databaseName, requireAdminSession }) {
     }
   });
 
-  router.put('/employees/:employeeId/folder-link', requireAdminSession, async (req, res) => {
+  router.put('/employees/:employeeId/folder-link', async (req, res) => {
     const folderUrl = String(req.body?.folderUrl || '').trim();
     if (!isAllowedFolderUrl(folderUrl)) {
       return res.status(400).json({
