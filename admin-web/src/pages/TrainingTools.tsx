@@ -82,6 +82,7 @@ type StaticColumnKey =
   | 'firstDay'
   | 'folderLink'
   | 'orientation'
+  | 'monthlyOverview'
 
 type MonthlyColumnField = 'requirement' | 'completionStatus' | 'completionDate' | 'folderUpdated'
 type MonthlyColumnKey = `monthly:${string}:${MonthlyColumnField}`
@@ -100,6 +101,14 @@ const columns: { key: ColumnKey; label: string }[] = [
   { key: 'reportingTo', label: 'Reporting To' },
   { key: 'firstDay', label: 'Hire Date' },
   { key: 'orientation', label: 'Orientation Training' },
+  { key: 'monthlyOverview', label: 'Monthly Training' },
+]
+
+const monthlySubcolumns: { field: MonthlyColumnField; label: string }[] = [
+  { field: 'requirement', label: 'Required' },
+  { field: 'completionStatus', label: 'Completion' },
+  { field: 'completionDate', label: 'Date' },
+  { field: 'folderUpdated', label: 'Folder' },
 ]
 
 const emptyColumnFilters: Record<string, string[]> = {
@@ -113,6 +122,7 @@ const emptyColumnFilters: Record<string, string[]> = {
   firstDay: [],
   folderLink: [],
   orientation: [],
+  monthlyOverview: [],
 }
 
 function displayDate(value?: string | null) {
@@ -138,8 +148,9 @@ function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
     return assignment.requirement === 'Required' ? assignment.folderUpdated ? 'Updated' : 'Not Updated' : 'Blocked'
   }
   if (key === 'orientation') return employee.training.orientation.status
+  if (key === 'monthlyOverview') return employee.training.monthly.status
   if (key === 'folderLink') return employee.folderUrl ? 'Linked' : 'Not linked'
-  const employeeKey = key as Exclude<StaticColumnKey, 'folderLink' | 'orientation'>
+  const employeeKey = key as Exclude<StaticColumnKey, 'folderLink' | 'orientation' | 'monthlyOverview'>
   return String(employee[employeeKey] || '')
 }
 
@@ -452,12 +463,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   const allColumns = useMemo(() => [
     ...columns,
-    ...monthlyTopics.flatMap((topic): { key: ColumnKey; label: string }[] => [
-      { key: `monthly:${topic.id}:requirement`, label: `${topic.name} — Required Status` },
-      { key: `monthly:${topic.id}:completionStatus`, label: `${topic.name} — Completion Status` },
-      { key: `monthly:${topic.id}:completionDate`, label: `${topic.name} — Completion Date` },
-      { key: `monthly:${topic.id}:folderUpdated`, label: `${topic.name} — Folder Updated` },
-    ]),
+    ...monthlyTopics.flatMap((topic): { key: ColumnKey; label: string }[] => monthlySubcolumns.map((column) => ({
+      key: `monthly:${topic.id}:${column.field}`,
+      label: `${topic.name} — ${column.label}`,
+    }))),
   ], [monthlyTopics])
 
   const visibleEmployees = useMemo(() => {
@@ -1040,7 +1049,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             <table className="w-full text-sm" style={{ minWidth: `${1850 + monthlyTopics.length * 620}px` }}>
               <thead className="bg-slate-50">
                 <tr>
-                  {allColumns.map((column, index) => (
+                  {columns.map((column, index) => (
                     <th
                       className={`border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 ${
                         index === 0
@@ -1066,9 +1075,20 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       </button>
                     </th>
                   ))}
+                  {monthlyTopics.map((topic) => (
+                    <th className="border-b border-l-2 border-emerald-200 bg-emerald-50/70 px-4 py-3 text-left" colSpan={4} key={`${topic.id}-group`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-emerald-950">{topic.name}</div>
+                          <div className="mt-1 text-xs font-normal text-emerald-700">Target {displayDate(topic.targetDate)} · {topic.courses.length} course{topic.courses.length === 1 ? '' : 's'}</div>
+                        </div>
+                        {topic.link ? <a aria-label={`Open ${topic.name}`} className="rounded-md p-1.5 text-emerald-700 hover:bg-emerald-100" href={topic.link} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" /></a> : null}
+                      </div>
+                    </th>
+                  ))}
                 </tr>
                 <tr>
-                  {allColumns.map((column, index) => (
+                  {columns.map((column, index) => (
                     <th
                       className={`border-b px-3 pb-3 ${
                         index === 0
@@ -1088,6 +1108,24 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       />
                     </th>
                   ))}
+                  {monthlyTopics.flatMap((topic) => monthlySubcolumns.map((subcolumn, subcolumnIndex) => {
+                    const key = `monthly:${topic.id}:${subcolumn.field}` as MonthlyColumnKey
+                    const label = `${topic.name} — ${subcolumn.label}`
+                    return (
+                      <th className={`min-w-[145px] border-b bg-emerald-50/30 px-3 pb-3 pt-2 ${subcolumnIndex === 0 ? 'border-l-2 border-emerald-200' : ''}`} key={`${key}-filter`}>
+                        <button aria-label={`Sort ${label}`} className="mb-2 inline-flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold uppercase tracking-wide text-emerald-800" onClick={() => toggleSort(key)} type="button">
+                          <span>{subcolumn.label}</span>
+                          {sort.key !== key ? <ArrowUpDown className="h-3.5 w-3.5 text-emerald-400" /> : sort.direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
+                        </button>
+                        <ColumnMultiFilter
+                          label={label}
+                          onChange={(values) => setColumnFilters((current) => ({ ...current, [key]: values }))}
+                          options={columnOptions[key]}
+                          selected={columnFilters[key] || []}
+                        />
+                      </th>
+                    )
+                  }))}
                 </tr>
               </thead>
               <tbody>
@@ -1151,20 +1189,24 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                         Manage Orientation
                       </button>
                     </td>
+                    <td className="min-w-[190px] border-b px-4 py-3">
+                      <TrainingBadge training={employee.training.monthly} />
+                      {employee.training.monthly.requiredCount > 0 ? <div className="mt-1 text-xs text-slate-500">{employee.training.monthly.finishedCount}/{employee.training.monthly.requiredCount} required finished</div> : null}
+                      <button className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => editMonthly(employee)} type="button"><BookOpenCheck className="h-3.5 w-3.5" />Manage Monthly</button>
+                    </td>
                     {monthlyTopics.map((topic) => {
                       const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topic.id)
                       const requirement = assignment?.requirement || 'Unassigned'
                       const required = requirement === 'Required'
                       return [
-                        <td className="min-w-[170px] border-b border-l border-slate-200 px-4 py-3" key={`${topic.id}-requirement`}>
+                        <td className="min-w-[145px] border-b border-l-2 border-emerald-100 bg-emerald-50/20 px-4 py-3" key={`${topic.id}-requirement`}>
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${requirement === 'Required' ? 'bg-blue-50 text-blue-700' : requirement === 'Not Required' ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-700'}`}>{requirement}</span>
-                          <button className="mt-2 block text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => editMonthly(employee)} type="button">Manage Monthly</button>
                         </td>,
-                        <td className="min-w-[150px] border-b px-4 py-3" key={`${topic.id}-completion`}>
+                        <td className="min-w-[145px] border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-completion`}>
                           {required ? <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment?.completionStatus === 'Finished' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{assignment?.completionStatus || 'Unfinished'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}
                         </td>,
-                        <td className="min-w-[150px] whitespace-nowrap border-b px-4 py-3" key={`${topic.id}-date`}>{required && assignment?.completionStatus === 'Finished' ? displayDate(assignment.completionDate) : '—'}</td>,
-                        <td className="min-w-[150px] border-b px-4 py-3" key={`${topic.id}-folder`}>{required ? <span className={`text-xs font-semibold ${assignment?.folderUpdated ? 'text-emerald-700' : 'text-slate-500'}`}>{assignment?.folderUpdated ? 'Updated' : 'Not Updated'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}</td>,
+                        <td className="min-w-[145px] whitespace-nowrap border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-date`}>{required && assignment?.completionStatus === 'Finished' ? displayDate(assignment.completionDate) : '—'}</td>,
+                        <td className="min-w-[145px] border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-folder`}>{required ? <span className={`text-xs font-semibold ${assignment?.folderUpdated ? 'text-emerald-700' : 'text-slate-500'}`}>{assignment?.folderUpdated ? 'Updated' : 'Not Updated'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}</td>,
                       ]
                     })}
                   </tr>
