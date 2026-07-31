@@ -45,7 +45,7 @@ const columns: { key: ColumnKey; label: string }[] = [
   { key: 'location', label: 'Location' },
   { key: 'department', label: 'Department' },
   { key: 'reportingTo', label: 'Reporting To' },
-  { key: 'firstDay', label: 'Hiring Day' },
+  { key: 'firstDay', label: 'Hire Date' },
   { key: 'orientation', label: 'Orientation Training' },
   { key: 'monthly', label: 'Monthly Training' },
 ]
