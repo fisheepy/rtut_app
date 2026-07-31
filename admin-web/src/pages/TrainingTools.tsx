@@ -71,7 +71,7 @@ type TrainingEmployee = {
   }
 }
 
-type ColumnKey =
+type StaticColumnKey =
   | 'employeeName'
   | 'email'
   | 'contactNumber'
@@ -82,7 +82,10 @@ type ColumnKey =
   | 'firstDay'
   | 'folderLink'
   | 'orientation'
-  | 'monthly'
+
+type MonthlyColumnField = 'requirement' | 'completionStatus' | 'completionDate' | 'folderUpdated'
+type MonthlyColumnKey = `monthly:${string}:${MonthlyColumnField}`
+type ColumnKey = StaticColumnKey | MonthlyColumnKey
 
 type SortDirection = 'asc' | 'desc'
 
@@ -97,10 +100,9 @@ const columns: { key: ColumnKey; label: string }[] = [
   { key: 'reportingTo', label: 'Reporting To' },
   { key: 'firstDay', label: 'Hire Date' },
   { key: 'orientation', label: 'Orientation Training' },
-  { key: 'monthly', label: 'Monthly Training' },
 ]
 
-const emptyColumnFilters: Record<ColumnKey, string[]> = {
+const emptyColumnFilters: Record<string, string[]> = {
   employeeName: [],
   email: [],
   contactNumber: [],
@@ -111,7 +113,6 @@ const emptyColumnFilters: Record<ColumnKey, string[]> = {
   firstDay: [],
   folderLink: [],
   orientation: [],
-  monthly: [],
 }
 
 function displayDate(value?: string | null) {
@@ -127,16 +128,25 @@ function displayDate(value?: string | null) {
 }
 
 function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
+  if (key.startsWith('monthly:')) {
+    const [, topicId, field] = key.split(':') as [string, string, MonthlyColumnField]
+    const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topicId)
+    if (!assignment) return field === 'requirement' ? 'Unassigned' : 'Blocked'
+    if (field === 'requirement') return assignment.requirement
+    if (field === 'completionStatus') return assignment.requirement === 'Required' ? assignment.completionStatus : 'Blocked'
+    if (field === 'completionDate') return assignment.requirement === 'Required' ? assignment.completionDate || '' : 'Blocked'
+    return assignment.requirement === 'Required' ? assignment.folderUpdated ? 'Updated' : 'Not Updated' : 'Blocked'
+  }
   if (key === 'orientation') return employee.training.orientation.status
-  if (key === 'monthly') return employee.training.monthly.status
   if (key === 'folderLink') return employee.folderUrl ? 'Linked' : 'Not linked'
-  return employee[key] || ''
+  const employeeKey = key as Exclude<StaticColumnKey, 'folderLink' | 'orientation'>
+  return String(employee[employeeKey] || '')
 }
 
 function getColumnFilterValue(employee: TrainingEmployee, key: ColumnKey) {
   const value = getColumnValue(employee, key)
   if (!value) return 'Not specified'
-  return key === 'firstDay' ? displayDate(value) : value
+  return key === 'firstDay' || key.endsWith(':completionDate') ? displayDate(value) : value
 }
 
 function ColumnMultiFilter({
@@ -363,7 +373,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [source, setSource] = useState('')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'active' | 'terminated'>('active')
-  const [columnFilters, setColumnFilters] = useState<Record<ColumnKey, string[]>>(emptyColumnFilters)
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>(emptyColumnFilters)
   const [sort, setSort] = useState<{ key: ColumnKey; direction: SortDirection }>({
     key: 'employeeName',
     direction: 'asc',
@@ -440,6 +450,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     return () => window.removeEventListener('scroll', updateBackToTop)
   }, [])
 
+  const allColumns = useMemo(() => [
+    ...columns,
+    ...monthlyTopics.flatMap((topic): { key: ColumnKey; label: string }[] => [
+      { key: `monthly:${topic.id}:requirement`, label: `${topic.name} — Required Status` },
+      { key: `monthly:${topic.id}:completionStatus`, label: `${topic.name} — Completion Status` },
+      { key: `monthly:${topic.id}:completionDate`, label: `${topic.name} — Completion Date` },
+      { key: `monthly:${topic.id}:folderUpdated`, label: `${topic.name} — Folder Updated` },
+    ]),
+  ], [monthlyTopics])
+
   const visibleEmployees = useMemo(() => {
     const query = search.trim().toLowerCase()
     return employees
@@ -454,8 +474,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           employee.department,
           employee.reportingTo,
         ].some((value) => value.toLowerCase().includes(query))
-        const matchesColumnFilters = columns.every(({ key }) => (
-          !columnFilters[key].length
+        const matchesColumnFilters = allColumns.every(({ key }) => (
+          !columnFilters[key]?.length
           || columnFilters[key].includes(getColumnFilterValue(employee, key))
         ))
         return matchesStatus && matchesSearch && matchesColumnFilters
@@ -469,10 +489,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         })
         return sort.direction === 'asc' ? comparison : -comparison
       })
-  }, [columnFilters, employees, search, sort, view])
+  }, [allColumns, columnFilters, employees, search, sort, view])
 
   const columnOptions = useMemo(() => Object.fromEntries(
-    columns.map(({ key }) => [
+    allColumns.map(({ key }) => [
       key,
       Array.from(new Set(
         employees
@@ -480,7 +500,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           .map((employee) => getColumnFilterValue(employee, key)),
       )).sort((left, right) => left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })),
     ]),
-  ) as Record<ColumnKey, string[]>, [employees, view])
+  ) as Record<string, string[]>, [allColumns, employees, view])
 
   const hasColumnFilters = Object.values(columnFilters).some((values) => values.length)
 
@@ -1017,10 +1037,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             onScroll={() => syncHorizontalScroll('table')}
             ref={tableScrollRef}
           >
-            <table className="w-full min-w-[1850px] text-sm">
+            <table className="w-full text-sm" style={{ minWidth: `${1850 + monthlyTopics.length * 620}px` }}>
               <thead className="bg-slate-50">
                 <tr>
-                  {columns.map((column, index) => (
+                  {allColumns.map((column, index) => (
                     <th
                       className={`border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 ${
                         index === 0
@@ -1048,7 +1068,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                   ))}
                 </tr>
                 <tr>
-                  {columns.map((column, index) => (
+                  {allColumns.map((column, index) => (
                     <th
                       className={`border-b px-3 pb-3 ${
                         index === 0
@@ -1064,7 +1084,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                           [column.key]: values,
                         }))}
                         options={columnOptions[column.key]}
-                        selected={columnFilters[column.key]}
+                        selected={columnFilters[column.key] || []}
                       />
                     </th>
                   ))}
@@ -1131,16 +1151,22 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                         Manage Orientation
                       </button>
                     </td>
-                    <td className="border-b px-4 py-3">
-                      <TrainingBadge training={employee.training.monthly} />
-                      {employee.training.monthly.requiredCount > 0 ? (
-                        <div className="mt-1 text-xs text-slate-500">{employee.training.monthly.finishedCount}/{employee.training.monthly.requiredCount} required topics finished</div>
-                      ) : null}
-                      <button className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => editMonthly(employee)} type="button">
-                        <BookOpenCheck className="h-3.5 w-3.5" />
-                        Manage Monthly
-                      </button>
-                    </td>
+                    {monthlyTopics.map((topic) => {
+                      const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topic.id)
+                      const requirement = assignment?.requirement || 'Unassigned'
+                      const required = requirement === 'Required'
+                      return [
+                        <td className="min-w-[170px] border-b border-l border-slate-200 px-4 py-3" key={`${topic.id}-requirement`}>
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${requirement === 'Required' ? 'bg-blue-50 text-blue-700' : requirement === 'Not Required' ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-700'}`}>{requirement}</span>
+                          <button className="mt-2 block text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => editMonthly(employee)} type="button">Manage Monthly</button>
+                        </td>,
+                        <td className="min-w-[150px] border-b px-4 py-3" key={`${topic.id}-completion`}>
+                          {required ? <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment?.completionStatus === 'Finished' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{assignment?.completionStatus || 'Unfinished'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}
+                        </td>,
+                        <td className="min-w-[150px] whitespace-nowrap border-b px-4 py-3" key={`${topic.id}-date`}>{required && assignment?.completionStatus === 'Finished' ? displayDate(assignment.completionDate) : '—'}</td>,
+                        <td className="min-w-[150px] border-b px-4 py-3" key={`${topic.id}-folder`}>{required ? <span className={`text-xs font-semibold ${assignment?.folderUpdated ? 'text-emerald-700' : 'text-slate-500'}`}>{assignment?.folderUpdated ? 'Updated' : 'Not Updated'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}</td>,
+                      ]
+                    })}
                   </tr>
                 ))}
               </tbody>
