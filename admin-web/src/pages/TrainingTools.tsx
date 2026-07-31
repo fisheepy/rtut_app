@@ -163,6 +163,10 @@ function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
   return String(employee[employeeKey] || '')
 }
 
+function isTestMonthlyTopic(name: string) {
+  return ['hr test training', 'hr testing training'].includes(name.trim().toLowerCase())
+}
+
 function getColumnFilterValue(employee: TrainingEmployee, key: ColumnKey) {
   const value = getColumnValue(employee, key)
   if (!value) return 'Not specified'
@@ -479,7 +483,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       byId.set(assignment.topic.id, assignment.topic)
     }))
     monthlyTopics.forEach((topic) => byId.set(topic.id, topic))
-    return Array.from(byId.values()).filter((topic) => topic.name.trim().toLowerCase() !== 'hr testing training')
+    return Array.from(byId.values()).filter((topic) => !isTestMonthlyTopic(topic.name))
   }, [employees, monthlyTopics])
 
   const allOrientationLibraries = useMemo(() => {
@@ -787,7 +791,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       if (progress?.completedAt) rows.push(['Orientation Training', library.name, course.title, progress.completedAt, progress.folderUpdated ? 'Yes' : 'No'])
     }))
     employee.training.monthly.assignments.forEach((assignment) => {
-      if (assignment.topic.name.trim().toLowerCase() !== 'hr testing training' && assignment.requirement === 'Required' && assignment.completionStatus === 'Finished' && assignment.completionDate) {
+      if (!isTestMonthlyTopic(assignment.topic.name) && assignment.requirement === 'Required' && assignment.completionStatus === 'Finished' && assignment.completionDate) {
         rows.push(['Monthly Training', assignment.topic.name, assignment.topic.courses.map((course) => course.title).join('; '), assignment.completionDate, assignment.folderUpdated ? 'Yes' : 'No'])
       }
     })
@@ -893,7 +897,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   function editMonthly(employee: TrainingEmployee) {
     setMonthlyEmployee(employee)
-    setMonthlyAssignments(JSON.parse(JSON.stringify((employee.training.monthly.assignments || []).filter((assignment) => assignment.topic.name.trim().toLowerCase() !== 'hr testing training'))))
+    setMonthlyAssignments(JSON.parse(JSON.stringify((employee.training.monthly.assignments || []).filter((assignment) => !isTestMonthlyTopic(assignment.topic.name)))))
     setMonthlyError('')
   }
 
@@ -1502,7 +1506,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_1fr]">
               <aside className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-4 lg:border-b-0 lg:border-r">
                 <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white" onClick={() => editTopic()} type="button"><Plus className="h-4 w-4" />Add Topic</button>
-                <div className="mt-4 space-y-2">{monthlyTopics.filter((topic) => topic.name.trim().toLowerCase() !== 'hr testing training').map((topic) => (
+                <div className="mt-4 space-y-2">{monthlyTopics.filter((topic) => !isTestMonthlyTopic(topic.name)).map((topic) => (
                   <button className={`w-full rounded-lg border p-3 text-left ${topicEditor?.id === topic.id ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-200'}`} key={topic.id} onClick={() => editTopic(topic)} type="button">
                     <span className="block text-sm font-semibold text-slate-800">{topic.name}</span><span className="mt-1 block text-xs text-slate-500">Target: {displayDate(topic.targetDate)} · {topic.courses.length} courses</span>
                   </button>
