@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, ExternalLink, GraduationCap, KeyRound, Link2, LogOut, Mail, RefreshCw, Search, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
@@ -41,13 +41,13 @@ type SortDirection = 'asc' | 'desc'
 
 const columns: { key: ColumnKey; label: string }[] = [
   { key: 'employeeName', label: 'Employee Name' },
+  { key: 'folderLink', label: 'Employee Folder' },
   { key: 'jobTitle', label: 'Job Title' },
   { key: 'location', label: 'Location' },
   { key: 'department', label: 'Department' },
   { key: 'reportingTo', label: 'Reporting To' },
   { key: 'firstDay', label: 'First Day' },
   { key: 'employmentStatus', label: 'Status' },
-  { key: 'folderLink', label: 'Employee Folder' },
   { key: 'orientation', label: 'Orientation Training' },
   { key: 'monthly', label: 'Monthly Training' },
 ]
@@ -306,6 +306,8 @@ export default function TrainingTools() {
 }
 
 function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const stickyScrollRef = useRef<HTMLDivElement>(null)
   const [employees, setEmployees] = useState<TrainingEmployee[]>([])
   const [source, setSource] = useState('')
   const [search, setSearch] = useState('')
@@ -321,6 +323,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [folderUrl, setFolderUrl] = useState('')
   const [linkError, setLinkError] = useState('')
   const [isSavingLink, setIsSavingLink] = useState(false)
+  const [tableScrollWidth, setTableScrollWidth] = useState(0)
+  const [showBackToTop, setShowBackToTop] = useState(false)
 
   async function loadEmployees(showLoading = true) {
     if (showLoading) setIsLoading(true)
@@ -349,6 +353,13 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     loadEmployees()
     const refreshTimer = window.setInterval(() => loadEmployees(false), 30_000)
     return () => window.clearInterval(refreshTimer)
+  }, [])
+
+  useEffect(() => {
+    const updateBackToTop = () => setShowBackToTop(window.scrollY > 500)
+    updateBackToTop()
+    window.addEventListener('scroll', updateBackToTop, { passive: true })
+    return () => window.removeEventListener('scroll', updateBackToTop)
   }, [])
 
   const visibleEmployees = useMemo(() => {
@@ -441,8 +452,28 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
 
+  useEffect(() => {
+    const tableScroller = tableScrollRef.current
+    if (!tableScroller) return
+    const updateScrollWidth = () => setTableScrollWidth(tableScroller.scrollWidth)
+    updateScrollWidth()
+    const resizeObserver = new ResizeObserver(updateScrollWidth)
+    resizeObserver.observe(tableScroller)
+    const table = tableScroller.querySelector('table')
+    if (table) resizeObserver.observe(table)
+    return () => resizeObserver.disconnect()
+  }, [visibleEmployees.length, view])
+
+  function syncHorizontalScroll(source: 'table' | 'sticky') {
+    const tableScroller = tableScrollRef.current
+    const stickyScroller = stickyScrollRef.current
+    if (!tableScroller || !stickyScroller) return
+    if (source === 'table') stickyScroller.scrollLeft = tableScroller.scrollLeft
+    else tableScroller.scrollLeft = stickyScroller.scrollLeft
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <section className="relative overflow-hidden rounded-2xl border border-white/70 bg-slate-950 px-6 py-7 text-white shadow-xl md:px-8">
         <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-emerald-500/30 blur-3xl" />
         <div className="absolute -bottom-24 left-24 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
@@ -553,7 +584,11 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             </div>
           </div>
         ) : (
-          <div className="overflow-auto">
+          <div
+            className="overflow-auto"
+            onScroll={() => syncHorizontalScroll('table')}
+            ref={tableScrollRef}
+          >
             <table className="w-full min-w-[1500px] text-sm">
               <thead className="bg-slate-50">
                 <tr>
@@ -616,16 +651,6 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       <div className="font-semibold text-slate-900">{employee.employeeName || 'Unnamed employee'}</div>
                       <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{employee.employmentStatus}</span>
                     </td>
-                    <td className="border-b px-4 py-3">{employee.jobTitle || '—'}</td>
-                    <td className="border-b px-4 py-3">{employee.location || '—'}</td>
-                    <td className="border-b px-4 py-3">{employee.department || '—'}</td>
-                    <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
-                    <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
-                    <td className="border-b px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                        {employee.employmentStatus}
-                      </span>
-                    </td>
                     <td className="border-b px-4 py-3">
                       <div className="flex flex-col items-start gap-1.5">
                         {employee.folderUrl ? (
@@ -651,6 +676,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                         </button>
                       </div>
                     </td>
+                    <td className="border-b px-4 py-3">{employee.jobTitle || '—'}</td>
+                    <td className="border-b px-4 py-3">{employee.location || '—'}</td>
+                    <td className="border-b px-4 py-3">{employee.department || '—'}</td>
+                    <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
+                    <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
+                    <td className="border-b px-4 py-3">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {employee.employmentStatus}
+                      </span>
+                    </td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.orientation} /></td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.monthly} /></td>
                   </tr>
@@ -665,6 +700,35 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           </div>
         ) : null}
       </section>
+
+      {!isLoading && !error && visibleEmployees.length > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-5 pb-1 pt-1.5 shadow-[0_-6px_18px_-14px_rgba(15,23,42,0.65)] backdrop-blur">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400">Drag left or right to scroll the table</div>
+            <div
+              aria-label="Horizontal table scroll bar"
+              className="h-4 overflow-x-scroll overflow-y-hidden rounded bg-slate-100"
+              onScroll={() => syncHorizontalScroll('sticky')}
+              ref={stickyScrollRef}
+              role="scrollbar"
+            >
+              <div className="h-px" style={{ width: `${tableScrollWidth}px` }} />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showBackToTop ? (
+        <button
+          aria-label="Back to top"
+          className="fixed bottom-14 right-5 z-[60] inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-xl hover:bg-emerald-700 md:right-8"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          type="button"
+        >
+          <ArrowUp className="h-4 w-4" />
+          Back to Top
+        </button>
+      ) : null}
 
       {linkEmployee ? (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4" role="presentation">
