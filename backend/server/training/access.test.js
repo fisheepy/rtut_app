@@ -10,8 +10,16 @@ const {
 
 test('allows only the configured Training Tools email', () => {
   const env = {};
-  assert.deepEqual(authorizedEmails(env), ['myu@royaltrailersales.com']);
+  assert.deepEqual(authorizedEmails(env), [
+    'myu@royaltrailersales.com',
+    'sdallis@royaltrailersales.com',
+    'anicholson@royaltrailersales.com',
+    'dpurrenhage@royaltrailersales.com',
+  ]);
   assert.equal(isAuthorizedTrainingEmail('MYU@royaltrailersales.com', env), true);
+  assert.equal(isAuthorizedTrainingEmail('sdallis@royaltrailersales.com', env), true);
+  assert.equal(isAuthorizedTrainingEmail('anicholson@royaltrailersales.com', env), true);
+  assert.equal(isAuthorizedTrainingEmail('dpurrenhage@royaltrailersales.com', env), true);
   assert.equal(isAuthorizedTrainingEmail('someone@royaltrailersales.com', env), false);
 });
 

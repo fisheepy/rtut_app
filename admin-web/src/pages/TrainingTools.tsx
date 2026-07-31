@@ -161,7 +161,7 @@ function TrainingBadge({ training }: { training: TrainingStatus }) {
 }
 
 function TrainingLogin({ onLogin }: { onLogin: () => void }) {
-  const [email, setEmail] = useState('myu@royaltrailersales.com')
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [message, setMessage] = useState('')
@@ -233,6 +233,7 @@ function TrainingLogin({ onLogin }: { onLogin: () => void }) {
                   autoComplete="email"
                   className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                   onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@royaltrailersales.com"
                   type="email"
                   value={email}
                 />

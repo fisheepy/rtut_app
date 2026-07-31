@@ -1,6 +1,11 @@
 const crypto = require('crypto');
 
-const DEFAULT_AUTHORIZED_EMAILS = ['myu@royaltrailersales.com'];
+const DEFAULT_AUTHORIZED_EMAILS = [
+  'myu@royaltrailersales.com',
+  'sdallis@royaltrailersales.com',
+  'anicholson@royaltrailersales.com',
+  'dpurrenhage@royaltrailersales.com',
+];
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
