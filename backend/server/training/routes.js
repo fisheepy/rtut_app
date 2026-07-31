@@ -8,6 +8,11 @@ const {
   sanitizeOrientationInput,
   validateLibraryInput,
 } = require('./orientationCatalog');
+const {
+  getMonthlyTopics,
+  sanitizeMonthlyInput,
+  validateTopicInput,
+} = require('./monthlyCatalog');
 
 function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
   const router = express.Router();
@@ -28,6 +33,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
       await client.connect();
       const db = client.db(databaseName);
       const orientationLibraries = await getOrientationLibraries(db);
+      const monthlyTopics = await getMonthlyTopics(db);
       const employees = await db.collection('employees').find({}).project({
         'First Name': 1,
         'Last Name': 1,
@@ -78,6 +84,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           employee,
           trainingByEmployeeId.get(String(employee._id)),
           orientationLibraries,
+          monthlyTopics,
         ))
         .sort((left, right) => {
           if (left.employmentStatus !== right.employmentStatus) {
@@ -91,6 +98,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
         source: 'Company App employee roster',
         trainingTypes: ['Orientation Training', 'Monthly Training'],
         orientationLibraries,
+        monthlyTopics,
       });
     } catch (error) {
       console.error('Unable to load training employees:', error);
@@ -136,6 +144,93 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
     } catch (error) {
       console.error('Unable to save employee orientation training:', error);
       return res.status(500).json({ error: 'Orientation training could not be saved.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.put('/employees/:employeeId/monthly', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const monthlyTopics = await getMonthlyTopics(db);
+      const existingTraining = await db.collection('employee_training').findOne({ employeeId: req.params.employeeId });
+      const result = sanitizeMonthlyInput(req.body, monthlyTopics, existingTraining);
+      if (result.error) return res.status(400).json({ error: result.error });
+      const employee = ObjectId.isValid(req.params.employeeId)
+        ? await db.collection('employees').findOne({ _id: new ObjectId(req.params.employeeId) })
+        : null;
+      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+      await db.collection('employee_training').updateOne(
+        { employeeId: req.params.employeeId },
+        {
+          $set: {
+            monthly: { topicAssignments: result.topicAssignments },
+            monthlyUpdatedAt: new Date(),
+            monthlyUpdatedBy: req.adminSession?.email || null,
+          },
+        },
+        { upsert: true },
+      );
+      return res.json({ monthly: result.monthly });
+    } catch (error) {
+      console.error('Unable to save employee monthly training:', error);
+      return res.status(500).json({ error: 'Monthly training could not be saved.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.post('/monthly-topics', async (req, res) => {
+    const result = validateTopicInput(req.body);
+    if (result.error) return res.status(400).json({ error: result.error });
+    const client = createClient();
+    try {
+      await client.connect();
+      const topic = { ...result.topic, order: Date.now() };
+      await client.db(databaseName).collection('monthly_training_topics').insertOne(topic);
+      return res.status(201).json({ topic: result.topic });
+    } catch (error) {
+      console.error('Unable to add monthly training topic:', error);
+      return res.status(500).json({ error: 'The monthly training topic could not be added.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.put('/monthly-topics/:topicId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const collection = client.db(databaseName).collection('monthly_training_topics');
+      const existing = await collection.findOne({ id: req.params.topicId });
+      if (!existing) return res.status(404).json({ error: 'Monthly training topic not found.' });
+      const result = validateTopicInput(req.body, existing);
+      if (result.error) return res.status(400).json({ error: result.error });
+      await collection.updateOne(
+        { id: req.params.topicId },
+        { $set: { ...result.topic, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
+      );
+      return res.json({ topic: result.topic });
+    } catch (error) {
+      console.error('Unable to update monthly training topic:', error);
+      return res.status(500).json({ error: 'The monthly training topic could not be updated.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.delete('/monthly-topics/:topicId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const result = await client.db(databaseName).collection('monthly_training_topics').deleteOne({ id: req.params.topicId });
+      if (!result.deletedCount) return res.status(404).json({ error: 'Monthly training topic not found.' });
+      return res.status(204).end();
+    } catch (error) {
+      console.error('Unable to delete monthly training topic:', error);
+      return res.status(500).json({ error: 'The monthly training topic could not be deleted.' });
     } finally {
       await client.close();
     }

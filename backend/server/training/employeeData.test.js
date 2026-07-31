@@ -26,7 +26,7 @@ test('maps Company App roster fields and supplies both training types', () => {
   assert.equal(employee.folderUrl, '');
   assert.equal(employee.employmentStatus, 'Active');
   assert.equal(employee.training.orientation.status, 'Unassigned');
-  assert.equal(employee.training.monthly.status, 'Not started');
+  assert.equal(employee.training.monthly.status, 'Unassigned');
 });
 
 test('keeps a manually assigned SharePoint employee folder link', () => {
@@ -55,5 +55,5 @@ test('shows employees with a termination date as terminated', () => {
   assert.equal(employee.employmentStatus, 'Terminated');
   assert.equal(employee.terminationDay, '2026-06-30');
   assert.equal(employee.training.orientation.status, 'Unassigned');
-  assert.equal(employee.training.monthly.status, 'Not started');
+  assert.equal(employee.training.monthly.status, 'Unassigned');
 });

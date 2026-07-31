@@ -29,6 +29,29 @@ type OrientationLibrary = {
   courses: { id: string; title: string }[]
 }
 
+type MonthlyTopic = {
+  id: string
+  name: string
+  targetDate: string
+  link: string
+  accessCode: string
+  courses: { id: string; title: string }[]
+}
+
+type MonthlyAssignment = {
+  topic: MonthlyTopic
+  requirement: 'Unassigned' | 'Required' | 'Not Required'
+  completionStatus: 'Unfinished' | 'Finished'
+  completionDate: string | null
+  folderUpdated: boolean
+}
+
+type MonthlyTraining = TrainingStatus & {
+  assignments: MonthlyAssignment[]
+  requiredCount: number
+  finishedCount: number
+}
+
 type TrainingEmployee = {
   id: string
   employeeName: string
@@ -44,7 +67,7 @@ type TrainingEmployee = {
   employmentStatus: 'Active' | 'Terminated'
   training: {
     orientation: OrientationTraining
-    monthly: TrainingStatus
+    monthly: MonthlyTraining
   }
 }
 
@@ -336,6 +359,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const stickyScrollRef = useRef<HTMLDivElement>(null)
   const [employees, setEmployees] = useState<TrainingEmployee[]>([])
   const [orientationLibraries, setOrientationLibraries] = useState<OrientationLibrary[]>([])
+  const [monthlyTopics, setMonthlyTopics] = useState<MonthlyTopic[]>([])
   const [source, setSource] = useState('')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'active' | 'terminated'>('active')
@@ -365,6 +389,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [showReportOptions, setShowReportOptions] = useState(false)
   const [reportTrainingType, setReportTrainingType] = useState<'orientation' | 'monthly'>('orientation')
   const [reportStatus, setReportStatus] = useState('All Statuses')
+  const [monthlyEmployee, setMonthlyEmployee] = useState<TrainingEmployee | null>(null)
+  const [monthlyAssignments, setMonthlyAssignments] = useState<MonthlyAssignment[]>([])
+  const [monthlyError, setMonthlyError] = useState('')
+  const [isSavingMonthly, setIsSavingMonthly] = useState(false)
+  const [showMonthlySettings, setShowMonthlySettings] = useState(false)
+  const [topicEditor, setTopicEditor] = useState<MonthlyTopic | null>(null)
+  const [isNewTopic, setIsNewTopic] = useState(false)
+  const [topicError, setTopicError] = useState('')
+  const [isSavingTopic, setIsSavingTopic] = useState(false)
+  const [topicPendingDelete, setTopicPendingDelete] = useState<MonthlyTopic | null>(null)
   const [tableScrollWidth, setTableScrollWidth] = useState(0)
   const [showBackToTop, setShowBackToTop] = useState(false)
 
@@ -375,6 +409,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const response = await api.get('/training/employees')
       setEmployees(response.data.employees || [])
       setOrientationLibraries(response.data.orientationLibraries || [])
+      setMonthlyTopics(response.data.monthlyTopics || [])
       setSource(response.data.source || '')
     } catch (requestError: any) {
       if (requestError.response?.status === 401) {
@@ -512,6 +547,14 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     : orientationCompletedCount === orientationRequiredCount
       ? 'Finished'
       : 'In Process'
+  const monthlyRequiredAssignments = monthlyAssignments.filter((assignment) => assignment.requirement === 'Required')
+  const monthlyFinishedCount = monthlyRequiredAssignments.filter((assignment) => assignment.completionStatus === 'Finished' && assignment.completionDate).length
+  const monthlyDraftStatus = !monthlyAssignments.length || monthlyAssignments.every((assignment) => assignment.requirement === 'Unassigned')
+    ? 'Unassigned'
+    : monthlyAssignments.some((assignment) => assignment.requirement === 'Unassigned')
+      || monthlyRequiredAssignments.some((assignment) => assignment.completionStatus !== 'Finished' || !assignment.completionDate)
+      ? 'In Process'
+      : 'Finished'
 
   useEffect(() => {
     const tableScroller = tableScrollRef.current
@@ -596,6 +639,14 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   function downloadTrainingReport() {
     const trainingTypeName = reportTrainingType === 'orientation' ? 'Orientation Training' : 'Monthly Training'
+    const trainingDetails = (employee: TrainingEmployee) => reportTrainingType === 'orientation'
+      ? employee.training.orientation.assignedLibraries.flatMap((library) => library.courses.map((course) => {
+          const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
+          return `${library.name} - ${course.title}: ${progress?.completedAt || 'Unfinished'}, Folder Updated: ${progress?.folderUpdated ? 'Yes' : 'No'}`
+        })).join('; ')
+      : employee.training.monthly.assignments.map((assignment) => (
+          `${assignment.topic.name}: ${assignment.requirement}, ${assignment.requirement === 'Required' ? assignment.completionStatus : 'Completion blocked'}, Completion Date: ${assignment.completionDate || '—'}, Folder Updated: ${assignment.folderUpdated ? 'Yes' : 'No'}`
+        )).join('; ')
     const rows = employees
       .filter((employee) => reportStatus === 'All Statuses' || employee.training[reportTrainingType].status === reportStatus)
       .slice()
@@ -617,15 +668,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         employee.firstDay,
         reportTrainingType === 'orientation'
           ? employee.training.orientation.assignedLibraries.map((library) => library.name).join('; ')
-          : '',
+          : employee.training.monthly.assignments.map((assignment) => `${assignment.topic.name} (${assignment.requirement})`).join('; '),
         reportTrainingType === 'orientation'
           ? `${employee.training.orientation.completedCourseCount}/${employee.training.orientation.requiredCourseCount}`
-          : '',
+          : `${employee.training.monthly.finishedCount}/${employee.training.monthly.requiredCount}`,
+        trainingDetails(employee),
         employee.training[reportTrainingType].completedAt || '',
       ])
     const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
     const csv = [
-      ['Training Type', 'Training Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Libraries', 'Courses Complete', 'Training Finished Date'],
+      ['Training Type', 'Training Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Training', 'Progress', 'Training Details', 'Training Finished Date'],
       ...rows,
     ].map((row) => row.map(csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
@@ -716,6 +768,124 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     }
   }
 
+  function editMonthly(employee: TrainingEmployee) {
+    setMonthlyEmployee(employee)
+    setMonthlyAssignments(JSON.parse(JSON.stringify(employee.training.monthly.assignments || [])))
+    setMonthlyError('')
+  }
+
+  function updateMonthlyAssignment(topicId: string, update: Partial<MonthlyAssignment>) {
+    setMonthlyAssignments((current) => current.map((assignment) => {
+      if (assignment.topic.id !== topicId) return assignment
+      const next = { ...assignment, ...update }
+      if (update.requirement && update.requirement !== 'Required') {
+        next.completionStatus = 'Unfinished'
+        next.completionDate = null
+        next.folderUpdated = false
+      }
+      if (update.requirement === 'Required' && assignment.requirement !== 'Required') {
+        next.completionStatus = 'Unfinished'
+        next.completionDate = null
+        next.folderUpdated = false
+      }
+      if (update.completionStatus === 'Unfinished') next.completionDate = null
+      return next
+    }))
+  }
+
+  async function saveMonthly() {
+    if (!monthlyEmployee) return
+    setIsSavingMonthly(true)
+    setMonthlyError('')
+    try {
+      const topicAssignments = Object.fromEntries(monthlyAssignments.map((assignment) => [
+        assignment.topic.id,
+        {
+          requirement: assignment.requirement,
+          completionStatus: assignment.completionStatus,
+          completionDate: assignment.completionDate,
+          folderUpdated: assignment.folderUpdated,
+        },
+      ]))
+      const response = await api.put(`/training/employees/${monthlyEmployee.id}/monthly`, { topicAssignments })
+      setEmployees((current) => current.map((employee) => employee.id === monthlyEmployee.id
+        ? { ...employee, training: { ...employee.training, monthly: response.data.monthly } }
+        : employee))
+      setMonthlyEmployee(null)
+    } catch (requestError: any) {
+      if (requestError.response?.status === 401) {
+        setMonthlyEmployee(null)
+        onLogout()
+        return
+      }
+      setMonthlyError(requestError.response?.data?.error || 'Monthly training could not be saved.')
+    } finally {
+      setIsSavingMonthly(false)
+    }
+  }
+
+  function openMonthlySettings() {
+    setShowMonthlySettings(true)
+    setTopicEditor(null)
+    setTopicPendingDelete(null)
+    setTopicError('')
+  }
+
+  function editTopic(topic?: MonthlyTopic) {
+    setTopicEditor(topic
+      ? JSON.parse(JSON.stringify(topic))
+      : { id: '', name: '', targetDate: '', link: '', accessCode: '', courses: [{ id: '', title: '' }] })
+    setIsNewTopic(!topic)
+    setTopicPendingDelete(null)
+    setTopicError('')
+  }
+
+  function updateTopicCourse(index: number, title: string) {
+    setTopicEditor((current) => current ? {
+      ...current,
+      courses: current.courses.map((course, courseIndex) => courseIndex === index ? { ...course, title } : course),
+    } : current)
+  }
+
+  async function saveTopic(event: React.FormEvent) {
+    event.preventDefault()
+    if (!topicEditor) return
+    setIsSavingTopic(true)
+    setTopicError('')
+    try {
+      const response = isNewTopic
+        ? await api.post('/training/monthly-topics', topicEditor)
+        : await api.put(`/training/monthly-topics/${topicEditor.id}`, topicEditor)
+      const savedTopic = response.data.topic as MonthlyTopic
+      setMonthlyTopics((current) => isNewTopic
+        ? [...current, savedTopic]
+        : current.map((topic) => topic.id === savedTopic.id ? savedTopic : topic))
+      setTopicEditor(null)
+      await loadEmployees(false)
+    } catch (requestError: any) {
+      setTopicError(requestError.response?.data?.error || 'The monthly training topic could not be saved.')
+    } finally {
+      setIsSavingTopic(false)
+    }
+  }
+
+  async function deleteTopic() {
+    if (!topicPendingDelete) return
+    setIsSavingTopic(true)
+    setTopicError('')
+    try {
+      await api.delete(`/training/monthly-topics/${topicPendingDelete.id}`)
+      setMonthlyTopics((current) => current.filter((topic) => topic.id !== topicPendingDelete.id))
+      setTopicPendingDelete(null)
+      setTopicEditor(null)
+      await loadEmployees(false)
+    } catch (requestError: any) {
+      setTopicError(requestError.response?.data?.error || 'The monthly training topic could not be deleted.')
+    } finally {
+      setIsSavingTopic(false)
+    }
+  }
+
   return (
     <div className="space-y-6 pb-10">
       <section className="relative overflow-hidden rounded-2xl border border-white/70 bg-slate-950 px-6 py-7 text-white shadow-xl md:px-8">
@@ -778,6 +948,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={openOrientationSettings} type="button">
                 <Settings className="h-4 w-4" />
                 Orientation Library Settings
+              </button>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={openMonthlySettings} type="button">
+                <Settings className="h-4 w-4" />
+                Monthly Training Settings
               </button>
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => loadEmployees()} type="button">
                 <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -957,7 +1131,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                         Manage Orientation
                       </button>
                     </td>
-                    <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.monthly} /></td>
+                    <td className="border-b px-4 py-3">
+                      <TrainingBadge training={employee.training.monthly} />
+                      {employee.training.monthly.requiredCount > 0 ? (
+                        <div className="mt-1 text-xs text-slate-500">{employee.training.monthly.finishedCount}/{employee.training.monthly.requiredCount} required topics finished</div>
+                      ) : null}
+                      <button className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800" onClick={() => editMonthly(employee)} type="button">
+                        <BookOpenCheck className="h-3.5 w-3.5" />
+                        Manage Monthly
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -998,6 +1181,90 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           <ArrowUp className="h-4 w-4" />
           Back to Top
         </button>
+      ) : null}
+
+      {monthlyEmployee ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/60 p-4" role="presentation">
+          <section aria-labelledby="monthly-training-title" aria-modal="true" className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950" id="monthly-training-title">Monthly Training</h2>
+                <p className="mt-1 text-sm text-slate-500">{monthlyEmployee.employeeName}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</div>
+                  <div className={`mt-1 text-sm font-semibold ${monthlyDraftStatus === 'Finished' ? 'text-emerald-700' : monthlyDraftStatus === 'In Process' ? 'text-blue-700' : 'text-slate-600'}`}>
+                    {monthlyDraftStatus} · {monthlyFinishedCount}/{monthlyRequiredAssignments.length} required finished
+                  </div>
+                </div>
+                <button aria-label="Close monthly training" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setMonthlyEmployee(null)} type="button"><X className="h-5 w-5" /></button>
+              </div>
+            </div>
+            <div className="overflow-auto p-5 md:p-6">
+              {!monthlyAssignments.length ? (
+                <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                  <div><BookOpenCheck className="mx-auto h-10 w-10 text-slate-400" /><div className="mt-3 font-semibold text-slate-800">No monthly training topics</div><p className="mt-1 text-sm text-slate-500">Add a topic in Monthly Training Settings first.</p></div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {monthlyAssignments.map((assignment) => {
+                    const required = assignment.requirement === 'Required'
+                    return (
+                      <section className="overflow-hidden rounded-xl border border-slate-200" key={assignment.topic.id}>
+                        <div className="flex flex-wrap items-start justify-between gap-3 bg-slate-50 px-4 py-3">
+                          <div>
+                            <h3 className="font-semibold text-slate-900">{assignment.topic.name}</h3>
+                            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                              <span>Target Date: <span className="font-semibold text-slate-700">{displayDate(assignment.topic.targetDate)}</span></span>
+                              {assignment.topic.accessCode ? <span>Access Code: <span className="font-mono font-semibold text-slate-700">{assignment.topic.accessCode}</span></span> : null}
+                              {assignment.topic.link ? <a className="inline-flex items-center gap-1 font-semibold text-blue-700" href={assignment.topic.link} rel="noreferrer" target="_blank"><ExternalLink className="h-3.5 w-3.5" />Open Training</a> : null}
+                            </div>
+                          </div>
+                          <div className="text-xs text-slate-500">{assignment.topic.courses.length} courses</div>
+                        </div>
+                        <div className="grid gap-4 p-4 md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]">
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Courses</div>
+                            <ul className="mt-2 space-y-1 text-sm text-slate-700">{assignment.topic.courses.map((course) => <li key={course.id}>• {course.title}</li>)}</ul>
+                          </div>
+                          <label>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Requirement</span>
+                            <select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm" onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { requirement: event.target.value as MonthlyAssignment['requirement'] })} value={assignment.requirement}>
+                              <option>Unassigned</option><option>Required</option><option>Not Required</option>
+                            </select>
+                          </label>
+                          <label>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion</span>
+                            <select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400" disabled={!required} onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { completionStatus: event.target.value as MonthlyAssignment['completionStatus'] })} value={assignment.completionStatus}>
+                              <option>Unfinished</option><option>Finished</option>
+                            </select>
+                          </label>
+                          <label>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion Date</span>
+                            <input className="mt-2 w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm disabled:bg-slate-100" disabled={!required || assignment.completionStatus !== 'Finished'} onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { completionDate: event.target.value || null })} type="date" value={assignment.completionDate || ''} />
+                          </label>
+                          <label className="flex items-center gap-2 self-center pt-5 text-sm font-medium text-slate-700">
+                            <input checked={assignment.folderUpdated} className="h-4 w-4 rounded border-slate-300 text-emerald-600" disabled={!required} onChange={(event) => updateMonthlyAssignment(assignment.topic.id, { folderUpdated: event.target.checked })} type="checkbox" />
+                            Folder Updated
+                          </label>
+                        </div>
+                      </section>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-4">
+              <div className="text-xs text-slate-500">Completion controls are available only when the topic is Required.</div>
+              <div className="flex gap-3">
+                <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => setMonthlyEmployee(null)} type="button">Cancel</button>
+                <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={isSavingMonthly} onClick={saveMonthly} type="button">{isSavingMonthly ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}Save Monthly Training</button>
+              </div>
+              {monthlyError ? <div className="w-full rounded-lg bg-red-50 p-3 text-sm text-red-700">{monthlyError}</div> : null}
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {showReportOptions ? (
@@ -1050,6 +1317,52 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 <Download className="h-4 w-4" />
                 Download CSV
               </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {showMonthlySettings ? (
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/60 p-4" role="presentation">
+          <section aria-labelledby="monthly-settings-title" aria-modal="true" className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div><h2 className="text-xl font-semibold text-slate-950" id="monthly-settings-title">Monthly Training Settings</h2><p className="mt-1 text-sm text-slate-500">Manage topics, courses, target dates, links, and access codes.</p></div>
+              <button aria-label="Close monthly training settings" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowMonthlySettings(false)} type="button"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_1fr]">
+              <aside className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-4 lg:border-b-0 lg:border-r">
+                <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white" onClick={() => editTopic()} type="button"><Plus className="h-4 w-4" />Add Topic</button>
+                <div className="mt-4 space-y-2">{monthlyTopics.map((topic) => (
+                  <button className={`w-full rounded-lg border p-3 text-left ${topicEditor?.id === topic.id ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-200'}`} key={topic.id} onClick={() => editTopic(topic)} type="button">
+                    <span className="block text-sm font-semibold text-slate-800">{topic.name}</span><span className="mt-1 block text-xs text-slate-500">Target: {displayDate(topic.targetDate)} · {topic.courses.length} courses</span>
+                  </button>
+                ))}</div>
+              </aside>
+              <div className="overflow-y-auto p-5 md:p-6">
+                {!topicEditor ? (
+                  <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"><div><Settings className="mx-auto h-10 w-10 text-slate-400" /><div className="mt-3 font-semibold text-slate-800">Select a topic to modify</div><p className="mt-1 text-sm text-slate-500">You can also add a new monthly training topic.</p></div></div>
+                ) : (
+                  <form onSubmit={saveTopic}>
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-slate-900">{isNewTopic ? 'Add Monthly Topic' : 'Edit Monthly Topic'}</h3>
+                      {!isNewTopic ? <button className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-600" onClick={() => setTopicPendingDelete(topicEditor)} type="button"><Trash2 className="h-4 w-4" />Delete Topic</button> : null}
+                    </div>
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <label className="block sm:col-span-2"><span className="text-sm font-semibold text-slate-700">Training Topic</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, name: event.target.value })} required value={topicEditor.name} /></label>
+                      <label className="block"><span className="text-sm font-semibold text-slate-700">Target Date</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, targetDate: event.target.value })} type="date" value={topicEditor.targetDate} /></label>
+                      <label className="block"><span className="text-sm font-semibold text-slate-700">Access Code</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 font-mono text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, accessCode: event.target.value })} value={topicEditor.accessCode} /></label>
+                      <label className="block sm:col-span-2"><span className="text-sm font-semibold text-slate-700">Training Link</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, link: event.target.value })} placeholder="https://..." type="url" value={topicEditor.link} /></label>
+                    </div>
+                    <div className="mt-6 flex items-center justify-between gap-3"><div><h4 className="font-semibold text-slate-900">Courses</h4><p className="mt-0.5 text-xs text-slate-500">Add, rename, or remove courses.</p></div><button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-emerald-700" onClick={() => setTopicEditor({ ...topicEditor, courses: [...topicEditor.courses, { id: '', title: '' }] })} type="button"><Plus className="h-4 w-4" />Add Course</button></div>
+                    <div className="mt-3 space-y-2">{topicEditor.courses.map((course, index) => (
+                      <div className="flex items-center gap-2" key={course.id || `new-monthly-course-${index}`}><input aria-label={`Monthly course ${index + 1}`} className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => updateTopicCourse(index, event.target.value)} placeholder="Training course name" value={course.title} /><button aria-label={`Remove monthly course ${index + 1}`} className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={() => setTopicEditor({ ...topicEditor, courses: topicEditor.courses.filter((_item, courseIndex) => courseIndex !== index) })} type="button"><Trash2 className="h-4 w-4" /></button></div>
+                    ))}</div>
+                    {topicPendingDelete?.id === topicEditor.id ? <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4"><div className="font-semibold text-red-800">Delete {topicEditor.name}?</div><p className="mt-1 text-sm text-red-700">Assigned employees keep their historical snapshot. Unassigned copies will be removed.</p><div className="mt-3 flex gap-2"><button className="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white" disabled={isSavingTopic} onClick={deleteTopic} type="button">Confirm Delete</button><button className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700" onClick={() => setTopicPendingDelete(null)} type="button">Keep Topic</button></div></div> : null}
+                    {topicError ? <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{topicError}</div> : null}
+                    <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => setTopicEditor(null)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={isSavingTopic} type="submit">{isSavingTopic ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}Save Topic</button></div>
+                  </form>
+                )}
+              </div>
             </div>
           </section>
         </div>

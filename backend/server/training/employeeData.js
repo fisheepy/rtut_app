@@ -1,5 +1,6 @@
 const TRAINING_TYPES = ['orientation', 'monthly'];
 const { normalizeOrientation } = require('./orientationCatalog');
+const { normalizeMonthly } = require('./monthlyCatalog');
 
 function text(value) {
   return value == null ? '' : String(value).trim();
@@ -12,18 +13,14 @@ function dateValue(employee, names) {
   return '';
 }
 
-function normalizeTraining(record, orientationLibraries) {
-  const monthly = record?.monthly || {};
+function normalizeTraining(record, orientationLibraries, monthlyTopics) {
   return {
     orientation: normalizeOrientation(record, orientationLibraries),
-    monthly: {
-      status: text(monthly.status) || 'Not started',
-      completedAt: monthly.completedAt || null,
-    },
+    monthly: normalizeMonthly(record, monthlyTopics),
   };
 }
 
-function normalizeEmployee(employee, trainingRecord, orientationLibraries) {
+function normalizeEmployee(employee, trainingRecord, orientationLibraries, monthlyTopics) {
   const firstName = text(employee['First Name']);
   const lastName = text(employee['Last Name']);
   const terminationDay = dateValue(employee, ['Termination Date', 'Termination Day']);
@@ -49,7 +46,7 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries) {
     ].filter(Boolean).join(' '),
     folderUrl: text(trainingRecord?.folderUrl),
     employmentStatus: isTerminated ? 'Terminated' : 'Active',
-    training: normalizeTraining(trainingRecord, orientationLibraries),
+    training: normalizeTraining(trainingRecord, orientationLibraries, monthlyTopics),
   };
 }
 
