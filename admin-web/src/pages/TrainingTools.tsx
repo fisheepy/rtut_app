@@ -426,6 +426,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [reportStatus, setReportStatus] = useState('All Statuses')
   const [reportTargetDateFrom, setReportTargetDateFrom] = useState(`${new Date().getFullYear()}-01-01`)
   const [reportTargetDateTo, setReportTargetDateTo] = useState(`${new Date().getFullYear()}-12-31`)
+  const [selectedMonthlyYear, setSelectedMonthlyYear] = useState(String(new Date().getFullYear()))
   const [monthlyEmployee, setMonthlyEmployee] = useState<TrainingEmployee | null>(null)
   const [monthlyAssignments, setMonthlyAssignments] = useState<MonthlyAssignment[]>([])
   const [monthlyError, setMonthlyError] = useState('')
@@ -493,9 +494,14 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     return Array.from(byId.values())
   }, [employees, orientationLibraries])
 
+  const monthlyYears = useMemo(() => Array.from(new Set([
+    String(new Date().getFullYear()),
+    ...allMonthlyTopics.map((topic) => topic.targetDate?.slice(0, 4)).filter((year): year is string => Boolean(year)),
+  ])).sort((left, right) => right.localeCompare(left)), [allMonthlyTopics])
+
   const displayedMonthlyTopics = useMemo(() => allMonthlyTopics.filter((topic) => (
-    topic.targetDate?.slice(0, 4) === String(new Date().getFullYear())
-  )).sort((left, right) => left.targetDate.localeCompare(right.targetDate) || left.name.localeCompare(right.name)), [allMonthlyTopics])
+    topic.targetDate?.slice(0, 4) === selectedMonthlyYear
+  )).sort((left, right) => left.targetDate.localeCompare(right.targetDate) || left.name.localeCompare(right.name)), [allMonthlyTopics, selectedMonthlyYear])
 
   const allColumns = useMemo(() => [
     ...columns,
@@ -788,14 +794,15 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     const rows: string[][] = []
     employee.training.orientation.assignedLibraries.forEach((library) => library.courses.forEach((course) => {
       const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
-      if (progress?.completedAt) rows.push(['Orientation Training', library.name, course.title, progress.completedAt, progress.folderUpdated ? 'Yes' : 'No'])
+      const status = progress?.completedAt && progress.folderUpdated ? 'Finished' : 'Unfinished'
+      rows.push(['Orientation Training', library.name, course.title, status, progress?.completedAt || '', progress?.folderUpdated ? 'Yes' : 'No'])
     }))
     employee.training.monthly.assignments.forEach((assignment) => {
-      if (!isTestMonthlyTopic(assignment.topic.name) && assignment.requirement === 'Required' && assignment.completionStatus === 'Finished' && assignment.completionDate) {
-        rows.push(['Monthly Training', assignment.topic.name, assignment.topic.courses.map((course) => course.title).join('; '), assignment.completionDate, assignment.folderUpdated ? 'Yes' : 'No'])
+      if (!isTestMonthlyTopic(assignment.topic.name) && assignment.requirement === 'Required') {
+        rows.push(['Monthly Training', assignment.topic.name, assignment.topic.courses.map((course) => course.title).join('; '), assignment.completionStatus, assignment.completionDate || '', assignment.folderUpdated ? 'Yes' : 'No'])
       }
     })
-    rows.sort((left, right) => left[3].localeCompare(right[3]) || left[1].localeCompare(right[1]))
+    rows.sort((left, right) => left[3].localeCompare(right[3]) || left[4].localeCompare(right[4]) || left[1].localeCompare(right[1]))
     const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
     const employeeDetails = [
       ['Employee Name', employee.employeeName],
@@ -805,14 +812,14 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       ['Department', employee.department],
       ['Hire Date', employee.firstDay],
       [],
-      ['Training Type', 'Training Program / Topic', 'Course(s)', 'Completion Date', 'Folder Updated'],
+      ['Training Type', 'Training Program / Topic', 'Course(s)', 'Training Status', 'Completion Date', 'Folder Updated'],
       ...rows,
     ]
     const csv = employeeDetails.map((row) => row.map(csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
-    link.download = `${employee.employeeName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-completed-training-report-${new Date().toISOString().slice(0, 10)}.csv`
+    link.download = `${employee.employeeName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-assigned-training-report-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -1101,6 +1108,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'active' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('active')} type="button">Active Employees</button>
               <button className={`rounded-md px-3 py-1.5 text-sm font-semibold ${view === 'terminated' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`} onClick={() => changeView('terminated')} type="button">Terminated Employees</button>
             </div>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <span className="whitespace-nowrap text-xs font-semibold uppercase text-slate-500">Monthly Year</span>
+              <select className="bg-white text-sm font-semibold text-slate-800 outline-none" onChange={(event) => { setSelectedMonthlyYear(event.target.value); setColumnFilters(emptyColumnFilters) }} value={selectedMonthlyYear}>
+                {monthlyYears.map((year) => <option key={year} value={year}>{year}{year === String(new Date().getFullYear()) ? ' (Current)' : ' History'}</option>)}
+              </select>
+            </label>
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
             <span>Employee Name stays visible while you scroll horizontally. Open a filter below any heading and check one or more values.</span>
@@ -1234,7 +1247,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     }`}>
                       <div className="font-semibold text-slate-900">{employee.employeeName || 'Unnamed employee'}</div>
                       <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{employee.employmentStatus}</span>
-                      <button className="mt-2 flex items-center gap-1 text-left text-[11px] font-semibold text-blue-700 hover:text-blue-800" onClick={() => downloadEmployeeTrainingReport(employee)} type="button"><Download className="h-3.5 w-3.5" />Completed Training Report</button>
+                      <button className="mt-2 flex items-center gap-1 text-left text-[11px] font-semibold text-blue-700 hover:text-blue-800" onClick={() => downloadEmployeeTrainingReport(employee)} type="button"><Download className="h-3.5 w-3.5" />Employee Training Report</button>
                     </td>
                     <td className="border-b px-4 py-3">
                       <div className="flex flex-col items-start gap-1.5">
@@ -1463,6 +1476,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <label><span className="text-sm font-semibold text-slate-700">Target Date From</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => { setReportTargetDateFrom(event.target.value); setReportCourseIds([]); setReportStatus('All Statuses') }} type="date" value={reportTargetDateFrom} /></label>
                 <label><span className="text-sm font-semibold text-slate-700">Target Date To</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => { setReportTargetDateTo(event.target.value); setReportCourseIds([]); setReportStatus('All Statuses') }} type="date" value={reportTargetDateTo} /></label>
+                <p className="col-span-2 text-xs text-slate-500">This range uses the Target Date saved in Monthly Training Settings.</p>
               </div>
             ) : null}
             <fieldset className="mt-4">
