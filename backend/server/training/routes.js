@@ -9,7 +9,9 @@ const {
   validateLibraryInput,
 } = require('./orientationCatalog');
 const {
+  employeeMatchesAssignmentCriteria,
   getMonthlyTopics,
+  normalizeMonthly,
   sanitizeMonthlyInput,
   validateTopicInput,
 } = require('./monthlyCatalog');
@@ -188,9 +190,52 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
     const client = createClient();
     try {
       await client.connect();
+      const db = client.db(databaseName);
       const topic = { ...result.topic, order: Date.now() };
-      await client.db(databaseName).collection('monthly_training_topics').insertOne(topic);
-      return res.status(201).json({ topic: result.topic });
+      await db.collection('monthly_training_topics').insertOne(topic);
+
+      const criteria = req.body?.autoAssign || {};
+      const employees = await db.collection('employees').find({}).toArray();
+      const matchedEmployees = employees.filter((employee) => employeeMatchesAssignmentCriteria(
+        normalizeEmployee(employee, null, [], []),
+        criteria,
+      ));
+      if (matchedEmployees.length) {
+        const monthlyTopics = await getMonthlyTopics(db);
+        const employeeIds = matchedEmployees.map((employee) => String(employee._id));
+        const existingRecords = await db.collection('employee_training').find({ employeeId: { $in: employeeIds } }).toArray();
+        const existingByEmployeeId = new Map(existingRecords.map((record) => [String(record.employeeId), record]));
+        const now = new Date();
+        await db.collection('employee_training').bulkWrite(matchedEmployees.map((employee) => {
+          const employeeId = String(employee._id);
+          const existing = existingByEmployeeId.get(employeeId);
+          const assignments = normalizeMonthly(existing, monthlyTopics).assignments;
+          const topicAssignments = Object.fromEntries(assignments.map((assignment) => [
+            assignment.topic.id,
+            assignment.topic.id === result.topic.id
+              ? { requirement: 'Required', completionStatus: 'Unfinished', completionDate: null, folderUpdated: false }
+              : {
+                  requirement: assignment.requirement,
+                  completionStatus: assignment.completionStatus,
+                  completionDate: assignment.completionDate,
+                  folderUpdated: assignment.folderUpdated,
+                },
+          ]));
+          const sanitized = sanitizeMonthlyInput({ topicAssignments }, monthlyTopics, existing);
+          return {
+            updateOne: {
+              filter: { employeeId },
+              update: { $set: {
+                monthly: { topicAssignments: sanitized.topicAssignments },
+                monthlyUpdatedAt: now,
+                monthlyUpdatedBy: req.adminSession?.email || null,
+              } },
+              upsert: true,
+            },
+          };
+        }));
+      }
+      return res.status(201).json({ topic: result.topic, assignedCount: matchedEmployees.length });
     } catch (error) {
       console.error('Unable to add monthly training topic:', error);
       return res.status(500).json({ error: 'The monthly training topic could not be added.' });

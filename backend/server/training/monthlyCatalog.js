@@ -51,6 +51,16 @@ function validateTopicInput(body, existingTopic = null) {
   };
 }
 
+function employeeMatchesAssignmentCriteria(employee, criteria = {}) {
+  if (employee?.employmentStatus !== 'Active') return false;
+  const jobTitles = Array.isArray(criteria.jobTitles) ? criteria.jobTitles.map(String) : [];
+  const locations = Array.isArray(criteria.locations) ? criteria.locations.map(String) : [];
+  if (!jobTitles.length && !locations.length) return false;
+  const matchesJobTitle = !jobTitles.length || jobTitles.includes(String(employee.jobTitle || ''));
+  const matchesLocation = !locations.length || locations.includes(String(employee.location || ''));
+  return matchesJobTitle && matchesLocation;
+}
+
 function normalizeMonthly(record, currentTopics = []) {
   const source = record?.monthly || {};
   const storedAssignments = source.topicAssignments && typeof source.topicAssignments === 'object'
@@ -141,6 +151,7 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
 }
 
 module.exports = {
+  employeeMatchesAssignmentCriteria,
   getMonthlyTopics,
   normalizeMonthly,
   sanitizeMonthlyInput,

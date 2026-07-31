@@ -437,6 +437,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [topicError, setTopicError] = useState('')
   const [isSavingTopic, setIsSavingTopic] = useState(false)
   const [topicPendingDelete, setTopicPendingDelete] = useState<MonthlyTopic | null>(null)
+  const [autoAssignJobTitles, setAutoAssignJobTitles] = useState<string[]>([])
+  const [autoAssignLocations, setAutoAssignLocations] = useState<string[]>([])
   const [tableScrollWidth, setTableScrollWidth] = useState(0)
   const [showBackToTop, setShowBackToTop] = useState(false)
 
@@ -602,6 +604,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
   const terminatedCount = employees.length - activeCount
+  const activeJobTitles = Array.from(new Set(employees.filter((employee) => employee.employmentStatus === 'Active' && employee.jobTitle).map((employee) => employee.jobTitle))).sort()
+  const activeLocations = Array.from(new Set(employees.filter((employee) => employee.employmentStatus === 'Active' && employee.location).map((employee) => employee.location))).sort()
+  const autoAssignMatchCount = employees.filter((employee) => employee.employmentStatus === 'Active'
+    && (!autoAssignJobTitles.length || autoAssignJobTitles.includes(employee.jobTitle))
+    && (!autoAssignLocations.length || autoAssignLocations.includes(employee.location))
+    && Boolean(autoAssignJobTitles.length || autoAssignLocations.length)).length
   const reportCourseOptions = useMemo<ReportCourseOption[]>(() => reportTrainingType === 'orientation'
     ? allOrientationLibraries.flatMap((library) => library.courses.map((course) => ({
         id: `orientation:${library.id}:${course.id}`,
@@ -970,6 +978,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       ? JSON.parse(JSON.stringify(topic))
       : { id: '', name: '', targetDate: '', link: '', accessCode: '', courses: [{ id: '', title: '' }] })
     setIsNewTopic(!topic)
+    setAutoAssignJobTitles([])
+    setAutoAssignLocations([])
     setTopicPendingDelete(null)
     setTopicError('')
   }
@@ -988,7 +998,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     setTopicError('')
     try {
       const response = isNewTopic
-        ? await api.post('/training/monthly-topics', topicEditor)
+        ? await api.post('/training/monthly-topics', {
+            ...topicEditor,
+            autoAssign: { jobTitles: autoAssignJobTitles, locations: autoAssignLocations },
+          })
         : await api.put(`/training/monthly-topics/${topicEditor.id}`, topicEditor)
       const savedTopic = response.data.topic as MonthlyTopic
       setMonthlyTopics((current) => isNewTopic
@@ -1541,6 +1554,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       <label className="block"><span className="text-sm font-semibold text-slate-700">Access Code</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 font-mono text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, accessCode: event.target.value })} value={topicEditor.accessCode} /></label>
                       <label className="block sm:col-span-2"><span className="text-sm font-semibold text-slate-700">Training Link</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, link: event.target.value })} placeholder="https://..." type="url" value={topicEditor.link} /></label>
                     </div>
+                    {isNewTopic ? (
+                      <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2"><div><h4 className="font-semibold text-slate-900">Auto-Assign Employees</h4><p className="mt-1 text-xs text-slate-600">Optional. Matching active employees will be assigned as Required when this topic is created.</p></div><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700">{autoAssignMatchCount} employee{autoAssignMatchCount === 1 ? '' : 's'} match</span></div>
+                        <p className="mt-2 text-xs text-slate-500">Multiple values within a group use OR. When both groups are selected, Job Title and Location must both match.</p>
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <fieldset><legend className="text-sm font-semibold text-slate-700">Job Title</legend><div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">{activeJobTitles.length ? activeJobTitles.map((jobTitle) => <label className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50" key={jobTitle}><input checked={autoAssignJobTitles.includes(jobTitle)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600" onChange={(event) => setAutoAssignJobTitles((current) => event.target.checked ? [...current, jobTitle] : current.filter((value) => value !== jobTitle))} type="checkbox" /><span>{jobTitle}</span></label>) : <div className="px-2 py-2 text-xs text-slate-500">No job titles available.</div>}</div></fieldset>
+                          <fieldset><legend className="text-sm font-semibold text-slate-700">Location</legend><div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">{activeLocations.length ? activeLocations.map((location) => <label className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50" key={location}><input checked={autoAssignLocations.includes(location)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600" onChange={(event) => setAutoAssignLocations((current) => event.target.checked ? [...current, location] : current.filter((value) => value !== location))} type="checkbox" /><span>{location}</span></label>) : <div className="px-2 py-2 text-xs text-slate-500">No locations available.</div>}</div></fieldset>
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="mt-6 flex items-center justify-between gap-3"><div><h4 className="font-semibold text-slate-900">Courses</h4><p className="mt-0.5 text-xs text-slate-500">Add, rename, or remove courses.</p></div><button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-emerald-700" onClick={() => setTopicEditor({ ...topicEditor, courses: [...topicEditor.courses, { id: '', title: '' }] })} type="button"><Plus className="h-4 w-4" />Add Course</button></div>
                     <div className="mt-3 space-y-2">{topicEditor.courses.map((course, index) => (
                       <div className="flex items-center gap-2" key={course.id || `new-monthly-course-${index}`}><input aria-label={`Monthly course ${index + 1}`} className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => updateTopicCourse(index, event.target.value)} placeholder="Training course name" value={course.title} /><button aria-label={`Remove monthly course ${index + 1}`} className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={() => setTopicEditor({ ...topicEditor, courses: topicEditor.courses.filter((_item, courseIndex) => courseIndex !== index) })} type="button"><Trash2 className="h-4 w-4" /></button></div>

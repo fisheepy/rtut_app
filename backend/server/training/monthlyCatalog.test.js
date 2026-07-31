@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeMonthly, sanitizeMonthlyInput, validateTopicInput } = require('./monthlyCatalog');
+const { employeeMatchesAssignmentCriteria, normalizeMonthly, sanitizeMonthlyInput, validateTopicInput } = require('./monthlyCatalog');
 
 const topic = {
   id: 'topic-1',
@@ -61,4 +61,12 @@ test('validates monthly topic fields', () => {
   assert.match(validateTopicInput({ name: '', courses: [] }).error, /name/);
   assert.match(validateTopicInput({ name: 'Topic', link: 'http://example.com', courses: [{ title: 'Course' }] }).error, /HTTPS/);
   assert.equal(validateTopicInput({ name: 'Topic', targetDate: '2026-08-31', courses: [{ title: 'Course' }] }).topic.name, 'Topic');
+});
+
+test('matches active employees using selected job titles and locations', () => {
+  const criteria = { jobTitles: ['Technician', 'Driver'], locations: ['Detroit'] };
+  assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Active', jobTitle: 'Technician', location: 'Detroit' }, criteria), true);
+  assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Active', jobTitle: 'Technician', location: 'Lansing' }, criteria), false);
+  assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Terminated', jobTitle: 'Technician', location: 'Detroit' }, criteria), false);
+  assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Active', jobTitle: 'Technician', location: 'Detroit' }, {}), false);
 });
