@@ -32,7 +32,6 @@ type ColumnKey =
   | 'department'
   | 'reportingTo'
   | 'firstDay'
-  | 'employmentStatus'
   | 'folderLink'
   | 'orientation'
   | 'monthly'
@@ -47,7 +46,6 @@ const columns: { key: ColumnKey; label: string }[] = [
   { key: 'department', label: 'Department' },
   { key: 'reportingTo', label: 'Reporting To' },
   { key: 'firstDay', label: 'First Day' },
-  { key: 'employmentStatus', label: 'Status' },
   { key: 'orientation', label: 'Orientation Training' },
   { key: 'monthly', label: 'Monthly Training' },
 ]
@@ -59,7 +57,6 @@ const emptyColumnFilters: Record<ColumnKey, string[]> = {
   department: [],
   reportingTo: [],
   firstDay: [],
-  employmentStatus: [],
   folderLink: [],
   orientation: [],
   monthly: [],
@@ -681,11 +678,6 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     <td className="border-b px-4 py-3">{employee.department || '—'}</td>
                     <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
                     <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
-                    <td className="border-b px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${employee.employmentStatus === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                        {employee.employmentStatus}
-                      </span>
-                    </td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.orientation} /></td>
                     <td className="border-b px-4 py-3"><TrainingBadge training={employee.training.monthly} /></td>
                   </tr>
