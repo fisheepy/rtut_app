@@ -35,6 +35,7 @@ type MonthlyTopic = {
   targetDate: string
   link: string
   accessCode: string
+  autoAssign: { jobTitles: string[]; locations: string[] }
   courses: { id: string; title: string }[]
 }
 
@@ -152,9 +153,10 @@ function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
     const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topicId)
     if (!assignment) return field === 'requirement' ? 'Unassigned' : 'Blocked'
     if (field === 'requirement') return assignment.requirement
-    if (field === 'completionStatus') return assignment.requirement === 'Required' ? assignment.completionStatus : 'Blocked'
-    if (field === 'completionDate') return assignment.requirement === 'Required' ? assignment.completionDate || '' : 'Blocked'
-    return assignment.requirement === 'Required' ? assignment.folderUpdated ? 'Updated' : 'Not Updated' : 'Blocked'
+    const hasFinishedHistory = assignment.completionStatus === 'Finished' && Boolean(assignment.completionDate)
+    if (field === 'completionStatus') return assignment.requirement === 'Required' || hasFinishedHistory ? assignment.completionStatus : 'Blocked'
+    if (field === 'completionDate') return assignment.requirement === 'Required' || hasFinishedHistory ? assignment.completionDate || '' : 'Blocked'
+    return assignment.requirement === 'Required' || hasFinishedHistory ? assignment.folderUpdated ? 'Updated' : 'Not Updated' : 'Blocked'
   }
   if (key === 'orientation') return employee.training.orientation.status
   if (key === 'monthlyOverview') return 'Manage'
@@ -638,7 +640,9 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       return progress?.completedAt ? 'Finished' : 'Unfinished'
     }
     const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === course.topicId)
-    if (!assignment || assignment.requirement === 'Unassigned') return 'Unassigned'
+    if (!assignment) return 'Unassigned'
+    if (assignment.completionStatus === 'Finished' && assignment.completionDate) return 'Finished'
+    if (assignment.requirement === 'Unassigned') return 'Unassigned'
     if (assignment.requirement === 'Not Required') return 'Not Required'
     return assignment.completionStatus
   }
@@ -806,7 +810,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       rows.push(['Orientation Training', library.name, course.title, status, progress?.completedAt || '', progress?.folderUpdated ? 'Yes' : 'No'])
     }))
     employee.training.monthly.assignments.forEach((assignment) => {
-      if (!isTestMonthlyTopic(assignment.topic.name) && assignment.requirement === 'Required') {
+      if (!isTestMonthlyTopic(assignment.topic.name) && (assignment.requirement === 'Required' || (assignment.completionStatus === 'Finished' && assignment.completionDate))) {
         rows.push(['Monthly Training', assignment.topic.name, assignment.topic.courses.map((course) => course.title).join('; '), assignment.completionStatus, assignment.completionDate || '', assignment.folderUpdated ? 'Yes' : 'No'])
       }
     })
@@ -976,10 +980,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   function editTopic(topic?: MonthlyTopic) {
     setTopicEditor(topic
       ? JSON.parse(JSON.stringify(topic))
-      : { id: '', name: '', targetDate: '', link: '', accessCode: '', courses: [{ id: '', title: '' }] })
+      : { id: '', name: '', targetDate: '', link: '', accessCode: '', autoAssign: { jobTitles: [], locations: [] }, courses: [{ id: '', title: '' }] })
     setIsNewTopic(!topic)
-    setAutoAssignJobTitles([])
-    setAutoAssignLocations([])
+    setAutoAssignJobTitles(topic?.autoAssign?.jobTitles || [])
+    setAutoAssignLocations(topic?.autoAssign?.locations || [])
     setTopicPendingDelete(null)
     setTopicError('')
   }
@@ -997,12 +1001,13 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     setIsSavingTopic(true)
     setTopicError('')
     try {
+      const topicPayload = {
+        ...topicEditor,
+        autoAssign: { jobTitles: autoAssignJobTitles, locations: autoAssignLocations },
+      }
       const response = isNewTopic
-        ? await api.post('/training/monthly-topics', {
-            ...topicEditor,
-            autoAssign: { jobTitles: autoAssignJobTitles, locations: autoAssignLocations },
-          })
-        : await api.put(`/training/monthly-topics/${topicEditor.id}`, topicEditor)
+        ? await api.post('/training/monthly-topics', topicPayload)
+        : await api.put(`/training/monthly-topics/${topicEditor.id}`, topicPayload)
       const savedTopic = response.data.topic as MonthlyTopic
       setMonthlyTopics((current) => isNewTopic
         ? [...current, savedTopic]
@@ -1321,15 +1326,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topic.id)
                       const requirement = assignment?.requirement || 'Unassigned'
                       const required = requirement === 'Required'
+                      const hasFinishedHistory = assignment?.completionStatus === 'Finished' && Boolean(assignment.completionDate)
                       return [
                         <td className="min-w-[145px] border-b border-l-2 border-emerald-100 bg-emerald-50/20 px-4 py-3" key={`${topic.id}-requirement`}>
                           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${requirement === 'Required' ? 'bg-blue-50 text-blue-700' : requirement === 'Not Required' ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-700'}`}>{requirement}</span>
                         </td>,
                         <td className="min-w-[145px] border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-completion`}>
-                          {required ? <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment?.completionStatus === 'Finished' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{assignment?.completionStatus || 'Unfinished'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}
+                          {required || hasFinishedHistory ? <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${assignment?.completionStatus === 'Finished' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{assignment?.completionStatus || 'Unfinished'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}
                         </td>,
-                        <td className="min-w-[145px] whitespace-nowrap border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-date`}>{required && assignment?.completionStatus === 'Finished' ? displayDate(assignment.completionDate) : '—'}</td>,
-                        <td className="min-w-[145px] border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-folder`}>{required ? <span className={`text-xs font-semibold ${assignment?.folderUpdated ? 'text-emerald-700' : 'text-slate-500'}`}>{assignment?.folderUpdated ? 'Updated' : 'Not Updated'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}</td>,
+                        <td className="min-w-[145px] whitespace-nowrap border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-date`}>{hasFinishedHistory ? displayDate(assignment?.completionDate) : '—'}</td>,
+                        <td className="min-w-[145px] border-b bg-emerald-50/20 px-4 py-3" key={`${topic.id}-folder`}>{required || hasFinishedHistory ? <span className={`text-xs font-semibold ${assignment?.folderUpdated ? 'text-emerald-700' : 'text-slate-500'}`}>{assignment?.folderUpdated ? 'Updated' : 'Not Updated'}</span> : <span className="text-xs font-semibold text-slate-400">Blocked</span>}</td>,
                       ]
                     })}
                   </tr>
@@ -1550,20 +1556,20 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     </div>
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
                       <label className="block sm:col-span-2"><span className="text-sm font-semibold text-slate-700">Training Topic</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, name: event.target.value })} required value={topicEditor.name} /></label>
-                      <label className="block"><span className="text-sm font-semibold text-slate-700">Target Date</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, targetDate: event.target.value })} type="date" value={topicEditor.targetDate} /></label>
+                      <label className="block"><span className="text-sm font-semibold text-slate-700">Target Date</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, targetDate: event.target.value })} required type="date" value={topicEditor.targetDate} /></label>
                       <label className="block"><span className="text-sm font-semibold text-slate-700">Access Code</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 font-mono text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, accessCode: event.target.value })} value={topicEditor.accessCode} /></label>
                       <label className="block sm:col-span-2"><span className="text-sm font-semibold text-slate-700">Training Link</span><input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setTopicEditor({ ...topicEditor, link: event.target.value })} placeholder="https://..." type="url" value={topicEditor.link} /></label>
                     </div>
-                    {isNewTopic ? (
+                    {(
                       <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-                        <div className="flex flex-wrap items-start justify-between gap-2"><div><h4 className="font-semibold text-slate-900">Auto-Assign Employees</h4><p className="mt-1 text-xs text-slate-600">Optional. Matching active employees will be assigned as Required when this topic is created.</p></div><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700">{autoAssignMatchCount} employee{autoAssignMatchCount === 1 ? '' : 's'} match</span></div>
+                        <div className="flex flex-wrap items-start justify-between gap-2"><div><h4 className="font-semibold text-slate-900">Auto-Assign Employees</h4><p className="mt-1 text-xs text-slate-600">Matching active employees will be Required. Saving changed rules will recalculate this topic for all employees.</p></div><span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700">{autoAssignMatchCount} employee{autoAssignMatchCount === 1 ? '' : 's'} match</span></div>
                         <p className="mt-2 text-xs text-slate-500">Multiple values within a group use OR. When both groups are selected, Job Title and Location must both match.</p>
                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                           <fieldset><legend className="text-sm font-semibold text-slate-700">Job Title</legend><div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">{activeJobTitles.length ? activeJobTitles.map((jobTitle) => <label className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50" key={jobTitle}><input checked={autoAssignJobTitles.includes(jobTitle)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600" onChange={(event) => setAutoAssignJobTitles((current) => event.target.checked ? [...current, jobTitle] : current.filter((value) => value !== jobTitle))} type="checkbox" /><span>{jobTitle}</span></label>) : <div className="px-2 py-2 text-xs text-slate-500">No job titles available.</div>}</div></fieldset>
                           <fieldset><legend className="text-sm font-semibold text-slate-700">Location</legend><div className="mt-2 max-h-44 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2">{activeLocations.length ? activeLocations.map((location) => <label className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50" key={location}><input checked={autoAssignLocations.includes(location)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600" onChange={(event) => setAutoAssignLocations((current) => event.target.checked ? [...current, location] : current.filter((value) => value !== location))} type="checkbox" /><span>{location}</span></label>) : <div className="px-2 py-2 text-xs text-slate-500">No locations available.</div>}</div></fieldset>
                         </div>
                       </div>
-                    ) : null}
+                    )}
                     <div className="mt-6 flex items-center justify-between gap-3"><div><h4 className="font-semibold text-slate-900">Courses</h4><p className="mt-0.5 text-xs text-slate-500">Add, rename, or remove courses.</p></div><button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-emerald-700" onClick={() => setTopicEditor({ ...topicEditor, courses: [...topicEditor.courses, { id: '', title: '' }] })} type="button"><Plus className="h-4 w-4" />Add Course</button></div>
                     <div className="mt-3 space-y-2">{topicEditor.courses.map((course, index) => (
                       <div className="flex items-center gap-2" key={course.id || `new-monthly-course-${index}`}><input aria-label={`Monthly course ${index + 1}`} className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => updateTopicCourse(index, event.target.value)} placeholder="Training course name" value={course.title} /><button aria-label={`Remove monthly course ${index + 1}`} className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={() => setTopicEditor({ ...topicEditor, courses: topicEditor.courses.filter((_item, courseIndex) => courseIndex !== index) })} type="button"><Trash2 className="h-4 w-4" /></button></div>

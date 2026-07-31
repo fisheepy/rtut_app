@@ -7,6 +7,10 @@ function normalizeTopic(topic) {
     targetDate: String(topic.targetDate || '').trim(),
     link: String(topic.link || '').trim(),
     accessCode: String(topic.accessCode || '').trim(),
+    autoAssign: {
+      jobTitles: Array.isArray(topic.autoAssign?.jobTitles) ? topic.autoAssign.jobTitles.map(String) : [],
+      locations: Array.isArray(topic.autoAssign?.locations) ? topic.autoAssign.locations.map(String) : [],
+    },
     courses: (Array.isArray(topic.courses) ? topic.courses : []).map((course) => (
       typeof course === 'string'
         ? { id: randomUUID(), title: course.trim() }
@@ -24,7 +28,7 @@ function validateTopicInput(body, existingTopic = null) {
   const name = String(body?.name || '').trim();
   if (!name) return { error: 'Training topic name is required.' };
   const targetDate = String(body?.targetDate || '').trim();
-  if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return { error: 'Please enter a valid target date.' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return { error: 'Target date is required.' };
   const link = String(body?.link || '').trim();
   if (link) {
     try {
@@ -46,6 +50,10 @@ function validateTopicInput(body, existingTopic = null) {
       targetDate,
       link,
       accessCode: String(body?.accessCode || '').trim(),
+      autoAssign: {
+        jobTitles: Array.isArray(body?.autoAssign?.jobTitles) ? body.autoAssign.jobTitles.map(String) : [],
+        locations: Array.isArray(body?.autoAssign?.locations) ? body.autoAssign.locations.map(String) : [],
+      },
       courses,
     },
   };
@@ -69,17 +77,17 @@ function normalizeMonthly(record, currentTopics = []) {
   const currentById = new Map(currentTopics.map((topic) => [topic.id, normalizeTopic(topic)]));
   const topicIds = [...currentById.keys()];
   for (const [topicId, assignment] of Object.entries(storedAssignments)) {
-    if (!topicIds.includes(topicId) && assignment?.requirement !== 'Unassigned' && assignment?.topicSnapshot) topicIds.push(topicId);
+    if (!topicIds.includes(topicId) && (assignment?.requirement !== 'Unassigned' || assignment?.completionStatus === 'Finished') && assignment?.topicSnapshot) topicIds.push(topicId);
   }
 
   const assignments = topicIds.map((topicId) => {
     const stored = storedAssignments[topicId] || {};
     const requirement = ['Required', 'Not Required'].includes(stored.requirement) ? stored.requirement : 'Unassigned';
-    const topic = requirement !== 'Unassigned' && stored.topicSnapshot
+    const topic = (requirement !== 'Unassigned' || stored.completionStatus === 'Finished') && stored.topicSnapshot
       ? normalizeTopic(stored.topicSnapshot)
       : currentById.get(topicId);
     if (!topic) return null;
-    const completionStatus = requirement === 'Required' && stored.completionStatus === 'Finished'
+    const completionStatus = ['Required', 'Unassigned'].includes(requirement) && stored.completionStatus === 'Finished'
       ? 'Finished'
       : 'Unfinished';
     const completionDate = completionStatus === 'Finished'
@@ -92,7 +100,7 @@ function normalizeMonthly(record, currentTopics = []) {
       requirement,
       completionStatus,
       completionDate,
-      folderUpdated: requirement === 'Required' && stored.folderUpdated === true,
+      folderUpdated: completionStatus === 'Finished' && stored.folderUpdated === true,
     };
   }).filter(Boolean);
 
@@ -119,7 +127,7 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
   const currentById = new Map(currentTopics.map((topic) => [topic.id, normalizeTopic(topic)]));
   const topicIds = [...currentById.keys()];
   for (const [topicId, assignment] of Object.entries(existingAssignments)) {
-    if (!topicIds.includes(topicId) && assignment?.requirement !== 'Unassigned' && assignment?.topicSnapshot) topicIds.push(topicId);
+    if (!topicIds.includes(topicId) && (assignment?.requirement !== 'Unassigned' || assignment?.completionStatus === 'Finished') && assignment?.topicSnapshot) topicIds.push(topicId);
   }
   const topicAssignments = {};
 
@@ -127,11 +135,16 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
     const value = incoming[topicId] || {};
     const requirement = ['Required', 'Not Required'].includes(value.requirement) ? value.requirement : 'Unassigned';
     const existing = existingAssignments[topicId] || {};
-    const topicSnapshot = requirement !== 'Unassigned'
+    const requestedFinished = value.completionStatus === 'Finished';
+    const hasFinishedHistory = requestedFinished && /^\d{4}-\d{2}-\d{2}$/.test(String(value.completionDate || ''));
+    const topicSnapshot = requirement !== 'Unassigned' || hasFinishedHistory
       ? existing.topicSnapshot || currentById.get(topicId)
       : null;
     if (!topicSnapshot && requirement !== 'Unassigned') continue;
-    const completionStatus = requirement === 'Required' && value.completionStatus === 'Finished' ? 'Finished' : 'Unfinished';
+    const completionStatus = requirement === 'Required' && requestedFinished
+      || requirement === 'Unassigned' && hasFinishedHistory
+      ? 'Finished'
+      : 'Unfinished';
     const completionDate = completionStatus === 'Finished' && /^\d{4}-\d{2}-\d{2}$/.test(String(value.completionDate || ''))
       ? String(value.completionDate)
       : null;
@@ -142,7 +155,7 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
       requirement,
       completionStatus,
       completionDate,
-      folderUpdated: requirement === 'Required' && value.folderUpdated === true,
+      folderUpdated: completionStatus === 'Finished' && value.folderUpdated === true,
       ...(topicSnapshot ? { topicSnapshot: normalizeTopic(topicSnapshot) } : {}),
     };
   }

@@ -47,6 +47,21 @@ test('not required blocks completion fields', () => {
   assert.equal(assignment.folderUpdated, false);
 });
 
+test('keeps finished history when an employee becomes unassigned', () => {
+  const finished = sanitizeMonthlyInput({ topicAssignments: {
+    'topic-1': { requirement: 'Required', completionStatus: 'Finished', completionDate: '2026-08-15', folderUpdated: true },
+  } }, [topic]);
+  const existingRecord = { monthly: { topicAssignments: finished.topicAssignments } };
+  const unassigned = sanitizeMonthlyInput({ topicAssignments: {
+    'topic-1': { requirement: 'Unassigned', completionStatus: 'Finished', completionDate: '2026-08-15', folderUpdated: true },
+  } }, [topic], existingRecord);
+  const assignment = unassigned.monthly.assignments[0];
+  assert.equal(assignment.requirement, 'Unassigned');
+  assert.equal(assignment.completionStatus, 'Finished');
+  assert.equal(assignment.completionDate, '2026-08-15');
+  assert.equal(assignment.folderUpdated, true);
+});
+
 test('assigned monthly topic snapshot survives catalog edits and deletion', () => {
   const firstSave = sanitizeMonthlyInput({ topicAssignments: { 'topic-1': { requirement: 'Required' } } }, [topic]);
   const existingRecord = { monthly: { topicAssignments: firstSave.topicAssignments } };
@@ -59,7 +74,8 @@ test('assigned monthly topic snapshot survives catalog edits and deletion', () =
 
 test('validates monthly topic fields', () => {
   assert.match(validateTopicInput({ name: '', courses: [] }).error, /name/);
-  assert.match(validateTopicInput({ name: 'Topic', link: 'http://example.com', courses: [{ title: 'Course' }] }).error, /HTTPS/);
+  assert.match(validateTopicInput({ name: 'Topic', courses: [{ title: 'Course' }] }).error, /Target date/);
+  assert.match(validateTopicInput({ name: 'Topic', targetDate: '2026-08-31', link: 'http://example.com', courses: [{ title: 'Course' }] }).error, /HTTPS/);
   assert.equal(validateTopicInput({ name: 'Topic', targetDate: '2026-08-31', courses: [{ title: 'Course' }] }).topic.name, 'Topic');
 });
 

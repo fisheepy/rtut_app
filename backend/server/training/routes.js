@@ -26,6 +26,60 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
     },
   });
 
+  async function reconcileMonthlyTopicAssignments(db, topic, adminEmail) {
+    const employees = await db.collection('employees').find({}).toArray();
+    const monthlyTopics = await getMonthlyTopics(db);
+    const employeeIds = employees.map((employee) => String(employee._id));
+    const existingRecords = employeeIds.length
+      ? await db.collection('employee_training').find({ employeeId: { $in: employeeIds } }).toArray()
+      : [];
+    const existingByEmployeeId = new Map(existingRecords.map((record) => [String(record.employeeId), record]));
+    let assignedCount = 0;
+    const operations = [];
+
+    for (const employee of employees) {
+      const employeeId = String(employee._id);
+      const existing = existingByEmployeeId.get(employeeId);
+      const assignments = normalizeMonthly(existing, monthlyTopics).assignments;
+      const currentAssignment = assignments.find((assignment) => assignment.topic.id === topic.id);
+      const matches = employeeMatchesAssignmentCriteria(normalizeEmployee(employee, null, [], []), topic.autoAssign);
+      if (matches) assignedCount += 1;
+      const hasExistingHistory = currentAssignment
+        && (currentAssignment.requirement !== 'Unassigned' || currentAssignment.completionStatus === 'Finished');
+      if (!matches && !hasExistingHistory) continue;
+
+      const topicAssignments = Object.fromEntries(assignments.map((assignment) => {
+        if (assignment.topic.id !== topic.id) return [assignment.topic.id, {
+          requirement: assignment.requirement,
+          completionStatus: assignment.completionStatus,
+          completionDate: assignment.completionDate,
+          folderUpdated: assignment.folderUpdated,
+        }];
+        const keepFinished = assignment.completionStatus === 'Finished' && Boolean(assignment.completionDate);
+        return [assignment.topic.id, {
+          requirement: matches ? 'Required' : 'Unassigned',
+          completionStatus: keepFinished ? 'Finished' : 'Unfinished',
+          completionDate: keepFinished ? assignment.completionDate : null,
+          folderUpdated: keepFinished && assignment.folderUpdated,
+        }];
+      }));
+      const sanitized = sanitizeMonthlyInput({ topicAssignments }, monthlyTopics, existing);
+      operations.push({
+        updateOne: {
+          filter: { employeeId },
+          update: { $set: {
+            monthly: { topicAssignments: sanitized.topicAssignments },
+            monthlyUpdatedAt: new Date(),
+            monthlyUpdatedBy: adminEmail || null,
+          } },
+          upsert: true,
+        },
+      });
+    }
+    if (operations.length) await db.collection('employee_training').bulkWrite(operations);
+    return assignedCount;
+  }
+
   router.use(requireTrainingSession);
 
   router.get('/employees', async (_req, res) => {
@@ -194,48 +248,8 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
       const topic = { ...result.topic, order: Date.now() };
       await db.collection('monthly_training_topics').insertOne(topic);
 
-      const criteria = req.body?.autoAssign || {};
-      const employees = await db.collection('employees').find({}).toArray();
-      const matchedEmployees = employees.filter((employee) => employeeMatchesAssignmentCriteria(
-        normalizeEmployee(employee, null, [], []),
-        criteria,
-      ));
-      if (matchedEmployees.length) {
-        const monthlyTopics = await getMonthlyTopics(db);
-        const employeeIds = matchedEmployees.map((employee) => String(employee._id));
-        const existingRecords = await db.collection('employee_training').find({ employeeId: { $in: employeeIds } }).toArray();
-        const existingByEmployeeId = new Map(existingRecords.map((record) => [String(record.employeeId), record]));
-        const now = new Date();
-        await db.collection('employee_training').bulkWrite(matchedEmployees.map((employee) => {
-          const employeeId = String(employee._id);
-          const existing = existingByEmployeeId.get(employeeId);
-          const assignments = normalizeMonthly(existing, monthlyTopics).assignments;
-          const topicAssignments = Object.fromEntries(assignments.map((assignment) => [
-            assignment.topic.id,
-            assignment.topic.id === result.topic.id
-              ? { requirement: 'Required', completionStatus: 'Unfinished', completionDate: null, folderUpdated: false }
-              : {
-                  requirement: assignment.requirement,
-                  completionStatus: assignment.completionStatus,
-                  completionDate: assignment.completionDate,
-                  folderUpdated: assignment.folderUpdated,
-                },
-          ]));
-          const sanitized = sanitizeMonthlyInput({ topicAssignments }, monthlyTopics, existing);
-          return {
-            updateOne: {
-              filter: { employeeId },
-              update: { $set: {
-                monthly: { topicAssignments: sanitized.topicAssignments },
-                monthlyUpdatedAt: now,
-                monthlyUpdatedBy: req.adminSession?.email || null,
-              } },
-              upsert: true,
-            },
-          };
-        }));
-      }
-      return res.status(201).json({ topic: result.topic, assignedCount: matchedEmployees.length });
+      const assignedCount = await reconcileMonthlyTopicAssignments(db, result.topic, req.adminSession?.email);
+      return res.status(201).json({ topic: result.topic, assignedCount });
     } catch (error) {
       console.error('Unable to add monthly training topic:', error);
       return res.status(500).json({ error: 'The monthly training topic could not be added.' });
@@ -248,7 +262,8 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const collection = client.db(databaseName).collection('monthly_training_topics');
+      const db = client.db(databaseName);
+      const collection = db.collection('monthly_training_topics');
       const existing = await collection.findOne({ id: req.params.topicId });
       if (!existing) return res.status(404).json({ error: 'Monthly training topic not found.' });
       const result = validateTopicInput(req.body, existing);
@@ -257,7 +272,8 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
         { id: req.params.topicId },
         { $set: { ...result.topic, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
       );
-      return res.json({ topic: result.topic });
+      const assignedCount = await reconcileMonthlyTopicAssignments(db, result.topic, req.adminSession?.email);
+      return res.json({ topic: result.topic, assignedCount });
     } catch (error) {
       console.error('Unable to update monthly training topic:', error);
       return res.status(500).json({ error: 'The monthly training topic could not be updated.' });
