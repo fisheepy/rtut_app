@@ -48,11 +48,20 @@ test('tracks a different completion date for every monthly course', () => {
   } } }, [twoCourseTopic]);
   assert.equal(partial.monthly.assignments[0].completionStatus, 'Unfinished');
 
-  const finished = sanitizeMonthlyInput({ topicAssignments: { 'topic-1': {
+  const datesOnly = sanitizeMonthlyInput({ topicAssignments: { 'topic-1': {
     requirement: 'Required',
     courseProgress: {
       'course-1': { completedAt: '2026-08-10', folderUpdated: true },
       'course-2': { completedAt: '2026-08-20', folderUpdated: false },
+    },
+  } } }, [twoCourseTopic]);
+  assert.equal(datesOnly.monthly.assignments[0].completionStatus, 'Unfinished');
+
+  const finished = sanitizeMonthlyInput({ topicAssignments: { 'topic-1': {
+    requirement: 'Required',
+    courseProgress: {
+      'course-1': { completedAt: '2026-08-10', folderUpdated: true },
+      'course-2': { completedAt: '2026-08-20', folderUpdated: true },
     },
   } } }, [twoCourseTopic]);
   const assignment = finished.monthly.assignments[0];
@@ -60,7 +69,7 @@ test('tracks a different completion date for every monthly course', () => {
   assert.equal(assignment.courseProgress['course-1'].completedAt, '2026-08-10');
   assert.equal(assignment.courseProgress['course-2'].completedAt, '2026-08-20');
   assert.equal(assignment.courseProgress['course-1'].folderUpdated, true);
-  assert.equal(assignment.courseProgress['course-2'].folderUpdated, false);
+  assert.equal(assignment.courseProgress['course-2'].folderUpdated, true);
   assert.equal(assignment.completionDate, '2026-08-20');
 });
 

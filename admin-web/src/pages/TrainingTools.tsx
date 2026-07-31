@@ -634,14 +634,15 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const assigned = employee.training.orientation.assignedLibraries.some((library) => library.id === course.libraryId)
       if (!assigned) return 'Unassigned'
       const progress = employee.training.orientation.courseProgress[`${course.libraryId}:${course.courseId}`]
-      return progress?.completedAt ? 'Finished' : 'Unfinished'
+      return progress?.completedAt && progress.folderUpdated ? 'Finished' : 'Unfinished'
     }
     const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === course.topicId)
     if (!assignment) return 'Unassigned'
-    if (assignment.courseProgress?.[course.courseId || '']?.completedAt) return 'Finished'
+    const progress = assignment.courseProgress?.[course.courseId || '']
+    if (progress?.completedAt && progress.folderUpdated) return 'Finished'
     if (assignment.requirement === 'Unassigned') return 'Unassigned'
     if (assignment.requirement === 'Not Required') return 'Not Required'
-    return assignment.courseProgress?.[course.courseId || '']?.completedAt ? 'Finished' : 'Unfinished'
+    return progress?.completedAt && progress.folderUpdated ? 'Finished' : 'Unfinished'
   }
 
   const reportStatusOptions = selectedReportCourses.length
@@ -810,7 +811,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       if (!isTestMonthlyTopic(assignment.topic.name) && (assignment.requirement === 'Required' || (assignment.completionStatus === 'Finished' && assignment.completionDate))) {
         assignment.topic.courses.forEach((course) => {
           const completedAt = assignment.courseProgress?.[course.id]?.completedAt || ''
-          rows.push(['Monthly Training', assignment.topic.name, course.title, completedAt ? 'Finished' : 'Unfinished', completedAt, assignment.courseProgress?.[course.id]?.folderUpdated ? 'Yes' : 'No'])
+          const folderUpdated = assignment.courseProgress?.[course.id]?.folderUpdated === true
+          rows.push(['Monthly Training', assignment.topic.name, course.title, completedAt && folderUpdated ? 'Finished' : 'Unfinished', completedAt, folderUpdated ? 'Yes' : 'No'])
         })
       }
     })
@@ -939,7 +941,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const existingProgress = assignment.courseProgress?.[courseId] || { completedAt: null, folderUpdated: false }
       const courseProgress = { ...assignment.courseProgress, [courseId]: { ...existingProgress, completedAt, folderUpdated: Boolean(completedAt) && existingProgress.folderUpdated } }
       const dates = assignment.topic.courses.map((course) => courseProgress[course.id]?.completedAt).filter((date): date is string => Boolean(date)).sort()
-      const finished = assignment.topic.courses.length > 0 && dates.length === assignment.topic.courses.length
+      const finished = assignment.topic.courses.length > 0 && assignment.topic.courses.every((course) => courseProgress[course.id]?.completedAt && courseProgress[course.id]?.folderUpdated)
       return {
         ...assignment,
         courseProgress,
@@ -950,12 +952,20 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   }
 
   function updateMonthlyCourseFolder(topicId: string, courseId: string, folderUpdated: boolean) {
-    setMonthlyAssignments((current) => current.map((assignment) => assignment.topic.id !== topicId ? assignment : {
-      ...assignment,
-      courseProgress: {
+    setMonthlyAssignments((current) => current.map((assignment) => {
+      if (assignment.topic.id !== topicId) return assignment
+      const courseProgress = {
         ...assignment.courseProgress,
         [courseId]: { ...(assignment.courseProgress?.[courseId] || { completedAt: null }), folderUpdated },
-      },
+      }
+      const dates = assignment.topic.courses.map((course) => courseProgress[course.id]?.completedAt).filter((date): date is string => Boolean(date)).sort()
+      const finished = assignment.topic.courses.length > 0 && assignment.topic.courses.every((course) => courseProgress[course.id]?.completedAt && courseProgress[course.id]?.folderUpdated)
+      return {
+        ...assignment,
+        courseProgress,
+        completionStatus: finished ? 'Finished' : 'Unfinished',
+        completionDate: finished ? dates.at(-1) || null : null,
+      }
     }))
   }
 
@@ -1462,7 +1472,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               )}
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-6 py-4">
-              <div className="text-xs text-slate-500">Enter a date for each course. Completion becomes Finished automatically when every course has a date.</div>
+              <div className="text-xs text-slate-500">Each course becomes complete only after its date is entered and Folder Updated is checked. The topic becomes Finished when every course is complete.</div>
               <div className="flex gap-3">
                 <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700" onClick={() => setMonthlyEmployee(null)} type="button">Cancel</button>
                 <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={isSavingMonthly} onClick={saveMonthly} type="button">{isSavingMonthly ? <RefreshCw className="h-4 w-4 animate-spin" /> : <BookOpenCheck className="h-4 w-4" />}Save Monthly Training</button>

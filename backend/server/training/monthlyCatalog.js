@@ -98,7 +98,8 @@ function normalizeMonthly(record, currentTopics = []) {
       return [course.id, { completedAt: completedAt || null, folderUpdated }];
     }));
     const courseDates = Object.values(courseProgress).map((progress) => progress.completedAt).filter(Boolean).sort();
-    const allCoursesFinished = topic.courses.length > 0 && courseDates.length === topic.courses.length;
+    const allCoursesFinished = topic.courses.length > 0
+      && topic.courses.every((course) => courseProgress[course.id]?.completedAt && courseProgress[course.id]?.folderUpdated);
     const completionStatus = ['Required', 'Unassigned'].includes(requirement) && allCoursesFinished ? 'Finished' : 'Unfinished';
     const completionDate = completionStatus === 'Finished' ? courseDates.at(-1) : null;
     return {
@@ -157,9 +158,10 @@ function sanitizeMonthlyInput(body, currentTopics, existingRecord = null) {
       return [course.id, { completedAt: completedAt || null, folderUpdated }];
     }));
     const courseDates = Object.values(courseProgress).map((progress) => progress.completedAt).filter(Boolean).sort();
-    const allCoursesFinished = Boolean(normalizedTopic?.courses.length) && courseDates.length === normalizedTopic.courses.length;
+    const allCoursesFinished = Boolean(normalizedTopic?.courses.length)
+      && normalizedTopic.courses.every((course) => courseProgress[course.id]?.completedAt && courseProgress[course.id]?.folderUpdated);
     if (requirement === 'Required' && requestedFinished && !allCoursesFinished) {
-      return { error: `Enter a completion date for every course in ${normalizedTopic.name}.` };
+      return { error: `Enter a completion date and confirm Folder Updated for every course in ${normalizedTopic.name}.` };
     }
     const keepCourseProgress = requirement === 'Required' || requirement === 'Unassigned' && allCoursesFinished;
     const completionStatus = keepCourseProgress && allCoursesFinished ? 'Finished' : 'Unfinished';
