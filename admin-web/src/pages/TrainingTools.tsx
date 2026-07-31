@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, ExternalLink, GraduationCap, KeyRound, Link2, LogOut, Mail, RefreshCw, Search, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, Download, ExternalLink, GraduationCap, KeyRound, Link2, LogOut, Mail, Plus, RefreshCw, Search, Settings, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
 
@@ -23,8 +23,9 @@ type OrientationTraining = TrainingStatus & {
 type OrientationLibrary = {
   id: string
   name: string
+  link: string
   accessCode: string
-  courses: string[]
+  courses: { id: string; title: string }[]
 }
 
 type TrainingEmployee = {
@@ -345,6 +346,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [courseProgress, setCourseProgress] = useState<Record<string, CourseProgress>>({})
   const [orientationError, setOrientationError] = useState('')
   const [isSavingOrientation, setIsSavingOrientation] = useState(false)
+  const [showOrientationSettings, setShowOrientationSettings] = useState(false)
+  const [libraryEditor, setLibraryEditor] = useState<OrientationLibrary | null>(null)
+  const [isNewLibrary, setIsNewLibrary] = useState(false)
+  const [libraryError, setLibraryError] = useState('')
+  const [isSavingLibrary, setIsSavingLibrary] = useState(false)
+  const [libraryPendingDelete, setLibraryPendingDelete] = useState<OrientationLibrary | null>(null)
   const [tableScrollWidth, setTableScrollWidth] = useState(0)
   const [showBackToTop, setShowBackToTop] = useState(false)
 
@@ -477,8 +484,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const selectedOrientationLibraries = orientationLibraries.filter((library) => assignedLibraryIds.includes(library.id))
   const orientationRequiredCount = selectedOrientationLibraries.reduce((total, library) => total + library.courses.length, 0)
   const orientationCompletedCount = selectedOrientationLibraries.reduce((total, library) => (
-    total + library.courses.filter((_course, courseIndex) => {
-      const progress = courseProgress[`${library.id}:${courseIndex}`]
+    total + library.courses.filter((course) => {
+      const progress = courseProgress[`${library.id}:${course.id}`]
       return Boolean(progress?.completedAt && progress?.folderUpdated)
     }).length
   ), 0)
@@ -564,6 +571,118 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     }
   }
 
+  function downloadOrientationReport() {
+    const libraryNames = new Map(orientationLibraries.map((library) => [library.id, library.name]))
+    const rows = employees
+      .slice()
+      .sort((left, right) => (
+        left.training.orientation.status.localeCompare(right.training.orientation.status)
+        || left.employeeName.localeCompare(right.employeeName)
+      ))
+      .map((employee) => [
+        employee.training.orientation.status,
+        employee.employeeName,
+        employee.employmentStatus,
+        employee.jobTitle,
+        employee.location,
+        employee.department,
+        employee.reportingTo,
+        employee.firstDay,
+        employee.training.orientation.assignedLibraryIds.map((id) => libraryNames.get(id) || id).join('; '),
+        `${employee.training.orientation.completedCourseCount}/${employee.training.orientation.requiredCourseCount}`,
+        employee.training.orientation.completedAt || '',
+      ])
+    const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
+    const csv = [
+      ['Orientation Status', 'Employee Name', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Libraries', 'Courses Complete', 'Orientation Finished Date'],
+      ...rows,
+    ].map((row) => row.map(csvCell).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `orientation-training-report-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function openOrientationSettings() {
+    setShowOrientationSettings(true)
+    setLibraryEditor(null)
+    setLibraryPendingDelete(null)
+    setLibraryError('')
+  }
+
+  function editLibrary(library?: OrientationLibrary) {
+    setLibraryEditor(library
+      ? JSON.parse(JSON.stringify(library))
+      : { id: '', name: '', link: '', accessCode: '', courses: [{ id: '', title: '' }] })
+    setIsNewLibrary(!library)
+    setLibraryPendingDelete(null)
+    setLibraryError('')
+  }
+
+  function updateLibraryCourse(index: number, title: string) {
+    setLibraryEditor((current) => current ? {
+      ...current,
+      courses: current.courses.map((course, courseIndex) => (
+        courseIndex === index ? { ...course, title } : course
+      )),
+    } : current)
+  }
+
+  function removeLibraryCourse(index: number) {
+    setLibraryEditor((current) => current ? {
+      ...current,
+      courses: current.courses.filter((_course, courseIndex) => courseIndex !== index),
+    } : current)
+  }
+
+  async function saveLibrary(event: React.FormEvent) {
+    event.preventDefault()
+    if (!libraryEditor) return
+    setIsSavingLibrary(true)
+    setLibraryError('')
+    try {
+      const response = isNewLibrary
+        ? await api.post('/training/orientation-libraries', libraryEditor)
+        : await api.put(`/training/orientation-libraries/${libraryEditor.id}`, libraryEditor)
+      const savedLibrary = response.data.library as OrientationLibrary
+      setOrientationLibraries((current) => isNewLibrary
+        ? [...current, savedLibrary]
+        : current.map((library) => library.id === savedLibrary.id ? savedLibrary : library))
+      setLibraryEditor(null)
+      await loadEmployees(false)
+    } catch (requestError: any) {
+      if (requestError.response?.status === 401) {
+        setShowOrientationSettings(false)
+        onLogout()
+        return
+      }
+      setLibraryError(requestError.response?.data?.error || 'The orientation library could not be saved.')
+    } finally {
+      setIsSavingLibrary(false)
+    }
+  }
+
+  async function deleteLibrary() {
+    if (!libraryPendingDelete) return
+    setIsSavingLibrary(true)
+    setLibraryError('')
+    try {
+      await api.delete(`/training/orientation-libraries/${libraryPendingDelete.id}`)
+      setOrientationLibraries((current) => current.filter((library) => library.id !== libraryPendingDelete.id))
+      setLibraryPendingDelete(null)
+      setLibraryEditor(null)
+      await loadEmployees(false)
+    } catch (requestError: any) {
+      setLibraryError(requestError.response?.data?.error || 'The orientation library could not be deleted.')
+    } finally {
+      setIsSavingLibrary(false)
+    }
+  }
+
   return (
     <div className="space-y-6 pb-10">
       <section className="relative overflow-hidden rounded-2xl border border-white/70 bg-slate-950 px-6 py-7 text-white shadow-xl md:px-8">
@@ -618,10 +737,20 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               </div>
               <p className="mt-1 text-sm text-slate-500">{source ? `Employee data: ${source}` : 'Employee and training records'}</p>
             </div>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => loadEmployees()} type="button">
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={downloadOrientationReport} type="button">
+                <Download className="h-4 w-4" />
+                Download Orientation Report
+              </button>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={openOrientationSettings} type="button">
+                <Settings className="h-4 w-4" />
+                Orientation Library Settings
+              </button>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => loadEmployees()} type="button">
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
           </div>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <label className="relative flex-1">
@@ -832,6 +961,130 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         </button>
       ) : null}
 
+      {showOrientationSettings ? (
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/60 p-4" role="presentation">
+          <section aria-labelledby="library-settings-title" aria-modal="true" className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950" id="library-settings-title">Orientation Library Settings</h2>
+                <p className="mt-1 text-sm text-slate-500">Manage library names, links, access codes, and training courses.</p>
+              </div>
+              <button aria-label="Close orientation library settings" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowOrientationSettings(false)} type="button">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_1fr]">
+              <aside className="overflow-y-auto border-b border-slate-200 bg-slate-50 p-4 lg:border-b-0 lg:border-r">
+                <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800" onClick={() => editLibrary()} type="button">
+                  <Plus className="h-4 w-4" />
+                  Add Library
+                </button>
+                <div className="mt-4 space-y-2">
+                  {orientationLibraries.map((library) => (
+                    <button
+                      className={`w-full rounded-lg border p-3 text-left ${libraryEditor?.id === library.id ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-200'}`}
+                      key={library.id}
+                      onClick={() => editLibrary(library)}
+                      type="button"
+                    >
+                      <span className="block text-sm font-semibold text-slate-800">{library.name}</span>
+                      <span className="mt-1 block text-xs text-slate-500">{library.courses.length} courses · {library.accessCode || 'No access code'}</span>
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              <div className="overflow-y-auto p-5 md:p-6">
+                {!libraryEditor ? (
+                  <div className="grid min-h-64 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                    <div>
+                      <Settings className="mx-auto h-10 w-10 text-slate-400" />
+                      <div className="mt-3 font-semibold text-slate-800">Select a library to modify</div>
+                      <p className="mt-1 text-sm text-slate-500">You can also add a new orientation library.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={saveLibrary}>
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-slate-900">{isNewLibrary ? 'Add Orientation Library' : 'Edit Orientation Library'}</h3>
+                      {!isNewLibrary ? (
+                        <button className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-700" onClick={() => setLibraryPendingDelete(libraryEditor)} type="button">
+                          <Trash2 className="h-4 w-4" />
+                          Delete Library
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <label className="block sm:col-span-2">
+                        <span className="text-sm font-semibold text-slate-700">Library Name</span>
+                        <input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" onChange={(event) => setLibraryEditor({ ...libraryEditor, name: event.target.value })} required value={libraryEditor.name} />
+                      </label>
+                      <label className="block">
+                        <span className="text-sm font-semibold text-slate-700">Library Access Code</span>
+                        <input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 font-mono text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" onChange={(event) => setLibraryEditor({ ...libraryEditor, accessCode: event.target.value })} value={libraryEditor.accessCode} />
+                      </label>
+                      <label className="block">
+                        <span className="text-sm font-semibold text-slate-700">Library Link</span>
+                        <input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" onChange={(event) => setLibraryEditor({ ...libraryEditor, link: event.target.value })} placeholder="https://..." type="url" value={libraryEditor.link} />
+                      </label>
+                    </div>
+
+                    <div className="mt-6 flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="font-semibold text-slate-900">Training Courses</h4>
+                        <p className="mt-0.5 text-xs text-slate-500">Add, rename, or remove courses in this library.</p>
+                      </div>
+                      <button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onClick={() => setLibraryEditor({ ...libraryEditor, courses: [...libraryEditor.courses, { id: '', title: '' }] })} type="button">
+                        <Plus className="h-4 w-4" />
+                        Add Course
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {libraryEditor.courses.map((course, index) => (
+                        <div className="flex items-center gap-2" key={course.id || `new-course-${index}`}>
+                          <input
+                            aria-label={`Course ${index + 1}`}
+                            className="flex-1 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                            onChange={(event) => updateLibraryCourse(index, event.target.value)}
+                            placeholder="Training course name"
+                            value={course.title}
+                          />
+                          <button aria-label={`Remove course ${index + 1}`} className="rounded-lg p-2.5 text-red-500 hover:bg-red-50" onClick={() => removeLibraryCourse(index)} type="button">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {libraryPendingDelete?.id === libraryEditor.id ? (
+                      <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
+                        <div className="font-semibold text-red-800">Delete {libraryEditor.name}?</div>
+                        <p className="mt-1 text-sm text-red-700">This removes the library from employee assignments and may change their automatic Orientation status.</p>
+                        <div className="mt-3 flex gap-2">
+                          <button className="rounded-lg bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50" disabled={isSavingLibrary} onClick={deleteLibrary} type="button">Confirm Delete</button>
+                          <button className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700" onClick={() => setLibraryPendingDelete(null)} type="button">Keep Library</button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {libraryError ? <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{libraryError}</div> : null}
+                    <div className="mt-6 flex justify-end gap-3 border-t border-slate-200 pt-4">
+                      <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setLibraryEditor(null)} type="button">Cancel</button>
+                      <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60" disabled={isSavingLibrary} type="submit">
+                        {isSavingLibrary ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Settings className="h-4 w-4" />}
+                        Save Library
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {orientationEmployee ? (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/60 p-4" role="presentation">
           <section
@@ -904,10 +1157,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                           <div>
                             <h3 className="font-semibold text-slate-900">{library.name}</h3>
                             <p className="mt-0.5 text-xs text-slate-500">Access Code: <span className="font-mono font-semibold text-slate-700">{library.accessCode}</span></p>
+                            {library.link ? (
+                              <a className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-800" href={library.link} rel="noreferrer" target="_blank">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Open Library
+                              </a>
+                            ) : null}
                           </div>
                           <span className="text-xs font-semibold text-slate-500">
-                            {library.courses.filter((_course, index) => {
-                              const progress = courseProgress[`${library.id}:${index}`]
+                            {library.courses.filter((course) => {
+                              const progress = courseProgress[`${library.id}:${course.id}`]
                               return progress?.completedAt && progress?.folderUpdated
                             }).length}/{library.courses.length} complete
                           </span>
@@ -922,16 +1181,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                               </tr>
                             </thead>
                             <tbody>
-                              {library.courses.map((course, courseIndex) => {
-                                const key = `${library.id}:${courseIndex}`
+                              {library.courses.map((course) => {
+                                const key = `${library.id}:${course.id}`
                                 const progress = courseProgress[key] || { completedAt: null, folderUpdated: false }
                                 const courseFinished = Boolean(progress.completedAt && progress.folderUpdated)
                                 return (
                                   <tr className={courseFinished ? 'bg-emerald-50/50' : 'even:bg-slate-50/60'} key={key}>
-                                    <td className="border-b border-slate-100 px-4 py-3 font-medium text-slate-800">{course}</td>
+                                    <td className="border-b border-slate-100 px-4 py-3 font-medium text-slate-800">{course.title}</td>
                                     <td className="border-b border-slate-100 px-4 py-3">
                                       <input
-                                        aria-label={`${course} completion date`}
+                                        aria-label={`${course.title} completion date`}
                                         className="w-full rounded-lg border border-slate-200 px-2.5 py-2 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                                         onChange={(event) => updateCourseProgress(key, { completedAt: event.target.value || null })}
                                         type="date"

@@ -3,8 +3,9 @@ const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { normalizeEmployee } = require('./employeeData');
 const { isAllowedFolderUrl } = require('./folderLink');
 const {
-  ORIENTATION_LIBRARIES,
+  getOrientationLibraries,
   sanitizeOrientationInput,
+  validateLibraryInput,
 } = require('./orientationCatalog');
 
 function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
@@ -25,6 +26,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
+      const orientationLibraries = await getOrientationLibraries(db);
       const employees = await db.collection('employees').find({}).project({
         'First Name': 1,
         'Last Name': 1,
@@ -56,6 +58,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
         .map((employee) => normalizeEmployee(
           employee,
           trainingByEmployeeId.get(String(employee._id)),
+          orientationLibraries,
         ))
         .sort((left, right) => {
           if (left.employmentStatus !== right.employmentStatus) {
@@ -68,7 +71,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
         employees: data,
         source: 'Company App employee roster',
         trainingTypes: ['Orientation Training', 'Monthly Training'],
-        orientationLibraries: ORIENTATION_LIBRARIES,
+        orientationLibraries,
       });
     } catch (error) {
       console.error('Unable to load training employees:', error);
@@ -81,12 +84,13 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
   });
 
   router.put('/employees/:employeeId/orientation', async (req, res) => {
-    const orientation = sanitizeOrientationInput(req.body);
     const client = createClient();
 
     try {
       await client.connect();
       const db = client.db(databaseName);
+      const orientationLibraries = await getOrientationLibraries(db);
+      const orientation = sanitizeOrientationInput(req.body, orientationLibraries);
       const employee = ObjectId.isValid(req.params.employeeId)
         ? await db.collection('employees').findOne({ _id: new ObjectId(req.params.employeeId) })
         : null;
@@ -111,6 +115,63 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
     } catch (error) {
       console.error('Unable to save employee orientation training:', error);
       return res.status(500).json({ error: 'Orientation training could not be saved.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.post('/orientation-libraries', async (req, res) => {
+    const result = validateLibraryInput(req.body);
+    if (result.error) return res.status(400).json({ error: result.error });
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const library = { ...result.library, order: Date.now() };
+      await db.collection('orientation_libraries').insertOne(library);
+      return res.status(201).json({ library: result.library });
+    } catch (error) {
+      console.error('Unable to add orientation library:', error);
+      return res.status(500).json({ error: 'The orientation library could not be added.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.put('/orientation-libraries/:libraryId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const collection = db.collection('orientation_libraries');
+      const existing = await collection.findOne({ id: req.params.libraryId });
+      if (!existing) return res.status(404).json({ error: 'Orientation library not found.' });
+      const result = validateLibraryInput(req.body, existing);
+      if (result.error) return res.status(400).json({ error: result.error });
+      await collection.updateOne(
+        { id: req.params.libraryId },
+        { $set: { ...result.library, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
+      );
+      return res.json({ library: result.library });
+    } catch (error) {
+      console.error('Unable to update orientation library:', error);
+      return res.status(500).json({ error: 'The orientation library could not be updated.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.delete('/orientation-libraries/:libraryId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const result = await db.collection('orientation_libraries').deleteOne({ id: req.params.libraryId });
+      if (!result.deletedCount) return res.status(404).json({ error: 'Orientation library not found.' });
+      return res.status(204).end();
+    } catch (error) {
+      console.error('Unable to delete orientation library:', error);
+      return res.status(500).json({ error: 'The orientation library could not be deleted.' });
     } finally {
       await client.close();
     }

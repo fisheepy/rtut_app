@@ -12,10 +12,10 @@ function dateValue(employee, names) {
   return '';
 }
 
-function normalizeTraining(record) {
+function normalizeTraining(record, orientationLibraries) {
   const monthly = record?.monthly || {};
   return {
-    orientation: normalizeOrientation(record),
+    orientation: normalizeOrientation(record, orientationLibraries),
     monthly: {
       status: text(monthly.status) || 'Not started',
       completedAt: monthly.completedAt || null,
@@ -23,7 +23,7 @@ function normalizeTraining(record) {
   };
 }
 
-function normalizeEmployee(employee, trainingRecord) {
+function normalizeEmployee(employee, trainingRecord, orientationLibraries) {
   const firstName = text(employee['First Name']);
   const lastName = text(employee['Last Name']);
   const terminationDay = dateValue(employee, ['Termination Date', 'Termination Day']);
@@ -47,7 +47,7 @@ function normalizeEmployee(employee, trainingRecord) {
     ].filter(Boolean).join(' '),
     folderUrl: text(trainingRecord?.folderUrl),
     employmentStatus: isTerminated ? 'Terminated' : 'Active',
-    training: normalizeTraining(trainingRecord),
+    training: normalizeTraining(trainingRecord, orientationLibraries),
   };
 }
 
