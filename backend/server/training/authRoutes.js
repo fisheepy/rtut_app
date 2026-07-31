@@ -20,6 +20,10 @@ function createTrainingAuthRouter({
   clearSessionCookie,
   getSessionFromRequest,
   codeSecret,
+  isAuthorizedEmail = isAuthorizedTrainingEmail,
+  collectionName = 'training_login_codes',
+  toolName = 'RTUT Training Tools',
+  sessionType = 'training',
 }) {
   const router = express.Router();
   const createClient = () => new MongoClient(uri, {
@@ -32,7 +36,7 @@ function createTrainingAuthRouter({
 
   router.get('/me', (req, res) => {
     const session = getSessionFromRequest(req);
-    if (!session || !isAuthorizedTrainingEmail(session.email)) {
+    if (!session || !isAuthorizedEmail(session.email)) {
       return res.status(401).json({ authenticated: false });
     }
     return res.json({ authenticated: true, email: normalizeEmail(session.email) });
@@ -40,14 +44,14 @@ function createTrainingAuthRouter({
 
   router.post('/request-code', async (req, res) => {
     const email = normalizeEmail(req.body?.email);
-    if (!isAuthorizedTrainingEmail(email)) {
-      return res.status(403).json({ error: 'This email is not authorized for Training Tools.' });
+    if (!isAuthorizedEmail(email)) {
+      return res.status(403).json({ error: `This email is not authorized for ${toolName}.` });
     }
 
     const client = createClient();
     try {
       await client.connect();
-      const collection = client.db(databaseName).collection('training_login_codes');
+      const collection = client.db(databaseName).collection(collectionName);
       const existing = await collection.findOne({ _id: email });
       const now = new Date();
       if (existing?.requestedAt && now.getTime() - new Date(existing.requestedAt).getTime() < REQUEST_COOLDOWN_MS) {
@@ -71,9 +75,9 @@ function createTrainingAuthRouter({
       try {
         await sendEmail({
           to: email,
-          subject: 'Your RTUT Training Tools login code',
-          text: `Your RTUT Training Tools login code is ${code}. This code expires in 10 minutes. If you did not request it, you can ignore this email.`,
-          html: `<div style="font-family:Arial,sans-serif;color:#0f172a"><h2>RTUT Training Tools</h2><p>Your one-time login code is:</p><p style="font-size:30px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes. If you did not request it, you can ignore this email.</p></div>`,
+          subject: `Your ${toolName} login code`,
+          text: `Your ${toolName} login code is ${code}. This code expires in 10 minutes. If you did not request it, you can ignore this email.`,
+          html: `<div style="font-family:Arial,sans-serif;color:#0f172a"><h2>${toolName}</h2><p>Your one-time login code is:</p><p style="font-size:30px;font-weight:700;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes. If you did not request it, you can ignore this email.</p></div>`,
         });
       } catch (mailError) {
         await collection.deleteOne({ _id: email });
@@ -82,7 +86,7 @@ function createTrainingAuthRouter({
 
       return res.json({ ok: true, expiresInMinutes: 10 });
     } catch (error) {
-      console.error('Unable to send Training Tools login code:', error);
+      console.error(`Unable to send ${toolName} login code:`, error);
       return res.status(500).json({ error: 'The login code could not be sent. Please try again.' });
     } finally {
       await client.close();
@@ -92,14 +96,14 @@ function createTrainingAuthRouter({
   router.post('/verify-code', async (req, res) => {
     const email = normalizeEmail(req.body?.email);
     const code = String(req.body?.code || '').trim();
-    if (!isAuthorizedTrainingEmail(email) || !/^\d{6}$/.test(code)) {
+    if (!isAuthorizedEmail(email) || !/^\d{6}$/.test(code)) {
       return res.status(401).json({ error: 'Invalid or expired login code.' });
     }
 
     const client = createClient();
     try {
       await client.connect();
-      const collection = client.db(databaseName).collection('training_login_codes');
+      const collection = client.db(databaseName).collection(collectionName);
       const record = await collection.findOne({ _id: email });
       const valid = record
         && record.attempts < MAX_ATTEMPTS
@@ -113,14 +117,14 @@ function createTrainingAuthRouter({
 
       await collection.deleteOne({ _id: email });
       setSessionCookie(res, {
-        firstName: 'Myra',
-        lastName: 'Yu',
+        firstName: email.split('@')[0],
+        lastName: '',
         email,
-        type: 'training',
+        type: sessionType,
       });
       return res.json({ authenticated: true, email });
     } catch (error) {
-      console.error('Unable to verify Training Tools login code:', error);
+      console.error(`Unable to verify ${toolName} login code:`, error);
       return res.status(500).json({ error: 'The login code could not be verified. Please try again.' });
     } finally {
       await client.close();

@@ -6,6 +6,10 @@ const DEFAULT_AUTHORIZED_EMAILS = [
   'anicholson@royaltrailersales.com',
   'dpurrenhage@royaltrailersales.com',
 ];
+const DEFAULT_HR_TOOLS_EMAILS = [
+  'myu@royaltrailersales.com',
+  'sdallis@royaltrailersales.com',
+];
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -21,6 +25,18 @@ function authorizedEmails(env = process.env) {
 
 function isAuthorizedTrainingEmail(email, env = process.env) {
   return authorizedEmails(env).includes(normalizeEmail(email));
+}
+
+function authorizedHrToolsEmails(env = process.env) {
+  const configured = String(env.HR_TOOLS_AUTHORIZED_EMAILS || '')
+    .split(',')
+    .map(normalizeEmail)
+    .filter(Boolean);
+  return configured.length ? configured : DEFAULT_HR_TOOLS_EMAILS;
+}
+
+function isAuthorizedHrToolsEmail(email, env = process.env) {
+  return authorizedHrToolsEmails(env).includes(normalizeEmail(email));
 }
 
 function hashTrainingCode(email, code, secret) {
@@ -48,9 +64,11 @@ function createRequireTrainingSession(getSessionFromRequest, env = process.env) 
 
 module.exports = {
   authorizedEmails,
+  authorizedHrToolsEmails,
   createRequireTrainingSession,
   hashTrainingCode,
   isAuthorizedTrainingEmail,
+  isAuthorizedHrToolsEmail,
   normalizeEmail,
   secureCodeMatch,
 };

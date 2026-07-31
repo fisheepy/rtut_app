@@ -2,9 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   authorizedEmails,
+  authorizedHrToolsEmails,
   createRequireTrainingSession,
   hashTrainingCode,
   isAuthorizedTrainingEmail,
+  isAuthorizedHrToolsEmail,
   secureCodeMatch,
 } = require('./access');
 
@@ -21,6 +23,18 @@ test('allows only the configured Training Tools email', () => {
   assert.equal(isAuthorizedTrainingEmail('anicholson@royaltrailersales.com', env), true);
   assert.equal(isAuthorizedTrainingEmail('dpurrenhage@royaltrailersales.com', env), true);
   assert.equal(isAuthorizedTrainingEmail('someone@royaltrailersales.com', env), false);
+});
+
+test('allows only Myra and Stratos into the HR Tools hub', () => {
+  const env = {};
+  assert.deepEqual(authorizedHrToolsEmails(env), [
+    'myu@royaltrailersales.com',
+    'sdallis@royaltrailersales.com',
+  ]);
+  assert.equal(isAuthorizedHrToolsEmail('myu@royaltrailersales.com', env), true);
+  assert.equal(isAuthorizedHrToolsEmail('SDALLIS@royaltrailersales.com', env), true);
+  assert.equal(isAuthorizedHrToolsEmail('anicholson@royaltrailersales.com', env), false);
+  assert.equal(isAuthorizedHrToolsEmail('dpurrenhage@royaltrailersales.com', env), false);
 });
 
 test('supports a future comma-separated allowlist', () => {

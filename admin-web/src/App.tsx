@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, FileSpreadsheet, GraduationCap, ReceiptText, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, FileSpreadsheet, GraduationCap, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
@@ -59,21 +59,166 @@ const hrTools = [
   },
 ]
 
+function HrToolsHubLogin({ onLogin }: { onLogin: () => void }) {
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [codeSent, setCodeSent] = useState(false)
+  const [message, setMessage] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+
+  async function requestCode(event: React.FormEvent) {
+    event.preventDefault()
+    setIsSending(true)
+    setMessage('Sending your one-time code...')
+    try {
+      await api.post('/hr-tools-auth/request-code', { email: email.trim() })
+      setCodeSent(true)
+      setMessage('A 6-digit code was sent to your email. It expires in 10 minutes.')
+    } catch (error: any) {
+      setMessage(error.response?.data?.error || 'The login code could not be sent.')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  async function verifyCode(event: React.FormEvent) {
+    event.preventDefault()
+    setIsVerifying(true)
+    setMessage('Verifying your code...')
+    try {
+      await api.post('/hr-tools-auth/verify-code', { email: email.trim(), code: code.trim() })
+      onLogin()
+    } catch (error: any) {
+      setMessage(error.response?.data?.error || 'Invalid or expired login code.')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-white/70 bg-white shadow-2xl">
+      <div className="grid lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="relative overflow-hidden bg-slate-950 p-8 text-white md:p-10">
+          <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/30 blur-3xl" />
+          <div className="absolute -bottom-24 left-12 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-100">
+              <ShieldCheck className="h-4 w-4" />
+              Authorized Access Only
+            </div>
+            <h1 className="mt-5 text-4xl font-semibold">RTUT HR Tools</h1>
+            <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
+              HR operational tools are protected. Request a one-time code using an authorized email address.
+            </p>
+          </div>
+        </div>
+        <div className="p-6 md:p-10">
+          <h2 className="text-2xl font-semibold text-slate-950">Sign in</h2>
+          <p className="mt-1 text-sm text-slate-500">The code will be delivered by email and expires after 10 minutes.</p>
+          <form className="mt-6 space-y-4" onSubmit={codeSent ? verifyCode : requestCode}>
+            <label className="block">
+              <span className="text-sm font-semibold text-slate-700">Authorized email</span>
+              <span className="relative mt-2 block">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  autoComplete="email"
+                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@royaltrailersales.com"
+                  type="email"
+                  value={email}
+                />
+              </span>
+            </label>
+            {codeSent ? (
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">6-digit code</span>
+                <input
+                  autoComplete="one-time-code"
+                  autoFocus
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-center text-xl font-semibold tracking-[0.35em] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  inputMode="numeric"
+                  maxLength={6}
+                  onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  value={code}
+                />
+              </label>
+            ) : null}
+            <button
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={codeSent ? code.length !== 6 || isVerifying : !email.trim() || isSending}
+              type="submit"
+            >
+              <KeyRound className="h-4 w-4" />
+              {codeSent ? (isVerifying ? 'Signing in...' : 'Sign in with code') : (isSending ? 'Sending...' : 'Email me a code')}
+            </button>
+            {codeSent ? (
+              <button className="w-full text-sm font-semibold text-blue-700 hover:text-blue-800 disabled:opacity-50" disabled={isSending} onClick={requestCode} type="button">
+                {isSending ? 'Sending...' : 'Send a new code'}
+              </button>
+            ) : null}
+          </form>
+          {message ? <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">{message}</p> : null}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function HrToolsHub() {
+  const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'signed-out'>('checking')
+
+  useEffect(() => {
+    api.get('/hr-tools-auth/me')
+      .then(() => setAuthState('authenticated'))
+      .catch(() => setAuthState('signed-out'))
+  }, [])
+
+  if (authState === 'checking') {
+    return (
+      <div className="grid min-h-64 place-items-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="text-center">
+          <RefreshCw className="mx-auto h-7 w-7 animate-spin text-blue-600" />
+          <p className="mt-3 text-sm font-semibold text-slate-700">Checking secure access...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (authState === 'signed-out') return <HrToolsHubLogin onLogin={() => setAuthState('authenticated')} />
+  return <HrToolsHubContent onLogout={() => setAuthState('signed-out')} />
+}
+
+function HrToolsHubContent({ onLogout }: { onLogout: () => void }) {
+  async function logout() {
+    await api.post('/hr-tools-auth/logout').catch(() => {})
+    onLogout()
+  }
+
   return (
     <div className="space-y-7">
       <section className="relative overflow-hidden rounded-2xl border border-white/70 bg-slate-950 px-6 py-8 text-white shadow-xl md:px-8">
         <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,#22c55e_0,transparent_55%)] opacity-25" />
         <div className="absolute -bottom-20 left-16 h-56 w-56 rounded-full bg-blue-500/25 blur-3xl" />
-        <div className="relative max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-100">
-            <FileSpreadsheet className="h-4 w-4" />
-            HR Tools
+        <div className="relative">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-100">
+              <FileSpreadsheet className="h-4 w-4" />
+              HR Tools
+            </div>
+            <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" onClick={logout} type="button">
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
           </div>
-          <h1 className="mt-5 text-4xl font-semibold tracking-normal md:text-5xl">Focused file workflows for HR operations.</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-            Upload the required Excel files, generate browser-ready reports, and download audit workbooks without an admin login.
-          </p>
+          <div className="max-w-3xl">
+            <h1 className="mt-5 text-4xl font-semibold tracking-normal md:text-5xl">Focused file workflows for HR operations.</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+              Securely access focused workflows for payroll, benefits, commissions, and training operations.
+            </p>
+          </div>
         </div>
       </section>
 

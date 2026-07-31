@@ -20,7 +20,7 @@ const { createInsuranceBreakoutRouter } = require('./insuranceBreakout/routes');
 const { createCommissionRosterRouter } = require('./commissionRoster/routes');
 const { createTrainingRouter } = require('./training/routes');
 const { createTrainingAuthRouter } = require('./training/authRoutes');
-const { createRequireTrainingSession } = require('./training/access');
+const { createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
 const {
     clearSessionCookie,
     findAdminByEmail,
@@ -1077,6 +1077,7 @@ app.use('/api/commission-roster', createCommissionRosterRouter({
     logOperationToDatabase,
 }));
 const requireTrainingSession = createRequireTrainingSession(getSessionFromRequest);
+const loginCodeSecret = process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-login-secret';
 app.use('/api/training-auth', createTrainingAuthRouter({
   uri,
   databaseName: database_name,
@@ -1084,7 +1085,20 @@ app.use('/api/training-auth', createTrainingAuthRouter({
   setSessionCookie,
   clearSessionCookie,
   getSessionFromRequest,
-  codeSecret: process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-training-secret',
+  codeSecret: loginCodeSecret,
+}));
+app.use('/api/hr-tools-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: loginCodeSecret,
+  isAuthorizedEmail: isAuthorizedHrToolsEmail,
+  collectionName: 'hr_tools_login_codes',
+  toolName: 'RTUT HR Tools',
+  sessionType: 'hr-tools',
 }));
 app.use('/api/training', createTrainingRouter({
   uri,
