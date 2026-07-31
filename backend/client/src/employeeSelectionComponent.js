@@ -28,6 +28,38 @@ import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
 
+const parseEmployeeDate = (value) => {
+    if (!value) return null;
+    const text = String(value).trim();
+    const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) return { year: isoMatch[1], month: isoMatch[2], day: isoMatch[3] };
+    const usMatch = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})$/);
+    if (usMatch) return {
+        year: usMatch[3].length === 2 ? `20${usMatch[3]}` : usMatch[3],
+        month: usMatch[1],
+        day: usMatch[2],
+    };
+    const parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return {
+        year: String(parsed.getUTCFullYear()),
+        month: String(parsed.getUTCMonth() + 1),
+        day: String(parsed.getUTCDate()),
+    };
+};
+
+const formatEmployeeDate = (value) => {
+    const parsed = parseEmployeeDate(value);
+    if (!parsed) return value || '';
+    return `${String(parsed.month).padStart(2, '0')}/${String(parsed.day).padStart(2, '0')}/${parsed.year}`;
+};
+
+const employeeDateInputValue = (value) => {
+    const parsed = parseEmployeeDate(value);
+    if (!parsed) return '';
+    return `${parsed.year}-${String(parsed.month).padStart(2, '0')}-${String(parsed.day).padStart(2, '0')}`;
+};
+
 function EmployeeSelectionComponent() {
     const { selectedEmployees, setSelectedEmployees } = useContext(SelectedEmployeesContext);
     const tableContainerRef = useRef(null);
@@ -414,7 +446,7 @@ function EmployeeSelectionComponent() {
                                                 color="primary"
                                             />
                                         ) : (
-                                            employee[column.id] || ''
+                                            column.id === 'Hire Date' ? formatEmployeeDate(employee[column.id]) : employee[column.id] || ''
                                         )}
                                     </TableCell>
                                 ))}
@@ -453,7 +485,7 @@ function EmployeeSelectionComponent() {
                                     label="Hire Date"
                                     name="Hire Date"
                                     type="date"
-                                    value={selectedEmployee['Hire Date']}
+                                    value={employeeDateInputValue(selectedEmployee['Hire Date'])}
                                     onChange={handleInputChange}
                                     InputLabelProps={{ shrink: true }}
                                 />
