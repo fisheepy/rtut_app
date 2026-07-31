@@ -31,6 +31,8 @@ type OrientationLibrary = {
 type TrainingEmployee = {
   id: string
   employeeName: string
+  email: string
+  contactNumber: string
   jobTitle: string
   location: string
   department: string
@@ -47,6 +49,8 @@ type TrainingEmployee = {
 
 type ColumnKey =
   | 'employeeName'
+  | 'email'
+  | 'contactNumber'
   | 'jobTitle'
   | 'location'
   | 'department'
@@ -61,6 +65,8 @@ type SortDirection = 'asc' | 'desc'
 const columns: { key: ColumnKey; label: string }[] = [
   { key: 'employeeName', label: 'Employee Name' },
   { key: 'folderLink', label: 'Employee Folder' },
+  { key: 'email', label: 'Email' },
+  { key: 'contactNumber', label: 'Contact Number' },
   { key: 'jobTitle', label: 'Job Title' },
   { key: 'location', label: 'Location' },
   { key: 'department', label: 'Department' },
@@ -72,6 +78,8 @@ const columns: { key: ColumnKey; label: string }[] = [
 
 const emptyColumnFilters: Record<ColumnKey, string[]> = {
   employeeName: [],
+  email: [],
+  contactNumber: [],
   jobTitle: [],
   location: [],
   department: [],
@@ -352,6 +360,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [libraryError, setLibraryError] = useState('')
   const [isSavingLibrary, setIsSavingLibrary] = useState(false)
   const [libraryPendingDelete, setLibraryPendingDelete] = useState<OrientationLibrary | null>(null)
+  const [showReportOptions, setShowReportOptions] = useState(false)
+  const [reportStatus, setReportStatus] = useState<'All Statuses' | 'Unassigned' | 'In Process' | 'Finished'>('All Statuses')
   const [tableScrollWidth, setTableScrollWidth] = useState(0)
   const [showBackToTop, setShowBackToTop] = useState(false)
 
@@ -399,6 +409,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         const matchesStatus = employee.employmentStatus.toLowerCase() === view
         const matchesSearch = !query || [
           employee.employeeName,
+          employee.email,
+          employee.contactNumber,
           employee.jobTitle,
           employee.location,
           employee.department,
@@ -574,6 +586,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   function downloadOrientationReport() {
     const libraryNames = new Map(orientationLibraries.map((library) => [library.id, library.name]))
     const rows = employees
+      .filter((employee) => reportStatus === 'All Statuses' || employee.training.orientation.status === reportStatus)
       .slice()
       .sort((left, right) => (
         left.training.orientation.status.localeCompare(right.training.orientation.status)
@@ -582,6 +595,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       .map((employee) => [
         employee.training.orientation.status,
         employee.employeeName,
+        employee.email,
+        employee.contactNumber,
         employee.employmentStatus,
         employee.jobTitle,
         employee.location,
@@ -594,17 +609,19 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       ])
     const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
     const csv = [
-      ['Orientation Status', 'Employee Name', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Libraries', 'Courses Complete', 'Orientation Finished Date'],
+      ['Orientation Status', 'Employee Name', 'Email', 'Contact Number', 'Employment Status', 'Job Title', 'Location', 'Department', 'Reporting To', 'Hire Date', 'Assigned Libraries', 'Courses Complete', 'Orientation Finished Date'],
       ...rows,
     ].map((row) => row.map(csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
-    link.download = `orientation-training-report-${new Date().toISOString().slice(0, 10)}.csv`
+    const statusName = reportStatus === 'All Statuses' ? 'all-statuses' : reportStatus.toLowerCase().replace(' ', '-')
+    link.download = `orientation-${statusName}-report-${new Date().toISOString().slice(0, 10)}.csv`
     document.body.appendChild(link)
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
+    setShowReportOptions(false)
   }
 
   function openOrientationSettings() {
@@ -738,7 +755,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <p className="mt-1 text-sm text-slate-500">{source ? `Employee data: ${source}` : 'Employee and training records'}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={downloadOrientationReport} type="button">
+              <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReportOptions(true)} type="button">
                 <Download className="h-4 w-4" />
                 Download Orientation Report
               </button>
@@ -758,7 +775,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <input
                 className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by employee, job, location, department, or manager"
+                placeholder="Search by employee, email, phone, job, location, department, or manager"
                 type="search"
                 value={search}
               />
@@ -810,7 +827,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             onScroll={() => syncHorizontalScroll('table')}
             ref={tableScrollRef}
           >
-            <table className="w-full min-w-[1500px] text-sm">
+            <table className="w-full min-w-[1850px] text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   {columns.map((column, index) => (
@@ -897,6 +914,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                         </button>
                       </div>
                     </td>
+                    <td className="border-b px-4 py-3">
+                      {employee.email ? <a className="text-blue-700 hover:underline" href={`mailto:${employee.email}`}>{employee.email}</a> : '—'}
+                    </td>
+                    <td className="whitespace-nowrap border-b px-4 py-3">
+                      {employee.contactNumber ? <a className="text-blue-700 hover:underline" href={`tel:${employee.contactNumber}`}>{employee.contactNumber}</a> : '—'}
+                    </td>
                     <td className="border-b px-4 py-3">{employee.jobTitle || '—'}</td>
                     <td className="border-b px-4 py-3">{employee.location || '—'}</td>
                     <td className="border-b px-4 py-3">{employee.department || '—'}</td>
@@ -959,6 +982,49 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           <ArrowUp className="h-4 w-4" />
           Back to Top
         </button>
+      ) : null}
+
+      {showReportOptions ? (
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/60 p-4" role="presentation">
+          <section aria-labelledby="orientation-report-title" aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="dialog">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950" id="orientation-report-title">Download Orientation Report</h2>
+                <p className="mt-1 text-sm text-slate-500">Choose which automatic Orientation status to include.</p>
+              </div>
+              <button aria-label="Close orientation report options" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowReportOptions(false)} type="button">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <label className="mt-5 block">
+              <span className="text-sm font-semibold text-slate-700">Training Status</span>
+              <select
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                onChange={(event) => setReportStatus(event.target.value as typeof reportStatus)}
+                value={reportStatus}
+              >
+                <option>All Statuses</option>
+                <option>Unassigned</option>
+                <option>In Process</option>
+                <option>Finished</option>
+              </select>
+            </label>
+            <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+              This report will include <span className="font-semibold text-slate-900">{
+                reportStatus === 'All Statuses'
+                  ? employees.length
+                  : employees.filter((employee) => employee.training.orientation.status === reportStatus).length
+              }</span> employees, including their email and contact number.
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setShowReportOptions(false)} type="button">Cancel</button>
+              <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" onClick={downloadOrientationReport} type="button">
+                <Download className="h-4 w-4" />
+                Download CSV
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {showOrientationSettings ? (

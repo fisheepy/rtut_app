@@ -30,6 +30,8 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
       const employees = await db.collection('employees').find({}).project({
         'First Name': 1,
         'Last Name': 1,
+        Email: 1,
+        Phone: 1,
         'Job Title': 1,
         Location: 1,
         Department: 1,

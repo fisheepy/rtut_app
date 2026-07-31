@@ -36,6 +36,8 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries) {
   return {
     id: String(employee._id),
     employeeName: [firstName, lastName].filter(Boolean).join(' '),
+    email: text(employee.Email),
+    contactNumber: text(employee.Phone),
     jobTitle: text(employee['Job Title']),
     location: text(employee.Location),
     department: text(employee['Home Department'] || employee.Department),

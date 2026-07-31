@@ -7,6 +7,8 @@ test('maps Company App roster fields and supplies both training types', () => {
     _id: 'employee-1',
     'First Name': 'Alex',
     'Last Name': 'Morgan',
+    Email: 'alex.morgan@example.com',
+    Phone: '(555) 123-4567',
     'Job Title': 'Technician',
     Location: 'Detroit',
     'Home Department': 'Service',
@@ -17,6 +19,8 @@ test('maps Company App roster fields and supplies both training types', () => {
   });
 
   assert.equal(employee.employeeName, 'Alex Morgan');
+  assert.equal(employee.email, 'alex.morgan@example.com');
+  assert.equal(employee.contactNumber, '(555) 123-4567');
   assert.equal(employee.department, 'Service');
   assert.equal(employee.reportingTo, 'Sam Lee');
   assert.equal(employee.folderUrl, '');
