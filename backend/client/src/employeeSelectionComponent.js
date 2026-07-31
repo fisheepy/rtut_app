@@ -68,8 +68,8 @@ function EmployeeSelectionComponent() {
     const [filteredEmployees, setFilteredEmployees] = useState([]);
     const [filterValues, setFilterValues] = useState({});
     const [selectedFilters, setSelectedFilters] = useState({ isActivated: [true] });
-    const [startDate, setStartDate] = useState('1980-01-01');
-    const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -160,21 +160,23 @@ function EmployeeSelectionComponent() {
     };
 
     const resetFilters = () => {
-        setSelectedFilters({ isActivated: [true] });
-        setStartDate('1980-01-01');
-        setEndDate(new Date().toISOString().split('T')[0]);
+        setSelectedFilters({});
+        setStartDate('');
+        setEndDate('');
         setEmployeeSearch('');
+        setDeselectedEmployees(new Set());
+        setShowMoreFilters(false);
     };
 
     const applyFilters = () => {
-        const defaultStartDate = new Date('1995/01/01');
-        const defaultEndDate = new Date();
-        const start = startDate ? new Date(startDate) : defaultStartDate;
-        const end = endDate ? new Date(endDate) : defaultEndDate;
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
 
         const matchingEmployees = employees.filter(employee => {
             const hireDate = new Date(employee['Hire Date']);
-            const isInDateRange = hireDate >= start && hireDate <= end;
+            const hasValidHireDate = !Number.isNaN(hireDate.getTime());
+            const isInDateRange = (!start && !end)
+                || (hasValidHireDate && (!start || hireDate >= start) && (!end || hireDate <= end));
             const normalizedSearch = employeeSearch.trim().toLowerCase();
             const matchesSearch = !normalizedSearch || [employee.Name, employee.Email, employee.Phone]
                 .some(value => String(value || '').toLowerCase().includes(normalizedSearch));
