@@ -490,88 +490,83 @@ export async function importEmployeesData(employees) {
     const existingUsernames = new Set(await collection.distinct('username'));
 
     for (const employeeData of employees) {
-      // Define fields using the new structure
-      const {
-        Phone: rawPhone,
-        Email: email,
-        'Payroll Name: Last Name': lastName,
-        'Payroll Name: First Name': firstName,
-        'Hire/Rehire Date': hireDate,
-        'Position Status': positionStatus,
-        'Home Department Description': homeDepartment,
-        'Job Title Description': jobTitle,
-        'Location Description': location,
-        'Reports To Name': reportTo,
-        'Worker Category Description': workCategory,
-        'Regular Pay Rate Description': payCategory,
-        'EEO Establishment': eeoEstablishment
-      } = employeeData;
+      // Support both the payroll roster schema and CSV files exported by App Console.
+      const rawPhone = employeeData.Phone;
+      const email = employeeData.Email;
+      const lastName = employeeData['Last Name'] || employeeData['Payroll Name: Last Name'];
+      const firstName = employeeData['First Name'] || employeeData['Payroll Name: First Name'];
+      const hireDate = employeeData['Hire Date'] || employeeData['Hire/Rehire Date'];
+      const positionStatus = employeeData['Position Status'];
+      const homeDepartment = employeeData['Home Department'] || employeeData['Home Department Description'];
+      const jobTitle = employeeData['Job Title'] || employeeData['Job Title Description'];
+      const location = employeeData.Location || employeeData['Location Description'];
+      const workCategory = employeeData['Worker Category'] || employeeData['Worker Category Description'];
+      const payCategory = employeeData['Pay Category'] || employeeData['Regular Pay Rate Description'];
+      const eeoEstablishment = employeeData['EEOC Establishment'] || employeeData['EEO Establishment'];
+      const reportTo = employeeData['Reports To Name'];
 
-      const phone = formatPhoneNumber(rawPhone);
-
-      // Check if employee already exists by name, phone, or email
-      const duplicateCheck = await collection.findOne({
-        $or: [
-          { "First Name": firstName, "Last Name": lastName },
-          { Phone: phone },
-          { Email: email }
-        ]
-      });
-
-      if (duplicateCheck) {
-        console.log(`Skipping duplicate employee: ${firstName} ${lastName}`);
-        continue; // Skip this employee if a duplicate is found
-      }
-
-      // Extract supervisor names if provided
-      let supervisorFirstName = '';
-      let supervisorLastName = '';
-      if (reportTo) {
-        const [last, first] = reportTo.split(',').map(name => name.trim());
+      let supervisorFirstName = employeeData['Supervisor First Name'];
+      let supervisorLastName = employeeData['Supervisor Last Name'];
+      if (reportTo && !supervisorFirstName && !supervisorLastName) {
+        const [last = '', first = ''] = reportTo.split(',').map(name => name.trim());
         supervisorFirstName = first;
         supervisorLastName = last;
       }
 
-      // Generate unique username and password if needed
-      const username = generateUsername(firstName, lastName, existingUsernames);
-      existingUsernames.add(username);
-      const password = generateRandomCode();
-
-      // Create or update employee record with the new format
-      const employeeDocument = {
-        "First Name": firstName,
-        "Last Name": lastName,
-        "Phone": phone,
-        "Email": email,
-        "username": username,
-        "password": password,
-        "Hire Date": hireDate,
-        "Position Status": positionStatus,
-        "Home Department": homeDepartment,
-        "Job Title": jobTitle,
-        "Location": location,
-        "Supervisor First Name": supervisorFirstName,
-        "Supervisor Last Name": supervisorLastName,
-        "Worker Category": workCategory,
-        "Pay Category": payCategory,
-        "EEOC Establishment": eeoEstablishment,
-        "isActivated": 'false',
-        "Account Active": "Active",
-        "Activation Date": new Date()
+      const updateDocument = {};
+      const setIfProvided = (field, value) => {
+        if (value !== undefined && value !== null) updateDocument[field] = value;
       };
+      setIfProvided('First Name', firstName);
+      setIfProvided('Last Name', lastName);
+      if (rawPhone !== undefined) setIfProvided('Phone', formatPhoneNumber(rawPhone));
+      setIfProvided('Email', email);
+      setIfProvided('Hire Date', hireDate);
+      setIfProvided('Position Status', positionStatus);
+      setIfProvided('Home Department', homeDepartment);
+      setIfProvided('Job Title', jobTitle);
+      setIfProvided('Location', location);
+      setIfProvided('Supervisor First Name', supervisorFirstName);
+      setIfProvided('Supervisor Last Name', supervisorLastName);
+      setIfProvided('Worker Category', workCategory);
+      setIfProvided('Pay Category', payCategory);
+      setIfProvided('EEOC Establishment', eeoEstablishment);
 
-      if (duplicateCheck) {
-        // If an employee already exists, update their details
-        await collection.updateOne(
-          { _id: duplicateCheck._id },
-          { $set: employeeDocument }
-        );
-        console.log(`Updated existing employee: ${firstName} ${lastName}`);
-      } else {
-        // Insert new employee
-        await collection.insertOne(employeeDocument);
-        console.log(`Inserted new employee: ${firstName} ${lastName}`);
+      let existingEmployee = null;
+      if (employeeData._id && ObjectId.isValid(employeeData._id)) {
+        existingEmployee = await collection.findOne({ _id: new ObjectId(employeeData._id) });
       }
+      if (!existingEmployee) {
+        const matchOptions = [];
+        if (firstName && lastName) matchOptions.push({ 'First Name': firstName, 'Last Name': lastName });
+        if (rawPhone) matchOptions.push({ Phone: formatPhoneNumber(rawPhone) });
+        if (email) matchOptions.push({ Email: email });
+        if (matchOptions.length) existingEmployee = await collection.findOne({ $or: matchOptions });
+      }
+
+      if (existingEmployee) {
+        await collection.updateOne({ _id: existingEmployee._id }, { $set: updateDocument });
+        console.log(`Updated existing employee: ${firstName} ${lastName}`);
+        continue;
+      }
+
+      if (!firstName || !lastName) {
+        console.warn('Skipping employee row without a first and last name.');
+        continue;
+      }
+
+      const generatedUsername = generateUsername(firstName, lastName, existingUsernames);
+      existingUsernames.add(generatedUsername);
+      const employeeDocument = {
+        ...updateDocument,
+        username: generatedUsername,
+        password: generateRandomCode(),
+        isActivated: false,
+        'Account Active': 'Active',
+        'Activation Date': new Date()
+      };
+      await collection.insertOne(employeeDocument);
+      console.log(`Inserted new employee: ${firstName} ${lastName}`);
     }
   } catch (error) {
     console.error('Error processing employee data:', error);
@@ -769,3 +764,4 @@ export async function addNewEmployee(newEmployee) {
     await client.close();
   }
 }
+
