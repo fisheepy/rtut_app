@@ -102,7 +102,9 @@ function EmployeeSelectionComponent() {
         };
 
         fetchData();
-    }, []);
+        window.addEventListener('employees-imported', fetchData);
+        return () => window.removeEventListener('employees-imported', fetchData);
+    }, [setSelectedEmployees]);
 
     const handleStartDateChange = (e) => {
         setStartDate(e.target.value);
@@ -595,3 +597,4 @@ function EmployeeSelectionComponent() {
 }
 
 export default EmployeeSelectionComponent;
+
