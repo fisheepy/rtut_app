@@ -8,7 +8,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL || "https://rtut-app-faiss-0a3485bd0bc8.herokuapp.com/";
-console.log(`?? Using FAISS Server URL: ${FAISS_SERVER_URL}`);
+console.log(`🔗 Using FAISS Server URL: ${FAISS_SERVER_URL}`);
 const axios = require("axios");
 const nodemailer = require('nodemailer'); 
 const cron = require('node-cron');
@@ -68,7 +68,7 @@ function buildDigestHtml({ etDate, rows }) {
 function rowsToCsvBuffer(rows) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    const csv = format({ headers: true })            // ????format()
+    const csv = format({ headers: true })            // ← 用 format()
       .on('data', c => chunks.push(Buffer.from(c)))
       .on('end', () => resolve(Buffer.concat(chunks)))
       .on('error', reject);
@@ -89,7 +89,7 @@ function rowsToCsvBuffer(rows) {
   });
 }
 
-// 蝏???靽∪?堆?雿歇撘? nodemailer嚗????嫣??唳?憌嚗?
+// 统一的发信函数（你已引过 nodemailer，不重复改你现有风格）
 function makeTransporter() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -176,16 +176,16 @@ const client = new MongoClient(uri, {
     }
 });
 
-// ======= Daily Digest 銝餃?堆??祉?餈/?祉??喲嚗?=======
+// ======= Daily Digest 主函数（独立连接/独立关闭） =======
 async function runDailyDigest(etDateOpt) {
   const TZ = process.env.TIMEZONE || 'America/Detroit';
-  const etDate = etDateOpt || DateTime.now().setZone(TZ).minus({ days: 1 }).toISODate(); // ?冽嚗?銝?
+  const etDate = etDateOpt || DateTime.now().setZone(TZ).minus({ days: 1 }).toISODate(); // 昨日（美东）
   const startET = DateTime.fromISO(etDate, { zone: TZ }).startOf('day');
   const endET   = startET.endOf('day');
   const startUTC = startET.toUTC().toJSDate();
   const endUTC   = endET.toUTC().toJSDate();
 
-  // ?函蝡?MongoClient嚗?撟脫雿隞楝?梢???connect/close
+  // 用独立 MongoClient，不干扰你其他路由里的 connect/close
   const localClient = new MongoClient(uri, {
     serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
   });
@@ -194,7 +194,7 @@ async function runDailyDigest(etDateOpt) {
     await localClient.connect();
     const db = localClient.db(database_name);
 
-    // 撟?嚗??嚗?憭拙歇??撠梯歲餈?
+    // 幂等（可删）：当天已发过就跳过
     const digests = db.collection('digests');
     const sent = await digests.findOne({ dateET: etDate });
     if (sent && !process.env.DIGEST_FORCE_ON_START) {
@@ -247,7 +247,7 @@ async function runDailyDigest(etDateOpt) {
 
     return { ok: true, count: rows.length, dateET: etDate };
   } catch (err) {
-    console.error('??Daily digest error:', err);
+    console.error('❌ Daily digest error:', err);
     const alertTo = (process.env.ALERT_EMAIL || '').split(',').filter(Boolean);
     if (alertTo.length) {
       try {
@@ -269,27 +269,27 @@ app.get("/status", async (req, res) => {
         const response = await axios.get(`${FAISS_SERVER_URL}/status`);
         res.json(response.data);
     } catch (error) {
-        console.error("??Error calling FAISS server:", error.message);
+        console.error("❌ Error calling FAISS server:", error.message);
         res.status(500).json({ error: "Could not connect to FAISS server." });
     }
 });
 
-// ??Route: Chat with AI
+// ✅ Route: Chat with AI
 app.post("/chat", async (req, res) => {
-    console.log("? Received chat request:", req.body);
+    console.log("🟢 Received chat request:", req.body);
 
     try {
-        const { query } = req.body;  // ??This should be "question"
+        const { query } = req.body;  // ❌ This should be "question"
         if (!query) {
             return res.status(400).json({ error: "Missing 'query' parameter." });
         }
 
         const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question: query }, { timeout: 30000 });
 
-        console.log("??Chat response received:", response.data);
+        console.log("✅ Chat response received:", response.data);
         return res.json(response.data);
     } catch (error) {
-        console.error("??Error calling FAISS server:", error.message, error.response?.data);
+        console.error("❌ Error calling FAISS server:", error.message, error.response?.data);
 
         if (error.response) {
             return res.status(error.response.status).json(error.response.data);
@@ -307,7 +307,7 @@ app.post('/api/hr-question', async (req, res) => {
     await client.connect();
     const db = client.db(database_name);
 
-    // ????emailed: false嚗??桐辣??? true嚗????
+    // 先写入 emailed: false；发邮件成功再改 true（避免“写假”）
     const insert = await db.collection('hr_questions').insertOne({
       question,
       phone,
@@ -319,7 +319,7 @@ app.post('/api/hr-question', async (req, res) => {
       resolved: false,
     });
 
-    // 蝏?撟嗅??隞塚?憒?瘝⊿?蝵格隞嗡犖撠梯歲餈?
+    // 组装并发送邮件（如果没配置收件人就跳过）
     const to = (process.env.HR_QUESTION_RECIPIENTS || '').split(',').map(s => s.trim()).filter(Boolean);
     if (to.length) {
       const subject = 'New HR Question Submitted';
@@ -337,8 +337,8 @@ app.post('/api/hr-question', async (req, res) => {
           { $set: { emailed: true } }
         );
       } catch (mailErr) {
-        console.error('?? ???⊥?鈭日憭梯揖嚗?, mailErr.message);
-        // 銝??綽?霈拇?鈭斗?蝔??嗉???200
+        console.error('⚠️ 发送单条提交通知失败：', mailErr.message);
+        // 不抛出，让提交流程仍然返回 200
       }
     }
 
@@ -352,16 +352,16 @@ app.post('/api/hr-question', async (req, res) => {
 });
 
 app.post("/search", async (req, res) => {
-    console.log("? Received search request:", req.body);
+    console.log("🟢 Received search request:", req.body);
 
     try {
         const { query } = req.body;
         const response = await axios.post(`${FAISS_SERVER_URL}/search`, { query }, { timeout: 30000 });
 
-        console.log("??Search response received.");
+        console.log("✅ Search response received.");
         return res.json(response.data);
     } catch (error) {
-        console.error("??Error calling FAISS server:", error.message);
+        console.error("❌ Error calling FAISS server:", error.message);
 
         if (error.code === 'ECONNABORTED') {
             return res.status(504).json({ error: "FAISS server timeout. Please try again later." });
@@ -1307,7 +1307,7 @@ app.post('/call-function-import-employees', requireAdminSession, upload.single('
             return;
         }
 
-        const resultMatch = stdout.match(/IMPORT_RESULT:(\{.*\})/);
+        const resultMatch = stdout.match(/IMPORT_RESULT:(\\{.*\\})/);
         if (!resultMatch) {
             console.error('Employee import completed without a result summary.');
             res.status(500).send('Employee import completed without a verifiable result.');
@@ -1729,12 +1729,12 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() })
 })
 
-// ======= 瘥摰隞餃嚗?7:05 ET嚗??.env DIGEST_CRON嚗?=======
+// ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
 cron.schedule(process.env.DIGEST_CRON || '5 7 * * *', async () => {
-  await runDailyDigest(); // 暺恕瘙領?伐?蝢?嚗?
+  await runDailyDigest(); // 默认汇总“昨日（美东）”
 }, { timezone: process.env.TIMEZONE || 'America/Detroit' });
 
-// ======= ?閫血??亙嚗?admin/digest?date=YYYY-MM-DD =======
+// ======= 手动触发接口：/admin/digest?date=YYYY-MM-DD =======
 function apiKeyGuard(req, res, next) {
   const key = req.headers['x-api-key'];
   if (!process.env.ADMIN_API_KEY || key === process.env.ADMIN_API_KEY) return next();
@@ -1743,7 +1743,7 @@ function apiKeyGuard(req, res, next) {
 
 app.post('/admin/digest', apiKeyGuard, async (req, res) => {
   try {
-    const dateET = (req.query.date || '').trim(); // 隡征=暺恕?冽
+    const dateET = (req.query.date || '').trim(); // 传空=默认昨日
     const result = await runDailyDigest(dateET || undefined);
     res.json(result);
   } catch (e) {
@@ -1784,4 +1784,3 @@ app.get(/^\/(?!api|admin|hr-tools).*/, (req, res) => {
 app.listen(process.env.PORT || port, () => {
     console.log(`Server is running on port ${port}`);
 });
-
