@@ -55,9 +55,9 @@ const UtilityToolsComponent = () => {
         noKeyboard: true
     });
 
-    const exportEmployeesToCsv = (selectedEmployees) => {
+    const exportEmployeesToCsv = (employees, fileName) => {
         const columnsToExclude = ['Name', 'Supervisor','username','password']; // Add any other column names you want to exclude
-        const filteredEmployees = selectedEmployees.map(employee => {
+        const filteredEmployees = employees.map(employee => {
             // Create a new object with only the desired attributes
             return Object.keys(employee).reduce((acc, key) => {
                 if (!columnsToExclude.includes(key)) {
@@ -68,16 +68,32 @@ const UtilityToolsComponent = () => {
         });
         const csv = Papa.unparse(filteredEmployees);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        saveAs(blob, 'selected-employees.csv');
+        saveAs(blob, fileName);
         const timeStamp = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
         setExecutionStatus(`Status:${timeStamp}:\tExport succeeded!`);
+    };
+
+    const exportAllEmployeesToCsv = async () => {
+        try {
+            const response = await fetch('/employees');
+            if (!response.ok) {
+                throw new Error('Failed to load employees');
+            }
+
+            const allEmployees = await response.json();
+            exportEmployeesToCsv(allEmployees, 'all-employees.csv');
+        } catch (error) {
+            console.error('Error exporting all employees:', error);
+            setExecutionStatus(`Status: Export failed at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+        }
     };
 
     return (
         <div>
             <h3>Execution Status</h3>
             <p className="execution-status">{executionStatus}</p>
-            <button onClick={() => exportEmployeesToCsv(selectedEmployees)}>Export Selected Employees</button>
+            <button onClick={() => exportEmployeesToCsv(selectedEmployees, 'selected-employees.csv')}>Export Selected Employees</button>
+            <button onClick={exportAllEmployeesToCsv}>Export All Employees (Including Not Activated)</button>
             <div {...getRootProps()} style={{
                 border: '2px dashed #007bff',
                 borderRadius: '5px',
