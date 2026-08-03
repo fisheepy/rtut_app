@@ -8,6 +8,8 @@ const UtilityToolsComponent = () => {
     const { selectedEmployees } = useContext(SelectedEmployeesContext);
     const [executionStatus, setExecutionStatus] = useState('Status:');
     const [fileForImport, setFileForImport] = useState(null);
+    const [fileRowCount, setFileRowCount] = useState(0);
+    const [isImporting, setIsImporting] = useState(false);
 
     const handleImportClick = async () => {
         if (!fileForImport) {
@@ -16,6 +18,8 @@ const UtilityToolsComponent = () => {
         }
 
         try {
+            setIsImporting(true);
+            setExecutionStatus('Status: Importing employee records...');
             const formData = new FormData();
             formData.append('file', fileForImport);
 
@@ -25,31 +29,55 @@ const UtilityToolsComponent = () => {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to import employees');
+                const message = await response.text();
+                throw new Error(message || 'Failed to import employees');
             }
 
-            setExecutionStatus(`Status: Import succeeded at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+            const result = await response.json();
+            setExecutionStatus(
+                `Status: Import complete ??${result.updated} updated, ${result.unchanged} unchanged, `
+                + `${result.inserted} inserted, ${result.skipped} skipped (${result.processed} processed).`
+            );
             setFileForImport(null);
+            setFileRowCount(0);
+            window.dispatchEvent(new CustomEvent('employees-imported'));
         } catch (error) {
             console.error('Error importing employees:', error);
-            setExecutionStatus(`Status: Import failed at ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`);
+            setExecutionStatus(`Status: Import failed ??${error.message}`);
+        } finally {
+            setIsImporting(false);
         }
     };
 
-    const onDrop = useCallback(acceptedFiles => {
-        setFileForImport(acceptedFiles[0]);
-        setExecutionStatus("Status: File ready for import.");
+    const onDrop = useCallback(async acceptedFiles => {
+        const file = acceptedFiles[0];
+        const csvText = await file.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        if (parsed.errors.length > 0) {
+            setFileForImport(null);
+            setFileRowCount(0);
+            setExecutionStatus(`Status: CSV could not be read ??${parsed.errors[0].message}`);
+            return;
+        }
+        setFileForImport(file);
+        setFileRowCount(parsed.data.length);
+        setExecutionStatus(`Status: ${file.name} is ready (${parsed.data.length} employee records).`);
     }, []);
 
     const onDropRejected = useCallback(rejectedFiles => {
         console.log('Rejected files:', rejectedFiles);
+        setFileForImport(null);
+        setFileRowCount(0);
         setExecutionStatus("Status: No valid CSV file selected.");
     }, []);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
         onDrop,
         onDropRejected,
-        accept: 'text/csv, application/vnd.ms-excel, .csv',
+        accept: {
+            'text/csv': ['.csv'],
+            'application/vnd.ms-excel': ['.csv'],
+        },
         maxFiles: 1,
         noClick: true,
         noKeyboard: true
@@ -102,11 +130,16 @@ const UtilityToolsComponent = () => {
                 marginTop: '20px',
             }}>
                 <input {...getInputProps()} />
-                {isDragActive ? <p>Drop the CSV file here ...</p> : <p>Drag 'n' drop a CSV file here</p>}
+                {isDragActive ? <p>Drop the CSV file here ...</p> : <p>Drag and drop a CSV file here, or choose a file below.</p>}
+                <button type="button" onClick={open}>Choose CSV File</button>
+                {fileForImport && <p><strong>Selected:</strong> {fileForImport.name} ({fileRowCount} records)</p>}
             </div>
-            <button onClick={handleImportClick}>Import Employees From CSV</button>
+            <button onClick={handleImportClick} disabled={!fileForImport || isImporting}>
+                {isImporting ? 'Importing Employees...' : 'Import Employees From CSV'}
+            </button>
         </div>
     );
 };
 
 export default UtilityToolsComponent;
+
