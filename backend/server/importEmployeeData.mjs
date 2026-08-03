@@ -14,9 +14,13 @@ const importEmployees = async (filePath) => {
         });
 
         const employees = results.data; // This gives you an array of employee objects
+        if (results.errors.length > 0) {
+            throw new Error(`CSV parsing failed: ${results.errors[0].message}`);
+        }
 
+        let importSummary;
         try {
-            await importEmployeesData(employees);
+            importSummary = await importEmployeesData(employees);
         } catch (error) {
             console.error('Error importing employee records:', error.message);
             throw error;
@@ -29,6 +33,9 @@ const importEmployees = async (filePath) => {
             // the optional notification subscriber sync could not be completed.
             console.warn('Employee records imported, but Novu sync failed:', error.message);
         }
+
+        console.log(`IMPORT_RESULT:${JSON.stringify(importSummary)}`);
+        return importSummary;
     } catch (error) {
         console.error('Error importing employees:', error.message);
         throw error;
@@ -47,3 +54,4 @@ const filePath = process.argv[2];
 importEmployees(filePath).catch(() => {
     process.exitCode = 1;
 });
+
