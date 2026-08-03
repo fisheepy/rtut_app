@@ -16,14 +16,22 @@ const importEmployees = async (filePath) => {
         const employees = results.data; // This gives you an array of employee objects
 
         try {
-            // Use the extracted Novu operation
             await importEmployeesData(employees);
+        } catch (error) {
+            console.error('Error importing employee records:', error.message);
+            throw error;
+        }
+
+        try {
             await updateEmployeesToNovuSubscribers(employees);
         } catch (error) {
-            console.error('Error:', error.message);
+            // Employee field updates should not be reported as failed only because
+            // the optional notification subscriber sync could not be completed.
+            console.warn('Employee records imported, but Novu sync failed:', error.message);
         }
     } catch (error) {
         console.error('Error importing employees:', error.message);
+        throw error;
     }
 };
 
@@ -35,5 +43,7 @@ if (process.argv.length < 3) {
 // Extract command-line arguments
 const filePath = process.argv[2];
 
-// Call the function to import employees
-importEmployees(filePath);
+// Call the function and return a non-zero exit code when database work fails.
+importEmployees(filePath).catch(() => {
+    process.exitCode = 1;
+});
