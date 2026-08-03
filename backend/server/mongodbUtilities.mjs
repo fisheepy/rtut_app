@@ -481,6 +481,13 @@ export async function importEmployeesData(employees) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
   const client = new MongoClient(MONGODB_URI);
+  const summary = {
+    processed: 0,
+    updated: 0,
+    unchanged: 0,
+    inserted: 0,
+    skipped: 0,
+  };
   try {
     await client.connect();
     const db = client.db(database_name);
@@ -490,6 +497,7 @@ export async function importEmployeesData(employees) {
     const existingUsernames = new Set(await collection.distinct('username'));
 
     for (const employeeData of employees) {
+      summary.processed += 1;
       // Support both the payroll roster schema and CSV files exported by App Console.
       const rawPhone = employeeData.Phone;
       const email = employeeData.Email;
@@ -545,13 +553,20 @@ export async function importEmployeesData(employees) {
       }
 
       if (existingEmployee) {
-        await collection.updateOne({ _id: existingEmployee._id }, { $set: updateDocument });
-        console.log(`Updated existing employee: ${firstName} ${lastName}`);
+        const updateResult = await collection.updateOne({ _id: existingEmployee._id }, { $set: updateDocument });
+        if (updateResult.modifiedCount > 0) {
+          summary.updated += 1;
+          console.log(`Updated existing employee: ${firstName} ${lastName}`);
+        } else {
+          summary.unchanged += 1;
+          console.log(`No changes for employee: ${firstName} ${lastName}`);
+        }
         continue;
       }
 
       if (!firstName || !lastName) {
         console.warn('Skipping employee row without a first and last name.');
+        summary.skipped += 1;
         continue;
       }
 
@@ -566,8 +581,10 @@ export async function importEmployeesData(employees) {
         'Activation Date': new Date()
       };
       await collection.insertOne(employeeDocument);
+      summary.inserted += 1;
       console.log(`Inserted new employee: ${firstName} ${lastName}`);
     }
+    return summary;
   } catch (error) {
     console.error('Error processing employee data:', error);
     throw error;
