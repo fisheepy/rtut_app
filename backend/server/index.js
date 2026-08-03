@@ -1307,7 +1307,7 @@ app.post('/call-function-import-employees', requireAdminSession, upload.single('
             return;
         }
 
-        const resultMatch = stdout.match(/IMPORT_RESULT:(\\{.*\\})/);
+        const resultMatch = stdout.match(/IMPORT_RESULT:(\{.*\})/);
         if (!resultMatch) {
             console.error('Employee import completed without a result summary.');
             res.status(500).send('Employee import completed without a verifiable result.');
