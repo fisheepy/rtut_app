@@ -20,7 +20,8 @@ const { createInsuranceBreakoutRouter } = require('./insuranceBreakout/routes');
 const { createCommissionRosterRouter } = require('./commissionRoster/routes');
 const { createTrainingRouter } = require('./training/routes');
 const { createTrainingAuthRouter } = require('./training/authRoutes');
-const { createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
+const { createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
+const { createHrPlatformRouter } = require('./hrPlatform/routes');
 const {
     buildEarliestAcceptanceMap,
     employeeForExport,
@@ -1154,6 +1155,7 @@ app.use('/api/commission-roster', createCommissionRosterRouter({
     logOperationToDatabase,
 }));
 const requireTrainingSession = createRequireTrainingSession(getSessionFromRequest);
+const requireHrToolsSession = createRequireHrToolsSession(getSessionFromRequest);
 const loginCodeSecret = process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-login-secret';
 app.use('/api/training-auth', createTrainingAuthRouter({
   uri,
@@ -1181,6 +1183,11 @@ app.use('/api/training', createTrainingRouter({
   uri,
   databaseName: database_name,
   requireTrainingSession,
+}));
+app.use('/api/hr-platform', createHrPlatformRouter({
+  uri,
+  databaseName: database_name,
+  requireHrToolsSession,
 }));
 
 // Function to log errors to the database
@@ -1841,7 +1848,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/hr-platform'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 

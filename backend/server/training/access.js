@@ -62,10 +62,22 @@ function createRequireTrainingSession(getSessionFromRequest, env = process.env) 
   };
 }
 
+function createRequireHrToolsSession(getSessionFromRequest, env = process.env) {
+  return (req, res, next) => {
+    const session = getSessionFromRequest(req);
+    if (!session || !isAuthorizedHrToolsEmail(session.email, env)) {
+      return res.status(401).json({ error: 'HR Tools authentication required' });
+    }
+    req.adminSession = session;
+    return next();
+  };
+}
+
 module.exports = {
   authorizedEmails,
   authorizedHrToolsEmails,
   createRequireTrainingSession,
+  createRequireHrToolsSession,
   hashTrainingCode,
   isAuthorizedTrainingEmail,
   isAuthorizedHrToolsEmail,

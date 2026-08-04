@@ -8,6 +8,7 @@ import PayrollVerification from './pages/PayrollVerification'
 import CommissionRoster from './pages/CommissionRoster'
 import TrainingTools from './pages/TrainingTools'
 import HRPlatform from './pages/HRPlatform'
+import NewHire from './pages/NewHire'
 
 type AdminUser = {
   firstName?: string
@@ -302,6 +303,7 @@ export default function App() {
           <Route path="/commission-roster" element={<CommissionRoster />} />
           <Route path="/training" element={<TrainingTools />} />
           <Route path="/hr-platform" element={<HRPlatform />} />
+          <Route path="/hr-platform/new-hire" element={<NewHire />} />
         </Routes>
       </HrToolShell>
     )
