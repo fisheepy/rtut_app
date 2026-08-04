@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
-const { clean, DEFAULT_FILE_TRACKER_FIELDS, employeeView, fileTrackerComplete, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
+const { clean, DEFAULT_FILE_TRACKER_FIELDS, employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
 
 function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   const router = express.Router();
@@ -184,6 +184,61 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     }
   });
 
+  router.get('/new-hires/reports/completed-actions.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employees = await db.collection('employees').find({ 'HR Platform New Hire At': { $exists: true, $ne: null } }).toArray();
+      const ids = employees.map(employee => String(employee._id));
+      const records = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray() : [];
+      const byId = new Map(records.map(record => [String(record.employeeId), record]));
+      const rows = employees.flatMap(employee => {
+        const record = byId.get(String(employee._id)) || {};
+        const firstPayrollComplete = Boolean(record.firstPayrollDate && record.payrollFinalReviewedAt);
+        const payrollChangeComplete = !record.payRateChangePending && (!record.payrollChangeDate || record.payrollChangeFinalReviewedAt);
+        const insuranceComplete = record.insuranceNotApplicable === true || Boolean(record.insuranceEffectiveDate && record.insuranceCheckedAt);
+        const retirementComplete = record.retirementNotApplicable === true || Boolean(record.retirementEffectiveDate && record.retirementCheckedAt);
+        if (!(firstPayrollComplete && payrollChangeComplete && insuranceComplete && retirementComplete)) return [];
+        return [{
+          employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
+          hireDate: clean(employee['Hire Date']), department: clean(employee['Home Department']), location: clean(employee.Location),
+          firstPayrollDate: clean(record.firstPayrollDate), firstPayrollStatus: 'Completed',
+          payrollCheckedBy: clean(record.payrollCheckedBy), payrollFinalReviewedBy: clean(record.payrollFinalReviewedBy),
+          payrollChangeDate: clean(record.payrollChangeDate) || 'Not Applicable', payrollChangeReason: clean(record.payrollChangeReason),
+          payrollChangeStatus: record.payrollChangeDate ? 'Completed' : 'Not Applicable',
+          payrollChangeCheckedBy: clean(record.payrollChangeCheckedBy), payrollChangeFinalReviewedBy: clean(record.payrollChangeFinalReviewedBy),
+          insurance: record.insuranceNotApplicable === true ? 'Not Applicable' : clean(record.insuranceEffectiveDate),
+          insuranceStatus: record.insuranceNotApplicable === true ? 'Not Applicable' : 'Completed', insuranceCheckedBy: clean(record.insuranceCheckedBy),
+          retirement: record.retirementNotApplicable === true ? 'Not Applicable' : clean(record.retirementEffectiveDate),
+          retirementStatus: record.retirementNotApplicable === true ? 'Not Applicable' : 'Completed', retirementCheckedBy: clean(record.retirementCheckedBy),
+        }];
+      }).sort((a, b) => a.employee.localeCompare(b.employee));
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Completed Employee Actions');
+      sheet.columns = [
+        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
+        { header: 'Department', key: 'department', width: 24 }, { header: 'Location', key: 'location', width: 20 },
+        { header: 'First Payroll Date', key: 'firstPayrollDate', width: 18 }, { header: 'First Payroll Status', key: 'firstPayrollStatus', width: 20 },
+        { header: 'Payroll Checked By', key: 'payrollCheckedBy', width: 30 }, { header: 'Payroll Final Reviewed By', key: 'payrollFinalReviewedBy', width: 30 },
+        { header: 'Payroll Change Date', key: 'payrollChangeDate', width: 20 }, { header: 'Payroll Change Reason', key: 'payrollChangeReason', width: 36 },
+        { header: 'Payroll Change Status', key: 'payrollChangeStatus', width: 22 }, { header: 'Payroll Change Checked By', key: 'payrollChangeCheckedBy', width: 30 },
+        { header: 'Payroll Change Final Reviewed By', key: 'payrollChangeFinalReviewedBy', width: 34 },
+        { header: 'Insurance Effective Date', key: 'insurance', width: 22 }, { header: 'Insurance Status', key: 'insuranceStatus', width: 20 },
+        { header: 'Insurance Checked By', key: 'insuranceCheckedBy', width: 30 }, { header: '401(k) Effective Date', key: 'retirement', width: 22 },
+        { header: '401(k) Status', key: 'retirementStatus', width: 20 }, { header: '401(k) Checked By', key: 'retirementCheckedBy', width: 30 },
+      ];
+      rows.forEach(row => sheet.addRow(row));
+      styleReportSheet(sheet);
+      return await sendWorkbook(res, workbook, `HR_Completed_Employee_Actions_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) {
+      console.error('Unable to create completed HR action report:', error);
+      return res.status(500).json({ error: 'The completed employee action report could not be created.' });
+    } finally {
+      await client.close();
+    }
+  });
+
   router.put('/new-hires/:employeeId', async (req, res) => {
     const employeeId = req.params.employeeId;
     const employeeFolderUrl = clean(req.body?.employeeFolderUrl);
@@ -236,11 +291,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
       };
       const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
-      const changeRequestChanged = payRateChangePending && (
-        !existingRecord?.payRateChangePending ||
-        clean(existingRecord?.payrollChangeDate) !== payrollChangeDate ||
-        clean(existingRecord?.payrollChangeReason) !== payrollChangeReason
-      );
+      const changeRequestChanged = payrollChangeRequestChanged(existingRecord || {}, payRateChangePending, payrollChangeDate, payrollChangeReason);
       const unsetReviewFields = {};
       const resetResponse = {};
       const resetReasons = [];

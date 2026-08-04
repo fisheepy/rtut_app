@@ -136,6 +136,7 @@ export default function NewHire() {
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [showTrackerManager, setShowTrackerManager] = useState(false);
   const [showStatusReview, setShowStatusReview] = useState(false);
+  const [showActionReports, setShowActionReports] = useState(false);
   const [newTrackerLabel, setNewTrackerLabel] = useState("");
   const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
   const [managerError, setManagerError] = useState("");
@@ -674,10 +675,10 @@ export default function NewHire() {
               <ClipboardCheck className="h-4 w-4" />
               Employee File Checklist Manager
             </button>
-            <a className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15" href="/api/hr-platform/new-hires/reports/action-items.xlsx">
+            <button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15" onClick={() => setShowActionReports(true)} type="button">
               <Download className="h-4 w-4" />
               Download Action Report
-            </a>
+            </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
               disabled={loading}
@@ -992,6 +993,19 @@ export default function NewHire() {
           </table>
         </div>
       </section>
+
+      {showActionReports ? (
+        <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
+          <section className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Download Action Report</h2><p className="mt-1 text-sm text-slate-500">Choose the employee action report you need.</p></div><button aria-label="Close Action Reports" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <a className="rounded-xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/action-items.xlsx"><Download className="h-5 w-5 text-amber-700" /><h3 className="mt-3 font-semibold text-amber-950">Current & Future Actions</h3><p className="mt-1 text-sm text-amber-800">Employees with pending First Payroll, Payroll Change, Insurance, or 401(k) action.</p></a>
+              <a className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/completed-actions.xlsx"><Download className="h-5 w-5 text-emerald-700" /><h3 className="mt-3 font-semibold text-emerald-950">Completed Employee Actions</h3><p className="mt-1 text-sm text-emerald-800">Employees whose applicable First Payroll, Payroll Change, Insurance, and 401(k) actions are all complete.</p></a>
+            </div>
+            <div className="mt-5 flex justify-end"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button">Close</button></div>
+          </section>
+        </div>
+      ) : null}
 
       {pendingStatusCheck ? (
         <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">

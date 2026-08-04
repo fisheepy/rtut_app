@@ -6,6 +6,14 @@ function validDate(value) {
   return !value || /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function payrollChangeRequestChanged(existing = {}, pending, date, reason) {
+  return pending === true && (
+    existing.payRateChangePending !== true ||
+    clean(existing.payrollChangeDate) !== clean(date) ||
+    clean(existing.payrollChangeReason) !== clean(reason)
+  );
+}
+
 function employeeView(employee, record) {
   return {
     id: String(employee._id),
@@ -72,5 +80,5 @@ function fileTrackerComplete(tracker, catalog = DEFAULT_FILE_TRACKER_FIELDS) {
 
 module.exports = {
   clean, employeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
-  sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
+  payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
 };

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { employeeView, fileTrackerComplete, sanitizeFileTracker, validDate } = require('./data');
+const { employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, validDate } = require('./data');
 
 test('maps Company App employee fields into a New Hire row', () => {
   const employee = {
@@ -28,6 +28,13 @@ test('accepts empty or ISO dates only', () => {
   assert.equal(validDate(''), true);
   assert.equal(validDate('2026-08-01'), true);
   assert.equal(validDate('08/01/2026'), false);
+});
+
+test('resets payroll change review when the pending date or reason changes', () => {
+  const existing = { payRateChangePending: true, payrollChangeDate: '2026-08-15', payrollChangeReason: 'Promotion' };
+  assert.equal(payrollChangeRequestChanged(existing, true, '2026-08-15', 'Promotion'), false);
+  assert.equal(payrollChangeRequestChanged(existing, true, '2026-08-22', 'Promotion'), true);
+  assert.equal(payrollChangeRequestChanged(existing, true, '2026-08-15', 'Market adjustment'), true);
 });
 
 test('requires every File Tracker item and handbook version before confirmation', () => {
