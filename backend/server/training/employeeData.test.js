@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { normalizeEmployee } = require('./employeeData');
+const { canonicalizeEmployeeRosterFields } = require('./employeeFieldFormat');
 
 test('maps Company App roster fields and supplies both training types', () => {
   const employee = normalizeEmployee({
@@ -27,6 +28,18 @@ test('maps Company App roster fields and supplies both training types', () => {
   assert.equal(employee.employmentStatus, 'Active');
   assert.equal(employee.training.orientation.status, 'Unassigned');
   assert.equal(employee.training.monthly.status, 'Unassigned');
+});
+
+test('merges roster field labels that only differ by case, spacing, or slash formatting', () => {
+  const employees = canonicalizeEmployeeRosterFields([
+    { department: 'OFFICE / ADMIN', jobTitle: 'OWNER', location: 'DEARBORN' },
+    { department: 'Office/Admin', jobTitle: 'Owner', location: 'Dearborn ' },
+    { department: 'Office / admin', jobTitle: 'owner', location: 'dearborn' },
+  ]);
+
+  assert.deepEqual([...new Set(employees.map((employee) => employee.department))], ['Office/Admin']);
+  assert.deepEqual([...new Set(employees.map((employee) => employee.jobTitle))], ['Owner']);
+  assert.deepEqual([...new Set(employees.map((employee) => employee.location))], ['Dearborn']);
 });
 
 test('keeps a manually assigned SharePoint employee folder link', () => {

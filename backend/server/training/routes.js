@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { normalizeEmployee } = require('./employeeData');
+const { canonicalizeEmployeeRosterFields } = require('./employeeFieldFormat');
 const { isAllowedFolderUrl } = require('./folderLink');
 const {
   getOrientationLibraries,
@@ -135,13 +136,13 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
         trainingRecords.map((record) => [String(record.employeeId), record]),
       );
 
-      const data = employees
+      const data = canonicalizeEmployeeRosterFields(employees
         .map((employee) => normalizeEmployee(
           employee,
           trainingByEmployeeId.get(String(employee._id)),
           orientationLibraries,
           monthlyTopics,
-        ))
+        )))
         .sort((left, right) => {
           if (left.employmentStatus !== right.employmentStatus) {
             return left.employmentStatus === 'Active' ? -1 : 1;

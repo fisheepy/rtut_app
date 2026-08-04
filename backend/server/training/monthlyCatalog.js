@@ -1,4 +1,5 @@
 const { randomUUID } = require('node:crypto');
+const { cleanEmployeeFieldLabel, normalizeEmployeeFieldValue } = require('./employeeFieldFormat');
 
 function normalizeTopic(topic) {
   return {
@@ -8,8 +9,8 @@ function normalizeTopic(topic) {
     link: String(topic.link || '').trim(),
     accessCode: String(topic.accessCode || '').trim(),
     autoAssign: {
-      jobTitles: Array.isArray(topic.autoAssign?.jobTitles) ? topic.autoAssign.jobTitles.map(String) : [],
-      locations: Array.isArray(topic.autoAssign?.locations) ? topic.autoAssign.locations.map(String) : [],
+      jobTitles: Array.isArray(topic.autoAssign?.jobTitles) ? topic.autoAssign.jobTitles.map(cleanEmployeeFieldLabel).filter(Boolean) : [],
+      locations: Array.isArray(topic.autoAssign?.locations) ? topic.autoAssign.locations.map(cleanEmployeeFieldLabel).filter(Boolean) : [],
     },
     courses: (Array.isArray(topic.courses) ? topic.courses : []).map((course) => (
       typeof course === 'string'
@@ -51,8 +52,8 @@ function validateTopicInput(body, existingTopic = null) {
       link,
       accessCode: String(body?.accessCode || '').trim(),
       autoAssign: {
-        jobTitles: Array.isArray(body?.autoAssign?.jobTitles) ? body.autoAssign.jobTitles.map(String) : [],
-        locations: Array.isArray(body?.autoAssign?.locations) ? body.autoAssign.locations.map(String) : [],
+        jobTitles: Array.isArray(body?.autoAssign?.jobTitles) ? body.autoAssign.jobTitles.map(cleanEmployeeFieldLabel).filter(Boolean) : [],
+        locations: Array.isArray(body?.autoAssign?.locations) ? body.autoAssign.locations.map(cleanEmployeeFieldLabel).filter(Boolean) : [],
       },
       courses,
     },
@@ -61,11 +62,11 @@ function validateTopicInput(body, existingTopic = null) {
 
 function employeeMatchesAssignmentCriteria(employee, criteria = {}) {
   if (employee?.employmentStatus !== 'Active') return false;
-  const jobTitles = Array.isArray(criteria.jobTitles) ? criteria.jobTitles.map(String) : [];
-  const locations = Array.isArray(criteria.locations) ? criteria.locations.map(String) : [];
+  const jobTitles = Array.isArray(criteria.jobTitles) ? criteria.jobTitles.map(normalizeEmployeeFieldValue).filter(Boolean) : [];
+  const locations = Array.isArray(criteria.locations) ? criteria.locations.map(normalizeEmployeeFieldValue).filter(Boolean) : [];
   if (!jobTitles.length && !locations.length) return false;
-  const matchesJobTitle = !jobTitles.length || jobTitles.includes(String(employee.jobTitle || ''));
-  const matchesLocation = !locations.length || locations.includes(String(employee.location || ''));
+  const matchesJobTitle = !jobTitles.length || jobTitles.includes(normalizeEmployeeFieldValue(employee.jobTitle));
+  const matchesLocation = !locations.length || locations.includes(normalizeEmployeeFieldValue(employee.location));
   return matchesJobTitle && matchesLocation;
 }
 

@@ -122,3 +122,9 @@ test('matches active employees using selected job titles and locations', () => {
   assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Terminated', jobTitle: 'Technician', location: 'Detroit' }, criteria), false);
   assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Active', jobTitle: 'Technician', location: 'Detroit' }, {}), false);
 });
+
+test('matches auto-assignment criteria despite case, whitespace, and slash differences', () => {
+  const criteria = { jobTitles: ['OWNER'], locations: [' dearborn '] };
+  assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Active', jobTitle: 'Owner', location: 'Dearborn' }, criteria), true);
+  assert.equal(employeeMatchesAssignmentCriteria({ employmentStatus: 'Active', jobTitle: 'Office / Admin', location: 'Dearborn' }, { jobTitles: ['office/admin'] }), true);
+});

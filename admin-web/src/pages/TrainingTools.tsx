@@ -145,6 +145,20 @@ function displayDate(value?: string | null) {
   })
 }
 
+function normalizeRosterField(value?: string | null) {
+  return String(value || '').trim().replace(/\s+/g, ' ').replace(/\s*\/\s*/g, '/').toLocaleLowerCase()
+}
+
+function matchesRosterSelection(value: string, selections: string[]) {
+  const normalizedValue = normalizeRosterField(value)
+  return selections.some((selection) => normalizeRosterField(selection) === normalizedValue)
+}
+
+function alignRosterSelections(selections: string[], options: string[]) {
+  const optionByKey = new Map(options.map((option) => [normalizeRosterField(option), option]))
+  return Array.from(new Set(selections.map((selection) => optionByKey.get(normalizeRosterField(selection)) || selection)))
+}
+
 function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
   if (key.startsWith('monthly:')) {
     const [, topicId, field] = key.split(':') as [string, string, MonthlyColumnField]
@@ -605,8 +619,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const activeJobTitles = Array.from(new Set(employees.filter((employee) => employee.employmentStatus === 'Active' && employee.jobTitle).map((employee) => employee.jobTitle))).sort()
   const activeLocations = Array.from(new Set(employees.filter((employee) => employee.employmentStatus === 'Active' && employee.location).map((employee) => employee.location))).sort()
   const autoAssignMatchCount = employees.filter((employee) => employee.employmentStatus === 'Active'
-    && (!autoAssignJobTitles.length || autoAssignJobTitles.includes(employee.jobTitle))
-    && (!autoAssignLocations.length || autoAssignLocations.includes(employee.location))
+    && (!autoAssignJobTitles.length || matchesRosterSelection(employee.jobTitle, autoAssignJobTitles))
+    && (!autoAssignLocations.length || matchesRosterSelection(employee.location, autoAssignLocations))
     && Boolean(autoAssignJobTitles.length || autoAssignLocations.length)).length
   const reportCourseOptions = useMemo<ReportCourseOption[]>(() => reportTrainingType === 'orientation'
     ? allOrientationLibraries.flatMap((library) => library.courses.map((course) => ({
@@ -1021,8 +1035,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       ? JSON.parse(JSON.stringify(topic))
       : { id: '', name: '', targetDate: '', link: '', accessCode: '', autoAssign: { jobTitles: [], locations: [] }, courses: [{ id: '', title: '' }] })
     setIsNewTopic(!topic)
-    setAutoAssignJobTitles(topic?.autoAssign?.jobTitles || [])
-    setAutoAssignLocations(topic?.autoAssign?.locations || [])
+    setAutoAssignJobTitles(alignRosterSelections(topic?.autoAssign?.jobTitles || [], activeJobTitles))
+    setAutoAssignLocations(alignRosterSelections(topic?.autoAssign?.locations || [], activeLocations))
     setTopicPendingDelete(null)
     setTopicError('')
   }
