@@ -577,8 +577,7 @@ export async function importEmployeesData(employees) {
         username: generatedUsername,
         password: generateRandomCode(),
         isActivated: false,
-        'Account Active': 'Active',
-        'Activation Date': new Date()
+        'Account Active': 'Active'
       };
       await collection.insertOne(employeeDocument);
       summary.inserted += 1;

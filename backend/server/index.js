@@ -22,6 +22,11 @@ const { createTrainingRouter } = require('./training/routes');
 const { createTrainingAuthRouter } = require('./training/authRoutes');
 const { createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
 const {
+    buildEarliestAcceptanceMap,
+    employeeForExport,
+    resolveAppRegistrationDate,
+} = require('./registrationDate');
+const {
     clearSessionCookie,
     findAdminByEmail,
     getSessionFromRequest,
@@ -392,6 +397,30 @@ app.get('/employees', cors(), requireAdminSession, async (req, res, next) => {
             return;
         }
 
+        const usernames = data.map(employee => employee.username).filter(Boolean);
+        const acceptanceRecords = usernames.length
+            ? await db.collection('disclaimer acceptances').find({
+                accepted: true,
+                username: { $in: usernames },
+            }).collation({ locale: 'en', strength: 2 }).project({ username: 1, timestamp: 1, accepted: 1 }).toArray()
+            : [];
+        const earliestAcceptanceByUsername = buildEarliestAcceptanceMap(acceptanceRecords);
+        const registrationDateUpdates = [];
+        const exportData = data.map(employee => {
+            const registrationDate = resolveAppRegistrationDate(employee, earliestAcceptanceByUsername);
+            const storedDate = employee['App Registration Date'] ? new Date(employee['App Registration Date']) : null;
+            if (registrationDate && (!storedDate || Number.isNaN(storedDate.getTime()) || storedDate.getTime() !== registrationDate.getTime())) {
+                registrationDateUpdates.push({
+                    updateOne: {
+                        filter: { _id: employee._id },
+                        update: { $set: { 'App Registration Date': registrationDate } },
+                    },
+                });
+            }
+            return employeeForExport(employee, registrationDate);
+        });
+        if (registrationDateUpdates.length) await collection.bulkWrite(registrationDateUpdates);
+
         // Check if the user is a root user
         const adminCollection = db.collection('admins');
         const admins = await adminCollection.find().toArray();
@@ -408,10 +437,10 @@ app.get('/employees', cors(), requireAdminSession, async (req, res, next) => {
         let filteredData = [];
 
         if (isRoot) {
-            filteredData = data;
+            filteredData = exportData;
         } else if (isAdmin) {
             // User is not a root user, filter data accordingly
-            filteredData = data.filter(employee => isSupervisorOrSubordinate(employee, loginName, data));
+            filteredData = exportData.filter(employee => isSupervisorOrSubordinate(employee, loginName, exportData));
         }
 
         // Send filtered data as JSON response
@@ -1620,12 +1649,14 @@ app.post('/api/accept-disclaimer', async (req, res) => {
     async function activateUserIfNeeded(userInfo, accepted, collection) {
         if (userInfo.isActivated !== 'true' && accepted) {
             // Update user to activate account and set activation date
+            const registrationDate = new Date();
             await collection.updateOne(
                 { username: { $regex: new RegExp(`^${userInfo.username}$`, 'i') } },
                 {
                     $set: {
                         isActivated: 'true',
-                        activationDate: new Date()
+                        activationDate: registrationDate,
+                        'App Registration Date': registrationDate
                     }
                 }
             );
