@@ -81,6 +81,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const employeeFolderUrl = clean(req.body?.employeeFolderUrl);
     const payRateType = clean(req.body?.payRateType);
     const payRate = clean(req.body?.payRate);
+    const payRateChangePending = req.body?.payRateChangePending === true;
+    const payrollChangeDate = clean(req.body?.payrollChangeDate);
+    const payrollChangeReason = clean(req.body?.payrollChangeReason);
     const firstPayrollDate = clean(req.body?.firstPayrollDate);
     const insuranceEffectiveDate = clean(req.body?.insuranceEffectiveDate);
     const retirementEffectiveDate = clean(req.body?.retirementEffectiveDate);
@@ -95,6 +98,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if (payRate && !/^\d+(\.\d{1,2})?$/.test(payRate)) {
       return res.status(400).json({ error: 'Please enter a valid Pay Rate with no more than two decimal places.' });
     }
+    if (payRateChangePending && (!validDate(payrollChangeDate) || !payrollChangeDate || !payrollChangeReason)) {
+      return res.status(400).json({ error: 'Pending to Change requires a Payroll Change Date and reason.' });
+    }
     if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
       return res.status(400).json({ error: 'Please enter valid dates.' });
     }
@@ -105,10 +111,27 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const db = client.db(databaseName);
       const employee = await db.collection('employees').findOne({ _id: new ObjectId(employeeId) });
       if (!employee) return res.status(404).json({ error: 'Employee not found.' });
-      const values = { employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate };
+      const values = {
+        employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate,
+        insuranceEffectiveDate, retirementEffectiveDate, payRateChangePending,
+        payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
+        payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
+      };
+      const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
+      const changeRequestChanged = payRateChangePending && (
+        !existingRecord?.payRateChangePending ||
+        clean(existingRecord?.payrollChangeDate) !== payrollChangeDate ||
+        clean(existingRecord?.payrollChangeReason) !== payrollChangeReason
+      );
+      const reviewReset = changeRequestChanged ? {
+        $unset: {
+          payrollChangeCheckedAt: '', payrollChangeCheckedBy: '',
+          payrollChangeFinalReviewedAt: '', payrollChangeFinalReviewedBy: '',
+        },
+      } : {};
       await db.collection('employee_hr_platform').updateOne(
         { employeeId },
-        { $set: { ...values, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
+        { $set: { ...values, updatedAt: new Date(), updatedBy: req.adminSession?.email || null }, ...reviewReset },
         { upsert: true },
       );
       return res.json(values);
@@ -238,11 +261,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       'insurance-check': ['insuranceCheckedAt', 'insuranceCheckedBy'],
       'retirement-check': ['retirementCheckedAt', 'retirementCheckedBy'],
       'payroll-final-review-undo': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
+      'payroll-change-check': ['payrollChangeCheckedAt', 'payrollChangeCheckedBy'],
+      'payroll-change-final-review': ['payrollChangeFinalReviewedAt', 'payrollChangeFinalReviewedBy'],
     };
     const fields = fieldsByAction[action];
     if (!fields) return res.status(400).json({ error: 'Invalid review action.' });
     const reviewerEmail = clean(req.adminSession?.email).toLowerCase();
-    if (['payroll-final-review', 'payroll-final-review-undo'].includes(action) && reviewerEmail !== finalReviewerEmail) {
+    if (['payroll-final-review', 'payroll-final-review-undo', 'payroll-change-final-review'].includes(action) && reviewerEmail !== finalReviewerEmail) {
       return res.status(403).json({ error: 'Only the authorized upper-level manager can perform Payroll Final Review.' });
     }
     const client = createClient();
@@ -265,8 +290,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       if (action === 'payroll-final-review' && !existing?.payrollCheckedAt) {
         return res.status(400).json({ error: 'Payroll Check must be completed before Payroll Final Review.' });
       }
+      if (action === 'payroll-change-check' && !existing?.payRateChangePending) {
+        return res.status(400).json({ error: 'This employee does not have a pending Pay Rate change.' });
+      }
+      if (action === 'payroll-change-final-review' && (!existing?.payRateChangePending || !existing?.payrollChangeCheckedAt)) {
+        return res.status(400).json({ error: 'Payroll Change Check must be completed before final review.' });
+      }
       if (existing?.[fields[0]]) return res.status(409).json({ error: 'This review has already been completed.' });
       const values = { [fields[0]]: new Date(), [fields[1]]: reviewerEmail };
+      if (action === 'payroll-change-final-review') values.payRateChangePending = false;
       await collection.updateOne({ employeeId }, { $set: { ...values, updatedAt: new Date(), updatedBy: reviewerEmail } }, { upsert: true });
       return res.json(values);
     } catch (error) {

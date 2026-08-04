@@ -34,6 +34,9 @@ type NewHireEmployee = {
   employeeFolderUrl: string;
   payRateType: string;
   payRate: string;
+  payRateChangePending: boolean;
+  payrollChangeDate: string;
+  payrollChangeReason: string;
   firstPayrollDate: string;
   insuranceEffectiveDate: string;
   retirementEffectiveDate: string;
@@ -42,6 +45,10 @@ type NewHireEmployee = {
   payrollCheckedBy: string;
   payrollFinalReviewedAt: string | null;
   payrollFinalReviewedBy: string;
+  payrollChangeCheckedAt: string | null;
+  payrollChangeCheckedBy: string;
+  payrollChangeFinalReviewedAt: string | null;
+  payrollChangeFinalReviewedBy: string;
   insuranceCheckedAt: string | null;
   insuranceCheckedBy: string;
   retirementCheckedAt: string | null;
@@ -61,6 +68,9 @@ type EditableRecord = Pick<
   | "employeeFolderUrl"
   | "payRateType"
   | "payRate"
+  | "payRateChangePending"
+  | "payrollChangeDate"
+  | "payrollChangeReason"
   | "firstPayrollDate"
   | "insuranceEffectiveDate"
   | "retirementEffectiveDate"
@@ -70,6 +80,9 @@ const emptyRecord: EditableRecord = {
   employeeFolderUrl: "",
   payRateType: "",
   payRate: "",
+  payRateChangePending: false,
+  payrollChangeDate: "",
+  payrollChangeReason: "",
   firstPayrollDate: "",
   insuranceEffectiveDate: "",
   retirementEffectiveDate: "",
@@ -116,7 +129,7 @@ export default function NewHire() {
   const [newTrackerLabel, setNewTrackerLabel] = useState("");
   const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
   const [managerError, setManagerError] = useState("");
-  const [pendingPayrollReview, setPendingPayrollReview] = useState<{ employee: NewHireEmployee; undo: boolean } | null>(null);
+  const [pendingPayrollReview, setPendingPayrollReview] = useState<{ employee: NewHireEmployee; mode: "payroll-final" | "payroll-final-undo" | "payroll-change-final" } | null>(null);
   const [payrollReviewAcknowledged, setPayrollReviewAcknowledged] = useState(false);
 
   async function loadEmployees() {
@@ -173,7 +186,7 @@ export default function NewHire() {
         !(
           (employee.fileTracker?.finalLockedAt ||
             employee.fileTracker?.confirmedAt) &&
-          employee.payrollFinalReviewedAt && !isCurrentHireMonth(employee.hireDate)
+          employee.payrollFinalReviewedAt && !employee.payRateChangePending && !isCurrentHireMonth(employee.hireDate)
         ),
     )
     .sort(
@@ -195,6 +208,8 @@ export default function NewHire() {
         dateUrgency(left.retirementEffectiveDate) -
         dateUrgency(right.retirementEffectiveDate),
     );
+  const payrollUncheckedCount = mainEmployees.filter((employee) => !employee.payrollCheckedAt).length;
+  const payrollFinalPendingCount = mainEmployees.filter((employee) => employee.payrollCheckedAt && !employee.payrollFinalReviewedAt).length;
 
   const filterFields = [
     ["homeDepartment", "Home Department"],
@@ -227,6 +242,9 @@ export default function NewHire() {
       employeeFolderUrl: employee.employeeFolderUrl,
       payRateType: employee.payRateType,
       payRate: employee.payRate,
+      payRateChangePending: employee.payRateChangePending,
+      payrollChangeDate: employee.payrollChangeDate,
+      payrollChangeReason: employee.payrollChangeReason,
       firstPayrollDate: employee.firstPayrollDate,
       insuranceEffectiveDate: employee.insuranceEffectiveDate,
       retirementEffectiveDate: employee.retirementEffectiveDate,
@@ -281,6 +299,8 @@ export default function NewHire() {
       | "payroll-check"
       | "payroll-final-review"
       | "payroll-final-review-undo"
+      | "payroll-change-check"
+      | "payroll-change-final-review"
       | "insurance-check"
       | "retirement-check",
   ) {
@@ -475,32 +495,12 @@ export default function NewHire() {
       ),
     ],
     [
-      "Insurance Effective Date",
-      (employee: NewHireEmployee) => (
-        <button
-          className="font-semibold text-emerald-700 hover:underline"
-          onClick={() => openRecord(employee)}
-          type="button"
-        >
-          {employee.insuranceEffectiveDate
-            ? dateDisplay(employee.insuranceEffectiveDate)
-            : "+ Add Date"}
+      "Payroll Change Date",
+      (employee: NewHireEmployee) => employee.payRateChangePending ? (
+        <button className="font-semibold text-orange-700 hover:underline" onClick={() => openRecord(employee)} title={employee.payrollChangeReason} type="button">
+          {dateDisplay(employee.payrollChangeDate)}
         </button>
-      ),
-    ],
-    [
-      "401(k) Effective Date",
-      (employee: NewHireEmployee) => (
-        <button
-          className="font-semibold text-emerald-700 hover:underline"
-          onClick={() => openRecord(employee)}
-          type="button"
-        >
-          {employee.retirementEffectiveDate
-            ? dateDisplay(employee.retirementEffectiveDate)
-            : "+ Add Date"}
-        </button>
-      ),
+      ) : null,
     ],
     [
       "File Tracker",
@@ -572,13 +572,13 @@ export default function NewHire() {
       "Payroll Final Review",
       (employee: NewHireEmployee) =>
         employee.payrollFinalReviewedAt ? (
-          <span className="inline-flex items-center gap-2"><span className="font-semibold text-emerald-700">Approved</span>{currentUserEmail === "myu@royaltrailersales.com" ? <button className="text-xs font-semibold text-slate-500 hover:text-red-700" onClick={() => { setPendingPayrollReview({ employee, undo: true }); setPayrollReviewAcknowledged(false); }} type="button">Correct</button> : null}</span>
+          <span className="inline-flex items-center gap-2"><span className="font-semibold text-emerald-700">Approved</span>{currentUserEmail === "myu@royaltrailersales.com" ? <button className="text-xs font-semibold text-slate-500 hover:text-red-700" onClick={() => { setPendingPayrollReview({ employee, mode: "payroll-final-undo" }); setPayrollReviewAcknowledged(false); }} type="button">Correct</button> : null}</span>
         ) : !employee.payrollCheckedAt ? (
           <span className="text-slate-400">Waiting for Payroll Check</span>
         ) : currentUserEmail === "myu@royaltrailersales.com" ? (
           <button
             className="font-semibold text-blue-700 hover:underline"
-            onClick={() => { setPendingPayrollReview({ employee, undo: false }); setPayrollReviewAcknowledged(false); }}
+            onClick={() => { setPendingPayrollReview({ employee, mode: "payroll-final" }); setPayrollReviewAcknowledged(false); }}
             type="button"
           >
             Final Review
@@ -588,6 +588,18 @@ export default function NewHire() {
             Awaiting Upper-Level Manager
           </span>
         ),
+    ],
+    [
+      "Payroll Change Review",
+      (employee: NewHireEmployee) => !employee.payRateChangePending ? null : employee.payrollChangeFinalReviewedAt ? (
+        <span className="font-semibold text-emerald-700">Approved</span>
+      ) : !employee.payrollChangeCheckedAt ? (
+        <button className="font-semibold text-orange-700 hover:underline" onClick={() => completeCheck(employee, "payroll-change-check")} type="button">Admin Check</button>
+      ) : currentUserEmail === "myu@royaltrailersales.com" ? (
+        <button className="font-semibold text-blue-700 hover:underline" onClick={() => { setPendingPayrollReview({ employee, mode: "payroll-change-final" }); setPayrollReviewAcknowledged(false); }} type="button">Final Review</button>
+      ) : (
+        <span className="font-semibold text-blue-700">Awaiting Upper-Level Manager</span>
+      ),
     ],
   ] as const;
 
@@ -726,7 +738,9 @@ export default function NewHire() {
         </div>
       ) : null}
       <section className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm">
-        <div className="border-b border-blue-200 bg-blue-50 px-5 py-4"><h2 className="text-xl font-semibold text-blue-950">New Hire & Payroll Status</h2><p className="mt-1 text-sm text-blue-700">Payroll items remain highlighted until final review. Completed hires remain visible through their hire month.</p></div>
+        <div className="border-b border-blue-200 bg-blue-50 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-blue-950">New Hire & Payroll Status</h2><p className="mt-1 text-sm text-blue-700">Payroll items remain highlighted until final review. Completed hires remain visible through their hire month.</p></div><div className="flex flex-wrap gap-2"><span className="rounded-full border border-red-300 bg-red-100 px-3 py-1.5 text-sm font-bold text-red-800">{payrollUncheckedCount} Payroll Check Needed</span><span className="rounded-full border border-orange-300 bg-orange-100 px-3 py-1.5 text-sm font-bold text-orange-800">{payrollFinalPendingCount} Final Review Needed</span></div></div>
+        </div>
         <div className="max-h-[70vh] overflow-auto">
           <table className="min-w-[2500px] w-full border-separate border-spacing-0 text-sm">
             <thead className="sticky top-0 z-30 bg-blue-100 text-left text-xs uppercase tracking-wide text-blue-800">
@@ -757,11 +771,11 @@ export default function NewHire() {
               ) : mainEmployees.length ? (
                 mainEmployees.map((employee) => (
                   <tr
-                    className={`group ${employee.payrollFinalReviewedAt ? "hover:bg-emerald-50/40" : "bg-amber-50 hover:bg-amber-100"}`}
+                    className={`group ${!employee.payrollCheckedAt ? "bg-red-100 hover:bg-red-200" : !employee.payrollFinalReviewedAt ? "bg-orange-100 hover:bg-orange-200" : "hover:bg-emerald-50/40"}`}
                     key={employee.id}
                   >
                     <th
-                      className={`sticky left-0 z-20 border-b border-r border-slate-200 px-4 py-3 text-left font-semibold text-slate-950 ${employee.payrollFinalReviewedAt ? "bg-white group-hover:bg-emerald-50" : "bg-amber-50 group-hover:bg-amber-100"}`}
+                      className={`sticky left-0 z-20 border-b border-r-4 px-4 py-3 text-left font-bold text-slate-950 ${!employee.payrollCheckedAt ? "border-red-500 bg-red-100 group-hover:bg-red-200" : !employee.payrollFinalReviewedAt ? "border-orange-500 bg-orange-100 group-hover:bg-orange-200" : "border-slate-200 bg-white group-hover:bg-emerald-50"}`}
                     >
                       {employee.name}
                     </th>
@@ -941,9 +955,9 @@ export default function NewHire() {
       {pendingPayrollReview ? (
         <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
           <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">{pendingPayrollReview.undo ? "Correct Payroll Final Review" : "Confirm Payroll Final Review"}</h2><p className="mt-1 text-sm text-slate-500">Employee: <span className="font-semibold text-slate-800">{pendingPayrollReview.employee.name}</span></p></div><button aria-label="Close Payroll Review" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setPendingPayrollReview(null)} type="button"><X className="h-5 w-5" /></button></div>
-            <div className={`mt-5 rounded-xl border p-4 ${pendingPayrollReview.undo ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}><p className="text-sm font-semibold text-slate-800">{pendingPayrollReview.undo ? "This will remove the existing Payroll Final Review approval so it can be reviewed again." : "Confirm that the first payroll has been checked and this employee is ready for final payroll approval."}</p><label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={payrollReviewAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setPayrollReviewAcknowledged(event.target.checked)} type="checkbox" />I reviewed the employee name and understand this action.</label></div>
-            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingPayrollReview(null)} type="button">Cancel</button><button className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${pendingPayrollReview.undo ? "bg-red-700 hover:bg-red-800" : "bg-blue-700 hover:bg-blue-800"}`} disabled={!payrollReviewAcknowledged} onClick={async () => { const success = await completeCheck(pendingPayrollReview.employee, pendingPayrollReview.undo ? "payroll-final-review-undo" : "payroll-final-review"); if (success) setPendingPayrollReview(null); }} type="button">{pendingPayrollReview.undo ? "Confirm Correction" : "Confirm Final Review"}</button></div>
+            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">{pendingPayrollReview.mode === "payroll-final-undo" ? "Correct Payroll Final Review" : pendingPayrollReview.mode === "payroll-change-final" ? "Confirm Payroll Change Review" : "Confirm Payroll Final Review"}</h2><p className="mt-1 text-sm text-slate-500">Employee: <span className="font-semibold text-slate-800">{pendingPayrollReview.employee.name}</span></p></div><button aria-label="Close Payroll Review" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setPendingPayrollReview(null)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className={`mt-5 rounded-xl border p-4 ${pendingPayrollReview.mode === "payroll-final-undo" ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}><p className="text-sm font-semibold text-slate-800">{pendingPayrollReview.mode === "payroll-final-undo" ? "This will remove the existing Payroll Final Review approval so it can be reviewed again." : pendingPayrollReview.mode === "payroll-change-final" ? `Confirm the payroll change scheduled for ${dateDisplay(pendingPayrollReview.employee.payrollChangeDate)}. Reason: ${pendingPayrollReview.employee.payrollChangeReason}` : "Confirm that the first payroll has been checked and this employee is ready for final payroll approval."}</p><label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={payrollReviewAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setPayrollReviewAcknowledged(event.target.checked)} type="checkbox" />I reviewed the employee name and understand this action.</label></div>
+            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingPayrollReview(null)} type="button">Cancel</button><button className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${pendingPayrollReview.mode === "payroll-final-undo" ? "bg-red-700 hover:bg-red-800" : "bg-blue-700 hover:bg-blue-800"}`} disabled={!payrollReviewAcknowledged} onClick={async () => { const action = pendingPayrollReview.mode === "payroll-final-undo" ? "payroll-final-review-undo" : pendingPayrollReview.mode === "payroll-change-final" ? "payroll-change-final-review" : "payroll-final-review"; const success = await completeCheck(pendingPayrollReview.employee, action); if (success) setPendingPayrollReview(null); }} type="button">{pendingPayrollReview.mode === "payroll-final-undo" ? "Confirm Correction" : "Confirm Final Review"}</button></div>
           </section>
         </div>
       ) : null}
@@ -1016,6 +1030,18 @@ export default function NewHire() {
                     />
                   </div>
                 </label>
+              </div>
+              <div className={`rounded-xl border p-4 ${record.payRateChangePending ? "border-orange-300 bg-orange-50" : "border-slate-200 bg-slate-50"}`}>
+                <label className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                  <input checked={record.payRateChangePending} className="h-4 w-4" onChange={(event) => setRecord((current) => ({ ...current, payRateChangePending: event.target.checked }))} type="checkbox" />
+                  Pending to Change
+                </label>
+                {record.payRateChangePending ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="block"><span className="text-sm font-semibold text-slate-700">Payroll Change Date</span><input className="mt-1.5 w-full rounded-lg border border-orange-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, payrollChangeDate: event.target.value }))} required type="date" value={record.payrollChangeDate} /></label>
+                    <label className="block"><span className="text-sm font-semibold text-slate-700">Reason</span><input className="mt-1.5 w-full rounded-lg border border-orange-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, payrollChangeReason: event.target.value }))} placeholder="Reason for pending pay change" required type="text" value={record.payrollChangeReason} /></label>
+                  </div>
+                ) : null}
               </div>
               <label className="block">
                 <span className="text-sm font-semibold text-slate-700">

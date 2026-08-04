@@ -10,12 +10,15 @@ test('maps Company App employee fields into a New Hire row', () => {
     'Supervisor First Name': 'Sam', 'Supervisor Last Name': 'Dallis', 'EEOC Establishment': 'Dearborn',
     'Worker Category': 'Office', 'Pay Category': 'Salary', 'Position Status': 'Active', 'Account Active': 'Active', isActivated: 'false',
   };
-  const result = employeeView(employee, { firstPayrollDate: '2026-08-07', payrollCheckedAt: new Date('2026-08-08'), insuranceCheckedBy: 'admin@example.com' });
+  const result = employeeView(employee, { firstPayrollDate: '2026-08-07', payrollCheckedAt: new Date('2026-08-08'), insuranceCheckedBy: 'admin@example.com', payRateChangePending: true, payrollChangeDate: '2026-08-15', payrollChangeReason: 'Promotion' });
   assert.equal(result.name, 'Myra Yu');
   assert.equal(result.supervisor, 'Sam Dallis');
   assert.equal(result.firstPayrollDate, '2026-08-07');
   assert.equal(result.payrollCheckedAt.toISOString(), '2026-08-08T00:00:00.000Z');
   assert.equal(result.insuranceCheckedBy, 'admin@example.com');
+  assert.equal(result.payRateChangePending, true);
+  assert.equal(result.payrollChangeDate, '2026-08-15');
+  assert.equal(result.payrollChangeReason, 'Promotion');
 });
 
 test('accepts empty or ISO dates only', () => {
