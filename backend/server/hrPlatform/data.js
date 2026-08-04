@@ -21,6 +21,10 @@ function employeeView(employee, record) {
     employeeFolderUrl: clean(record?.employeeFolderUrl), payRateType: clean(record?.payRateType), payRate: clean(record?.payRate), firstPayrollDate: clean(record?.firstPayrollDate),
     insuranceEffectiveDate: clean(record?.insuranceEffectiveDate), retirementEffectiveDate: clean(record?.retirementEffectiveDate),
     fileTracker: record?.fileTracker || {},
+    payrollCheckedAt: record?.payrollCheckedAt || null, payrollCheckedBy: clean(record?.payrollCheckedBy),
+    payrollFinalReviewedAt: record?.payrollFinalReviewedAt || null, payrollFinalReviewedBy: clean(record?.payrollFinalReviewedBy),
+    insuranceCheckedAt: record?.insuranceCheckedAt || null, insuranceCheckedBy: clean(record?.insuranceCheckedBy),
+    retirementCheckedAt: record?.retirementCheckedAt || null, retirementCheckedBy: clean(record?.retirementCheckedBy),
   };
 }
 

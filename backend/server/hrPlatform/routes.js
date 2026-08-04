@@ -182,6 +182,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       if (existing?.fileTracker?.finalLockedAt || existing?.fileTracker?.confirmedAt) {
         return res.status(409).json({ error: 'This File Tracker has been finally confirmed and can no longer be modified.' });
       }
+      if (action === 'comment') {
+        const comments = clean(req.body?.fileTracker?.comments);
+        await collection.updateOne(
+          { employeeId },
+          { $set: { 'fileTracker.comments': comments, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
+          { upsert: true },
+        );
+        return res.json({ fileTracker: { ...(existing?.fileTracker || {}), comments } });
+      }
       if (action === 'lock') {
         if (clean(req.adminSession?.email).toLowerCase() !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform the final File Tracker lock.' });
         if (!existing?.fileTracker?.submittedAt) return res.status(400).json({ error: 'The File Tracker must be confirmed for review before final locking.' });
@@ -217,6 +226,41 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally {
       await client.close();
     }
+  });
+
+  router.put('/new-hires/:employeeId/checks', async (req, res) => {
+    const employeeId = req.params.employeeId;
+    const action = clean(req.body?.action).toLowerCase();
+    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const fieldsByAction = {
+      'payroll-check': ['payrollCheckedAt', 'payrollCheckedBy'],
+      'payroll-final-review': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
+      'insurance-check': ['insuranceCheckedAt', 'insuranceCheckedBy'],
+      'retirement-check': ['retirementCheckedAt', 'retirementCheckedBy'],
+    };
+    const fields = fieldsByAction[action];
+    if (!fields) return res.status(400).json({ error: 'Invalid review action.' });
+    const reviewerEmail = clean(req.adminSession?.email).toLowerCase();
+    if (action === 'payroll-final-review' && reviewerEmail !== finalReviewerEmail) {
+      return res.status(403).json({ error: 'Only the authorized upper-level manager can perform Payroll Final Review.' });
+    }
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const collection = db.collection('employee_hr_platform');
+      const existing = await collection.findOne({ employeeId });
+      if (action === 'payroll-final-review' && !existing?.payrollCheckedAt) {
+        return res.status(400).json({ error: 'Payroll Check must be completed before Payroll Final Review.' });
+      }
+      if (existing?.[fields[0]]) return res.status(409).json({ error: 'This review has already been completed.' });
+      const values = { [fields[0]]: new Date(), [fields[1]]: reviewerEmail };
+      await collection.updateOne({ employeeId }, { $set: { ...values, updatedAt: new Date(), updatedBy: reviewerEmail } }, { upsert: true });
+      return res.json(values);
+    } catch (error) {
+      console.error('Unable to save HR Platform review check:', error);
+      return res.status(500).json({ error: 'The review check could not be saved.' });
+    } finally { await client.close(); }
   });
 
   return router;

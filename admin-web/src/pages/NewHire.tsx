@@ -38,6 +38,14 @@ type NewHireEmployee = {
   insuranceEffectiveDate: string;
   retirementEffectiveDate: string;
   fileTracker: FileTracker;
+  payrollCheckedAt: string | null;
+  payrollCheckedBy: string;
+  payrollFinalReviewedAt: string | null;
+  payrollFinalReviewedBy: string;
+  insuranceCheckedAt: string | null;
+  insuranceCheckedBy: string;
+  retirementCheckedAt: string | null;
+  retirementCheckedBy: string;
 };
 
 type FileTracker = Record<string, any>;
@@ -155,6 +163,35 @@ export default function NewHire() {
     });
   }, [employees, filters, query]);
 
+  const mainEmployees = filteredEmployees
+    .filter(
+      (employee) =>
+        !(
+          (employee.fileTracker?.finalLockedAt ||
+            employee.fileTracker?.confirmedAt) &&
+          employee.payrollFinalReviewedAt
+        ),
+    )
+    .sort(
+      (left, right) =>
+        dateUrgency(left.firstPayrollDate) -
+        dateUrgency(right.firstPayrollDate),
+    );
+  const insuranceEmployees = [...employees]
+    .filter((employee) => employee.insuranceEffectiveDate)
+    .sort(
+      (left, right) =>
+        dateUrgency(left.insuranceEffectiveDate) -
+        dateUrgency(right.insuranceEffectiveDate),
+    );
+  const retirementEmployees = [...employees]
+    .filter((employee) => employee.retirementEffectiveDate)
+    .sort(
+      (left, right) =>
+        dateUrgency(left.retirementEffectiveDate) -
+        dateUrgency(right.retirementEffectiveDate),
+    );
+
   const filterFields = [
     ["homeDepartment", "Home Department"],
     ["jobTitle", "Job Title"],
@@ -204,7 +241,9 @@ export default function NewHire() {
     setTrackerError("");
   }
 
-  async function saveFileTracker(action: "save" | "submit" | "lock" = "save") {
+  async function saveFileTracker(
+    action: "save" | "submit" | "lock" | "comment" = "save",
+  ) {
     if (!trackerEmployee) return;
     setSavingTracker(true);
     setTrackerError("");
@@ -230,6 +269,41 @@ export default function NewHire() {
     } finally {
       setSavingTracker(false);
     }
+  }
+
+  async function completeCheck(
+    employee: NewHireEmployee,
+    action:
+      | "payroll-check"
+      | "payroll-final-review"
+      | "insurance-check"
+      | "retirement-check",
+  ) {
+    setError("");
+    try {
+      const response = await api.put(
+        `/hr-platform/new-hires/${employee.id}/checks`,
+        { action },
+      );
+      setEmployees((current) =>
+        current.map((item) =>
+          item.id === employee.id ? { ...item, ...response.data } : item,
+        ),
+      );
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The review check could not be saved.",
+      );
+    }
+  }
+
+  function dateUrgency(value: string) {
+    if (!value) return Number.MAX_SAFE_INTEGER;
+    const time = new Date(`${value.slice(0, 10)}T00:00:00`).getTime();
+    return Number.isNaN(time)
+      ? Number.MAX_SAFE_INTEGER
+      : Math.abs(time - Date.now());
   }
 
   async function addTrackerField() {
@@ -441,7 +515,7 @@ export default function NewHire() {
       },
     ],
     [
-      "Final Review",
+      "File Tracker Final Review",
       (employee: NewHireEmployee) => {
         const locked =
           employee.fileTracker?.finalLockedAt ||
@@ -459,9 +533,47 @@ export default function NewHire() {
             Review & Lock
           </button>
         ) : (
-          <span className="font-semibold text-blue-700">Awaiting Upper-Level Manager</span>
+          <span className="font-semibold text-blue-700">
+            Awaiting Upper-Level Manager
+          </span>
         );
       },
+    ],
+    [
+      "Payroll Check",
+      (employee: NewHireEmployee) =>
+        employee.payrollCheckedAt ? (
+          <span className="font-semibold text-emerald-700">Checked</span>
+        ) : (
+          <button
+            className="font-semibold text-amber-700 hover:underline"
+            onClick={() => completeCheck(employee, "payroll-check")}
+            type="button"
+          >
+            Check Payroll
+          </button>
+        ),
+    ],
+    [
+      "Payroll Final Review",
+      (employee: NewHireEmployee) =>
+        employee.payrollFinalReviewedAt ? (
+          <span className="font-semibold text-emerald-700">Approved</span>
+        ) : !employee.payrollCheckedAt ? (
+          <span className="text-slate-400">Waiting for Payroll Check</span>
+        ) : currentUserEmail === "myu@royaltrailersales.com" ? (
+          <button
+            className="font-semibold text-blue-700 hover:underline"
+            onClick={() => completeCheck(employee, "payroll-final-review")}
+            type="button"
+          >
+            Final Review
+          </button>
+        ) : (
+          <span className="font-semibold text-blue-700">
+            Awaiting Upper-Level Manager
+          </span>
+        ),
     ],
   ] as const;
 
@@ -549,7 +661,7 @@ export default function NewHire() {
               : ""}
           </button>
           <span className="ml-auto whitespace-nowrap text-sm font-semibold text-slate-500">
-            {filteredEmployees.length} employees
+            {mainEmployees.length} employees
           </span>
         </div>
         {showFilters ? (
@@ -625,13 +737,15 @@ export default function NewHire() {
                     Loading Company App employees...
                   </td>
                 </tr>
-              ) : filteredEmployees.length ? (
-                filteredEmployees.map((employee) => (
+              ) : mainEmployees.length ? (
+                mainEmployees.map((employee) => (
                   <tr
-                    className="group hover:bg-emerald-50/40"
+                    className={`group ${employee.payrollFinalReviewedAt ? "hover:bg-emerald-50/40" : "bg-amber-50 hover:bg-amber-100"}`}
                     key={employee.id}
                   >
-                    <th className="sticky left-0 z-20 border-b border-r border-slate-200 bg-white px-4 py-3 text-left font-semibold text-slate-950 group-hover:bg-emerald-50">
+                    <th
+                      className={`sticky left-0 z-20 border-b border-r border-slate-200 px-4 py-3 text-left font-semibold text-slate-950 ${employee.payrollFinalReviewedAt ? "bg-white group-hover:bg-emerald-50" : "bg-amber-50 group-hover:bg-amber-100"}`}
+                    >
                       {employee.name}
                     </th>
                     {columns.map(([label, value]) => (
@@ -651,6 +765,154 @@ export default function NewHire() {
                     colSpan={columns.length + 1}
                   >
                     No employees match this search.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="text-xl font-semibold text-slate-950">
+            Insurance Status
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Sorted by the nearest Insurance Effective Date.
+          </p>
+        </div>
+        <div className="overflow-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="bg-slate-100 text-left text-xs uppercase text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Employee</th>
+                <th className="px-4 py-3">Effective Date</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Checked By</th>
+                <th className="px-4 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {insuranceEmployees.length ? (
+                insuranceEmployees.map((employee) => (
+                  <tr
+                    className={employee.insuranceCheckedAt ? "" : "bg-amber-50"}
+                    key={employee.id}
+                  >
+                    <td className="border-t border-slate-100 px-4 py-3 font-semibold">
+                      {employee.name}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {dateDisplay(employee.insuranceEffectiveDate)}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {employee.insuranceCheckedAt ? "Checked" : "Pending"}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {display(employee.insuranceCheckedBy)}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {employee.insuranceCheckedAt ? (
+                        <span className="font-semibold text-emerald-700">
+                          Complete
+                        </span>
+                      ) : (
+                        <button
+                          className="font-semibold text-blue-700 hover:underline"
+                          onClick={() =>
+                            completeCheck(employee, "insurance-check")
+                          }
+                          type="button"
+                        >
+                          Mark Checked
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    className="px-4 py-8 text-center text-slate-500"
+                    colSpan={5}
+                  >
+                    No Insurance Effective Dates have been added.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h2 className="text-xl font-semibold text-slate-950">
+            401(k) Status
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Sorted by the nearest 401(k) Effective Date.
+          </p>
+        </div>
+        <div className="overflow-auto">
+          <table className="w-full min-w-[760px] text-sm">
+            <thead className="bg-slate-100 text-left text-xs uppercase text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Employee</th>
+                <th className="px-4 py-3">Effective Date</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Checked By</th>
+                <th className="px-4 py-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {retirementEmployees.length ? (
+                retirementEmployees.map((employee) => (
+                  <tr
+                    className={
+                      employee.retirementCheckedAt ? "" : "bg-amber-50"
+                    }
+                    key={employee.id}
+                  >
+                    <td className="border-t border-slate-100 px-4 py-3 font-semibold">
+                      {employee.name}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {dateDisplay(employee.retirementEffectiveDate)}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {employee.retirementCheckedAt ? "Checked" : "Pending"}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {display(employee.retirementCheckedBy)}
+                    </td>
+                    <td className="border-t border-slate-100 px-4 py-3">
+                      {employee.retirementCheckedAt ? (
+                        <span className="font-semibold text-emerald-700">
+                          Complete
+                        </span>
+                      ) : (
+                        <button
+                          className="font-semibold text-blue-700 hover:underline"
+                          onClick={() =>
+                            completeCheck(employee, "retirement-check")
+                          }
+                          type="button"
+                        >
+                          Mark Checked
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    className="px-4 py-8 text-center text-slate-500"
+                    colSpan={5}
+                  >
+                    No 401(k) Effective Dates have been added.
                   </td>
                 </tr>
               )}
@@ -832,66 +1094,80 @@ export default function NewHire() {
                   {dateDisplay(String(tracker.confirmationDate || ""))}
                 </div>
                 <p className="mt-1">
-                  This File Tracker is permanently locked and cannot be modified.
+                  This File Tracker is permanently locked and cannot be
+                  modified.
                 </p>
               </div>
             ) : trackerSubmitted ? (
               <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
                 <div className="font-semibold">Confirmed for final review</div>
-                <p className="mt-1">Waiting for the upper-level manager to review and lock this record.</p>
+                <p className="mt-1">
+                  Waiting for the upper-level manager to review and lock this
+                  record.
+                </p>
               </div>
             ) : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {effectiveTrackerFields.map((field) => (
-                  <label
-                    className="rounded-lg border border-slate-200 p-3"
-                    key={field.id}
+                <label
+                  className="rounded-lg border border-slate-200 p-3"
+                  key={field.id}
+                >
+                  <span className="mb-2 block text-sm font-semibold text-slate-700">
+                    {field.label}
+                  </span>
+                  <select
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
+                    disabled={trackerLocked || trackerSubmitted}
+                    onChange={(event) =>
+                      setTracker((current) => ({
+                        ...current,
+                        responses: {
+                          ...(current.responses || {}),
+                          [field.id]: event.target.value,
+                        },
+                      }))
+                    }
+                    value={String(tracker.responses?.[field.id] || "")}
                   >
-                    <span className="mb-2 block text-sm font-semibold text-slate-700">
-                      {field.label}
-                    </span>
-                    <select
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
+                    <option value="">Select...</option>
+                    {field.options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  {field.id === "handbookSignoff" &&
+                  tracker.responses?.handbookSignoff === "Yes" ? (
+                    <input
+                      className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100"
                       disabled={trackerLocked || trackerSubmitted}
                       onChange={(event) =>
                         setTracker((current) => ({
                           ...current,
-                          responses: { ...(current.responses || {}), [field.id]: event.target.value },
+                          handbookVersion: event.target.value,
                         }))
                       }
-                      value={String(tracker.responses?.[field.id] || "")}
-                    >
-                      <option value="">Select...</option>
-                      {field.options.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                    {field.id === "handbookSignoff" &&
-                    tracker.responses?.handbookSignoff === "Yes" ? (
-                      <input
-                        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100"
-                        disabled={trackerLocked || trackerSubmitted}
-                        onChange={(event) =>
-                          setTracker((current) => ({
-                            ...current,
-                            handbookVersion: event.target.value,
-                          }))
-                        }
-                        placeholder="Handbook version"
-                        value={String(tracker.handbookVersion || "")}
-                      />
-                    ) : null}
-                  </label>
-                ))}
+                      placeholder="Handbook version"
+                      value={String(tracker.handbookVersion || "")}
+                    />
+                  ) : null}
+                </label>
+              ))}
             </div>
             <label className="mt-4 block rounded-lg border border-slate-200 p-3">
-              <span className="mb-2 block text-sm font-semibold text-slate-700">Admin Comments</span>
+              <span className="mb-2 block text-sm font-semibold text-slate-700">
+                Admin Comments
+              </span>
               <textarea
                 className="min-h-24 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100"
-                disabled={trackerLocked || trackerSubmitted}
-                onChange={(event) => setTracker((current) => ({ ...current, comments: event.target.value }))}
+                disabled={trackerLocked}
+                onChange={(event) =>
+                  setTracker((current) => ({
+                    ...current,
+                    comments: event.target.value,
+                  }))
+                }
                 placeholder="Add notes or follow-up details for this employee file..."
                 value={String(tracker.comments || "")}
               />
@@ -902,7 +1178,9 @@ export default function NewHire() {
                   Confirm for Final Review
                 </h3>
                 <p className="mt-1 text-sm text-amber-800">
-                  Confirm that the checklist is ready for upper-level management review. Only the authorized upper-level manager can permanently lock it.
+                  Confirm that the checklist is ready for upper-level management
+                  review. Only the authorized upper-level manager can
+                  permanently lock it.
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label>
@@ -969,7 +1247,9 @@ export default function NewHire() {
                   </button>
                 </>
               ) : null}
-              {!trackerLocked && trackerSubmitted && currentUserEmail === "myu@royaltrailersales.com" ? (
+              {!trackerLocked &&
+              trackerSubmitted &&
+              currentUserEmail === "myu@royaltrailersales.com" ? (
                 <button
                   className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
                   disabled={savingTracker}
@@ -980,56 +1260,275 @@ export default function NewHire() {
                   Final Review & Lock
                 </button>
               ) : null}
+              {!trackerLocked && trackerSubmitted ? (
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  disabled={savingTracker}
+                  onClick={() => saveFileTracker("comment")}
+                  type="button"
+                >
+                  <Save className="h-4 w-4" />
+                  Save Comment
+                </button>
+              ) : null}
             </div>
           </section>
         </div>
       ) : null}
 
       {showStatusReview ? (
-        <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"
+          role="dialog"
+        >
           <section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
-              <div><h2 className="text-xl font-semibold text-slate-950">New Hire File Tracker Status</h2><p className="mt-1 text-sm text-slate-500">Review the current File Tracker stage for every new hire.</p></div>
-              <button aria-label="Close File Tracker Status" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowStatusReview(false)} type="button"><X className="h-5 w-5" /></button>
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  New Hire File Tracker Status
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Review the current File Tracker stage for every new hire.
+                </p>
+              </div>
+              <button
+                aria-label="Close File Tracker Status"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                onClick={() => setShowStatusReview(false)}
+                type="button"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {[
-                ["Draft", employees.filter((employee) => !employee.fileTracker?.submittedAt && !employee.fileTracker?.finalLockedAt && !employee.fileTracker?.confirmedAt).length, "bg-amber-50 text-amber-800"],
-                ["Confirmed for Review", employees.filter((employee) => employee.fileTracker?.submittedAt && !employee.fileTracker?.finalLockedAt && !employee.fileTracker?.confirmedAt).length, "bg-blue-50 text-blue-800"],
-                ["Locked", employees.filter((employee) => employee.fileTracker?.finalLockedAt || employee.fileTracker?.confirmedAt).length, "bg-emerald-50 text-emerald-800"],
-              ].map(([label, count, tone]) => <div className={`rounded-xl p-4 ${tone}`} key={String(label)}><div className="text-2xl font-semibold">{count}</div><div className="mt-1 text-sm font-semibold">{label}</div></div>)}
+                [
+                  "Draft",
+                  employees.filter(
+                    (employee) =>
+                      !employee.fileTracker?.submittedAt &&
+                      !employee.fileTracker?.finalLockedAt &&
+                      !employee.fileTracker?.confirmedAt,
+                  ).length,
+                  "bg-amber-50 text-amber-800",
+                ],
+                [
+                  "Confirmed for Review",
+                  employees.filter(
+                    (employee) =>
+                      employee.fileTracker?.submittedAt &&
+                      !employee.fileTracker?.finalLockedAt &&
+                      !employee.fileTracker?.confirmedAt,
+                  ).length,
+                  "bg-blue-50 text-blue-800",
+                ],
+                [
+                  "Locked",
+                  employees.filter(
+                    (employee) =>
+                      employee.fileTracker?.finalLockedAt ||
+                      employee.fileTracker?.confirmedAt,
+                  ).length,
+                  "bg-emerald-50 text-emerald-800",
+                ],
+              ].map(([label, count, tone]) => (
+                <div className={`rounded-xl p-4 ${tone}`} key={String(label)}>
+                  <div className="text-2xl font-semibold">{count}</div>
+                  <div className="mt-1 text-sm font-semibold">{label}</div>
+                </div>
+              ))}
             </div>
             <div className="mt-5 overflow-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[760px] text-sm"><thead className="bg-slate-100 text-left text-xs uppercase text-slate-600"><tr><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Confirmation Date</th><th className="px-4 py-3">Confirmed By</th><th className="px-4 py-3">Final Locked By</th></tr></thead><tbody>{employees.map((employee) => { const locked = employee.fileTracker?.finalLockedAt || employee.fileTracker?.confirmedAt; const status = locked ? "Locked" : employee.fileTracker?.submittedAt ? "Confirmed for Review" : "Draft"; return <tr key={employee.id}><td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-900">{employee.name}</td><td className="border-t border-slate-100 px-4 py-3">{status}</td><td className="border-t border-slate-100 px-4 py-3">{dateDisplay(String(employee.fileTracker?.confirmationDate || ""))}</td><td className="border-t border-slate-100 px-4 py-3">{display(String(employee.fileTracker?.submittedBy || ""))}</td><td className="border-t border-slate-100 px-4 py-3">{display(String(employee.fileTracker?.finalLockedBy || employee.fileTracker?.confirmedBy || ""))}</td></tr>})}</tbody></table>
+              <table className="w-full min-w-[900px] text-sm">
+                <thead className="bg-slate-100 text-left text-xs uppercase text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3">Employee</th>
+                    <th className="px-4 py-3">File / Checklist Item</th>
+                    <th className="px-4 py-3">Completion Status</th>
+                    <th className="px-4 py-3">Tracker Stage</th>
+                    <th className="px-4 py-3">Admin Comments</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.flatMap((employee) => {
+                    const locked =
+                      employee.fileTracker?.finalLockedAt ||
+                      employee.fileTracker?.confirmedAt;
+                    const stage = locked
+                      ? "Locked"
+                      : employee.fileTracker?.submittedAt
+                        ? "Confirmed for Review"
+                        : "Draft";
+                    const fields: FileTrackerField[] = employee.fileTracker?.fieldsSnapshot || [];
+                    return fields.map((field) => (
+                      <tr key={`${employee.id}:${field.id}`}>
+                        <td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-900">
+                          {employee.name}
+                        </td>
+                        <td className="border-t border-slate-100 px-4 py-3">
+                          {field.label}
+                        </td>
+                        <td className="border-t border-slate-100 px-4 py-3">
+                          {employee.fileTracker?.responses?.[field.id] || <span className="font-semibold text-amber-700">Missing</span>}
+                        </td>
+                        <td className="border-t border-slate-100 px-4 py-3">
+                          {stage}
+                        </td>
+                        <td className="border-t border-slate-100 px-4 py-3">
+                          {display(String(employee.fileTracker?.comments || ""))}
+                        </td>
+                      </tr>
+                    ));
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="mt-5 flex justify-end"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowStatusReview(false)} type="button">Close</button></div>
+            <div className="mt-5 flex justify-end">
+              <button
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                onClick={() => setShowStatusReview(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
           </section>
         </div>
       ) : null}
 
       {showTrackerManager ? (
-        <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"
+          role="dialog"
+        >
           <section className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
-              <div><h2 className="text-xl font-semibold text-slate-950">File Tracker Checklist Manager</h2><p className="mt-1 text-sm text-slate-500">Changes apply only to future new hires. Existing File Trackers keep their original checklist version.</p></div>
-              <button aria-label="Close Checklist Manager" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowTrackerManager(false)} type="button"><X className="h-5 w-5" /></button>
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  File Tracker Checklist Manager
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Changes apply only to future new hires. Existing File Trackers
+                  keep their original checklist version.
+                </p>
+              </div>
+              <button
+                aria-label="Close Checklist Manager"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                onClick={() => setShowTrackerManager(false)}
+                type="button"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <div className="mt-5 space-y-3">
               {trackerFields.map((field) => (
-                <div className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1.2fr_auto_auto] ${field.active ? "border-slate-200" : "border-slate-200 bg-slate-50 opacity-70"}`} key={field.id}>
-                  <input aria-label={`${field.label} name`} className="rounded-lg border border-slate-200 px-3 py-2 text-sm" onChange={(event) => setTrackerFields((current) => current.map((item) => item.id === field.id ? { ...item, label: event.target.value } : item))} value={field.label} />
-                  <input aria-label={`${field.label} options`} className="rounded-lg border border-slate-200 px-3 py-2 text-sm" onChange={(event) => setTrackerFields((current) => current.map((item) => item.id === field.id ? { ...item, options: event.target.value.split(",").map((value) => value.trim()).filter(Boolean) } : item))} value={field.options.join(", ")} />
-                  <label className="flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-600"><input checked={field.active} onChange={(event) => setTrackerFields((current) => current.map((item) => item.id === field.id ? { ...item, active: event.target.checked } : item))} type="checkbox" />Active</label>
-                  <button className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => saveTrackerField(field)} type="button">Save</button>
+                <div
+                  className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1.2fr_auto_auto] ${field.active ? "border-slate-200" : "border-slate-200 bg-slate-50 opacity-70"}`}
+                  key={field.id}
+                >
+                  <input
+                    aria-label={`${field.label} name`}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    onChange={(event) =>
+                      setTrackerFields((current) =>
+                        current.map((item) =>
+                          item.id === field.id
+                            ? { ...item, label: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                    value={field.label}
+                  />
+                  <input
+                    aria-label={`${field.label} options`}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    onChange={(event) =>
+                      setTrackerFields((current) =>
+                        current.map((item) =>
+                          item.id === field.id
+                            ? {
+                                ...item,
+                                options: event.target.value
+                                  .split(",")
+                                  .map((value) => value.trim())
+                                  .filter(Boolean),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                    value={field.options.join(", ")}
+                  />
+                  <label className="flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-600">
+                    <input
+                      checked={field.active}
+                      onChange={(event) =>
+                        setTrackerFields((current) =>
+                          current.map((item) =>
+                            item.id === field.id
+                              ? { ...item, active: event.target.checked }
+                              : item,
+                          ),
+                        )
+                      }
+                      type="checkbox"
+                    />
+                    Active
+                  </label>
+                  <button
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => saveTrackerField(field)}
+                    type="button"
+                  >
+                    Save
+                  </button>
                 </div>
               ))}
             </div>
             <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <h3 className="text-sm font-semibold text-emerald-950">Add Checklist Item</h3>
-              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1.2fr_auto]"><input className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm" onChange={(event) => setNewTrackerLabel(event.target.value)} placeholder="Checklist item name" value={newTrackerLabel} /><input className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm" onChange={(event) => setNewTrackerOptions(event.target.value)} placeholder="Options separated by commas" value={newTrackerOptions} /><button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" onClick={addTrackerField} type="button">Add Item</button></div>
+              <h3 className="text-sm font-semibold text-emerald-950">
+                Add Checklist Item
+              </h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1.2fr_auto]">
+                <input
+                  className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm"
+                  onChange={(event) => setNewTrackerLabel(event.target.value)}
+                  placeholder="Checklist item name"
+                  value={newTrackerLabel}
+                />
+                <input
+                  className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm"
+                  onChange={(event) => setNewTrackerOptions(event.target.value)}
+                  placeholder="Options separated by commas"
+                  value={newTrackerOptions}
+                />
+                <button
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                  onClick={addTrackerField}
+                  type="button"
+                >
+                  Add Item
+                </button>
+              </div>
             </div>
-            {managerError ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{managerError}</p> : null}
-            <div className="mt-5 flex justify-end"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowTrackerManager(false)} type="button">Close</button></div>
+            {managerError ? (
+              <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                {managerError}
+              </p>
+            ) : null}
+            <div className="mt-5 flex justify-end">
+              <button
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                onClick={() => setShowTrackerManager(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
           </section>
         </div>
       ) : null}
