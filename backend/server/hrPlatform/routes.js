@@ -195,38 +195,25 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       const rows = employees.flatMap(employee => {
         const record = byId.get(String(employee._id)) || {};
-        const firstPayrollComplete = Boolean(record.firstPayrollDate && record.payrollFinalReviewedAt);
-        const payrollChangeComplete = !record.payRateChangePending && (!record.payrollChangeDate || record.payrollChangeFinalReviewedAt);
-        const insuranceComplete = record.insuranceNotApplicable === true || Boolean(record.insuranceEffectiveDate && record.insuranceCheckedAt);
-        const retirementComplete = record.retirementNotApplicable === true || Boolean(record.retirementEffectiveDate && record.retirementCheckedAt);
-        if (!(firstPayrollComplete && payrollChangeComplete && insuranceComplete && retirementComplete)) return [];
-        return [{
+        const base = {
           employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
           hireDate: clean(employee['Hire Date']), department: clean(employee['Home Department']), location: clean(employee.Location),
-          firstPayrollDate: clean(record.firstPayrollDate), firstPayrollStatus: 'Completed',
-          payrollCheckedBy: clean(record.payrollCheckedBy), payrollFinalReviewedBy: clean(record.payrollFinalReviewedBy),
-          payrollChangeDate: clean(record.payrollChangeDate) || 'Not Applicable', payrollChangeReason: clean(record.payrollChangeReason),
-          payrollChangeStatus: record.payrollChangeDate ? 'Completed' : 'Not Applicable',
-          payrollChangeCheckedBy: clean(record.payrollChangeCheckedBy), payrollChangeFinalReviewedBy: clean(record.payrollChangeFinalReviewedBy),
-          insurance: record.insuranceNotApplicable === true ? 'Not Applicable' : clean(record.insuranceEffectiveDate),
-          insuranceStatus: record.insuranceNotApplicable === true ? 'Not Applicable' : 'Completed', insuranceCheckedBy: clean(record.insuranceCheckedBy),
-          retirement: record.retirementNotApplicable === true ? 'Not Applicable' : clean(record.retirementEffectiveDate),
-          retirementStatus: record.retirementNotApplicable === true ? 'Not Applicable' : 'Completed', retirementCheckedBy: clean(record.retirementCheckedBy),
-        }];
-      }).sort((a, b) => a.employee.localeCompare(b.employee));
+        };
+        const completed = [];
+        if (record.firstPayrollDate && record.payrollFinalReviewedAt) completed.push({ ...base, actionDate: clean(record.firstPayrollDate), actionType: 'First Payroll', status: 'Completed', adminCheckedBy: clean(record.payrollCheckedBy), finalReviewedBy: clean(record.payrollFinalReviewedBy), reason: '' });
+        if (record.payrollChangeDate && record.payrollChangeFinalReviewedAt) completed.push({ ...base, actionDate: clean(record.payrollChangeDate), actionType: 'Payroll Change', status: 'Completed', adminCheckedBy: clean(record.payrollChangeCheckedBy), finalReviewedBy: clean(record.payrollChangeFinalReviewedBy), reason: clean(record.payrollChangeReason) });
+        if (record.insuranceEffectiveDate && record.insuranceCheckedAt) completed.push({ ...base, actionDate: clean(record.insuranceEffectiveDate), actionType: 'Insurance', status: 'Action Taken', adminCheckedBy: clean(record.insuranceCheckedBy), finalReviewedBy: '', reason: '' });
+        if (record.retirementEffectiveDate && record.retirementCheckedAt) completed.push({ ...base, actionDate: clean(record.retirementEffectiveDate), actionType: '401(k)', status: 'Action Taken', adminCheckedBy: clean(record.retirementCheckedBy), finalReviewedBy: '', reason: '' });
+        return completed;
+      }).sort((a, b) => a.employee.localeCompare(b.employee) || a.actionDate.localeCompare(b.actionDate) || a.actionType.localeCompare(b.actionType));
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('Completed Employee Actions');
       sheet.columns = [
-        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
+        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Action Type', key: 'actionType', width: 20 },
+        { header: 'Action / Effective Date', key: 'actionDate', width: 22 }, { header: 'Status', key: 'status', width: 18 },
+        { header: 'Admin Checked By', key: 'adminCheckedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalReviewedBy', width: 30 },
+        { header: 'Reason / Notes', key: 'reason', width: 38 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
         { header: 'Department', key: 'department', width: 24 }, { header: 'Location', key: 'location', width: 20 },
-        { header: 'First Payroll Date', key: 'firstPayrollDate', width: 18 }, { header: 'First Payroll Status', key: 'firstPayrollStatus', width: 20 },
-        { header: 'Payroll Checked By', key: 'payrollCheckedBy', width: 30 }, { header: 'Payroll Final Reviewed By', key: 'payrollFinalReviewedBy', width: 30 },
-        { header: 'Payroll Change Date', key: 'payrollChangeDate', width: 20 }, { header: 'Payroll Change Reason', key: 'payrollChangeReason', width: 36 },
-        { header: 'Payroll Change Status', key: 'payrollChangeStatus', width: 22 }, { header: 'Payroll Change Checked By', key: 'payrollChangeCheckedBy', width: 30 },
-        { header: 'Payroll Change Final Reviewed By', key: 'payrollChangeFinalReviewedBy', width: 34 },
-        { header: 'Insurance Effective Date', key: 'insurance', width: 22 }, { header: 'Insurance Status', key: 'insuranceStatus', width: 20 },
-        { header: 'Insurance Checked By', key: 'insuranceCheckedBy', width: 30 }, { header: '401(k) Effective Date', key: 'retirement', width: 22 },
-        { header: '401(k) Status', key: 'retirementStatus', width: 20 }, { header: '401(k) Checked By', key: 'retirementCheckedBy', width: 30 },
       ];
       rows.forEach(row => sheet.addRow(row));
       styleReportSheet(sheet);
@@ -257,10 +244,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if (employeeFolderUrl && !isAllowedFolderUrl(employeeFolderUrl)) {
       return res.status(400).json({ error: 'Please enter a valid Royal Truck SharePoint employee folder link.' });
     }
-    if (payRate && !['Hourly Rate', 'Annual Salary'].includes(payRateType)) {
+    if (!payRateType || !payRate) {
+      return res.status(400).json({ error: 'Pay Type and Pay Rate are required.' });
+    }
+    if (!['Hourly Rate', 'Annual Salary'].includes(payRateType)) {
       return res.status(400).json({ error: 'Select Hourly Rate or Annual Salary before entering a Pay Rate.' });
     }
-    if (payRate && !/^\d+(\.\d{1,2})?$/.test(payRate)) {
+    if (!/^\d+(\.\d{1,2})?$/.test(payRate)) {
       return res.status(400).json({ error: 'Please enter a valid Pay Rate with no more than two decimal places.' });
     }
     if (payRateChangePending && (!validDate(payrollChangeDate) || !payrollChangeDate || !payrollChangeReason)) {

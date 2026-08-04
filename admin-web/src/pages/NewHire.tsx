@@ -213,15 +213,13 @@ export default function NewHire() {
     .filter((employee) => employee.insuranceEffectiveDate && !employee.insuranceCheckedAt)
     .sort(
       (left, right) =>
-        dateUrgency(left.insuranceEffectiveDate) -
-        dateUrgency(right.insuranceEffectiveDate),
+        left.insuranceEffectiveDate.localeCompare(right.insuranceEffectiveDate) || left.name.localeCompare(right.name),
     );
   const retirementEmployees = [...employees]
     .filter((employee) => employee.retirementEffectiveDate && !employee.retirementCheckedAt)
     .sort(
       (left, right) =>
-        dateUrgency(left.retirementEffectiveDate) -
-        dateUrgency(right.retirementEffectiveDate),
+        left.retirementEffectiveDate.localeCompare(right.retirementEffectiveDate) || left.name.localeCompare(right.name),
     );
   const firstPayrollFinalPendingCount = mainEmployees.filter((employee) => !employee.payrollFinalReviewedAt).length;
   const futurePayrollChangeCount = mainEmployees.filter((employee) => employee.payRateChangePending).length;
@@ -630,7 +628,7 @@ export default function NewHire() {
 
   const trackerLocked = Boolean(tracker.finalLockedAt || tracker.confirmedAt);
   const trackerSubmitted = Boolean(tracker.submittedAt);
-  const onboardingDetailsComplete = Boolean(record.firstPayrollDate && (record.insuranceApplicability === "not-applicable" || (record.insuranceApplicability === "applicable" && record.insuranceEffectiveDate)) && (record.retirementApplicability === "not-applicable" || (record.retirementApplicability === "applicable" && record.retirementEffectiveDate)));
+  const onboardingDetailsComplete = Boolean(record.payRateType && record.payRate && record.firstPayrollDate && (record.insuranceApplicability === "not-applicable" || (record.insuranceApplicability === "applicable" && record.insuranceEffectiveDate)) && (record.retirementApplicability === "not-applicable" || (record.retirementApplicability === "applicable" && record.retirementEffectiveDate)));
   const effectiveTrackerFields: FileTrackerField[] =
     (trackerSubmitted || trackerLocked) && tracker.fieldsSnapshot
       ? tracker.fieldsSnapshot
@@ -1000,7 +998,7 @@ export default function NewHire() {
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Download Action Report</h2><p className="mt-1 text-sm text-slate-500">Choose the employee action report you need.</p></div><button aria-label="Close Action Reports" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button"><X className="h-5 w-5" /></button></div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <a className="rounded-xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/action-items.xlsx"><Download className="h-5 w-5 text-amber-700" /><h3 className="mt-3 font-semibold text-amber-950">Current & Future Actions</h3><p className="mt-1 text-sm text-amber-800">Employees with pending First Payroll, Payroll Change, Insurance, or 401(k) action.</p></a>
-              <a className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/completed-actions.xlsx"><Download className="h-5 w-5 text-emerald-700" /><h3 className="mt-3 font-semibold text-emerald-950">Completed Employee Actions</h3><p className="mt-1 text-sm text-emerald-800">Employees whose applicable First Payroll, Payroll Change, Insurance, and 401(k) actions are all complete.</p></a>
+              <a className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/completed-actions.xlsx"><Download className="h-5 w-5 text-emerald-700" /><h3 className="mt-3 font-semibold text-emerald-950">Completed Employee Actions</h3><p className="mt-1 text-sm text-emerald-800">Every completed First Payroll, Payroll Change, Insurance, and 401(k) action, grouped by employee.</p></a>
             </div>
             <div className="mt-5 flex justify-end"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button">Close</button></div>
           </section>
@@ -1054,7 +1052,7 @@ export default function NewHire() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-sm font-semibold text-slate-700">
-                    Pay Type
+                    Pay Type <span className="text-red-600">*</span>
                   </span>
                   <select
                     className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
@@ -1064,6 +1062,7 @@ export default function NewHire() {
                         payRateType: event.target.value,
                       }))
                     }
+                    required
                     value={record.payRateType}
                   >
                     <option value="">Select...</option>
@@ -1073,7 +1072,7 @@ export default function NewHire() {
                 </label>
                 <label className="block">
                   <span className="text-sm font-semibold text-slate-700">
-                    Pay Rate
+                    Pay Rate <span className="text-red-600">*</span>
                   </span>
                   <div className="relative mt-1.5">
                     <span className="absolute left-3 top-2.5 text-sm text-slate-500">
@@ -1089,6 +1088,7 @@ export default function NewHire() {
                         }))
                       }
                       placeholder="0.00"
+                      required
                       step="0.01"
                       type="number"
                       value={record.payRate}
