@@ -193,7 +193,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const payrollChangeReason = clean(req.body?.payrollChangeReason);
     const firstPayrollDate = clean(req.body?.firstPayrollDate);
     const insuranceEffectiveDate = clean(req.body?.insuranceEffectiveDate);
+    const insuranceNotApplicable = req.body?.insuranceNotApplicable === true;
     const retirementEffectiveDate = clean(req.body?.retirementEffectiveDate);
+    const retirementNotApplicable = req.body?.retirementNotApplicable === true;
 
     if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
     if (employeeFolderUrl && !isAllowedFolderUrl(employeeFolderUrl)) {
@@ -211,6 +213,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
       return res.status(400).json({ error: 'Please enter valid dates.' });
     }
+    if ((!insuranceNotApplicable && !insuranceEffectiveDate) || (insuranceNotApplicable && insuranceEffectiveDate)) {
+      return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
+    }
+    if ((!retirementNotApplicable && !retirementEffectiveDate) || (retirementNotApplicable && retirementEffectiveDate)) {
+      return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
+    }
 
     const client = createClient();
     try {
@@ -220,7 +228,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       if (!employee) return res.status(404).json({ error: 'Employee not found.' });
       const values = {
         employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate,
-        insuranceEffectiveDate, retirementEffectiveDate, payRateChangePending,
+        insuranceEffectiveDate: insuranceNotApplicable ? '' : insuranceEffectiveDate, insuranceNotApplicable,
+        retirementEffectiveDate: retirementNotApplicable ? '' : retirementEffectiveDate, retirementNotApplicable,
         payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
         payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
       };

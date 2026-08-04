@@ -40,7 +40,9 @@ type NewHireEmployee = {
   payrollChangeReason: string;
   firstPayrollDate: string;
   insuranceEffectiveDate: string;
+  insuranceNotApplicable: boolean;
   retirementEffectiveDate: string;
+  retirementNotApplicable: boolean;
   fileTracker: FileTracker;
   payrollCheckedAt: string | null;
   payrollCheckedBy: string;
@@ -74,7 +76,9 @@ type EditableRecord = Pick<
   | "payrollChangeReason"
   | "firstPayrollDate"
   | "insuranceEffectiveDate"
+  | "insuranceNotApplicable"
   | "retirementEffectiveDate"
+  | "retirementNotApplicable"
 >;
 
 const emptyRecord: EditableRecord = {
@@ -86,7 +90,9 @@ const emptyRecord: EditableRecord = {
   payrollChangeReason: "",
   firstPayrollDate: "",
   insuranceEffectiveDate: "",
+  insuranceNotApplicable: false,
   retirementEffectiveDate: "",
+  retirementNotApplicable: false,
 };
 const emptyFilters = {
   homeDepartment: "",
@@ -133,7 +139,7 @@ export default function NewHire() {
   const [pendingPayrollReview, setPendingPayrollReview] = useState<{ employee: NewHireEmployee; mode: "payroll-final" | "payroll-final-undo" | "payroll-change-final" } | null>(null);
   const [pendingStatusCheck, setPendingStatusCheck] = useState<{ employee: NewHireEmployee; action: "insurance-check" | "retirement-check" } | null>(null);
   const [statusCheckAcknowledged, setStatusCheckAcknowledged] = useState(false);
-  const [pendingCatalogAction, setPendingCatalogAction] = useState<{ type: "save"; field: FileTrackerField } | { type: "add" } | null>(null);
+  const [showCatalogConfirmation, setShowCatalogConfirmation] = useState(false);
   const [catalogChangeAcknowledged, setCatalogChangeAcknowledged] = useState(false);
   const [payrollReviewAcknowledged, setPayrollReviewAcknowledged] = useState(false);
 
@@ -260,7 +266,9 @@ export default function NewHire() {
       payrollChangeReason: employee.payrollChangeReason,
       firstPayrollDate: employee.firstPayrollDate,
       insuranceEffectiveDate: employee.insuranceEffectiveDate,
+      insuranceNotApplicable: employee.insuranceNotApplicable,
       retirementEffectiveDate: employee.retirementEffectiveDate,
+      retirementNotApplicable: employee.retirementNotApplicable,
     });
     setSaveError("");
   }
@@ -361,44 +369,28 @@ export default function NewHire() {
     return Number(match[1]) === now.getFullYear() && Number(match[2]) === now.getMonth() + 1;
   }
 
-  async function addTrackerField() {
+  async function saveAllTrackerChanges() {
     setManagerError("");
     try {
-      const response = await api.post("/hr-platform/file-tracker-fields", {
-        label: newTrackerLabel,
-        options: newTrackerOptions
-          .split(",")
-          .map((value) => value.trim())
-          .filter(Boolean),
-      });
-      setTrackerFields((current) => [...current, response.data.field]);
-      setNewTrackerLabel("");
-      setNewTrackerOptions("Yes, No");
+      const savedFields: FileTrackerField[] = [];
+      for (const field of trackerFields) {
+        const response = await api.put(`/hr-platform/file-tracker-fields/${field.id}`, field);
+        savedFields.push(response.data.field);
+      }
+      if (newTrackerLabel.trim()) {
+        const response = await api.post("/hr-platform/file-tracker-fields", {
+          label: newTrackerLabel,
+          options: newTrackerOptions.split(",").map((value) => value.trim()).filter(Boolean),
+        });
+        savedFields.push(response.data.field);
+        setNewTrackerLabel("");
+        setNewTrackerOptions("Yes, No");
+      }
+      setTrackerFields(savedFields);
+      setShowCatalogConfirmation(false);
     } catch (requestError: any) {
-      setManagerError(
-        requestError.response?.data?.error ||
-          "The checklist item could not be added.",
-      );
-    }
-  }
-
-  async function saveTrackerField(field: FileTrackerField) {
-    setManagerError("");
-    try {
-      const response = await api.put(
-        `/hr-platform/file-tracker-fields/${field.id}`,
-        field,
-      );
-      setTrackerFields((current) =>
-        current.map((item) =>
-          item.id === field.id ? response.data.field : item,
-        ),
-      );
-    } catch (requestError: any) {
-      setManagerError(
-        requestError.response?.data?.error ||
-          "The checklist item could not be updated.",
-      );
+      setManagerError(requestError.response?.data?.error || "The checklist changes could not be saved.");
+      setShowCatalogConfirmation(false);
     }
   }
 
@@ -623,6 +615,7 @@ export default function NewHire() {
 
   const trackerLocked = Boolean(tracker.finalLockedAt || tracker.confirmedAt);
   const trackerSubmitted = Boolean(tracker.submittedAt);
+  const benefitsComplete = Boolean((record.insuranceNotApplicable || record.insuranceEffectiveDate) && (record.retirementNotApplicable || record.retirementEffectiveDate));
   const effectiveTrackerFields: FileTrackerField[] =
     (trackerSubmitted || trackerLocked) && tracker.fieldsSnapshot
       ? tracker.fieldsSnapshot
@@ -683,6 +676,16 @@ export default function NewHire() {
               Refresh from Company App
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-cyan-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-200 bg-cyan-50 px-5 py-4"><div><h2 className="text-xl font-semibold text-cyan-950">This Month's HR Action Calendar</h2><p className="mt-1 text-sm text-cyan-800">First payroll, payroll changes, insurance, and 401(k) actions scheduled this month. Completed items disappear automatically.</p></div><span className="rounded-full bg-cyan-100 px-3 py-1.5 text-sm font-bold text-cyan-800">{monthlyActions.length} Pending</span></div>
+        <div className="max-h-[55vh] overflow-auto">
+          <table className="w-full min-w-[820px] text-sm">
+            <thead className="sticky top-0 z-10 bg-cyan-100 text-left text-xs uppercase text-cyan-800"><tr><th className="px-4 py-3">Action Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Action Type</th><th className="px-4 py-3">Status</th></tr></thead>
+            <tbody>{monthlyActions.length ? monthlyActions.map((item) => <tr className="bg-cyan-50/40" key={`${item.employee.id}:${item.type}`}><td className="border-t border-cyan-100 px-4 py-3 font-semibold">{dateDisplay(item.date)}</td><td className="border-t border-cyan-100 px-4 py-3 font-semibold text-slate-900">{item.employee.name}</td><td className="border-t border-cyan-100 px-4 py-3">{item.type}</td><td className="border-t border-cyan-100 px-4 py-3 font-semibold text-amber-700">{item.status}</td></tr>) : <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={4}>No pending actions scheduled this month.</td></tr>}</tbody>
+          </table>
         </div>
       </section>
 
@@ -822,16 +825,6 @@ export default function NewHire() {
                 </tr>
               )}
             </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-xl border border-cyan-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-200 bg-cyan-50 px-5 py-4"><div><h2 className="text-xl font-semibold text-cyan-950">This Month's HR Action Calendar</h2><p className="mt-1 text-sm text-cyan-800">First payroll, payroll changes, insurance, and 401(k) actions scheduled this month. Completed items disappear automatically.</p></div><span className="rounded-full bg-cyan-100 px-3 py-1.5 text-sm font-bold text-cyan-800">{monthlyActions.length} Pending</span></div>
-        <div className="max-h-[55vh] overflow-auto">
-          <table className="w-full min-w-[820px] text-sm">
-            <thead className="sticky top-0 z-10 bg-cyan-100 text-left text-xs uppercase text-cyan-800"><tr><th className="px-4 py-3">Action Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Action Type</th><th className="px-4 py-3">Status</th></tr></thead>
-            <tbody>{monthlyActions.length ? monthlyActions.map((item) => <tr className="bg-cyan-50/40" key={`${item.employee.id}:${item.type}`}><td className="border-t border-cyan-100 px-4 py-3 font-semibold">{dateDisplay(item.date)}</td><td className="border-t border-cyan-100 px-4 py-3 font-semibold text-slate-900">{item.employee.name}</td><td className="border-t border-cyan-100 px-4 py-3">{item.type}</td><td className="border-t border-cyan-100 px-4 py-3 font-semibold text-amber-700">{item.status}</td></tr>) : <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={4}>No pending actions scheduled this month.</td></tr>}</tbody>
           </table>
         </div>
       </section>
@@ -1104,31 +1097,16 @@ export default function NewHire() {
                   value={record.employeeFolderUrl}
                 />
               </label>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {(
-                  [
-                    ["firstPayrollDate", "First Payroll Date"],
-                    ["insuranceEffectiveDate", "Insurance Effective Date"],
-                    ["retirementEffectiveDate", "401(k) Effective Date"],
-                  ] as const
-                ).map(([field, label]) => (
-                  <label className="block" key={field}>
-                    <span className="text-sm font-semibold text-slate-700">
-                      {label}
-                    </span>
-                    <input
-                      className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                      onChange={(event) =>
-                        setRecord((current) => ({
-                          ...current,
-                          [field]: event.target.value,
-                        }))
-                      }
-                      type="date"
-                      value={record[field]}
-                    />
-                  </label>
-                ))}
+              <label className="block"><span className="text-sm font-semibold text-slate-700">First Payroll Date</span><input className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, firstPayrollDate: event.target.value }))} type="date" value={record.firstPayrollDate} /></label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([[
+                  "Insurance", "insuranceEffectiveDate", "insuranceNotApplicable",
+                ], [
+                  "401(k)", "retirementEffectiveDate", "retirementNotApplicable",
+                ]] as const).map(([label, dateField, notApplicableField]) => {
+                  const status = record[notApplicableField] ? "not-applicable" : record[dateField] ? "date" : "";
+                  return <div className="rounded-xl border border-slate-200 p-4" key={label}><label className="block"><span className="text-sm font-semibold text-slate-700">{label} Status <span className="text-red-600">*</span></span><select className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, [notApplicableField]: event.target.value === "not-applicable", [dateField]: event.target.value === "date" ? current[dateField] : "" }))} required value={status}><option value="">Select...</option><option value="date">Effective Date Required</option><option value="not-applicable">Not Applicable</option></select></label>{status === "date" ? <label className="mt-3 block"><span className="text-sm font-semibold text-slate-700">{label} Effective Date <span className="text-red-600">*</span></span><input className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, [dateField]: event.target.value }))} required type="date" value={record[dateField]} /></label> : null}</div>;
+                })}
               </div>
               {saveError ? (
                 <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
@@ -1146,7 +1124,7 @@ export default function NewHire() {
               </button>
               <button
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-                disabled={saving}
+                disabled={saving || !benefitsComplete}
                 onClick={saveRecord}
                 type="button"
               >
@@ -1527,7 +1505,7 @@ export default function NewHire() {
             <div className="mt-5 space-y-3">
               {trackerFields.map((field) => (
                 <div
-                  className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1.2fr_auto_auto] ${field.active ? "border-slate-200" : "border-slate-200 bg-slate-50 opacity-70"}`}
+                  className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1.2fr_auto] ${field.active ? "border-slate-200" : "border-slate-200 bg-slate-50 opacity-70"}`}
                   key={field.id}
                 >
                   <input
@@ -1580,13 +1558,6 @@ export default function NewHire() {
                     />
                     Active
                   </label>
-                  <button
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    onClick={() => { setPendingCatalogAction({ type: "save", field }); setCatalogChangeAcknowledged(false); }}
-                    type="button"
-                  >
-                    Review Change
-                  </button>
                 </div>
               ))}
             </div>
@@ -1594,7 +1565,7 @@ export default function NewHire() {
               <h3 className="text-sm font-semibold text-emerald-950">
                 Add Checklist Item
               </h3>
-              <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1.2fr_auto]">
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <input
                   className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm"
                   onChange={(event) => setNewTrackerLabel(event.target.value)}
@@ -1607,13 +1578,6 @@ export default function NewHire() {
                   placeholder="Options separated by commas"
                   value={newTrackerOptions}
                 />
-                <button
-                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-                  onClick={() => { setPendingCatalogAction({ type: "add" }); setCatalogChangeAcknowledged(false); }}
-                  type="button"
-                >
-                  Review New Item
-                </button>
               </div>
             </div>
             {managerError ? (
@@ -1621,7 +1585,7 @@ export default function NewHire() {
                 {managerError}
               </p>
             ) : null}
-            <div className="mt-5 flex justify-end">
+            <div className="mt-5 flex justify-end gap-3">
               <button
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
                 onClick={() => setShowTrackerManager(false)}
@@ -1629,17 +1593,19 @@ export default function NewHire() {
               >
                 Close
               </button>
+              <button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" onClick={() => { setShowCatalogConfirmation(true); setCatalogChangeAcknowledged(false); }} type="button">Review Changes & Confirm</button>
             </div>
           </section>
         </div>
       ) : null}
 
-      {pendingCatalogAction ? (
+      {showCatalogConfirmation ? (
         <div aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/70 p-4" role="dialog">
           <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Confirm Checklist Change</h2><p className="mt-1 text-sm text-slate-500">This change applies only to future employee File Trackers.</p></div><button aria-label="Close Checklist Confirmation" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setPendingCatalogAction(null)} type="button"><X className="h-5 w-5" /></button></div>
-            <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="font-semibold text-slate-900">{pendingCatalogAction.type === "save" ? pendingCatalogAction.field.label : newTrackerLabel || "New checklist item"}</p><p className="mt-1 text-sm text-slate-700">Options: {pendingCatalogAction.type === "save" ? pendingCatalogAction.field.options.join(", ") : newTrackerOptions}</p>{pendingCatalogAction.type === "save" ? <p className="mt-1 text-sm text-slate-700">Status: {pendingCatalogAction.field.active ? "Active" : "Inactive"}</p> : null}<label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={catalogChangeAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setCatalogChangeAcknowledged(event.target.checked)} type="checkbox" />I reviewed this future checklist change and confirm it is correct.</label></div>
-            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingCatalogAction(null)} type="button">Cancel</button><button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" disabled={!catalogChangeAcknowledged} onClick={async () => { if (pendingCatalogAction.type === "save") await saveTrackerField(pendingCatalogAction.field); else await addTrackerField(); setPendingCatalogAction(null); }} type="button">Confirm & Save</button></div>
+            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Review Checklist Changes</h2><p className="mt-1 text-sm text-slate-500">Review the complete checklist before saving. Changes apply only to future employee File Trackers.</p></div><button aria-label="Close Checklist Confirmation" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowCatalogConfirmation(false)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className="mt-5 max-h-72 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">{trackerFields.map((field) => <div className="rounded-lg bg-white px-3 py-2 text-sm" key={field.id}><span className="font-semibold text-slate-900">{field.label}</span><span className="ml-2 text-slate-500">{field.active ? "Active" : "Inactive"} · {field.options.join(", ")}</span></div>)}{newTrackerLabel.trim() ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"><span className="font-semibold text-emerald-900">New: {newTrackerLabel}</span><span className="ml-2 text-emerald-700">{newTrackerOptions}</span></div> : null}</div>
+            <label className="mt-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-slate-700"><input checked={catalogChangeAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setCatalogChangeAcknowledged(event.target.checked)} type="checkbox" />I reviewed all checklist items and confirm these future changes are correct.</label>
+            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowCatalogConfirmation(false)} type="button">Back to Edit</button><button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" disabled={!catalogChangeAcknowledged} onClick={saveAllTrackerChanges} type="button">Confirm & Save All Changes</button></div>
           </section>
         </div>
       ) : null}

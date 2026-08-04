@@ -10,7 +10,7 @@ test('maps Company App employee fields into a New Hire row', () => {
     'Supervisor First Name': 'Sam', 'Supervisor Last Name': 'Dallis', 'EEOC Establishment': 'Dearborn',
     'Worker Category': 'Office', 'Pay Category': 'Salary', 'Position Status': 'Active', 'Account Active': 'Active', isActivated: 'false',
   };
-  const result = employeeView(employee, { firstPayrollDate: '2026-08-07', payrollCheckedAt: new Date('2026-08-08'), insuranceCheckedBy: 'admin@example.com', payRateChangePending: true, payrollChangeDate: '2026-08-15', payrollChangeReason: 'Promotion' });
+  const result = employeeView(employee, { firstPayrollDate: '2026-08-07', payrollCheckedAt: new Date('2026-08-08'), insuranceCheckedBy: 'admin@example.com', insuranceNotApplicable: true, retirementEffectiveDate: '2026-09-01', payRateChangePending: true, payrollChangeDate: '2026-08-15', payrollChangeReason: 'Promotion' });
   assert.equal(result.name, 'Myra Yu');
   assert.equal(result.supervisor, 'Sam Dallis');
   assert.equal(result.firstPayrollDate, '2026-08-07');
@@ -19,6 +19,9 @@ test('maps Company App employee fields into a New Hire row', () => {
   assert.equal(result.payRateChangePending, true);
   assert.equal(result.payrollChangeDate, '2026-08-15');
   assert.equal(result.payrollChangeReason, 'Promotion');
+  assert.equal(result.insuranceNotApplicable, true);
+  assert.equal(result.retirementNotApplicable, false);
+  assert.equal(result.retirementEffectiveDate, '2026-09-01');
 });
 
 test('accepts empty or ISO dates only', () => {
