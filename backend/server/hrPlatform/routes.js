@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
-const { clean, DEFAULT_FILE_TRACKER_FIELDS, employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
+const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
 
 function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   const router = express.Router();
@@ -111,6 +111,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         { header: 'Employee', key: 'employee', width: 26 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
         { header: 'Checklist Item', key: 'item', width: 34 }, { header: 'File Status', key: 'status', width: 22 },
         { header: 'Tracker Stage', key: 'stage', width: 24 }, { header: 'Comments', key: 'comments', width: 48 },
+        { header: 'Comment By', key: 'commentsBy', width: 30 }, { header: 'Comment Updated At', key: 'commentsUpdatedAt', width: 22 },
         { header: 'Confirmation Date', key: 'confirmationDate', width: 18 }, { header: 'Admin Confirmed By', key: 'submittedBy', width: 30 },
         { header: 'Final Locked By', key: 'lockedBy', width: 30 }, { header: 'Final Locked At', key: 'lockedAt', width: 22 },
       ];
@@ -123,6 +124,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         const base = {
           employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
           hireDate: clean(employee['Hire Date']), stage, comments: clean(tracker.comments),
+          commentsBy: clean(tracker.commentsBy), commentsUpdatedAt: tracker.commentsUpdatedAt || '',
           confirmationDate: clean(tracker.confirmationDate), submittedBy: clean(tracker.submittedBy),
           lockedBy: clean(tracker.finalLockedBy || tracker.confirmedBy), lockedAt: tracker.finalLockedAt || tracker.confirmedAt || '',
         };
@@ -244,13 +246,10 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if (employeeFolderUrl && !isAllowedFolderUrl(employeeFolderUrl)) {
       return res.status(400).json({ error: 'Please enter a valid Royal Truck SharePoint employee folder link.' });
     }
-    if (!payRateType || !payRate) {
-      return res.status(400).json({ error: 'Pay Type and Pay Rate are required.' });
-    }
-    if (!['Hourly Rate', 'Annual Salary'].includes(payRateType)) {
+    if (payRateType && !['Hourly Rate', 'Annual Salary'].includes(payRateType)) {
       return res.status(400).json({ error: 'Select Hourly Rate or Annual Salary before entering a Pay Rate.' });
     }
-    if (!/^\d+(\.\d{1,2})?$/.test(payRate)) {
+    if (payRate && !/^\d+(\.\d{1,2})?$/.test(payRate)) {
       return res.status(400).json({ error: 'Please enter a valid Pay Rate with no more than two decimal places.' });
     }
     if (payRateChangePending && (!validDate(payrollChangeDate) || !payrollChangeDate || !payrollChangeReason)) {
@@ -258,13 +257,6 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     }
     if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
       return res.status(400).json({ error: 'Please enter valid dates.' });
-    }
-    if (!firstPayrollDate) return res.status(400).json({ error: 'First Payroll Date is required.' });
-    if ((!insuranceNotApplicable && !insuranceEffectiveDate) || (insuranceNotApplicable && insuranceEffectiveDate)) {
-      return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
-    }
-    if ((!retirementNotApplicable && !retirementEffectiveDate) || (retirementNotApplicable && retirementEffectiveDate)) {
-      return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
     }
 
     const client = createClient();
@@ -281,6 +273,23 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
       };
       const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
+      const dateCorrection = Boolean(existingRecord && (
+        clean(existingRecord.firstPayrollDate) !== firstPayrollDate ||
+        clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate ||
+        (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable ||
+        clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate ||
+        (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable
+      ));
+      if (!dateCorrection) {
+        if (!payRateType || !payRate) return res.status(400).json({ error: 'Pay Type and Pay Rate are required.' });
+        if (!firstPayrollDate) return res.status(400).json({ error: 'First Payroll Date is required.' });
+        if ((!insuranceNotApplicable && !insuranceEffectiveDate) || (insuranceNotApplicable && insuranceEffectiveDate)) return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
+        if ((!retirementNotApplicable && !retirementEffectiveDate) || (retirementNotApplicable && retirementEffectiveDate)) return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
+      } else if ((!insuranceNotApplicable && !insuranceEffectiveDate && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) || (insuranceNotApplicable && insuranceEffectiveDate)) {
+        return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
+      } else if ((!retirementNotApplicable && !retirementEffectiveDate && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) || (retirementNotApplicable && retirementEffectiveDate)) {
+        return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
+      }
       const changeRequestChanged = payrollChangeRequestChanged(existingRecord || {}, payRateChangePending, payrollChangeDate, payrollChangeReason);
       const unsetReviewFields = {};
       const resetResponse = {};
@@ -406,12 +415,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       }
       if (action === 'comment') {
         const comments = clean(req.body?.fileTracker?.comments);
+        const commentFields = commentAudit(existing?.fileTracker || {}, comments, req.adminSession?.email || null);
         await collection.updateOne(
           { employeeId },
-          { $set: { 'fileTracker.comments': comments, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
+          { $set: { ...Object.fromEntries(Object.entries(commentFields).map(([key, value]) => [`fileTracker.${key}`, value])), updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
           { upsert: true },
         );
-        return res.json({ fileTracker: { ...(existing?.fileTracker || {}), comments } });
+        return res.json({ fileTracker: { ...(existing?.fileTracker || {}), ...commentFields } });
       }
       if (action === 'lock') {
         if (clean(req.adminSession?.email).toLowerCase() !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform the final File Tracker lock.' });
@@ -423,12 +433,14 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       if (existing?.fileTracker?.submittedAt) return res.status(409).json({ error: 'This File Tracker has already been confirmed for final review.' });
       const catalog = existing?.fileTracker?.fieldsSnapshot || await getTrackerCatalog(db);
       const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
+      const commentFields = commentAudit(existing?.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
       const submit = action === 'submit';
       if (submit && (!fileTrackerComplete(tracker, catalog) || !validDate(confirmationDate) || !confirmationDate)) {
         return res.status(400).json({ error: 'Complete every checklist item, the handbook version when required, and the confirmation date before confirming for review.' });
       }
       const fileTracker = {
         ...tracker,
+        ...commentFields,
         fieldsSnapshot: catalog,
         confirmationDate: submit ? confirmationDate : '',
         submittedAt: submit ? new Date() : null,
@@ -510,3 +522,4 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
 }
 
 module.exports = { createHrPlatformRouter };
+
