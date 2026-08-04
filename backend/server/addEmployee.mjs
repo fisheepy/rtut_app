@@ -13,10 +13,7 @@ const formatPhoneNumber = (phoneNumber) => {
 
 // Function to validate email format
 const validateEmail = (email) => {
-    // Allow empty email, but validate if it's not empty
-    if (!email) {
-        return true; // Return true for empty emails
-    }
+    if (!email) return false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
 };
@@ -27,13 +24,16 @@ const addEmployee = async (tempFilePath) => {
         const newEmployeeJSON = fs.readFileSync(tempFilePath, 'utf-8');
         const newEmployee = JSON.parse(newEmployeeJSON);
 
+        const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'hireDate', 'homeDepartment', 'jobTitle', 'location', 'supervisorFirstName', 'supervisorLastName', 'eeoc', 'workCategory', 'payCategory'];
+        const missingFields = requiredFields.filter(field => !String(newEmployee[field] || '').trim());
+        if (missingFields.length) throw new Error(`Error during operation: All employee fields are required. Missing: ${missingFields.join(', ')}`);
+
         // Format and validate the phone number
         newEmployee.phone = formatPhoneNumber(newEmployee.phone);
         if (!newEmployee.phone) {
             throw new Error('Error during operation: Invalid phone number format');
         }
 
-        // Validate the email format only if email is provided
         if (!validateEmail(newEmployee.email)) {
             throw new Error('Error during operation: Invalid email format');
         }

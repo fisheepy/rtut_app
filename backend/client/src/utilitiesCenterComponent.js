@@ -1,69 +1,196 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import axios from 'axios';
-import { Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
+import {
+    Alert,
+    Button,
+    Checkbox,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControlLabel,
+    List,
+    ListItem,
+    ListItemText,
+    TextField,
+    Typography,
+} from '@mui/material';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { cleanFilterLabel, normalizeFilterValue } from './employeeFilterUtils';
 import './App.css';
 
+const emptyEmployee = () => ({
+    firstName: '', lastName: '', email: '', phone: '',
+    hireDate: new Date().toISOString().split('T')[0],
+    homeDepartment: '', jobTitle: '', location: '', supervisorFirstName: '', supervisorLastName: '',
+    eeoc: '', workCategory: '', payCategory: '',
+});
+
+const referenceFields = [
+    { form: 'homeDepartment', database: 'Home Department', label: 'Home Department' },
+    { form: 'jobTitle', database: 'Job Title', label: 'Job Title' },
+    { form: 'location', database: 'Location', label: 'Location' },
+    { form: 'eeoc', database: 'EEOC Establishment', label: 'EEOC' },
+    { form: 'workCategory', database: 'Worker Category', label: 'Employment Category' },
+    { form: 'payCategory', database: 'Pay Category', label: 'Pay Category' },
+];
+
+const requiredFields = [
+    ['firstName', 'First Name'], ['lastName', 'Last Name'], ['email', 'Email'], ['phone', 'Phone'],
+    ['hireDate', 'Hire Date'], ['homeDepartment', 'Home Department'], ['jobTitle', 'Job Title'],
+    ['location', 'Location'], ['supervisorFirstName', 'Supervisor First Name'],
+    ['supervisorLastName', 'Supervisor Last Name'], ['eeoc', 'EEOC'],
+    ['workCategory', 'Employment Category'], ['payCategory', 'Pay Category'],
+];
+
+const canonicalMap = (values) => {
+    const result = new Map();
+    values.map(cleanFilterLabel).filter(Boolean).forEach(value => {
+        const key = normalizeFilterValue(value);
+        const current = result.get(key);
+        if (!current || (current === current.toUpperCase() && value !== value.toUpperCase())) result.set(key, value);
+    });
+    return result;
+};
+
 const UtilitiesCenterComponent = () => {
-    const { selectedEmployees } = useContext(SelectedEmployeesContext);
+    useContext(SelectedEmployeesContext);
     const [executionStatus, setExecutionStatus] = useState('Status:');
     const [openAddModal, setOpenAddModal] = useState(false);
     const [openDeleteModal, setOpenDeleteModal] = useState(false);
+    const [openNewValueConfirmation, setOpenNewValueConfirmation] = useState(false);
     const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '', email: '', phone: '' });
-    const [newEmployee, setNewEmployee] = useState({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        hireDate: new Date().toISOString().split('T')[0],
-        homeDepartment: '',
-        jobTitle: '',
-        location: '',
-        supervisorFirstName: '',
-        supervisorLastName: '',
-        eeoc: '',
-        workCategory: '',
-        payCategory: '',
-    });
+    const [newEmployee, setNewEmployee] = useState(emptyEmployee);
+    const [referenceEmployees, setReferenceEmployees] = useState([]);
+    const [referenceError, setReferenceError] = useState('');
+    const [approvedNewValues, setApprovedNewValues] = useState(false);
+    const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (!openAddModal) return;
+        let active = true;
+        axios.get('/employees').then(response => {
+            if (active) setReferenceEmployees(response.data || []);
+        }).catch(() => {
+            if (active) setReferenceError('Existing employee values could not be loaded. Please close and try again.');
+        });
+        return () => { active = false; };
+    }, [openAddModal]);
+
+    const referenceMaps = useMemo(() => Object.fromEntries(referenceFields.map(field => [
+        field.form,
+        canonicalMap(referenceEmployees.map(employee => employee[field.database])),
+    ])), [referenceEmployees]);
+
+    const supervisorMap = useMemo(() => {
+        const map = new Map();
+        referenceEmployees.forEach(employee => {
+            const pairs = [
+                [employee['Supervisor First Name'], employee['Supervisor Last Name']],
+                [employee['First Name'], employee['Last Name']],
+            ];
+            pairs.forEach(([first, last]) => {
+                const cleanFirst = cleanFilterLabel(first);
+                const cleanLast = cleanFilterLabel(last);
+                if (cleanFirst && cleanLast) map.set(`${normalizeFilterValue(cleanFirst)}|${normalizeFilterValue(cleanLast)}`, [cleanFirst, cleanLast]);
+            });
+        });
+        return map;
+    }, [referenceEmployees]);
+
+    const newReferenceValues = useMemo(() => {
+        const entries = referenceFields.flatMap(field => {
+            const value = cleanFilterLabel(newEmployee[field.form]);
+            return value && !referenceMaps[field.form]?.has(normalizeFilterValue(value))
+                ? [{ field: field.form, label: field.label, value }]
+                : [];
+        });
+        const first = cleanFilterLabel(newEmployee.supervisorFirstName);
+        const last = cleanFilterLabel(newEmployee.supervisorLastName);
+        if (first && last && !supervisorMap.has(`${normalizeFilterValue(first)}|${normalizeFilterValue(last)}`)) {
+            entries.push({ field: 'supervisor', label: 'Supervisor', value: `${first} ${last}` });
+        }
+        return entries;
+    }, [newEmployee, referenceMaps, supervisorMap]);
+
+    useEffect(() => { setApprovedNewValues(false); }, [newReferenceValues.map(entry => `${entry.field}:${entry.value}`).join('|')]);
+
+    const missingFields = requiredFields.filter(([field]) => !cleanFilterLabel(newEmployee[field]));
+    const newFieldNames = new Set(newReferenceValues.map(entry => entry.field));
 
     const handleAddEmployeeChange = (field, value) => {
-        if (field === 'hireDate') {
-            const formattedDate = value.toISOString().split('T')[0];
-            setNewEmployee(prevState => ({ ...prevState, [field]: formattedDate }));
-        } else {
-            setNewEmployee(prevState => ({ ...prevState, [field]: value }));
-        }
+        const nextValue = field === 'hireDate' && value ? value.toISOString().split('T')[0] : value;
+        setNewEmployee(previous => ({ ...previous, [field]: nextValue }));
     };
 
-    const handleDeleteEmployeeChange = (e) => {
-        const { name, value } = e.target;
-        setDeleteEmployee(prevState => ({ ...prevState, [name]: value }));
+    const fieldProps = (field, label, type = 'text') => ({
+        margin: 'dense', name: field, label, type, fullWidth: true, variant: 'outlined', required: true,
+        value: newEmployee[field],
+        error: (attemptedSubmit && !cleanFilterLabel(newEmployee[field])) || newFieldNames.has(field),
+        helperText: newFieldNames.has(field)
+            ? `New information: “${cleanFilterLabel(newEmployee[field])}” is not currently used in the database.`
+            : attemptedSubmit && !cleanFilterLabel(newEmployee[field]) ? `${label} is required.` : '',
+        FormHelperTextProps: newFieldNames.has(field) ? { sx: { color: '#d32f2f', fontWeight: 700 } } : undefined,
+        onChange: event => handleAddEmployeeChange(field, event.target.value),
+    });
+
+    const canonicalEmployeePayload = () => {
+        const payload = { ...newEmployee };
+        referenceFields.forEach(field => {
+            const value = cleanFilterLabel(payload[field.form]);
+            payload[field.form] = referenceMaps[field.form]?.get(normalizeFilterValue(value)) || value;
+        });
+        const supervisor = supervisorMap.get(`${normalizeFilterValue(payload.supervisorFirstName)}|${normalizeFilterValue(payload.supervisorLastName)}`);
+        if (supervisor) [payload.supervisorFirstName, payload.supervisorLastName] = supervisor;
+        payload.firstName = cleanFilterLabel(payload.firstName);
+        payload.lastName = cleanFilterLabel(payload.lastName);
+        payload.email = cleanFilterLabel(payload.email);
+        payload.phone = cleanFilterLabel(payload.phone);
+        return payload;
+    };
+
+    const requestAddEmployee = () => {
+        setAttemptedSubmit(true);
+        if (missingFields.length || referenceError || (newReferenceValues.length && !approvedNewValues)) return;
+        if (newReferenceValues.length) setOpenNewValueConfirmation(true);
+        else handleAddEmployeeSubmit();
     };
 
     const handleAddEmployeeSubmit = async () => {
+        setIsSaving(true);
         try {
-            await axios.post('/call-function-add-employee', newEmployee);
-            setExecutionStatus(`Employee ${newEmployee.firstName} ${newEmployee.lastName} added successfully.`);
-            setOpenAddModal(false); // Close the modal on success
+            const payload = { ...canonicalEmployeePayload(), approvedNewValues: newReferenceValues.length > 0 && approvedNewValues };
+            await axios.post('/call-function-add-employee', payload);
+            setExecutionStatus(`Employee ${payload.firstName} ${payload.lastName} added successfully.`);
+            setOpenNewValueConfirmation(false);
+            setOpenAddModal(false);
+            setNewEmployee(emptyEmployee());
+            setApprovedNewValues(false);
+            setAttemptedSubmit(false);
         } catch (error) {
-            // Extract the error message from the response and display it
             const errorMessage = error.response?.data || 'An unexpected error occurred';
             setExecutionStatus(`Failed to add employee ${newEmployee.firstName} ${newEmployee.lastName}: ${errorMessage}`);
-            // Modal remains open to allow the user to correct any issues and retry
+            setOpenNewValueConfirmation(false);
+        } finally {
+            setIsSaving(false);
         }
+    };
+
+    const handleDeleteEmployeeChange = event => {
+        const { name, value } = event.target;
+        setDeleteEmployee(previous => ({ ...previous, [name]: value }));
     };
 
     const handleDeleteEmployeeSubmit = async () => {
         try {
-            const response = await axios.post('/call-function-delete-employee', deleteEmployee);
+            await axios.post('/call-function-delete-employee', deleteEmployee);
             setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} deleted successfully.`);
             setOpenDeleteModal(false);
         } catch (error) {
-            // Extract the specific error message from the server response
-            const errorMessage = error.response?.data || 'An unexpected error occurred';
-            setExecutionStatus(`Failed to delete employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}: ${errorMessage}`);
+            setExecutionStatus(`Failed to delete employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}: ${error.response?.data || 'An unexpected error occurred'}`);
         }
     };
 
@@ -71,72 +198,60 @@ const UtilitiesCenterComponent = () => {
         <div>
             <h3>Execution Status</h3>
             <p>{executionStatus}</p>
-            <Button variant="outlined" color="primary" onClick={() => setOpenAddModal(true)}>
-                Add New Employee
-            </Button>
-            <Button variant="outlined" color="secondary" onClick={() => setOpenDeleteModal(true)}>
-                Delete Employee
-            </Button>
-            {/* Add Employee Modal */}
-            <Dialog
-                open={openAddModal}
-                onClose={() => setOpenAddModal(false)}
-                PaperProps={{
-                    style: {
-                        marginLeft: '650px', // Adjust this value to move the modal lower
-                    },
-                }}
-            >
+            <Button variant="outlined" onClick={() => { setReferenceError(''); setOpenAddModal(true); }}>Add New Employee</Button>
+            <Button variant="outlined" color="secondary" onClick={() => setOpenDeleteModal(true)}>Delete Employee</Button>
+
+            <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Add New Employee</DialogTitle>
                 <DialogContent>
-                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="email" label="Email" type="email" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="phone" label="Phone" type="tel" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-
-                    {/* Label for Hire Date */}
-                    <Typography variant="subtitle1" gutterBottom style={{ marginTop: 16 }}>
-                        Hire Date
-                    </Typography>
-
-                    <DatePicker
-                        selected={new Date(newEmployee.hireDate)}
-                        onChange={(date) => handleAddEmployeeChange('hireDate', date)}
-                        dateFormat="yyyy-MM-dd"
-                        wrapperClassName="datePicker"
-                    />
-
-                    <TextField margin="dense" name="homeDepartment" label="Home Department" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="jobTitle" label="Job Title" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="location" label="Location" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="supervisorFirstName" label="Supervisor First Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="supervisorLastName" label="Supervisor Last Name" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-
-                    {/* New Fields */}
-                    <TextField margin="dense" name="eeoc" label="EEOC" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="workCategory" label="Employment Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
-                    <TextField margin="dense" name="payCategory" label="Pay Category" type="text" fullWidth variant="outlined" onChange={(e) => handleAddEmployeeChange(e.target.name, e.target.value)} />
+                    <Alert severity="info" sx={{ mb: 1 }}>All fields are required. Existing values are matched without regard to capitalization, extra spaces, or slash formatting.</Alert>
+                    {referenceError ? <Alert severity="error" sx={{ mb: 1 }}>{referenceError}</Alert> : null}
+                    <TextField autoFocus {...fieldProps('firstName', 'First Name')} />
+                    <TextField {...fieldProps('lastName', 'Last Name')} />
+                    <TextField {...fieldProps('email', 'Email', 'email')} />
+                    <TextField {...fieldProps('phone', 'Phone', 'tel')} />
+                    <Typography variant="subtitle1" sx={{ mt: 2 }}>Hire Date *</Typography>
+                    <DatePicker selected={newEmployee.hireDate ? new Date(`${newEmployee.hireDate}T00:00:00`) : null} onChange={date => handleAddEmployeeChange('hireDate', date)} dateFormat="yyyy-MM-dd" wrapperClassName="datePicker" />
+                    {attemptedSubmit && !newEmployee.hireDate ? <Typography color="error" variant="caption">Hire Date is required.</Typography> : null}
+                    <TextField {...fieldProps('homeDepartment', 'Home Department')} />
+                    <TextField {...fieldProps('jobTitle', 'Job Title')} />
+                    <TextField {...fieldProps('location', 'Location')} />
+                    <TextField {...fieldProps('supervisorFirstName', 'Supervisor First Name')} error={(attemptedSubmit && !newEmployee.supervisorFirstName) || newFieldNames.has('supervisor')} helperText={newFieldNames.has('supervisor') ? 'New information: this supervisor name is not currently used in the database.' : attemptedSubmit && !newEmployee.supervisorFirstName ? 'Supervisor First Name is required.' : ''} />
+                    <TextField {...fieldProps('supervisorLastName', 'Supervisor Last Name')} error={(attemptedSubmit && !newEmployee.supervisorLastName) || newFieldNames.has('supervisor')} helperText={newFieldNames.has('supervisor') ? 'Confirm this new supervisor before submitting.' : attemptedSubmit && !newEmployee.supervisorLastName ? 'Supervisor Last Name is required.' : ''} />
+                    <TextField {...fieldProps('eeoc', 'EEOC')} />
+                    <TextField {...fieldProps('workCategory', 'Employment Category')} />
+                    <TextField {...fieldProps('payCategory', 'Pay Category')} />
+                    {newReferenceValues.length ? (
+                        <Alert severity="error" sx={{ mt: 2 }}>
+                            <Typography fontWeight={700}>New database information detected:</Typography>
+                            {newReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}
+                            <FormControlLabel control={<Checkbox checked={approvedNewValues} onChange={event => setApprovedNewValues(event.target.checked)} />} label="I reviewed these new values and approve proceeding to final confirmation." />
+                        </Alert>
+                    ) : null}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>
-                    <Button onClick={handleAddEmployeeSubmit}>Submit</Button>
+                    <Button onClick={requestAddEmployee} disabled={isSaving || Boolean(referenceError)}>Review and Submit</Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Delete Employee Modal */}
-            <Dialog
-                open={openDeleteModal}
-                onClose={() => setDeleteEmployee(false)}
-                PaperProps={{
-                    style: {
-                        marginLeft: '650px', // Adjust this value to move the modal lower
-                    },
-                }}
-            >
+            <Dialog open={openNewValueConfirmation} onClose={() => setOpenNewValueConfirmation(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Final Confirmation: New Information</DialogTitle>
+                <DialogContent>
+                    <Alert severity="error">The following values do not currently exist in the employee database. Confirm that they are intentionally new and correctly spelled.</Alert>
+                    <List>{newReferenceValues.map(entry => <ListItem key={`${entry.field}:${entry.value}`}><ListItemText primary={entry.label} secondary={entry.value} /></ListItem>)}</List>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenNewValueConfirmation(false)}>Go Back</Button>
+                    <Button color="error" variant="contained" onClick={handleAddEmployeeSubmit} disabled={isSaving}>{isSaving ? 'Adding…' : 'Confirm and Add Employee'}</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={openDeleteModal} onClose={() => setOpenDeleteModal(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Delete Employee</DialogTitle>
                 <DialogContent>
-                    <TextField autoFocus margin="dense" name="firstName" label="First Name" type="text" fullWidth variant="outlined" onChange={handleDeleteEmployeeChange} />
-                    <TextField margin="dense" name="lastName" label="Last Name" type="text" fullWidth variant="outlined" onChange={handleDeleteEmployeeChange} />
+                    <TextField autoFocus margin="dense" name="firstName" label="First Name" fullWidth onChange={handleDeleteEmployeeChange} />
+                    <TextField margin="dense" name="lastName" label="Last Name" fullWidth onChange={handleDeleteEmployeeChange} />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenDeleteModal(false)}>Cancel</Button>

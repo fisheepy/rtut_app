@@ -664,21 +664,59 @@ export async function addNewEmployee(newEmployee) {
     const db = client.db(database_name);
     const collection = db.collection('employees');
 
-    // Prepare duplicate check conditions, excluding empty or null email
-    const duplicateConditions = [
-      { "First Name": newEmployee.firstName, "Last Name": newEmployee.lastName },
-      { Phone: newEmployee.phone }
+    const cleanValue = value => String(value || '').trim().replace(/\s+/g, ' ').replace(/\s*\/\s*/g, '/');
+    const normalizedValue = value => cleanValue(value).toLocaleLowerCase();
+    const referenceFields = [
+      ['homeDepartment', 'Home Department', 'Home Department'],
+      ['jobTitle', 'Job Title', 'Job Title'],
+      ['location', 'Location', 'Location'],
+      ['eeoc', 'EEOC Establishment', 'EEOC'],
+      ['workCategory', 'Worker Category', 'Employment Category'],
+      ['payCategory', 'Pay Category', 'Pay Category'],
     ];
+    const allEmployees = await collection.find({}).toArray();
+    const referenceEmployees = allEmployees.filter(employee => String(employee['Account Active'] || '').toLocaleLowerCase() === 'active');
+    const newInformation = [];
 
-    // Add email to conditions only if it is not null or empty
-    if (newEmployee.email) {
-      duplicateConditions.push({ Email: newEmployee.email });
+    for (const [formField, databaseField, label] of referenceFields) {
+      const value = cleanValue(newEmployee[formField]);
+      const existing = referenceEmployees.map(employee => cleanValue(employee[databaseField])).find(candidate => candidate && normalizedValue(candidate) === normalizedValue(value));
+      if (existing) newEmployee[formField] = existing;
+      else {
+        newEmployee[formField] = value;
+        newInformation.push(`${label}: ${value}`);
+      }
     }
 
-    // Check for duplicates based on first+last name, email, or phone number
-    const duplicateCheck = await collection.findOne({
-      $or: duplicateConditions
-    });
+    const supervisorFirstName = cleanValue(newEmployee.supervisorFirstName);
+    const supervisorLastName = cleanValue(newEmployee.supervisorLastName);
+    const supervisor = referenceEmployees.flatMap(employee => [
+      [employee['Supervisor First Name'], employee['Supervisor Last Name']],
+      [employee['First Name'], employee['Last Name']],
+    ]).find(([first, last]) => normalizedValue(first) === normalizedValue(supervisorFirstName) && normalizedValue(last) === normalizedValue(supervisorLastName));
+    if (supervisor) {
+      newEmployee.supervisorFirstName = cleanValue(supervisor[0]);
+      newEmployee.supervisorLastName = cleanValue(supervisor[1]);
+    } else {
+      newEmployee.supervisorFirstName = supervisorFirstName;
+      newEmployee.supervisorLastName = supervisorLastName;
+      newInformation.push(`Supervisor: ${supervisorFirstName} ${supervisorLastName}`);
+    }
+
+    newEmployee.firstName = cleanValue(newEmployee.firstName);
+    newEmployee.lastName = cleanValue(newEmployee.lastName);
+    newEmployee.email = cleanValue(newEmployee.email);
+    if (newInformation.length && newEmployee.approvedNewValues !== true) {
+      throw new Error(`Error during operation: New information requires admin confirmation: ${newInformation.join('; ')}`);
+    }
+
+    // Ignore superficial formatting when checking for an existing employee.
+    const phoneDigits = value => String(value || '').replace(/\D/g, '');
+    const duplicateCheck = allEmployees.find(employee => (
+      normalizedValue(employee['First Name']) === normalizedValue(newEmployee.firstName)
+        && normalizedValue(employee['Last Name']) === normalizedValue(newEmployee.lastName)
+    ) || phoneDigits(employee.Phone) === phoneDigits(newEmployee.phone)
+      || normalizedValue(employee.Email) === normalizedValue(newEmployee.email));
 
     if (duplicateCheck) {
       const isInactive = ['inactive', 'terminated'].includes(
@@ -721,10 +759,10 @@ export async function addNewEmployee(newEmployee) {
         return { insertedId: duplicateCheck._id, reactivated: true };
       }
 
-      if (newEmployee.email && duplicateCheck.Email === newEmployee.email) {
+      if (normalizedValue(duplicateCheck.Email) === normalizedValue(newEmployee.email)) {
         throw new Error('Error during operation: Duplicate email found.');
       }
-      if (duplicateCheck.Phone === newEmployee.phone) {
+      if (phoneDigits(duplicateCheck.Phone) === phoneDigits(newEmployee.phone)) {
         throw new Error('Error during operation: Duplicate phone number found.');
       }
       throw new Error('Error during operation: Duplicate employee record found.');
