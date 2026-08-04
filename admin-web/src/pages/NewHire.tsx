@@ -233,6 +233,10 @@ export default function NewHire() {
     if (employee.retirementEffectiveDate.startsWith(currentMonthPrefix) && !employee.retirementCheckedAt) actions.push({ employee, type: "401(k)", date: employee.retirementEffectiveDate, status: "Action Needed" });
     return actions;
   }).sort((left, right) => left.date.localeCompare(right.date) || left.employee.name.localeCompare(right.employee.name));
+  const monthlyActionSummary = ["First Payroll", "Payroll Change", "Insurance", "401(k)"].map((type) => ({
+    type,
+    count: monthlyActions.filter((item) => item.type === type).length,
+  }));
 
   const filterFields = [
     ["homeDepartment", "Home Department"],
@@ -632,8 +636,8 @@ export default function NewHire() {
       : trackerFields.filter((field) => field.active);
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl bg-slate-950 px-6 py-7 text-white shadow-xl">
+    <div className="space-y-6 pb-10">
+      <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 px-6 py-7 text-white shadow-2xl ring-1 ring-white/10">
         <Link
           className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white"
           to="/hr-platform"
@@ -689,8 +693,8 @@ export default function NewHire() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-cyan-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-200 bg-cyan-50 px-5 py-4"><div><h2 className="text-xl font-semibold text-cyan-950">This Month's HR Action Calendar</h2><p className="mt-1 text-sm text-cyan-800">First payroll, payroll changes, insurance, and 401(k) actions scheduled this month. Completed items disappear automatically.</p></div><span className="rounded-full bg-cyan-100 px-3 py-1.5 text-sm font-bold text-cyan-800">{monthlyActions.length} Pending</span></div>
+      <section className="overflow-hidden rounded-2xl border border-cyan-200 bg-white shadow-lg shadow-cyan-950/5">
+        <div className="border-b border-cyan-200 bg-gradient-to-r from-cyan-50 via-sky-50 to-white px-5 py-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="mb-2 inline-flex rounded-full bg-cyan-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-800">Monthly Priority View</div><h2 className="text-xl font-semibold text-cyan-950">This Month's New Hire/Insurance/401k Action Calendar</h2><p className="mt-1 text-sm text-cyan-800">First payroll, payroll changes, insurance, and 401(k) actions scheduled this month. Completed items disappear automatically.</p></div><span className="rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-bold text-cyan-800 shadow-sm">{monthlyActions.length} Pending</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{monthlyActionSummary.map((item) => <div className="rounded-xl border border-white bg-white/80 px-3 py-2.5 shadow-sm" key={item.type}><div className="text-lg font-bold text-slate-950">{item.count}</div><div className="text-xs font-semibold text-slate-500">{item.type}</div></div>)}</div></div>
         <div className="max-h-[55vh] overflow-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="sticky top-0 z-10 bg-cyan-100 text-left text-xs uppercase text-cyan-800"><tr><th className="px-4 py-3">Action Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Action Type</th><th className="px-4 py-3">Status</th></tr></thead>
@@ -699,7 +703,7 @@ export default function NewHire() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md shadow-slate-950/5">
         <div className="flex flex-wrap items-center gap-3">
           <label className="relative min-w-64 flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -772,8 +776,8 @@ export default function NewHire() {
           {error}
         </div>
       ) : null}
-      <section className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm">
-        <div className="border-b border-blue-200 bg-blue-50 px-5 py-4">
+      <section className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-lg shadow-blue-950/5">
+        <div className="border-b border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-white px-5 py-5">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-blue-950">New Hire & Payroll Status</h2><p className="mt-1 text-sm text-blue-700">First payroll and future payroll changes are sorted together by the nearest pending date. Completed hires remain visible through their hire month.</p></div><div className="flex flex-wrap gap-2"><span className="rounded-full border border-red-300 bg-red-100 px-3 py-1.5 text-sm font-bold text-red-800">{firstPayrollFinalPendingCount} First Payroll Final Review Needed</span><span className="rounded-full border border-purple-300 bg-purple-100 px-3 py-1.5 text-sm font-bold text-purple-800">{futurePayrollChangeCount} Future Payroll Change</span></div></div>
         </div>
         <div className="max-h-[70vh] overflow-auto">
@@ -839,8 +843,8 @@ export default function NewHire() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-violet-200 bg-white shadow-sm">
-        <div className="border-b border-violet-200 bg-violet-50 px-5 py-4">
+      <section className="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-lg shadow-violet-950/5">
+        <div className="border-b border-violet-200 bg-gradient-to-r from-violet-50 to-white px-5 py-5">
           <h2 className="text-xl font-semibold text-violet-950">
             Insurance Status
           </h2>
@@ -913,8 +917,8 @@ export default function NewHire() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-emerald-200 bg-white shadow-sm">
-        <div className="border-b border-emerald-200 bg-emerald-50 px-5 py-4">
+      <section className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-lg shadow-emerald-950/5">
+        <div className="border-b border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-5 py-5">
           <h2 className="text-xl font-semibold text-emerald-950">
             401(k) Status
           </h2>
