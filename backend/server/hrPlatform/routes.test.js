@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { employeeView, validDate } = require('./data');
+const { employeeView, fileTrackerComplete, sanitizeFileTracker, validDate } = require('./data');
 
 test('maps Company App employee fields into a New Hire row', () => {
   const employee = {
@@ -20,4 +20,15 @@ test('accepts empty or ISO dates only', () => {
   assert.equal(validDate(''), true);
   assert.equal(validDate('2026-08-01'), true);
   assert.equal(validDate('08/01/2026'), false);
+});
+
+test('requires every File Tracker item and handbook version before confirmation', () => {
+  const tracker = sanitizeFileTracker({
+    resumeInformation: 'Yes', hiringApproval: 'Yes', federalW4: 'Yes', stateW4: 'Yes',
+    handbookSignoff: 'Yes', handbookVersion: '2026.1', safetyPolicySignoff: 'Yes',
+    confidentialityPolicySignoff: 'Yes', offerLetter: 'Yes', nncdra: 'Exempt',
+    backgroundCheck: 'Not Applicable', i9: 'Yes',
+  });
+  assert.equal(fileTrackerComplete(tracker), true);
+  assert.equal(fileTrackerComplete({ ...tracker, handbookVersion: '' }), false);
 });
