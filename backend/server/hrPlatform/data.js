@@ -18,33 +18,49 @@ function employeeView(employee, record) {
     eeoc: clean(employee['EEOC Establishment'] || employee.EEOC), employmentCategory: clean(employee['Worker Category']),
     payCategory: clean(employee['Pay Category']), positionStatus: clean(employee['Position Status']),
     accountActive: clean(employee['Account Active']), activated: clean(employee.isActivated),
-    employeeFolderUrl: clean(record?.employeeFolderUrl), payRate: clean(record?.payRate), firstPayrollDate: clean(record?.firstPayrollDate),
+    employeeFolderUrl: clean(record?.employeeFolderUrl), payRateType: clean(record?.payRateType), payRate: clean(record?.payRate), firstPayrollDate: clean(record?.firstPayrollDate),
     insuranceEffectiveDate: clean(record?.insuranceEffectiveDate), retirementEffectiveDate: clean(record?.retirementEffectiveDate),
     fileTracker: record?.fileTracker || {},
   };
 }
 
-const FILE_TRACKER_FIELDS = [
-  'resumeInformation', 'hiringApproval', 'federalW4', 'stateW4', 'handbookSignoff',
-  'safetyPolicySignoff', 'confidentialityPolicySignoff', 'offerLetter', 'nncdra',
-  'backgroundCheck', 'i9',
-];
+const DEFAULT_FILE_TRACKER_FIELDS = [
+  ['resumeInformation', 'Resume / Information', ['Yes', 'No']], ['hiringApproval', 'Hiring Approval', ['Yes', 'No']],
+  ['federalW4', 'Federal W-4', ['Yes', 'No']], ['stateW4', 'State W-4', ['Yes', 'No']],
+  ['handbookSignoff', 'Handbook Signoff', ['Yes', 'No']], ['safetyPolicySignoff', 'Safety Policy Signoff', ['Yes', 'No']],
+  ['confidentialityPolicySignoff', 'Confidentiality Policy Signoff', ['Yes', 'No']], ['offerLetter', 'Offer Letter', ['Yes', 'No']],
+  ['nncdra', 'NNCDRA', ['Yes', 'No', 'Exempt']], ['backgroundCheck', 'Background Check', ['Yes', 'No', 'Not Applicable']],
+  ['i9', 'I-9', ['Yes', 'No']],
+].map(([id, label, options], order) => ({ id, label, options, order, active: true }));
 
-function sanitizeFileTracker(input = {}) {
-  const yesNo = new Set(['Yes', 'No']);
-  const result = {};
-  for (const field of FILE_TRACKER_FIELDS) {
-    const allowed = field === 'nncdra' ? new Set(['Yes', 'No', 'Exempt'])
-      : field === 'backgroundCheck' ? new Set(['Yes', 'No', 'Not Applicable']) : yesNo;
-    result[field] = allowed.has(input[field]) ? input[field] : '';
+function sanitizeTrackerCatalogField(input, existing = {}) {
+  const label = clean(input?.label);
+  const options = [...new Set((Array.isArray(input?.options) ? input.options : []).map(clean).filter(Boolean))];
+  if (!label || options.length < 2) return { error: 'A checklist name and at least two response options are required.' };
+  return { field: {
+    id: clean(existing.id || input.id), label, options,
+    order: Number.isFinite(Number(input.order)) ? Number(input.order) : Number(existing.order || 0),
+    active: input.active !== false,
+  } };
+}
+
+function sanitizeFileTracker(input = {}, catalog = DEFAULT_FILE_TRACKER_FIELDS) {
+  const responses = input.responses && typeof input.responses === 'object' ? input.responses : input;
+  const result = { responses: {} };
+  for (const field of catalog) {
+    const value = clean(responses[field.id]);
+    result.responses[field.id] = field.options.includes(value) ? value : '';
   }
-  result.handbookVersion = result.handbookSignoff === 'Yes' ? clean(input.handbookVersion) : '';
+  result.handbookVersion = result.responses.handbookSignoff === 'Yes' ? clean(input.handbookVersion) : '';
   return result;
 }
 
-function fileTrackerComplete(tracker) {
-  return FILE_TRACKER_FIELDS.every(field => tracker[field])
-    && (tracker.handbookSignoff !== 'Yes' || Boolean(tracker.handbookVersion));
+function fileTrackerComplete(tracker, catalog = DEFAULT_FILE_TRACKER_FIELDS) {
+  return catalog.every(field => tracker.responses?.[field.id])
+    && (tracker.responses?.handbookSignoff !== 'Yes' || Boolean(tracker.handbookVersion));
 }
 
-module.exports = { clean, employeeView, FILE_TRACKER_FIELDS, fileTrackerComplete, sanitizeFileTracker, validDate };
+module.exports = {
+  clean, employeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
+  sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
+};
