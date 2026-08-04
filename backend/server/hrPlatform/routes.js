@@ -237,11 +237,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       'payroll-final-review': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
       'insurance-check': ['insuranceCheckedAt', 'insuranceCheckedBy'],
       'retirement-check': ['retirementCheckedAt', 'retirementCheckedBy'],
+      'payroll-final-review-undo': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
     };
     const fields = fieldsByAction[action];
     if (!fields) return res.status(400).json({ error: 'Invalid review action.' });
     const reviewerEmail = clean(req.adminSession?.email).toLowerCase();
-    if (action === 'payroll-final-review' && reviewerEmail !== finalReviewerEmail) {
+    if (['payroll-final-review', 'payroll-final-review-undo'].includes(action) && reviewerEmail !== finalReviewerEmail) {
       return res.status(403).json({ error: 'Only the authorized upper-level manager can perform Payroll Final Review.' });
     }
     const client = createClient();
@@ -250,6 +251,17 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const db = client.db(databaseName);
       const collection = db.collection('employee_hr_platform');
       const existing = await collection.findOne({ employeeId });
+      if (action === 'payroll-final-review-undo') {
+        if (!existing?.payrollFinalReviewedAt) return res.status(409).json({ error: 'Payroll Final Review is not currently approved.' });
+        await collection.updateOne(
+          { employeeId },
+          {
+            $unset: { payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' },
+            $set: { payrollFinalReviewCorrectedAt: new Date(), payrollFinalReviewCorrectedBy: reviewerEmail, updatedAt: new Date(), updatedBy: reviewerEmail },
+          },
+        );
+        return res.json({ payrollFinalReviewedAt: null, payrollFinalReviewedBy: '' });
+      }
       if (action === 'payroll-final-review' && !existing?.payrollCheckedAt) {
         return res.status(400).json({ error: 'Payroll Check must be completed before Payroll Final Review.' });
       }

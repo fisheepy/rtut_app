@@ -82,6 +82,8 @@ const emptyFilters = {
   employmentCategory: "",
   payCategory: "",
   activated: "",
+  hireDateFrom: "",
+  hireDateTo: "",
 };
 const display = (value: string) => value || "—";
 const dateDisplay = (value: string) => {
@@ -114,6 +116,8 @@ export default function NewHire() {
   const [newTrackerLabel, setNewTrackerLabel] = useState("");
   const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
   const [managerError, setManagerError] = useState("");
+  const [pendingPayrollReview, setPendingPayrollReview] = useState<{ employee: NewHireEmployee; undo: boolean } | null>(null);
+  const [payrollReviewAcknowledged, setPayrollReviewAcknowledged] = useState(false);
 
   async function loadEmployees() {
     setLoading(true);
@@ -155,10 +159,10 @@ export default function NewHire() {
         )
       )
         return false;
-      return Object.entries(filters).every(
-        ([field, value]) =>
-          !value ||
-          String(employee[field as keyof NewHireEmployee] || "") === value,
+      if (filters.hireDateFrom && employee.hireDate.slice(0, 10) < filters.hireDateFrom) return false;
+      if (filters.hireDateTo && employee.hireDate.slice(0, 10) > filters.hireDateTo) return false;
+      return Object.entries(filters).every(([field, value]) =>
+        ["hireDateFrom", "hireDateTo"].includes(field) || !value || String(employee[field as keyof NewHireEmployee] || "") === value,
       );
     });
   }, [employees, filters, query]);
@@ -169,7 +173,7 @@ export default function NewHire() {
         !(
           (employee.fileTracker?.finalLockedAt ||
             employee.fileTracker?.confirmedAt) &&
-          employee.payrollFinalReviewedAt
+          employee.payrollFinalReviewedAt && !isCurrentHireMonth(employee.hireDate)
         ),
     )
     .sort(
@@ -276,6 +280,7 @@ export default function NewHire() {
     action:
       | "payroll-check"
       | "payroll-final-review"
+      | "payroll-final-review-undo"
       | "insurance-check"
       | "retirement-check",
   ) {
@@ -290,11 +295,13 @@ export default function NewHire() {
           item.id === employee.id ? { ...item, ...response.data } : item,
         ),
       );
+      return true;
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.error ||
           "The review check could not be saved.",
       );
+      return false;
     }
   }
 
@@ -304,6 +311,13 @@ export default function NewHire() {
     return Number.isNaN(time)
       ? Number.MAX_SAFE_INTEGER
       : Math.abs(time - Date.now());
+  }
+
+  function isCurrentHireMonth(value: string) {
+    const match = value.match(/^(\d{4})-(\d{2})/);
+    if (!match) return false;
+    const now = new Date();
+    return Number(match[1]) === now.getFullYear() && Number(match[2]) === now.getMonth() + 1;
   }
 
   async function addTrackerField() {
@@ -558,13 +572,13 @@ export default function NewHire() {
       "Payroll Final Review",
       (employee: NewHireEmployee) =>
         employee.payrollFinalReviewedAt ? (
-          <span className="font-semibold text-emerald-700">Approved</span>
+          <span className="inline-flex items-center gap-2"><span className="font-semibold text-emerald-700">Approved</span>{currentUserEmail === "myu@royaltrailersales.com" ? <button className="text-xs font-semibold text-slate-500 hover:text-red-700" onClick={() => { setPendingPayrollReview({ employee, undo: true }); setPayrollReviewAcknowledged(false); }} type="button">Correct</button> : null}</span>
         ) : !employee.payrollCheckedAt ? (
           <span className="text-slate-400">Waiting for Payroll Check</span>
         ) : currentUserEmail === "myu@royaltrailersales.com" ? (
           <button
             className="font-semibold text-blue-700 hover:underline"
-            onClick={() => completeCheck(employee, "payroll-final-review")}
+            onClick={() => { setPendingPayrollReview({ employee, undo: false }); setPayrollReviewAcknowledged(false); }}
             type="button"
           >
             Final Review
@@ -688,6 +702,8 @@ export default function NewHire() {
                   ))}
                 </select>
               ))}
+              <label className="min-w-44 flex-1"><span className="mb-1 block text-xs font-semibold text-slate-500">Hire Date From</span><input className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" onChange={(event) => setFilters((current) => ({ ...current, hireDateFrom: event.target.value }))} type="date" value={filters.hireDateFrom} /></label>
+              <label className="min-w-44 flex-1"><span className="mb-1 block text-xs font-semibold text-slate-500">Hire Date To</span><input className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" onChange={(event) => setFilters((current) => ({ ...current, hireDateTo: event.target.value }))} type="date" value={filters.hireDateTo} /></label>
               <button
                 className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-white hover:text-emerald-700"
                 onClick={() => {
@@ -709,12 +725,13 @@ export default function NewHire() {
           {error}
         </div>
       ) : null}
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm">
+        <div className="border-b border-blue-200 bg-blue-50 px-5 py-4"><h2 className="text-xl font-semibold text-blue-950">New Hire & Payroll Status</h2><p className="mt-1 text-sm text-blue-700">Payroll items remain highlighted until final review. Completed hires remain visible through their hire month.</p></div>
         <div className="max-h-[70vh] overflow-auto">
           <table className="min-w-[2500px] w-full border-separate border-spacing-0 text-sm">
-            <thead className="sticky top-0 z-30 bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+            <thead className="sticky top-0 z-30 bg-blue-100 text-left text-xs uppercase tracking-wide text-blue-800">
               <tr>
-                <th className="sticky left-0 z-40 min-w-52 border-b border-r border-slate-200 bg-slate-100 px-4 py-3">
+                <th className="sticky left-0 z-40 min-w-52 border-b border-r border-blue-200 bg-blue-100 px-4 py-3">
                   Name
                 </th>
                 {columns.map(([label]) => (
@@ -773,9 +790,9 @@ export default function NewHire() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-xl font-semibold text-slate-950">
+      <section className="rounded-xl border border-violet-200 bg-white shadow-sm">
+        <div className="border-b border-violet-200 bg-violet-50 px-5 py-4">
+          <h2 className="text-xl font-semibold text-violet-950">
             Insurance Status
           </h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -784,7 +801,7 @@ export default function NewHire() {
         </div>
         <div className="overflow-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-slate-100 text-left text-xs uppercase text-slate-600">
+            <thead className="bg-violet-100 text-left text-xs uppercase text-violet-800">
               <tr>
                 <th className="px-4 py-3">Employee</th>
                 <th className="px-4 py-3">Effective Date</th>
@@ -846,9 +863,9 @@ export default function NewHire() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <h2 className="text-xl font-semibold text-slate-950">
+      <section className="rounded-xl border border-emerald-200 bg-white shadow-sm">
+        <div className="border-b border-emerald-200 bg-emerald-50 px-5 py-4">
+          <h2 className="text-xl font-semibold text-emerald-950">
             401(k) Status
           </h2>
           <p className="mt-1 text-sm text-slate-500">
@@ -857,7 +874,7 @@ export default function NewHire() {
         </div>
         <div className="overflow-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-slate-100 text-left text-xs uppercase text-slate-600">
+            <thead className="bg-emerald-100 text-left text-xs uppercase text-emerald-800">
               <tr>
                 <th className="px-4 py-3">Employee</th>
                 <th className="px-4 py-3">Effective Date</th>
@@ -920,6 +937,16 @@ export default function NewHire() {
           </table>
         </div>
       </section>
+
+      {pendingPayrollReview ? (
+        <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
+          <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">{pendingPayrollReview.undo ? "Correct Payroll Final Review" : "Confirm Payroll Final Review"}</h2><p className="mt-1 text-sm text-slate-500">Employee: <span className="font-semibold text-slate-800">{pendingPayrollReview.employee.name}</span></p></div><button aria-label="Close Payroll Review" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setPendingPayrollReview(null)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className={`mt-5 rounded-xl border p-4 ${pendingPayrollReview.undo ? "border-red-200 bg-red-50" : "border-amber-200 bg-amber-50"}`}><p className="text-sm font-semibold text-slate-800">{pendingPayrollReview.undo ? "This will remove the existing Payroll Final Review approval so it can be reviewed again." : "Confirm that the first payroll has been checked and this employee is ready for final payroll approval."}</p><label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={payrollReviewAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setPayrollReviewAcknowledged(event.target.checked)} type="checkbox" />I reviewed the employee name and understand this action.</label></div>
+            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingPayrollReview(null)} type="button">Cancel</button><button className={`rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${pendingPayrollReview.undo ? "bg-red-700 hover:bg-red-800" : "bg-blue-700 hover:bg-blue-800"}`} disabled={!payrollReviewAcknowledged} onClick={async () => { const success = await completeCheck(pendingPayrollReview.employee, pendingPayrollReview.undo ? "payroll-final-review-undo" : "payroll-final-review"); if (success) setPendingPayrollReview(null); }} type="button">{pendingPayrollReview.undo ? "Confirm Correction" : "Confirm Final Review"}</button></div>
+          </section>
+        </div>
+      ) : null}
 
       {editing ? (
         <div
