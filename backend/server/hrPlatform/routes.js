@@ -13,10 +13,11 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   const finalReviewerEmail = 'myu@royaltrailersales.com';
 
   async function getTrackerCatalog(db, includeInactive = false) {
-    const stored = await db.collection('hr_file_tracker_fields').find({}).sort({ order: 1, label: 1 }).toArray();
-    return stored.length
-      ? stored.map(({ _id, ...field }) => field).filter(field => includeInactive || field.active)
-      : DEFAULT_FILE_TRACKER_FIELDS.filter(field => includeInactive || field.active);
+    const collection = db.collection('hr_file_tracker_fields');
+    const stored = await collection.find({ deleted: { $ne: true } }).sort({ order: 1, label: 1 }).toArray();
+    if (stored.length) return stored.map(({ _id, ...field }) => field).filter(field => includeInactive || field.active);
+    if (await collection.countDocuments({}) > 0) return [];
+    return DEFAULT_FILE_TRACKER_FIELDS.filter(field => includeInactive || field.active);
   }
 
   async function ensureTrackerCatalog(db) {
@@ -213,6 +214,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
       return res.status(400).json({ error: 'Please enter valid dates.' });
     }
+    if (!firstPayrollDate) return res.status(400).json({ error: 'First Payroll Date is required.' });
     if ((!insuranceNotApplicable && !insuranceEffectiveDate) || (insuranceNotApplicable && insuranceEffectiveDate)) {
       return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
     }
@@ -303,6 +305,24 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) {
       console.error('Unable to update File Tracker field:', error);
       return res.status(500).json({ error: 'The checklist item could not be updated.' });
+    } finally { await client.close(); }
+  });
+
+  router.delete('/file-tracker-fields/:fieldId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const collection = client.db(databaseName).collection('hr_file_tracker_fields');
+      const existing = await collection.findOne({ id: req.params.fieldId, deleted: { $ne: true } });
+      if (!existing) return res.status(404).json({ error: 'Checklist item not found.' });
+      await collection.updateOne(
+        { id: existing.id },
+        { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } },
+      );
+      return res.json({ success: true, fieldId: existing.id });
+    } catch (error) {
+      console.error('Unable to delete File Tracker field:', error);
+      return res.status(500).json({ error: 'The checklist item could not be deleted.' });
     } finally { await client.close(); }
   });
 

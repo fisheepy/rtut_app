@@ -79,7 +79,7 @@ type EditableRecord = Pick<
   | "insuranceNotApplicable"
   | "retirementEffectiveDate"
   | "retirementNotApplicable"
->;
+> & { insuranceApplicability: "" | "applicable" | "not-applicable"; retirementApplicability: "" | "applicable" | "not-applicable" };
 
 const emptyRecord: EditableRecord = {
   employeeFolderUrl: "",
@@ -91,8 +91,10 @@ const emptyRecord: EditableRecord = {
   firstPayrollDate: "",
   insuranceEffectiveDate: "",
   insuranceNotApplicable: false,
+  insuranceApplicability: "",
   retirementEffectiveDate: "",
   retirementNotApplicable: false,
+  retirementApplicability: "",
 };
 const emptyFilters = {
   homeDepartment: "",
@@ -130,6 +132,7 @@ export default function NewHire() {
   const [trackerError, setTrackerError] = useState("");
   const [savingTracker, setSavingTracker] = useState(false);
   const [trackerFields, setTrackerFields] = useState<FileTrackerField[]>([]);
+  const [deletedTrackerFields, setDeletedTrackerFields] = useState<FileTrackerField[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [showTrackerManager, setShowTrackerManager] = useState(false);
   const [showStatusReview, setShowStatusReview] = useState(false);
@@ -156,6 +159,7 @@ export default function NewHire() {
       ]);
       setEmployees(response.data || []);
       setTrackerFields(fieldsResponse.data.fields || []);
+      setDeletedTrackerFields([]);
       setCurrentUserEmail(authResponse.data.email || "");
     } catch (requestError: any) {
       setError(
@@ -267,8 +271,10 @@ export default function NewHire() {
       firstPayrollDate: employee.firstPayrollDate,
       insuranceEffectiveDate: employee.insuranceEffectiveDate,
       insuranceNotApplicable: employee.insuranceNotApplicable,
+      insuranceApplicability: employee.insuranceNotApplicable ? "not-applicable" : employee.insuranceEffectiveDate ? "applicable" : "",
       retirementEffectiveDate: employee.retirementEffectiveDate,
       retirementNotApplicable: employee.retirementNotApplicable,
+      retirementApplicability: employee.retirementNotApplicable ? "not-applicable" : employee.retirementEffectiveDate ? "applicable" : "",
     });
     setSaveError("");
   }
@@ -386,7 +392,11 @@ export default function NewHire() {
         setNewTrackerLabel("");
         setNewTrackerOptions("Yes, No");
       }
+      for (const field of deletedTrackerFields) {
+        await api.delete(`/hr-platform/file-tracker-fields/${field.id}`);
+      }
       setTrackerFields(savedFields);
+      setDeletedTrackerFields([]);
       setShowCatalogConfirmation(false);
     } catch (requestError: any) {
       setManagerError(requestError.response?.data?.error || "The checklist changes could not be saved.");
@@ -615,7 +625,7 @@ export default function NewHire() {
 
   const trackerLocked = Boolean(tracker.finalLockedAt || tracker.confirmedAt);
   const trackerSubmitted = Boolean(tracker.submittedAt);
-  const benefitsComplete = Boolean((record.insuranceNotApplicable || record.insuranceEffectiveDate) && (record.retirementNotApplicable || record.retirementEffectiveDate));
+  const onboardingDetailsComplete = Boolean(record.firstPayrollDate && (record.insuranceApplicability === "not-applicable" || (record.insuranceApplicability === "applicable" && record.insuranceEffectiveDate)) && (record.retirementApplicability === "not-applicable" || (record.retirementApplicability === "applicable" && record.retirementEffectiveDate)));
   const effectiveTrackerFields: FileTrackerField[] =
     (trackerSubmitted || trackerLocked) && tracker.fieldsSnapshot
       ? tracker.fieldsSnapshot
@@ -1097,15 +1107,15 @@ export default function NewHire() {
                   value={record.employeeFolderUrl}
                 />
               </label>
-              <label className="block"><span className="text-sm font-semibold text-slate-700">First Payroll Date</span><input className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, firstPayrollDate: event.target.value }))} type="date" value={record.firstPayrollDate} /></label>
+              <label className="block"><span className="text-sm font-semibold text-slate-700">First Payroll Date <span className="text-red-600">*</span></span><input className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, firstPayrollDate: event.target.value }))} required type="date" value={record.firstPayrollDate} /></label>
               <div className="grid gap-4 sm:grid-cols-2">
                 {([[
-                  "Insurance", "insuranceEffectiveDate", "insuranceNotApplicable",
+                  "Insurance", "insuranceEffectiveDate", "insuranceNotApplicable", "insuranceApplicability",
                 ], [
-                  "401(k)", "retirementEffectiveDate", "retirementNotApplicable",
-                ]] as const).map(([label, dateField, notApplicableField]) => {
-                  const status = record[notApplicableField] ? "not-applicable" : record[dateField] ? "date" : "";
-                  return <div className="rounded-xl border border-slate-200 p-4" key={label}><label className="block"><span className="text-sm font-semibold text-slate-700">{label} Status <span className="text-red-600">*</span></span><select className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, [notApplicableField]: event.target.value === "not-applicable", [dateField]: event.target.value === "date" ? current[dateField] : "" }))} required value={status}><option value="">Select...</option><option value="date">Effective Date Required</option><option value="not-applicable">Not Applicable</option></select></label>{status === "date" ? <label className="mt-3 block"><span className="text-sm font-semibold text-slate-700">{label} Effective Date <span className="text-red-600">*</span></span><input className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, [dateField]: event.target.value }))} required type="date" value={record[dateField]} /></label> : null}</div>;
+                  "401(k)", "retirementEffectiveDate", "retirementNotApplicable", "retirementApplicability",
+                ]] as const).map(([label, dateField, notApplicableField, applicabilityField]) => {
+                  const status = record[applicabilityField];
+                  return <div className="rounded-xl border border-slate-200 p-4" key={label}><label className="block"><span className="text-sm font-semibold text-slate-700">{label} <span className="text-red-600">*</span></span><select className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, [applicabilityField]: event.target.value, [notApplicableField]: event.target.value === "not-applicable", [dateField]: event.target.value === "applicable" ? current[dateField] : "" }))} required value={status}><option value="">Select...</option><option value="applicable">Applicable</option><option value="not-applicable">Not Applicable</option></select></label>{status === "applicable" ? <label className="mt-3 block"><span className="text-sm font-semibold text-slate-700">{label} Effective Date <span className="text-red-600">*</span></span><input className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, [dateField]: event.target.value }))} required type="date" value={record[dateField]} /></label> : null}</div>;
                 })}
               </div>
               {saveError ? (
@@ -1124,7 +1134,7 @@ export default function NewHire() {
               </button>
               <button
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-                disabled={saving || !benefitsComplete}
+                disabled={saving || !onboardingDetailsComplete}
                 onClick={saveRecord}
                 type="button"
               >
@@ -1505,7 +1515,7 @@ export default function NewHire() {
             <div className="mt-5 space-y-3">
               {trackerFields.map((field) => (
                 <div
-                  className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1.2fr_auto] ${field.active ? "border-slate-200" : "border-slate-200 bg-slate-50 opacity-70"}`}
+                  className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1.2fr_auto_auto] ${field.active ? "border-slate-200" : "border-slate-200 bg-slate-50 opacity-70"}`}
                   key={field.id}
                 >
                   <input
@@ -1558,9 +1568,11 @@ export default function NewHire() {
                     />
                     Active
                   </label>
+                  <button className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50" onClick={() => { setDeletedTrackerFields((current) => [...current, field]); setTrackerFields((current) => current.filter((item) => item.id !== field.id)); }} type="button">Delete</button>
                 </div>
               ))}
             </div>
+            {deletedTrackerFields.length ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4"><h3 className="text-sm font-semibold text-red-900">Pending Deletion</h3><div className="mt-2 space-y-2">{deletedTrackerFields.map((field) => <div className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm" key={field.id}><span className="font-semibold text-slate-800">{field.label}</span><button className="font-semibold text-blue-700 hover:underline" onClick={() => { setTrackerFields((current) => [...current, field].sort((a, b) => a.order - b.order)); setDeletedTrackerFields((current) => current.filter((item) => item.id !== field.id)); }} type="button">Undo Delete</button></div>)}</div></div> : null}
             <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
               <h3 className="text-sm font-semibold text-emerald-950">
                 Add Checklist Item
@@ -1603,7 +1615,7 @@ export default function NewHire() {
         <div aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/70 p-4" role="dialog">
           <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Review Checklist Changes</h2><p className="mt-1 text-sm text-slate-500">Review the complete checklist before saving. Changes apply only to future employee File Trackers.</p></div><button aria-label="Close Checklist Confirmation" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowCatalogConfirmation(false)} type="button"><X className="h-5 w-5" /></button></div>
-            <div className="mt-5 max-h-72 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">{trackerFields.map((field) => <div className="rounded-lg bg-white px-3 py-2 text-sm" key={field.id}><span className="font-semibold text-slate-900">{field.label}</span><span className="ml-2 text-slate-500">{field.active ? "Active" : "Inactive"} · {field.options.join(", ")}</span></div>)}{newTrackerLabel.trim() ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"><span className="font-semibold text-emerald-900">New: {newTrackerLabel}</span><span className="ml-2 text-emerald-700">{newTrackerOptions}</span></div> : null}</div>
+            <div className="mt-5 max-h-72 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">{trackerFields.map((field) => <div className="rounded-lg bg-white px-3 py-2 text-sm" key={field.id}><span className="font-semibold text-slate-900">{field.label}</span><span className="ml-2 text-slate-500">{field.active ? "Active" : "Inactive"} · {field.options.join(", ")}</span></div>)}{newTrackerLabel.trim() ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"><span className="font-semibold text-emerald-900">New: {newTrackerLabel}</span><span className="ml-2 text-emerald-700">{newTrackerOptions}</span></div> : null}{deletedTrackerFields.map((field) => <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm" key={`deleted:${field.id}`}><span className="font-semibold text-red-900">Delete: {field.label}</span><span className="ml-2 text-red-700">Future checklists only</span></div>)}</div>
             <label className="mt-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-slate-700"><input checked={catalogChangeAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setCatalogChangeAcknowledged(event.target.checked)} type="checkbox" />I reviewed all checklist items and confirm these future changes are correct.</label>
             <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowCatalogConfirmation(false)} type="button">Back to Edit</button><button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" disabled={!catalogChangeAcknowledged} onClick={saveAllTrackerChanges} type="button">Confirm & Save All Changes</button></div>
           </section>
