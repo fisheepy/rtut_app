@@ -107,9 +107,9 @@ const emptyFilters = {
   hireDateFrom: "",
   hireDateTo: "",
 };
-const display = (value: string) => value || "—";
+const display = (value: string) => value || "??;
 const dateDisplay = (value: string) => {
-  if (!value) return "—";
+  if (!value) return "??;
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return match ? `${match[2]}/${match[3]}/${match[1]}` : value;
 };
@@ -629,6 +629,13 @@ export default function NewHire() {
   const trackerLocked = Boolean(tracker.finalLockedAt || tracker.confirmedAt);
   const trackerSubmitted = Boolean(tracker.submittedAt);
   const onboardingDetailsComplete = Boolean(record.payRateType && record.payRate && record.firstPayrollDate && (record.insuranceApplicability === "not-applicable" || (record.insuranceApplicability === "applicable" && record.insuranceEffectiveDate)) && (record.retirementApplicability === "not-applicable" || (record.retirementApplicability === "applicable" && record.retirementEffectiveDate)));
+  const legacyDateCorrection = Boolean(editing && (
+    record.firstPayrollDate !== editing.firstPayrollDate ||
+    record.insuranceEffectiveDate !== editing.insuranceEffectiveDate ||
+    record.insuranceNotApplicable !== editing.insuranceNotApplicable ||
+    record.retirementEffectiveDate !== editing.retirementEffectiveDate ||
+    record.retirementNotApplicable !== editing.retirementNotApplicable
+  ));
   const effectiveTrackerFields: FileTrackerField[] =
     (trackerSubmitted || trackerLocked) && tracker.fieldsSnapshot
       ? tracker.fieldsSnapshot
@@ -1152,7 +1159,7 @@ export default function NewHire() {
               </button>
               <button
                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-                disabled={saving || !onboardingDetailsComplete}
+                disabled={saving || (!onboardingDetailsComplete && !legacyDateCorrection)}
                 onClick={saveRecord}
                 type="button"
               >
@@ -1274,6 +1281,12 @@ export default function NewHire() {
                 placeholder="Add notes or follow-up details for this employee file..."
                 value={String(tracker.comments || "")}
               />
+              {tracker.comments ? (
+                <span className="mt-2 block text-xs text-slate-500">
+                  Last updated by {tracker.commentsBy || "an administrator before comment tracking was enabled"}
+                  {tracker.commentsUpdatedAt ? ` on ${new Date(tracker.commentsUpdatedAt).toLocaleString()}` : ""}
+                </span>
+              ) : null}
             </label>
             {!trackerLocked && !trackerSubmitted ? (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -1479,7 +1492,13 @@ export default function NewHire() {
                           {stage}
                         </td>
                         <td className="border-t border-slate-100 px-4 py-3">
-                          {display(String(employee.fileTracker?.comments || ""))}
+                          <div>{display(String(employee.fileTracker?.comments || ""))}</div>
+                          {employee.fileTracker?.comments ? (
+                            <div className="mt-1 text-xs text-slate-500">
+                              By {employee.fileTracker?.commentsBy || "administrator (legacy record)"}
+                              {employee.fileTracker?.commentsUpdatedAt ? ` 繚 ${new Date(employee.fileTracker.commentsUpdatedAt).toLocaleString()}` : ""}
+                            </div>
+                          ) : null}
                         </td>
                       </tr>
                     ));
@@ -1633,7 +1652,7 @@ export default function NewHire() {
         <div aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/70 p-4" role="dialog">
           <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Review Checklist Changes</h2><p className="mt-1 text-sm text-slate-500">Review the complete checklist before saving. Changes apply only to future employee File Trackers.</p></div><button aria-label="Close Checklist Confirmation" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowCatalogConfirmation(false)} type="button"><X className="h-5 w-5" /></button></div>
-            <div className="mt-5 max-h-72 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">{trackerFields.map((field) => <div className="rounded-lg bg-white px-3 py-2 text-sm" key={field.id}><span className="font-semibold text-slate-900">{field.label}</span><span className="ml-2 text-slate-500">{field.active ? "Active" : "Inactive"} · {field.options.join(", ")}</span></div>)}{newTrackerLabel.trim() ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"><span className="font-semibold text-emerald-900">New: {newTrackerLabel}</span><span className="ml-2 text-emerald-700">{newTrackerOptions}</span></div> : null}{deletedTrackerFields.map((field) => <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm" key={`deleted:${field.id}`}><span className="font-semibold text-red-900">Delete: {field.label}</span><span className="ml-2 text-red-700">Future checklists only</span></div>)}</div>
+            <div className="mt-5 max-h-72 space-y-2 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3">{trackerFields.map((field) => <div className="rounded-lg bg-white px-3 py-2 text-sm" key={field.id}><span className="font-semibold text-slate-900">{field.label}</span><span className="ml-2 text-slate-500">{field.active ? "Active" : "Inactive"} 繚 {field.options.join(", ")}</span></div>)}{newTrackerLabel.trim() ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm"><span className="font-semibold text-emerald-900">New: {newTrackerLabel}</span><span className="ml-2 text-emerald-700">{newTrackerOptions}</span></div> : null}{deletedTrackerFields.map((field) => <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm" key={`deleted:${field.id}`}><span className="font-semibold text-red-900">Delete: {field.label}</span><span className="ml-2 text-red-700">Future checklists only</span></div>)}</div>
             <label className="mt-4 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm font-semibold text-slate-700"><input checked={catalogChangeAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setCatalogChangeAcknowledged(event.target.checked)} type="checkbox" />I reviewed all checklist items and confirm these future changes are correct.</label>
             <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowCatalogConfirmation(false)} type="button">Back to Edit</button><button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" disabled={!catalogChangeAcknowledged} onClick={saveAllTrackerChanges} type="button">Confirm & Save All Changes</button></div>
           </section>
@@ -1642,3 +1661,4 @@ export default function NewHire() {
     </div>
   );
 }
+
