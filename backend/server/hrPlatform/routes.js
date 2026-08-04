@@ -522,4 +522,3 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
 }
 
 module.exports = { createHrPlatformRouter };
-
