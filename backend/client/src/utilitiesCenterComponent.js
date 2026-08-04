@@ -4,12 +4,10 @@ import axios from 'axios';
 import {
     Alert,
     Button,
-    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
     DialogTitle,
-    FormControlLabel,
     List,
     ListItem,
     ListItemText,
@@ -65,7 +63,6 @@ const UtilitiesCenterComponent = () => {
     const [newEmployee, setNewEmployee] = useState(emptyEmployee);
     const [referenceEmployees, setReferenceEmployees] = useState([]);
     const [referenceError, setReferenceError] = useState('');
-    const [approvedNewValues, setApprovedNewValues] = useState(false);
     const [attemptedSubmit, setAttemptedSubmit] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -115,10 +112,6 @@ const UtilitiesCenterComponent = () => {
         }
         return entries;
     }, [newEmployee, referenceMaps, supervisorMap]);
-    const newReferenceSignature = newReferenceValues.map(entry => `${entry.field}:${entry.value}`).join('|');
-
-    useEffect(() => { setApprovedNewValues(false); }, [newReferenceSignature]);
-
     const missingFields = requiredFields.filter(([field]) => !cleanFilterLabel(newEmployee[field]));
     const newFieldNames = new Set(newReferenceValues.map(entry => entry.field));
 
@@ -155,21 +148,20 @@ const UtilitiesCenterComponent = () => {
 
     const requestAddEmployee = () => {
         setAttemptedSubmit(true);
-        if (missingFields.length || referenceError || (newReferenceValues.length && !approvedNewValues)) return;
+        if (missingFields.length || referenceError) return;
         if (newReferenceValues.length) setOpenNewValueConfirmation(true);
-        else handleAddEmployeeSubmit();
+        else handleAddEmployeeSubmit(false);
     };
 
-    const handleAddEmployeeSubmit = async () => {
+    const handleAddEmployeeSubmit = async (approveNewValues = false) => {
         setIsSaving(true);
         try {
-            const payload = { ...canonicalEmployeePayload(), approvedNewValues: newReferenceValues.length > 0 && approvedNewValues };
+            const payload = { ...canonicalEmployeePayload(), approvedNewValues: newReferenceValues.length > 0 && approveNewValues === true };
             await axios.post('/call-function-add-employee', payload);
             setExecutionStatus(`Employee ${payload.firstName} ${payload.lastName} added successfully.`);
             setOpenNewValueConfirmation(false);
             setOpenAddModal(false);
             setNewEmployee(emptyEmployee());
-            setApprovedNewValues(false);
             setAttemptedSubmit(false);
         } catch (error) {
             const errorMessage = error.response?.data || 'An unexpected error occurred';
@@ -226,7 +218,7 @@ const UtilitiesCenterComponent = () => {
                         <Alert severity="error" sx={{ mt: 2 }}>
                             <Typography fontWeight={700}>New database information detected:</Typography>
                             {newReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}
-                            <FormControlLabel control={<Checkbox checked={approvedNewValues} onChange={event => setApprovedNewValues(event.target.checked)} />} label="I reviewed these new values and approve proceeding to final confirmation." />
+                            <Typography sx={{ mt: 1 }}>You may proceed. The next step will ask you to review and confirm these new values before the employee is added.</Typography>
                         </Alert>
                     ) : null}
                 </DialogContent>
@@ -244,7 +236,7 @@ const UtilitiesCenterComponent = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenNewValueConfirmation(false)}>Go Back</Button>
-                    <Button color="error" variant="contained" onClick={handleAddEmployeeSubmit} disabled={isSaving}>{isSaving ? 'Adding…' : 'Confirm and Add Employee'}</Button>
+                    <Button color="error" variant="contained" onClick={() => handleAddEmployeeSubmit(true)} disabled={isSaving}>{isSaving ? 'Adding…' : 'Confirm and Add Employee'}</Button>
                 </DialogActions>
             </Dialog>
 
