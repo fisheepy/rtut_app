@@ -115,8 +115,9 @@ const UtilitiesCenterComponent = () => {
         }
         return entries;
     }, [newEmployee, referenceMaps, supervisorMap]);
+    const newReferenceSignature = newReferenceValues.map(entry => `${entry.field}:${entry.value}`).join('|');
 
-    useEffect(() => { setApprovedNewValues(false); }, [newReferenceValues.map(entry => `${entry.field}:${entry.value}`).join('|')]);
+    useEffect(() => { setApprovedNewValues(false); }, [newReferenceSignature]);
 
     const missingFields = requiredFields.filter(([field]) => !cleanFilterLabel(newEmployee[field]));
     const newFieldNames = new Set(newReferenceValues.map(entry => entry.field));
