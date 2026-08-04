@@ -130,6 +130,8 @@ export default function NewHire() {
   const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
   const [managerError, setManagerError] = useState("");
   const [pendingPayrollReview, setPendingPayrollReview] = useState<{ employee: NewHireEmployee; mode: "payroll-final" | "payroll-final-undo" | "payroll-change-final" } | null>(null);
+  const [pendingStatusCheck, setPendingStatusCheck] = useState<{ employee: NewHireEmployee; action: "insurance-check" | "retirement-check" } | null>(null);
+  const [statusCheckAcknowledged, setStatusCheckAcknowledged] = useState(false);
   const [payrollReviewAcknowledged, setPayrollReviewAcknowledged] = useState(false);
 
   async function loadEmployees() {
@@ -191,25 +193,24 @@ export default function NewHire() {
     )
     .sort(
       (left, right) =>
-        dateUrgency(left.firstPayrollDate) -
-        dateUrgency(right.firstPayrollDate),
+        payrollUrgency(left) - payrollUrgency(right),
     );
   const insuranceEmployees = [...employees]
-    .filter((employee) => employee.insuranceEffectiveDate)
+    .filter((employee) => employee.insuranceEffectiveDate && !employee.insuranceCheckedAt)
     .sort(
       (left, right) =>
         dateUrgency(left.insuranceEffectiveDate) -
         dateUrgency(right.insuranceEffectiveDate),
     );
   const retirementEmployees = [...employees]
-    .filter((employee) => employee.retirementEffectiveDate)
+    .filter((employee) => employee.retirementEffectiveDate && !employee.retirementCheckedAt)
     .sort(
       (left, right) =>
         dateUrgency(left.retirementEffectiveDate) -
         dateUrgency(right.retirementEffectiveDate),
     );
-  const payrollUncheckedCount = mainEmployees.filter((employee) => !employee.payrollCheckedAt).length;
-  const payrollFinalPendingCount = mainEmployees.filter((employee) => employee.payrollCheckedAt && !employee.payrollFinalReviewedAt).length;
+  const firstPayrollFinalPendingCount = mainEmployees.filter((employee) => !employee.payrollFinalReviewedAt).length;
+  const futurePayrollChangeCount = mainEmployees.filter((employee) => employee.payRateChangePending).length;
 
   const filterFields = [
     ["homeDepartment", "Home Department"],
@@ -331,6 +332,14 @@ export default function NewHire() {
     return Number.isNaN(time)
       ? Number.MAX_SAFE_INTEGER
       : Math.abs(time - Date.now());
+  }
+
+  function payrollUrgency(employee: NewHireEmployee) {
+    const dates = [
+      !employee.payrollFinalReviewedAt ? employee.firstPayrollDate : "",
+      employee.payRateChangePending ? employee.payrollChangeDate : "",
+    ].filter(Boolean);
+    return dates.length ? Math.min(...dates.map(dateUrgency)) : Number.MAX_SAFE_INTEGER;
   }
 
   function isCurrentHireMonth(value: string) {
@@ -739,7 +748,7 @@ export default function NewHire() {
       ) : null}
       <section className="overflow-hidden rounded-xl border border-blue-200 bg-white shadow-sm">
         <div className="border-b border-blue-200 bg-blue-50 px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-blue-950">New Hire & Payroll Status</h2><p className="mt-1 text-sm text-blue-700">Payroll items remain highlighted until final review. Completed hires remain visible through their hire month.</p></div><div className="flex flex-wrap gap-2"><span className="rounded-full border border-red-300 bg-red-100 px-3 py-1.5 text-sm font-bold text-red-800">{payrollUncheckedCount} Payroll Check Needed</span><span className="rounded-full border border-orange-300 bg-orange-100 px-3 py-1.5 text-sm font-bold text-orange-800">{payrollFinalPendingCount} Final Review Needed</span></div></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-blue-950">New Hire & Payroll Status</h2><p className="mt-1 text-sm text-blue-700">First payroll and future payroll changes are sorted together by the nearest pending date. Completed hires remain visible through their hire month.</p></div><div className="flex flex-wrap gap-2"><span className="rounded-full border border-red-300 bg-red-100 px-3 py-1.5 text-sm font-bold text-red-800">{firstPayrollFinalPendingCount} First Payroll Final Review Needed</span><span className="rounded-full border border-purple-300 bg-purple-100 px-3 py-1.5 text-sm font-bold text-purple-800">{futurePayrollChangeCount} Future Payroll Change</span></div></div>
         </div>
         <div className="max-h-[70vh] overflow-auto">
           <table className="min-w-[2500px] w-full border-separate border-spacing-0 text-sm">
@@ -813,9 +822,9 @@ export default function NewHire() {
             Sorted by the nearest Insurance Effective Date.
           </p>
         </div>
-        <div className="overflow-auto">
+        <div className="max-h-[55vh] overflow-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-violet-100 text-left text-xs uppercase text-violet-800">
+            <thead className="sticky top-0 z-10 bg-violet-100 text-left text-xs uppercase text-violet-800">
               <tr>
                 <th className="px-4 py-3">Employee</th>
                 <th className="px-4 py-3">Effective Date</th>
@@ -851,9 +860,10 @@ export default function NewHire() {
                       ) : (
                         <button
                           className="font-semibold text-blue-700 hover:underline"
-                          onClick={() =>
-                            completeCheck(employee, "insurance-check")
-                          }
+                          onClick={() => {
+                            setPendingStatusCheck({ employee, action: "insurance-check" });
+                            setStatusCheckAcknowledged(false);
+                          }}
                           type="button"
                         >
                           Mark Checked
@@ -868,7 +878,7 @@ export default function NewHire() {
                     className="px-4 py-8 text-center text-slate-500"
                     colSpan={5}
                   >
-                    No Insurance Effective Dates have been added.
+                    No pending Insurance checks.
                   </td>
                 </tr>
               )}
@@ -886,9 +896,9 @@ export default function NewHire() {
             Sorted by the nearest 401(k) Effective Date.
           </p>
         </div>
-        <div className="overflow-auto">
+        <div className="max-h-[55vh] overflow-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-emerald-100 text-left text-xs uppercase text-emerald-800">
+            <thead className="sticky top-0 z-10 bg-emerald-100 text-left text-xs uppercase text-emerald-800">
               <tr>
                 <th className="px-4 py-3">Employee</th>
                 <th className="px-4 py-3">Effective Date</th>
@@ -926,9 +936,10 @@ export default function NewHire() {
                       ) : (
                         <button
                           className="font-semibold text-blue-700 hover:underline"
-                          onClick={() =>
-                            completeCheck(employee, "retirement-check")
-                          }
+                          onClick={() => {
+                            setPendingStatusCheck({ employee, action: "retirement-check" });
+                            setStatusCheckAcknowledged(false);
+                          }}
                           type="button"
                         >
                           Mark Checked
@@ -943,7 +954,7 @@ export default function NewHire() {
                     className="px-4 py-8 text-center text-slate-500"
                     colSpan={5}
                   >
-                    No 401(k) Effective Dates have been added.
+                    No pending 401(k) checks.
                   </td>
                 </tr>
               )}
@@ -951,6 +962,16 @@ export default function NewHire() {
           </table>
         </div>
       </section>
+
+      {pendingStatusCheck ? (
+        <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
+          <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Confirm {pendingStatusCheck.action === "insurance-check" ? "Insurance" : "401(k)"} Completion</h2><p className="mt-1 text-sm text-slate-500">Employee: <span className="font-semibold text-slate-800">{pendingStatusCheck.employee.name}</span></p></div><button aria-label="Close Status Check" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setPendingStatusCheck(null)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="text-sm font-semibold text-slate-800">This employee will leave the pending {pendingStatusCheck.action === "insurance-check" ? "Insurance" : "401(k)"} list after confirmation.</p><label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={statusCheckAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setStatusCheckAcknowledged(event.target.checked)} type="checkbox" />I verified the employee and effective date.</label></div>
+            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingStatusCheck(null)} type="button">Cancel</button><button className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50" disabled={!statusCheckAcknowledged} onClick={async () => { const success = await completeCheck(pendingStatusCheck.employee, pendingStatusCheck.action); if (success) setPendingStatusCheck(null); }} type="button">Confirm Complete</button></div>
+          </section>
+        </div>
+      ) : null}
 
       {pendingPayrollReview ? (
         <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
