@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
 const { clean, DEFAULT_FILE_TRACKER_FIELDS, employeeView, fileTrackerComplete, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
@@ -71,6 +72,112 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) {
       console.error('Unable to load HR Platform new hires:', error);
       return res.status(500).json({ error: 'New Hire records could not be loaded.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  function styleReportSheet(sheet) {
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    sheet.autoFilter = { from: 'A1', to: sheet.getRow(1).getCell(sheet.columnCount).address };
+    sheet.getRow(1).eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F766E' } };
+      cell.alignment = { vertical: 'middle' };
+    });
+    sheet.getRow(1).height = 24;
+  }
+
+  async function sendWorkbook(res, workbook, fileName) {
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    return res.send(Buffer.from(buffer));
+  }
+
+  router.get('/new-hires/reports/file-tracker.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employees = await db.collection('employees').find({ 'HR Platform New Hire At': { $exists: true, $ne: null } }).toArray();
+      const ids = employees.map(employee => String(employee._id));
+      const records = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray() : [];
+      const byId = new Map(records.map(record => [String(record.employeeId), record]));
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('File Tracker History');
+      sheet.columns = [
+        { header: 'Employee', key: 'employee', width: 26 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
+        { header: 'Checklist Item', key: 'item', width: 34 }, { header: 'File Status', key: 'status', width: 22 },
+        { header: 'Tracker Stage', key: 'stage', width: 24 }, { header: 'Comments', key: 'comments', width: 48 },
+        { header: 'Confirmation Date', key: 'confirmationDate', width: 18 }, { header: 'Admin Confirmed By', key: 'submittedBy', width: 30 },
+        { header: 'Final Locked By', key: 'lockedBy', width: 30 }, { header: 'Final Locked At', key: 'lockedAt', width: 22 },
+      ];
+      employees.sort((a, b) => clean(a['Last Name']).localeCompare(clean(b['Last Name']))).forEach(employee => {
+        const record = byId.get(String(employee._id)) || {};
+        const tracker = record.fileTracker || {};
+        const locked = tracker.finalLockedAt || tracker.confirmedAt;
+        const stage = locked ? 'Locked' : tracker.submittedAt ? 'Confirmed for Review' : 'Draft';
+        const fields = tracker.fieldsSnapshot || [];
+        const base = {
+          employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
+          hireDate: clean(employee['Hire Date']), stage, comments: clean(tracker.comments),
+          confirmationDate: clean(tracker.confirmationDate), submittedBy: clean(tracker.submittedBy),
+          lockedBy: clean(tracker.finalLockedBy || tracker.confirmedBy), lockedAt: tracker.finalLockedAt || tracker.confirmedAt || '',
+        };
+        if (fields.length) fields.forEach(field => sheet.addRow({ ...base, item: clean(field.label), status: clean(tracker.responses?.[field.id]) || 'Missing' }));
+        else sheet.addRow({ ...base, item: 'No checklist snapshot', status: 'Missing' });
+      });
+      styleReportSheet(sheet);
+      return await sendWorkbook(res, workbook, `New_Hire_File_Tracker_History_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) {
+      console.error('Unable to create File Tracker report:', error);
+      return res.status(500).json({ error: 'The File Tracker history report could not be created.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.get('/new-hires/reports/action-items.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employees = await db.collection('employees').find({
+        $and: [
+          { 'HR Platform New Hire At': { $exists: true, $ne: null } },
+          { 'Account Active': { $not: /^inactive$/i } }, { 'Position Status': { $not: /^(inactive|terminated)$/i } },
+          { $or: [{ 'Termination Date': { $exists: false } }, { 'Termination Date': '' }, { 'Termination Date': null }] },
+        ],
+      }).toArray();
+      const ids = employees.map(employee => String(employee._id));
+      const records = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray() : [];
+      const byId = new Map(records.map(record => [String(record.employeeId), record]));
+      const rows = [];
+      employees.forEach(employee => {
+        const record = byId.get(String(employee._id)) || {};
+        const employeeName = [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', ');
+        const base = { employee: employeeName, hireDate: clean(employee['Hire Date']), department: clean(employee['Home Department']), location: clean(employee.Location) };
+        if (record.firstPayrollDate && !record.payrollFinalReviewedAt) rows.push({ ...base, action: 'First Payroll', actionDate: record.firstPayrollDate, status: record.payrollCheckedAt ? 'Admin Checked - Final Review Needed' : 'Admin Action Needed', reason: '' });
+        if (record.payRateChangePending && record.payrollChangeDate) rows.push({ ...base, action: 'Payroll Change', actionDate: record.payrollChangeDate, status: record.payrollChangeCheckedAt ? 'Admin Checked - Final Review Needed' : 'Admin Action Needed', reason: clean(record.payrollChangeReason) });
+        if (record.insuranceEffectiveDate && !record.insuranceCheckedAt) rows.push({ ...base, action: 'Insurance', actionDate: record.insuranceEffectiveDate, status: 'Action Needed', reason: '' });
+        if (record.retirementEffectiveDate && !record.retirementCheckedAt) rows.push({ ...base, action: '401(k)', actionDate: record.retirementEffectiveDate, status: 'Action Needed', reason: '' });
+      });
+      rows.sort((a, b) => clean(a.actionDate).localeCompare(clean(b.actionDate)) || a.employee.localeCompare(b.employee));
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Current and Future Actions');
+      sheet.columns = [
+        { header: 'Action Date', key: 'actionDate', width: 16 }, { header: 'Action Type', key: 'action', width: 20 },
+        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Status', key: 'status', width: 34 },
+        { header: 'Reason / Notes', key: 'reason', width: 42 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
+        { header: 'Department', key: 'department', width: 24 }, { header: 'Location', key: 'location', width: 20 },
+      ];
+      rows.forEach(row => sheet.addRow(row));
+      styleReportSheet(sheet);
+      return await sendWorkbook(res, workbook, `HR_Current_and_Future_Actions_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) {
+      console.error('Unable to create HR action report:', error);
+      return res.status(500).json({ error: 'The current and future action report could not be created.' });
     } finally {
       await client.close();
     }

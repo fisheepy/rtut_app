@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   ArrowLeft,
   ClipboardCheck,
+  Download,
   ExternalLink,
   Filter,
   Lock,
@@ -132,6 +133,8 @@ export default function NewHire() {
   const [pendingPayrollReview, setPendingPayrollReview] = useState<{ employee: NewHireEmployee; mode: "payroll-final" | "payroll-final-undo" | "payroll-change-final" } | null>(null);
   const [pendingStatusCheck, setPendingStatusCheck] = useState<{ employee: NewHireEmployee; action: "insurance-check" | "retirement-check" } | null>(null);
   const [statusCheckAcknowledged, setStatusCheckAcknowledged] = useState(false);
+  const [pendingCatalogAction, setPendingCatalogAction] = useState<{ type: "save"; field: FileTrackerField } | { type: "add" } | null>(null);
+  const [catalogChangeAcknowledged, setCatalogChangeAcknowledged] = useState(false);
   const [payrollReviewAcknowledged, setPayrollReviewAcknowledged] = useState(false);
 
   async function loadEmployees() {
@@ -211,6 +214,15 @@ export default function NewHire() {
     );
   const firstPayrollFinalPendingCount = mainEmployees.filter((employee) => !employee.payrollFinalReviewedAt).length;
   const futurePayrollChangeCount = mainEmployees.filter((employee) => employee.payRateChangePending).length;
+  const currentMonthPrefix = new Date().toISOString().slice(0, 7);
+  const monthlyActions = employees.flatMap((employee) => {
+    const actions: { employee: NewHireEmployee; type: string; date: string; status: string }[] = [];
+    if (employee.firstPayrollDate.startsWith(currentMonthPrefix) && !employee.payrollFinalReviewedAt) actions.push({ employee, type: "First Payroll", date: employee.firstPayrollDate, status: employee.payrollCheckedAt ? "Final Review Needed" : "Admin Action Needed" });
+    if (employee.payRateChangePending && employee.payrollChangeDate.startsWith(currentMonthPrefix)) actions.push({ employee, type: "Payroll Change", date: employee.payrollChangeDate, status: employee.payrollChangeCheckedAt ? "Final Review Needed" : "Admin Action Needed" });
+    if (employee.insuranceEffectiveDate.startsWith(currentMonthPrefix) && !employee.insuranceCheckedAt) actions.push({ employee, type: "Insurance", date: employee.insuranceEffectiveDate, status: "Action Needed" });
+    if (employee.retirementEffectiveDate.startsWith(currentMonthPrefix) && !employee.retirementCheckedAt) actions.push({ employee, type: "401(k)", date: employee.retirementEffectiveDate, status: "Action Needed" });
+    return actions;
+  }).sort((left, right) => left.date.localeCompare(right.date) || left.employee.name.localeCompare(right.employee.name));
 
   const filterFields = [
     ["homeDepartment", "Home Department"],
@@ -446,15 +458,12 @@ export default function NewHire() {
     [
       "Pay Rate",
       (employee: NewHireEmployee) => (
-        <button
-          className="font-semibold text-emerald-700 hover:underline"
-          onClick={() => openRecord(employee)}
-          type="button"
-        >
-          {employee.payRate
-            ? `${employee.payRateType}: $${employee.payRate}`
-            : "+ Add Pay Rate"}
-        </button>
+        <div>
+          <button className="font-semibold text-emerald-700 hover:underline" onClick={() => openRecord(employee)} type="button">
+            {employee.payRate ? `${employee.payRateType}: $${employee.payRate}` : "+ Add Pay Rate"}
+          </button>
+          {employee.payRateChangePending ? <div className="mt-1 text-xs font-bold text-orange-700">Pending to Change</div> : null}
+        </div>
       ),
     ],
     [
@@ -656,8 +665,12 @@ export default function NewHire() {
               type="button"
             >
               <ClipboardCheck className="h-4 w-4" />
-              Checklist Manager
+              Employee File Checklist Manager
             </button>
+            <a className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15" href="/api/hr-platform/new-hires/reports/action-items.xlsx">
+              <Download className="h-4 w-4" />
+              Download Action Report
+            </a>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50"
               disabled={loading}
@@ -813,6 +826,16 @@ export default function NewHire() {
         </div>
       </section>
 
+      <section className="overflow-hidden rounded-xl border border-cyan-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-200 bg-cyan-50 px-5 py-4"><div><h2 className="text-xl font-semibold text-cyan-950">This Month's HR Action Calendar</h2><p className="mt-1 text-sm text-cyan-800">First payroll, payroll changes, insurance, and 401(k) actions scheduled this month. Completed items disappear automatically.</p></div><span className="rounded-full bg-cyan-100 px-3 py-1.5 text-sm font-bold text-cyan-800">{monthlyActions.length} Pending</span></div>
+        <div className="max-h-[55vh] overflow-auto">
+          <table className="w-full min-w-[820px] text-sm">
+            <thead className="sticky top-0 z-10 bg-cyan-100 text-left text-xs uppercase text-cyan-800"><tr><th className="px-4 py-3">Action Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Action Type</th><th className="px-4 py-3">Status</th></tr></thead>
+            <tbody>{monthlyActions.length ? monthlyActions.map((item) => <tr className="bg-cyan-50/40" key={`${item.employee.id}:${item.type}`}><td className="border-t border-cyan-100 px-4 py-3 font-semibold">{dateDisplay(item.date)}</td><td className="border-t border-cyan-100 px-4 py-3 font-semibold text-slate-900">{item.employee.name}</td><td className="border-t border-cyan-100 px-4 py-3">{item.type}</td><td className="border-t border-cyan-100 px-4 py-3 font-semibold text-amber-700">{item.status}</td></tr>) : <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={4}>No pending actions scheduled this month.</td></tr>}</tbody>
+          </table>
+        </div>
+      </section>
+
       <section className="rounded-xl border border-violet-200 bg-white shadow-sm">
         <div className="border-b border-violet-200 bg-violet-50 px-5 py-4">
           <h2 className="text-xl font-semibold text-violet-950">
@@ -866,7 +889,7 @@ export default function NewHire() {
                           }}
                           type="button"
                         >
-                          Mark Checked
+                          Confirm Action Taken
                         </button>
                       )}
                     </td>
@@ -942,7 +965,7 @@ export default function NewHire() {
                           }}
                           type="button"
                         >
-                          Mark Checked
+                          Confirm Action Taken
                         </button>
                       )}
                     </td>
@@ -967,8 +990,8 @@ export default function NewHire() {
         <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
           <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Confirm {pendingStatusCheck.action === "insurance-check" ? "Insurance" : "401(k)"} Completion</h2><p className="mt-1 text-sm text-slate-500">Employee: <span className="font-semibold text-slate-800">{pendingStatusCheck.employee.name}</span></p></div><button aria-label="Close Status Check" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setPendingStatusCheck(null)} type="button"><X className="h-5 w-5" /></button></div>
-            <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="text-sm font-semibold text-slate-800">This employee will leave the pending {pendingStatusCheck.action === "insurance-check" ? "Insurance" : "401(k)"} list after confirmation.</p><label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={statusCheckAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setStatusCheckAcknowledged(event.target.checked)} type="checkbox" />I verified the employee and effective date.</label></div>
-            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingStatusCheck(null)} type="button">Cancel</button><button className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50" disabled={!statusCheckAcknowledged} onClick={async () => { const success = await completeCheck(pendingStatusCheck.employee, pendingStatusCheck.action); if (success) setPendingStatusCheck(null); }} type="button">Confirm Complete</button></div>
+            <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="text-sm font-semibold text-slate-800">Confirm only after the required {pendingStatusCheck.action === "insurance-check" ? "Insurance" : "401(k)"} action has actually been completed. This employee will then leave the pending list.</p><label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={statusCheckAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setStatusCheckAcknowledged(event.target.checked)} type="checkbox" />I confirm the required action has been taken for this employee.</label></div>
+            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingStatusCheck(null)} type="button">Cancel</button><button className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50" disabled={!statusCheckAcknowledged} onClick={async () => { const success = await completeCheck(pendingStatusCheck.employee, pendingStatusCheck.action); if (success) setPendingStatusCheck(null); }} type="button">Confirm Action Taken</button></div>
           </section>
         </div>
       ) : null}
@@ -1458,7 +1481,11 @@ export default function NewHire() {
                 </tbody>
               </table>
             </div>
-            <div className="mt-5 flex justify-end">
+            <div className="mt-5 flex flex-wrap justify-end gap-3">
+              <a className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="/api/hr-platform/new-hires/reports/file-tracker.xlsx">
+                <Download className="h-4 w-4" />
+                Download Historical Excel
+              </a>
               <button
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
                 onClick={() => setShowStatusReview(false)}
@@ -1481,7 +1508,7 @@ export default function NewHire() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950">
-                  File Tracker Checklist Manager
+                  Employee File Checklist Manager
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
                   Changes apply only to future new hires. Existing File Trackers
@@ -1555,10 +1582,10 @@ export default function NewHire() {
                   </label>
                   <button
                     className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    onClick={() => saveTrackerField(field)}
+                    onClick={() => { setPendingCatalogAction({ type: "save", field }); setCatalogChangeAcknowledged(false); }}
                     type="button"
                   >
-                    Save
+                    Review Change
                   </button>
                 </div>
               ))}
@@ -1582,10 +1609,10 @@ export default function NewHire() {
                 />
                 <button
                   className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-                  onClick={addTrackerField}
+                  onClick={() => { setPendingCatalogAction({ type: "add" }); setCatalogChangeAcknowledged(false); }}
                   type="button"
                 >
-                  Add Item
+                  Review New Item
                 </button>
               </div>
             </div>
@@ -1603,6 +1630,16 @@ export default function NewHire() {
                 Close
               </button>
             </div>
+          </section>
+        </div>
+      ) : null}
+
+      {pendingCatalogAction ? (
+        <div aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/70 p-4" role="dialog">
+          <section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Confirm Checklist Change</h2><p className="mt-1 text-sm text-slate-500">This change applies only to future employee File Trackers.</p></div><button aria-label="Close Checklist Confirmation" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setPendingCatalogAction(null)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><p className="font-semibold text-slate-900">{pendingCatalogAction.type === "save" ? pendingCatalogAction.field.label : newTrackerLabel || "New checklist item"}</p><p className="mt-1 text-sm text-slate-700">Options: {pendingCatalogAction.type === "save" ? pendingCatalogAction.field.options.join(", ") : newTrackerOptions}</p>{pendingCatalogAction.type === "save" ? <p className="mt-1 text-sm text-slate-700">Status: {pendingCatalogAction.field.active ? "Active" : "Inactive"}</p> : null}<label className="mt-4 flex items-start gap-2 text-sm font-semibold text-slate-700"><input checked={catalogChangeAcknowledged} className="mt-0.5 h-4 w-4" onChange={(event) => setCatalogChangeAcknowledged(event.target.checked)} type="checkbox" />I reviewed this future checklist change and confirm it is correct.</label></div>
+            <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setPendingCatalogAction(null)} type="button">Cancel</button><button className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50" disabled={!catalogChangeAcknowledged} onClick={async () => { if (pendingCatalogAction.type === "save") await saveTrackerField(pendingCatalogAction.field); else await addTrackerField(); setPendingCatalogAction(null); }} type="button">Confirm & Save</button></div>
           </section>
         </div>
       ) : null}
