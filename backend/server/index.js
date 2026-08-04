@@ -181,6 +181,43 @@ const client = new MongoClient(uri, {
     }
 });
 
+async function reconcileHistoricalAppRegistrationDates() {
+    const migrationClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+    try {
+        await migrationClient.connect();
+        const db = migrationClient.db(database_name);
+        const collection = db.collection('employees');
+        const employees = await collection.find({}).project({ username: 1, activationDate: 1, 'App Registration Date': 1 }).toArray();
+        const usernames = employees.map(employee => employee.username).filter(Boolean);
+        const acceptances = usernames.length
+            ? await db.collection('disclaimer acceptances').find({
+                accepted: true,
+                username: { $in: usernames },
+            }).collation({ locale: 'en', strength: 2 }).project({ username: 1, timestamp: 1, accepted: 1 }).toArray()
+            : [];
+        const earliestAcceptanceByUsername = buildEarliestAcceptanceMap(acceptances);
+        const operations = employees.flatMap(employee => {
+            const registrationDate = resolveAppRegistrationDate(employee, earliestAcceptanceByUsername);
+            const storedDate = employee['App Registration Date'] ? new Date(employee['App Registration Date']) : null;
+            if (!registrationDate || storedDate && !Number.isNaN(storedDate.getTime()) && storedDate.getTime() === registrationDate.getTime()) return [];
+            return [{
+                updateOne: {
+                    filter: { _id: employee._id },
+                    update: { $set: { 'App Registration Date': registrationDate } },
+                },
+            }];
+        });
+        if (operations.length) await collection.bulkWrite(operations);
+        console.log(`App registration date reconciliation completed: ${operations.length} employee record(s) updated.`);
+    } catch (error) {
+        console.error('App registration date reconciliation failed:', error.message);
+    } finally {
+        await migrationClient.close();
+    }
+}
+
 // ======= Daily Digest 主函数（独立连接/独立关闭） =======
 async function runDailyDigest(etDateOpt) {
   const TZ = process.env.TIMEZONE || 'America/Detroit';
@@ -1814,4 +1851,5 @@ app.get(/^\/(?!api|admin|hr-tools).*/, (req, res) => {
 // Start the server
 app.listen(process.env.PORT || port, () => {
     console.log(`Server is running on port ${port}`);
+    reconcileHistoricalAppRegistrationDates();
 });
