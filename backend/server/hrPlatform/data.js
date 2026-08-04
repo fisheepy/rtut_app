@@ -14,6 +14,27 @@ function payrollChangeRequestChanged(existing = {}, pending, date, reason) {
   );
 }
 
+function commentAudit(existing = {}, comments, author, now = new Date()) {
+  const previousComments = clean(existing.comments);
+  const nextComments = clean(comments);
+  const history = Array.isArray(existing.commentHistory) ? [...existing.commentHistory] : [];
+  if (previousComments === nextComments) {
+    return {
+      comments: nextComments,
+      commentsBy: clean(existing.commentsBy),
+      commentsUpdatedAt: existing.commentsUpdatedAt || null,
+      commentHistory: history,
+    };
+  }
+  const entry = { comments: nextComments, by: clean(author), at: now };
+  return {
+    comments: nextComments,
+    commentsBy: entry.by,
+    commentsUpdatedAt: now,
+    commentHistory: [...history, entry],
+  };
+}
+
 function employeeView(employee, record) {
   return {
     id: String(employee._id),
@@ -79,6 +100,7 @@ function fileTrackerComplete(tracker, catalog = DEFAULT_FILE_TRACKER_FIELDS) {
 }
 
 module.exports = {
-  clean, employeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
+  clean, commentAudit, employeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
   payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
 };
+
