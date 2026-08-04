@@ -27,8 +27,9 @@ test('requires every File Tracker item and handbook version before confirmation'
     resumeInformation: 'Yes', hiringApproval: 'Yes', federalW4: 'Yes', stateW4: 'Yes',
     handbookSignoff: 'Yes', handbookVersion: '2026.1', safetyPolicySignoff: 'Yes',
     confidentialityPolicySignoff: 'Yes', offerLetter: 'Yes', nncdra: 'Exempt',
-    backgroundCheck: 'Not Applicable', i9: 'Yes',
+    backgroundCheck: 'Not Applicable', i9: 'Yes', comments: 'Waiting for payroll review.',
   });
   assert.equal(fileTrackerComplete(tracker), true);
+  assert.equal(tracker.comments, 'Waiting for payroll review.');
   assert.equal(fileTrackerComplete({ ...tracker, handbookVersion: '' }), false);
 });

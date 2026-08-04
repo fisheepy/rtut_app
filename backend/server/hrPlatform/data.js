@@ -52,6 +52,7 @@ function sanitizeFileTracker(input = {}, catalog = DEFAULT_FILE_TRACKER_FIELDS) 
     result.responses[field.id] = field.options.includes(value) ? value : '';
   }
   result.handbookVersion = result.responses.handbookSignoff === 'Yes' ? clean(input.handbookVersion) : '';
+  result.comments = clean(input.comments);
   return result;
 }
 

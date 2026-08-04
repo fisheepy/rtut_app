@@ -43,6 +43,28 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const records = ids.length
         ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray()
         : [];
+      const catalog = await getTrackerCatalog(db);
+      const recordsWithoutSnapshot = records.filter(record => !record.fileTracker?.fieldsSnapshot);
+      const existingIds = new Set(records.map(record => String(record.employeeId)));
+      const missingEmployeeIds = ids.filter(id => !existingIds.has(id));
+      const snapshotOperations = [
+        ...recordsWithoutSnapshot.map(record => ({
+          updateOne: {
+            filter: { _id: record._id },
+            update: { $set: { 'fileTracker.fieldsSnapshot': catalog } },
+          },
+        })),
+        ...missingEmployeeIds.map(employeeId => ({
+          updateOne: {
+            filter: { employeeId },
+            update: { $setOnInsert: { employeeId, fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } } },
+            upsert: true,
+          },
+        })),
+      ];
+      if (snapshotOperations.length) await db.collection('employee_hr_platform').bulkWrite(snapshotOperations);
+      recordsWithoutSnapshot.forEach(record => { record.fileTracker = { ...(record.fileTracker || {}), fieldsSnapshot: catalog }; });
+      missingEmployeeIds.forEach(employeeId => records.push({ employeeId, fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } }));
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       return res.json(employees.map(employee => employeeView(employee, byId.get(String(employee._id))))
         .sort((left, right) => left.name.localeCompare(right.name)));
@@ -161,14 +183,14 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         return res.status(409).json({ error: 'This File Tracker has been finally confirmed and can no longer be modified.' });
       }
       if (action === 'lock') {
-        if (clean(req.adminSession?.email).toLowerCase() !== finalReviewerEmail) return res.status(403).json({ error: 'Only myu@royaltrailersales.com can perform the final File Tracker lock.' });
+        if (clean(req.adminSession?.email).toLowerCase() !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform the final File Tracker lock.' });
         if (!existing?.fileTracker?.submittedAt) return res.status(400).json({ error: 'The File Tracker must be confirmed for review before final locking.' });
         const fileTracker = { ...existing.fileTracker, finalLockedAt: new Date(), finalLockedBy: finalReviewerEmail };
         await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: finalReviewerEmail } });
         return res.json({ fileTracker });
       }
       if (existing?.fileTracker?.submittedAt) return res.status(409).json({ error: 'This File Tracker has already been confirmed for final review.' });
-      const catalog = await getTrackerCatalog(db);
+      const catalog = existing?.fileTracker?.fieldsSnapshot || await getTrackerCatalog(db);
       const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
       const submit = action === 'submit';
       if (submit && (!fileTrackerComplete(tracker, catalog) || !validDate(confirmationDate) || !confirmationDate)) {

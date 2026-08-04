@@ -102,6 +102,7 @@ export default function NewHire() {
   const [trackerFields, setTrackerFields] = useState<FileTrackerField[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [showTrackerManager, setShowTrackerManager] = useState(false);
+  const [showStatusReview, setShowStatusReview] = useState(false);
   const [newTrackerLabel, setNewTrackerLabel] = useState("");
   const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
   const [managerError, setManagerError] = useState("");
@@ -458,7 +459,7 @@ export default function NewHire() {
             Review & Lock
           </button>
         ) : (
-          <span className="font-semibold text-blue-700">Awaiting Myra</span>
+          <span className="font-semibold text-blue-700">Awaiting Upper-Level Manager</span>
         );
       },
     ],
@@ -494,6 +495,14 @@ export default function NewHire() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
+              onClick={() => setShowStatusReview(true)}
+              type="button"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              Review File Tracker Status
+            </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15"
               onClick={() => setShowTrackerManager(true)}
@@ -829,7 +838,7 @@ export default function NewHire() {
             ) : trackerSubmitted ? (
               <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
                 <div className="font-semibold">Confirmed for final review</div>
-                <p className="mt-1">Waiting for Myra to review and lock this record.</p>
+                <p className="mt-1">Waiting for the upper-level manager to review and lock this record.</p>
               </div>
             ) : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -877,13 +886,23 @@ export default function NewHire() {
                   </label>
                 ))}
             </div>
+            <label className="mt-4 block rounded-lg border border-slate-200 p-3">
+              <span className="mb-2 block text-sm font-semibold text-slate-700">Admin Comments</span>
+              <textarea
+                className="min-h-24 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100"
+                disabled={trackerLocked || trackerSubmitted}
+                onChange={(event) => setTracker((current) => ({ ...current, comments: event.target.value }))}
+                placeholder="Add notes or follow-up details for this employee file..."
+                value={String(tracker.comments || "")}
+              />
+            </label>
             {!trackerLocked && !trackerSubmitted ? (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <h3 className="font-semibold text-amber-950">
                   Confirm for Final Review
                 </h3>
                 <p className="mt-1 text-sm text-amber-800">
-                  Confirm that the checklist is ready for Myra's final review. Only Myra can permanently lock it.
+                  Confirm that the checklist is ready for upper-level management review. Only the authorized upper-level manager can permanently lock it.
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label>
@@ -966,11 +985,33 @@ export default function NewHire() {
         </div>
       ) : null}
 
+      {showStatusReview ? (
+        <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
+          <section className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div><h2 className="text-xl font-semibold text-slate-950">New Hire File Tracker Status</h2><p className="mt-1 text-sm text-slate-500">Review the current File Tracker stage for every new hire.</p></div>
+              <button aria-label="Close File Tracker Status" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowStatusReview(false)} type="button"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {[
+                ["Draft", employees.filter((employee) => !employee.fileTracker?.submittedAt && !employee.fileTracker?.finalLockedAt && !employee.fileTracker?.confirmedAt).length, "bg-amber-50 text-amber-800"],
+                ["Confirmed for Review", employees.filter((employee) => employee.fileTracker?.submittedAt && !employee.fileTracker?.finalLockedAt && !employee.fileTracker?.confirmedAt).length, "bg-blue-50 text-blue-800"],
+                ["Locked", employees.filter((employee) => employee.fileTracker?.finalLockedAt || employee.fileTracker?.confirmedAt).length, "bg-emerald-50 text-emerald-800"],
+              ].map(([label, count, tone]) => <div className={`rounded-xl p-4 ${tone}`} key={String(label)}><div className="text-2xl font-semibold">{count}</div><div className="mt-1 text-sm font-semibold">{label}</div></div>)}
+            </div>
+            <div className="mt-5 overflow-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[760px] text-sm"><thead className="bg-slate-100 text-left text-xs uppercase text-slate-600"><tr><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Confirmation Date</th><th className="px-4 py-3">Confirmed By</th><th className="px-4 py-3">Final Locked By</th></tr></thead><tbody>{employees.map((employee) => { const locked = employee.fileTracker?.finalLockedAt || employee.fileTracker?.confirmedAt; const status = locked ? "Locked" : employee.fileTracker?.submittedAt ? "Confirmed for Review" : "Draft"; return <tr key={employee.id}><td className="border-t border-slate-100 px-4 py-3 font-semibold text-slate-900">{employee.name}</td><td className="border-t border-slate-100 px-4 py-3">{status}</td><td className="border-t border-slate-100 px-4 py-3">{dateDisplay(String(employee.fileTracker?.confirmationDate || ""))}</td><td className="border-t border-slate-100 px-4 py-3">{display(String(employee.fileTracker?.submittedBy || ""))}</td><td className="border-t border-slate-100 px-4 py-3">{display(String(employee.fileTracker?.finalLockedBy || employee.fileTracker?.confirmedBy || ""))}</td></tr>})}</tbody></table>
+            </div>
+            <div className="mt-5 flex justify-end"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowStatusReview(false)} type="button">Close</button></div>
+          </section>
+        </div>
+      ) : null}
+
       {showTrackerManager ? (
         <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
           <section className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
-              <div><h2 className="text-xl font-semibold text-slate-950">File Tracker Checklist Manager</h2><p className="mt-1 text-sm text-slate-500">Add, rename, change response options, or deactivate checklist items.</p></div>
+              <div><h2 className="text-xl font-semibold text-slate-950">File Tracker Checklist Manager</h2><p className="mt-1 text-sm text-slate-500">Changes apply only to future new hires. Existing File Trackers keep their original checklist version.</p></div>
               <button aria-label="Close Checklist Manager" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowTrackerManager(false)} type="button"><X className="h-5 w-5" /></button>
             </div>
             <div className="mt-5 space-y-3">
