@@ -57,4 +57,3 @@ test('records the administrator and history when File Tracker comments change', 
   assert.deepEqual(changed.commentHistory, [{ comments: 'Updated note', by: 'admin@example.com', at: now }]);
   assert.deepEqual(commentAudit(changed, 'Updated note', 'other@example.com', new Date()), changed);
 });
-
