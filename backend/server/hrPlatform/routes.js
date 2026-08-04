@@ -232,7 +232,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate,
         insuranceEffectiveDate: insuranceNotApplicable ? '' : insuranceEffectiveDate, insuranceNotApplicable,
         retirementEffectiveDate: retirementNotApplicable ? '' : retirementEffectiveDate, retirementNotApplicable,
-        payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
+        payRateChangePending, payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
         payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
       };
       const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
@@ -241,18 +241,40 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         clean(existingRecord?.payrollChangeDate) !== payrollChangeDate ||
         clean(existingRecord?.payrollChangeReason) !== payrollChangeReason
       );
-      const reviewReset = changeRequestChanged ? {
-        $unset: {
-          payrollChangeCheckedAt: '', payrollChangeCheckedBy: '',
-          payrollChangeFinalReviewedAt: '', payrollChangeFinalReviewedBy: '',
-        },
-      } : {};
+      const unsetReviewFields = {};
+      const resetResponse = {};
+      const resetReasons = [];
+      const addResetFields = (fields) => fields.forEach(field => {
+        unsetReviewFields[field] = '';
+        resetResponse[field] = field.endsWith('At') ? null : '';
+      });
+      if (existingRecord && clean(existingRecord.firstPayrollDate) !== firstPayrollDate) {
+        resetReasons.push('First Payroll Date changed');
+        addResetFields(['payrollCheckedAt', 'payrollCheckedBy', 'payrollFinalReviewedAt', 'payrollFinalReviewedBy']);
+      }
+      if (existingRecord && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) {
+        resetReasons.push('Insurance applicability or Effective Date changed');
+        addResetFields(['insuranceCheckedAt', 'insuranceCheckedBy']);
+      }
+      if (existingRecord && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) {
+        resetReasons.push('401(k) applicability or Effective Date changed');
+        addResetFields(['retirementCheckedAt', 'retirementCheckedBy']);
+      }
+      if (changeRequestChanged) {
+        resetReasons.push('Payroll Change request changed');
+        addResetFields(['payrollChangeCheckedAt', 'payrollChangeCheckedBy', 'payrollChangeFinalReviewedAt', 'payrollChangeFinalReviewedBy']);
+      }
+      const reviewReset = Object.keys(unsetReviewFields).length ? { $unset: unsetReviewFields } : {};
+      const reviewResetAudit = resetReasons.length ? { $push: { reviewResetHistory: {
+        resetAt: new Date(), resetBy: req.adminSession?.email || null, reasons: resetReasons,
+        previousReviewValues: Object.fromEntries(Object.keys(unsetReviewFields).map(field => [field, existingRecord?.[field] || null])),
+      } } } : {};
       await db.collection('employee_hr_platform').updateOne(
         { employeeId },
-        { $set: { ...values, updatedAt: new Date(), updatedBy: req.adminSession?.email || null }, ...reviewReset },
+        { $set: { ...values, updatedAt: new Date(), updatedBy: req.adminSession?.email || null }, ...reviewReset, ...reviewResetAudit },
         { upsert: true },
       );
-      return res.json(values);
+      return res.json({ ...values, ...resetResponse });
     } catch (error) {
       console.error('Unable to save HR Platform new hire:', error);
       return res.status(500).json({ error: 'New Hire record could not be saved.' });
