@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, FileSpreadsheet, GraduationCap, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, FileSpreadsheet, GraduationCap, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
 import PayrollVerification from './pages/PayrollVerification'
 import CommissionRoster from './pages/CommissionRoster'
 import TrainingTools from './pages/TrainingTools'
+import HRPlatform from './pages/HRPlatform'
 
 type AdminUser = {
   firstName?: string
@@ -56,6 +57,14 @@ const hrTools = [
     icon: GraduationCap,
     tone: 'from-emerald-600 to-teal-500',
     badge: 'Training',
+  },
+  {
+    title: 'HR Platform',
+    description: 'Manage employee lifecycle records for new hires, terminations, employment changes, and protected or medical leave.',
+    to: '/hr-platform',
+    icon: BriefcaseBusiness,
+    tone: 'from-amber-600 to-orange-500',
+    badge: 'Employee Records',
   },
 ]
 
@@ -292,6 +301,7 @@ export default function App() {
           <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
           <Route path="/commission-roster" element={<CommissionRoster />} />
           <Route path="/training" element={<TrainingTools />} />
+          <Route path="/hr-platform" element={<HRPlatform />} />
         </Routes>
       </HrToolShell>
     )
