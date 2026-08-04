@@ -4,6 +4,7 @@ const {
   buildEarliestAcceptanceMap,
   employeeForExport,
   resolveAppRegistrationDate,
+  shouldActivateRegisteredEmployee,
 } = require('./registrationDate');
 
 test('uses the canonical date, then legacy registration date, then earliest disclaimer acceptance', () => {
@@ -14,6 +15,14 @@ test('uses the canonical date, then legacy registration date, then earliest disc
   assert.equal(resolveAppRegistrationDate({ username: 'JSMITH' }, acceptances).toISOString(), '2025-01-02T12:00:00.000Z');
   assert.equal(resolveAppRegistrationDate({ username: 'jsmith', activationDate: '2025-03-04T12:00:00Z' }, acceptances).toISOString(), '2025-03-04T12:00:00.000Z');
   assert.equal(resolveAppRegistrationDate({ 'App Registration Date': '2025-04-05T12:00:00Z', activationDate: '2025-03-04T12:00:00Z' }, acceptances).toISOString(), '2025-04-05T12:00:00.000Z');
+});
+
+test('reactivates only current employees with reliable registration evidence', () => {
+  const registrationDate = new Date('2025-01-02T12:00:00Z');
+  assert.equal(shouldActivateRegisteredEmployee({ 'Account Active': 'Active', 'Position Status': 'Active', isActivated: 'false' }, registrationDate), true);
+  assert.equal(shouldActivateRegisteredEmployee({ 'Account Active': 'Inactive', 'Position Status': 'Active', isActivated: 'false' }, registrationDate), false);
+  assert.equal(shouldActivateRegisteredEmployee({ 'Account Active': 'Active', 'Position Status': 'Terminated', isActivated: 'false' }, registrationDate), false);
+  assert.equal(shouldActivateRegisteredEmployee({ 'Account Active': 'Active', 'Position Status': 'Active', isActivated: 'false' }, null), false);
 });
 
 test('does not export the misleading import date or legacy field', () => {

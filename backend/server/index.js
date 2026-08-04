@@ -25,6 +25,7 @@ const {
     buildEarliestAcceptanceMap,
     employeeForExport,
     resolveAppRegistrationDate,
+    shouldActivateRegisteredEmployee,
 } = require('./registrationDate');
 const {
     clearSessionCookie,
@@ -189,7 +190,7 @@ async function reconcileHistoricalAppRegistrationDates() {
         await migrationClient.connect();
         const db = migrationClient.db(database_name);
         const collection = db.collection('employees');
-        const employees = await collection.find({}).project({ username: 1, activationDate: 1, 'App Registration Date': 1 }).toArray();
+        const employees = await collection.find({}).project({ username: 1, activationDate: 1, 'App Registration Date': 1, 'Account Active': 1, 'Position Status': 1, isActivated: 1 }).toArray();
         const usernames = employees.map(employee => employee.username).filter(Boolean);
         const acceptances = usernames.length
             ? await db.collection('disclaimer acceptances').find({
@@ -201,11 +202,16 @@ async function reconcileHistoricalAppRegistrationDates() {
         const operations = employees.flatMap(employee => {
             const registrationDate = resolveAppRegistrationDate(employee, earliestAcceptanceByUsername);
             const storedDate = employee['App Registration Date'] ? new Date(employee['App Registration Date']) : null;
-            if (!registrationDate || storedDate && !Number.isNaN(storedDate.getTime()) && storedDate.getTime() === registrationDate.getTime()) return [];
+            const needsRegistrationDate = registrationDate && (!storedDate || Number.isNaN(storedDate.getTime()) || storedDate.getTime() !== registrationDate.getTime());
+            const needsActivation = shouldActivateRegisteredEmployee(employee, registrationDate);
+            if (!needsRegistrationDate && !needsActivation) return [];
+            const update = {};
+            if (needsRegistrationDate) update['App Registration Date'] = registrationDate;
+            if (needsActivation) update.isActivated = 'true';
             return [{
                 updateOne: {
                     filter: { _id: employee._id },
-                    update: { $set: { 'App Registration Date': registrationDate } },
+                    update: { $set: update },
                 },
             }];
         });
@@ -446,15 +452,20 @@ app.get('/employees', cors(), requireAdminSession, async (req, res, next) => {
         const exportData = data.map(employee => {
             const registrationDate = resolveAppRegistrationDate(employee, earliestAcceptanceByUsername);
             const storedDate = employee['App Registration Date'] ? new Date(employee['App Registration Date']) : null;
-            if (registrationDate && (!storedDate || Number.isNaN(storedDate.getTime()) || storedDate.getTime() !== registrationDate.getTime())) {
+            const needsRegistrationDate = registrationDate && (!storedDate || Number.isNaN(storedDate.getTime()) || storedDate.getTime() !== registrationDate.getTime());
+            const needsActivation = shouldActivateRegisteredEmployee(employee, registrationDate);
+            if (needsRegistrationDate || needsActivation) {
+                const update = {};
+                if (needsRegistrationDate) update['App Registration Date'] = registrationDate;
+                if (needsActivation) update.isActivated = 'true';
                 registrationDateUpdates.push({
                     updateOne: {
                         filter: { _id: employee._id },
-                        update: { $set: { 'App Registration Date': registrationDate } },
+                        update: { $set: update },
                     },
                 });
             }
-            return employeeForExport(employee, registrationDate);
+            return employeeForExport(needsActivation ? { ...employee, isActivated: 'true' } : employee, registrationDate);
         });
         if (registrationDateUpdates.length) await collection.bulkWrite(registrationDateUpdates);
 

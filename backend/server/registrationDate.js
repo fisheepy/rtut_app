@@ -40,8 +40,19 @@ function employeeForExport(employee, registrationDate) {
   };
 }
 
+function shouldActivateRegisteredEmployee(employee, registrationDate) {
+  const accountActive = String(employee?.['Account Active'] || '').trim().toLocaleLowerCase();
+  const positionStatus = String(employee?.['Position Status'] || '').trim().toLocaleLowerCase();
+  const activated = String(employee?.isActivated ?? '').trim().toLocaleLowerCase();
+  return Boolean(registrationDate)
+    && accountActive === 'active'
+    && !['inactive', 'terminated'].includes(positionStatus)
+    && activated === 'false';
+}
+
 module.exports = {
   buildEarliestAcceptanceMap,
   employeeForExport,
   resolveAppRegistrationDate,
+  shouldActivateRegisteredEmployee,
 };
