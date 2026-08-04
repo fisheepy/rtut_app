@@ -27,6 +27,8 @@ import {
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
+import { canonicalizeEmployeeFilters } from './employeeFilterUtils';
 
 const parseEmployeeDate = (value) => {
     if (!value) return null;
@@ -86,11 +88,12 @@ function EmployeeSelectionComponent() {
                 const response = await axios.get('/employees');
                 const processedData = response.data.map(employee => ({
                     ...employee,
-                    'Name': `${employee['Last Name']}, ${employee['First Name']}`,
-                    'Supervisor': `${employee['Supervisor Last Name']}, ${employee['Supervisor First Name']}`,
+                    'Name': [employee['Last Name'], employee['First Name']].filter(Boolean).join(', '),
+                    'Supervisor': [employee['Supervisor Last Name'], employee['Supervisor First Name']].filter(Boolean).join(', '),
                     isActivated: employee.isActivated === true || String(employee.isActivated).toLowerCase() === 'true',
                 }));
-                const sortedData = processedData.sort((a, b) => a['Last Name'].localeCompare(b['Last Name']));
+                const sortedData = canonicalizeEmployeeFilters(processedData)
+                    .sort((a, b) => a['Last Name'].localeCompare(b['Last Name']));
                 const activatedEmployees = sortedData.filter(employee => employee.isActivated === true);
                 setEmployees(sortedData);
                 setFilteredEmployees(activatedEmployees);
@@ -253,8 +256,8 @@ function EmployeeSelectionComponent() {
     };
 
     const columns = [
+        { id: 'Name', label: 'Name', filter: true, sticky: true },
         { id: 'Hire Date', label: 'Hire Date', filter: false },
-        { id: 'Name', label: 'Name', filter: true },
         { id: 'Position Status', label: 'Status', filter: true },
         { id: 'Home Department', label: 'Home Department', filter: true },
         { id: 'Job Title', label: 'Job Title', filter: true },
@@ -287,6 +290,7 @@ function EmployeeSelectionComponent() {
     const activeFilterCount = Object.values(selectedFilters)
         .reduce((total, values) => total + (Array.isArray(values) ? values.length : 0), 0);
     const selectableVisibleEmployees = filteredEmployees.filter(employee => employee.isActivated === true);
+    const selectedVisibleCount = selectableVisibleEmployees.filter(employee => !deselectedEmployees.has(employee._id)).length;
 
     const renderFilter = ({ id, label }) => (
         <Autocomplete
@@ -325,7 +329,19 @@ function EmployeeSelectionComponent() {
 
     return (
         <div>
-            <h3>Selected Employees</h3>
+            <Box className="employee-section-heading">
+                <Stack direction="row" alignItems="center" spacing={1.25}>
+                    <Box className="employee-section-icon"><PeopleAltOutlinedIcon fontSize="small" /></Box>
+                    <Box>
+                        <Typography variant="h5" component="h3" fontWeight={750}>Employees</Typography>
+                        <Typography variant="body2" color="text.secondary">Filter recipients, review details, or double-click a row to edit.</Typography>
+                    </Box>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                    <Chip label={`${filteredEmployees.length} shown`} variant="outlined" size="small" />
+                    <Chip label={`${selectedVisibleCount} selected`} color="primary" size="small" />
+                </Stack>
+            </Box>
             <Paper
                 elevation={0}
                 sx={{
@@ -411,7 +427,7 @@ function EmployeeSelectionComponent() {
                             {columns.map((column) => (
                                 <TableCell
                                     key={column.id}
-                                    style={{ fontWeight: 'bold', backgroundColor: 'white' }}
+                                    className={column.sticky ? 'employee-name-cell employee-name-header' : ''}
                                 >
                                     {column.id === 'select' ? (
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -434,10 +450,10 @@ function EmployeeSelectionComponent() {
                             <TableRow
                                 key={employee._id}
                                 onDoubleClick={() => handleRowDoubleClick(employee)}
-                                style={{ textDecoration: deselectedEmployees.has(employee._id) ? 'line-through' : 'none' }}
+                                className={deselectedEmployees.has(employee._id) ? 'employee-row-deselected' : ''}
                             >
                                 {columns.map((column) => (
-                                    <TableCell key={column.id}>
+                                    <TableCell key={column.id} className={column.sticky ? 'employee-name-cell' : ''}>
                                         {column.id === 'select' ? (
                                             <Checkbox
                                                 checked={employee.isActivated === true && !deselectedEmployees.has(employee._id)}
@@ -449,7 +465,7 @@ function EmployeeSelectionComponent() {
                                             column.id === 'Hire Date'
                                                 ? formatEmployeeDate(employee[column.id])
                                                 : column.id === 'isActivated'
-                                                    ? String(employee[column.id])
+                                                    ? <Chip className="employee-activation-chip" label={employee[column.id] ? 'True' : 'False'} color={employee[column.id] ? 'success' : 'default'} size="small" variant={employee[column.id] ? 'filled' : 'outlined'} />
                                                     : employee[column.id] || ''
                                         )}
                                     </TableCell>
