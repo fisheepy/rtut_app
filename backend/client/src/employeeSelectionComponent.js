@@ -423,7 +423,7 @@ function EmployeeSelectionComponent() {
             >
                 <Table className="employee-selection-table" aria-label="employee selection table" stickyHeader>
                     <TableHead>
-                        <TableRow style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'white' }}>
+                        <TableRow>
                             {columns.map((column) => (
                                 <TableCell
                                     key={column.id}

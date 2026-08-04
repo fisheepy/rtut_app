@@ -597,6 +597,9 @@ select {
 }
 
 .employee-selection-table .MuiTableHead-root .MuiTableCell-root {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   font-weight: 750;
   color: #344054;
   background: #f7f9fc;
