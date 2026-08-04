@@ -745,6 +745,7 @@ export async function addNewEmployee(newEmployee) {
               "EEOC Establishment": newEmployee.eeoc,
               "Account Active": "Active",
               "Reactivation Date": new Date(),
+              "HR Platform New Hire At": new Date(),
             },
           },
         );
@@ -795,6 +796,7 @@ export async function addNewEmployee(newEmployee) {
       "EEOC Establishment": newEmployee.eeoc,
       "isActivated": 'false',
       "Account Active": "Active",
+      "HR Platform New Hire At": new Date(),
       username,
       password
     };

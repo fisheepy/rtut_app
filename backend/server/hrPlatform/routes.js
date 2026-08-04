@@ -18,6 +18,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const db = client.db(databaseName);
       const employees = await db.collection('employees').find({
         $and: [
+          { 'HR Platform New Hire At': { $exists: true, $ne: null } },
           { 'Account Active': { $not: /^inactive$/i } },
           { 'Position Status': { $not: /^(inactive|terminated)$/i } },
           { $or: [{ 'Termination Date': { $exists: false } }, { 'Termination Date': '' }, { 'Termination Date': null }] },

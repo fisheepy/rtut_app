@@ -94,7 +94,7 @@ export default function NewHire() {
       <section className="rounded-2xl bg-slate-950 px-6 py-7 text-white shadow-xl">
         <Link className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" to="/hr-platform"><ArrowLeft className="h-4 w-4" />Back to HR Platform</Link>
         <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-          <div><div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200"><UserPlus className="h-4 w-4" />Employee Onboarding</div><h1 className="mt-4 text-4xl font-semibold">New Hire</h1><p className="mt-2 text-sm leading-6 text-slate-300">Company App employee information appears here automatically. Manage onboarding dates and employee folder links separately.</p></div>
+          <div><div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200"><UserPlus className="h-4 w-4" />New Hire Only</div><h1 className="mt-4 text-4xl font-semibold">New Hire</h1><p className="mt-2 text-sm leading-6 text-slate-300">Only employees added through Company App after this feature was enabled appear here. Existing employees are not imported.</p></div>
           <button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/15 disabled:opacity-50" disabled={loading} onClick={loadEmployees} type="button"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh from Company App</button>
         </div>
       </section>
