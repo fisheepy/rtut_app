@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, validDate } = require('./data');
+const { commentAudit, employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, validDate } = require('./data');
 
 test('maps Company App employee fields into a New Hire row', () => {
   const employee = {
@@ -48,3 +48,13 @@ test('requires every File Tracker item and handbook version before confirmation'
   assert.equal(tracker.comments, 'Waiting for payroll review.');
   assert.equal(fileTrackerComplete({ ...tracker, handbookVersion: '' }), false);
 });
+
+test('records the administrator and history when File Tracker comments change', () => {
+  const now = new Date('2026-08-04T14:00:00Z');
+  const changed = commentAudit({ comments: 'Old note' }, 'Updated note', 'admin@example.com', now);
+  assert.equal(changed.commentsBy, 'admin@example.com');
+  assert.equal(changed.commentsUpdatedAt, now);
+  assert.deepEqual(changed.commentHistory, [{ comments: 'Updated note', by: 'admin@example.com', at: now }]);
+  assert.deepEqual(commentAudit(changed, 'Updated note', 'other@example.com', new Date()), changed);
+});
+
