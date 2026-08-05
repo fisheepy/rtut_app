@@ -9,6 +9,7 @@ import CommissionRoster from './pages/CommissionRoster'
 import TrainingTools from './pages/TrainingTools'
 import HRPlatform from './pages/HRPlatform'
 import NewHire from './pages/NewHire'
+import Termination from './pages/Termination'
 
 type AdminUser = {
   firstName?: string
@@ -304,6 +305,7 @@ export default function App() {
           <Route path="/training" element={<TrainingTools />} />
           <Route path="/hr-platform" element={<HRPlatform />} />
           <Route path="/hr-platform/new-hire" element={<NewHire />} />
+          <Route path="/hr-platform/termination" element={<Termination />} />
         </Routes>
       </HrToolShell>
     )
@@ -328,3 +330,4 @@ export default function App() {
     </div>
   )
 }
+
