@@ -85,7 +85,6 @@ function EmployeeSelectionComponent() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [originalEmployee, setOriginalEmployee] = useState(null);
-    const [changedFields, setChangedFields] = useState([]);
     const [changeDetails, setChangeDetails] = useState({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false });
     const [editError, setEditError] = useState('');
     const [employeeSearch, setEmployeeSearch] = useState('');
@@ -242,7 +241,6 @@ function EmployeeSelectionComponent() {
     const openEmployeeEditor = (employee) => {
         setOriginalEmployee(employee);
         setSelectedEmployee({ ...employee });
-        setChangedFields([]);
         setChangeDetails({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false });
         setEditError('');
         setIsEditModalOpen(true);
@@ -263,14 +261,18 @@ function EmployeeSelectionComponent() {
     };
 
     const handleSaveChanges = async () => {
-        if (!changedFields.length) return setEditError('Select at least one item to change.');
-        if (!changeDetails.effectiveDate || !changeDetails.reason.trim()) return setEditError('Effective Date and Reason are required.');
+        const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(selectedEmployee?.[field] || '').trim());
+        if (!changedFields.length) return setEditError('No information has been changed.');
+        const tracked = changeDetails.payroll || changeDetails.insurance || changeDetails.retirement || changeDetails.trackOther;
+        const review = changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} → ${selectedEmployee[field] || '(blank)'}`).join('\n');
+        if (!window.confirm(`Review the following employee changes:\n\n${review}\n\nCompany App information will be updated immediately.${tracked ? '\nRequired follow-up will also be sent to HR Platform.' : ''}`)) return;
         try {
             const updatedEmployee = { ...originalEmployee };
             changedFields.forEach(field => { updatedEmployee[field] = selectedEmployee[field]; });
             updatedEmployee._employmentChange = { ...changeDetails, changedFields };
             await axios.put(`/employees/${selectedEmployee._id}`, updatedEmployee);
-            setEmployees((prevEmployees) => prevEmployees.map((emp) => (emp._id === selectedEmployee._id ? selectedEmployee : emp)));
+            const displayEmployee = { ...selectedEmployee, Name: [selectedEmployee['Last Name'], selectedEmployee['First Name']].filter(Boolean).join(', '), Supervisor: [selectedEmployee['Supervisor Last Name'], selectedEmployee['Supervisor First Name']].filter(Boolean).join(', ') };
+            setEmployees((prevEmployees) => prevEmployees.map((emp) => (emp._id === selectedEmployee._id ? displayEmployee : emp)));
             applyFilters();
             handleModalClose();
         } catch (error) {
@@ -506,9 +508,8 @@ function EmployeeSelectionComponent() {
                     {selectedEmployee && (
                         <Grid container spacing={2}>
                             <Grid item xs={12}>
-                                <Alert severity="info">Select exactly which information is changing. Employee information can only be updated through this controlled workflow.</Alert>
+                                <Alert severity="info">Edit the information below. The system will automatically identify the fields that changed. Company App updates take effect immediately.</Alert>
                                 {editError ? <Alert severity="error" sx={{ mt: 1 }}>{editError}</Alert> : null}
-                                <Autocomplete multiple options={editableEmployeeFields} value={changedFields} onChange={(_event, values) => setChangedFields(values)} renderInput={(params) => <TextField {...params} label="Information to Change *" margin="normal" />} />
                             </Grid>
                             <Grid item xs={6}>
                                 <TextField
@@ -634,14 +635,13 @@ function EmployeeSelectionComponent() {
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
                             <Grid item xs={12}><FormControlLabel control={<Checkbox checked={changeDetails.trackOther} onChange={event => setChangeDetails(current => ({ ...current, trackOther: event.target.checked }))} />} label="Track this non-financial change in HR Platform" /></Grid>
-                            <Grid item xs={12} sm={5}><TextField fullWidth label="Effective Date *" type="date" value={changeDetails.effectiveDate} onChange={event => setChangeDetails(current => ({ ...current, effectiveDate: event.target.value }))} InputLabelProps={{ shrink: true }} /></Grid>
-                            <Grid item xs={12} sm={7}><TextField fullWidth label="Reason / Notes *" value={changeDetails.reason} onChange={event => setChangeDetails(current => ({ ...current, reason: event.target.value }))} /></Grid>
+                            {(changeDetails.payroll || changeDetails.insurance || changeDetails.retirement || changeDetails.trackOther) && <Grid item xs={12}><Alert severity="info">This record will be sent to Employment Change. HR Action Date and follow-up details will be entered there.</Alert></Grid>}
                         </Grid>
                     )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleModalClose}>Cancel</Button>
-                    <Button onClick={handleSaveChanges} color="primary">Save</Button>
+                    <Button onClick={handleSaveChanges} color="primary" variant="contained">Review Changes & Confirm</Button>
                 </DialogActions>
             </Dialog>
         </div>

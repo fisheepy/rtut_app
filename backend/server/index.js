@@ -766,10 +766,6 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         const insurance = _employmentChange.insurance === true;
         const retirement = _employmentChange.retirement === true;
         const trackOther = _employmentChange.trackOther === true;
-        if ((payroll || insurance || retirement || trackOther) && (!/^\d{4}-\d{2}-\d{2}$/.test(String(_employmentChange.effectiveDate || '')) || !String(_employmentChange.reason || '').trim())) {
-            return { found: true, changed: false, error: 'Effective Date and Reason are required for tracked changes.' };
-        }
-
         const result = await collection.updateOne(
             { _id: new ObjectId(employeeId) },
             { $set: employeeUpdate }

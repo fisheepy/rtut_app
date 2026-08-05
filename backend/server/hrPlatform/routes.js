@@ -764,6 +764,25 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
+  router.put('/employment-changes/:id/details', async (req, res) => {
+    const { id } = req.params; const actionDate = clean(req.body?.actionDate); const reason = clean(req.body?.reason);
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid employment change.' });
+    if (!actionDate || !validDate(actionDate)) return res.status(400).json({ error: 'HR Action Date is required.' });
+    if (!reason) return res.status(400).json({ error: 'Reason / Follow-up Notes are required.' });
+    const client = createClient();
+    try {
+      await client.connect(); const updatedAt = new Date(); const updatedBy = clean(req.adminSession?.email).toLowerCase();
+      const result = await client.db(databaseName).collection('employee_hr_employment_change').updateOne(
+        { _id: new ObjectId(id) }, { $set: { effectiveDate: actionDate, reason, updatedAt, updatedBy } },
+      );
+      if (!result.matchedCount) return res.status(404).json({ error: 'Employment change not found.' });
+      return res.json({ actionDate, reason, updatedAt, updatedBy });
+    } catch (error) {
+      console.error('Unable to update employment change details:', error);
+      return res.status(500).json({ error: 'Employment Change details could not be saved.' });
+    } finally { await client.close(); }
+  });
+
   return router;
 }
 
