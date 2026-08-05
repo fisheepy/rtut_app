@@ -71,6 +71,7 @@ const deleteEmployee = async (firstName, lastName) => {
                     'Termination Date': terminationDate,
                     'Position Status': 'Terminated',
                     'Account Active': 'Inactive',
+                    'HR Platform Termination At': new Date(),
                 },
             },
         );
@@ -104,3 +105,4 @@ deleteEmployee(firstName, lastName)
         console.error(error.message);
         process.exit(1);
     });
+
