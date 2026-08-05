@@ -85,6 +85,8 @@ function terminationEmployeeView(employee, record = {}) {
     fileTracker: record.fileTracker || {},
     payrollCheckedAt: record.payrollCheckedAt || null, payrollCheckedBy: clean(record.payrollCheckedBy),
     payrollFinalReviewedAt: record.payrollFinalReviewedAt || null, payrollFinalReviewedBy: clean(record.payrollFinalReviewedBy),
+    followUpCheckedAt: record.followUpCheckedAt || null, followUpCheckedBy: clean(record.followUpCheckedBy),
+    followUpFinalReviewedAt: record.followUpFinalReviewedAt || null, followUpFinalReviewedBy: clean(record.followUpFinalReviewedBy),
     insuranceCobraCheckedAt: record.insuranceCobraCheckedAt || null, insuranceCobraCheckedBy: clean(record.insuranceCobraCheckedBy),
     retirementCheckedAt: record.retirementCheckedAt || null, retirementCheckedBy: clean(record.retirementCheckedBy),
   };

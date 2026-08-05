@@ -612,6 +612,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const unset = {};
       if (clean(existing.finalPayrollDate) !== values.finalPayrollDate) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
       if (existing.pendingIssues !== values.pendingIssues || clean(existing.payrollFollowThroughUntil) !== values.payrollFollowThroughUntil) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
+      if (existing.pendingIssues !== values.pendingIssues || clean(existing.pendingIssuesNotes) !== values.pendingIssuesNotes || clean(existing.payrollFollowThroughUntil) !== values.payrollFollowThroughUntil) Object.assign(unset, { followUpCheckedAt: '', followUpCheckedBy: '', followUpFinalReviewedAt: '', followUpFinalReviewedBy: '' });
       if (clean(existing.insuranceParticipation) !== values.insuranceParticipation || clean(existing.insuranceEndingDate) !== values.insuranceEndingDate) Object.assign(unset, { insuranceCobraCheckedAt: '', insuranceCobraCheckedBy: '' });
       if (clean(existing.retirementParticipation) !== values.retirementParticipation || clean(existing.retirementEndingDate) !== values.retirementEndingDate) Object.assign(unset, { retirementCheckedAt: '', retirementCheckedBy: '' });
       const update = { $set: { ...values, updatedAt: new Date(), updatedBy: clean(req.adminSession?.email).toLowerCase() } };
@@ -666,13 +667,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       'payroll-check': ['payrollCheckedAt', 'payrollCheckedBy'],
       'payroll-final-review': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
       'payroll-final-review-undo': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
+      'follow-up-check': ['followUpCheckedAt', 'followUpCheckedBy'],
+      'follow-up-final-review': ['followUpFinalReviewedAt', 'followUpFinalReviewedBy'],
       'insurance-cobra-check': ['insuranceCobraCheckedAt', 'insuranceCobraCheckedBy'],
       'retirement-check': ['retirementCheckedAt', 'retirementCheckedBy'],
     };
     const fields = fieldsByAction[action];
     if (!fields) return res.status(400).json({ error: 'Invalid review action.' });
     const reviewerEmail = clean(req.adminSession?.email).toLowerCase();
-    if (['payroll-final-review', 'payroll-final-review-undo'].includes(action) && reviewerEmail !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform Payroll Final Review.' });
+    if (['payroll-final-review', 'payroll-final-review-undo', 'follow-up-final-review'].includes(action) && reviewerEmail !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform final review.' });
     const client = createClient();
     try {
       await client.connect();
@@ -680,6 +683,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const existing = await collection.findOne({ employeeId });
       if (!existing?.finalPayrollDate) return res.status(400).json({ error: 'Complete Termination Details before taking action.' });
       if (action === 'payroll-final-review' && !existing.payrollCheckedAt) return res.status(400).json({ error: 'Payroll Check must be completed first.' });
+      if (action === 'follow-up-check' && (!existing.pendingIssues || !existing.payrollFinalReviewedAt)) return res.status(400).json({ error: 'Final Pay Review must be completed before checking follow-up issues.' });
+      if (action === 'follow-up-final-review' && (!existing.pendingIssues || !existing.followUpCheckedAt)) return res.status(400).json({ error: 'Follow-up Issues Check must be completed first.' });
       if (action === 'payroll-final-review-undo') {
         await collection.updateOne({ employeeId }, { $unset: { payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' }, $set: { updatedAt: new Date(), updatedBy: reviewerEmail } });
         return res.json({ payrollFinalReviewedAt: null, payrollFinalReviewedBy: '' });
@@ -692,6 +697,36 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       console.error('Unable to save termination action:', error);
       return res.status(500).json({ error: 'Termination action could not be saved.' });
     } finally { await client.close(); }
+  });
+
+  async function terminationReportRows(db) {
+    const employees = await db.collection('employees').find({ $or: [{ 'Position Status': /^terminated$/i }, { 'Termination Date': { $exists: true, $nin: ['', null] } }] }).toArray();
+    const ids = employees.map(employee => String(employee._id));
+    const records = ids.length ? await db.collection('employee_hr_termination').find({ employeeId: { $in: ids } }).toArray() : [];
+    const byId = new Map(records.map(record => [String(record.employeeId), record]));
+    return employees.map(employee => ({ employee, record: byId.get(String(employee._id)) || {} }));
+  }
+
+  router.get('/terminations/reports/file-tracker.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect(); const db = client.db(databaseName); const rows = await terminationReportRows(db);
+      const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination File Trackers');
+      const catalog = await getTrackerCatalog(db, true);
+      sheet.columns = [{ header: 'Employee', key: 'name', width: 28 }, { header: 'Termination Date', key: 'terminationDate', width: 18 }, { header: 'Employee Folder', key: 'folder', width: 45 }, ...catalog.map(field => ({ header: field.label, key: `f_${field.id}`, width: 24 })), { header: 'Comments', key: 'comments', width: 45 }, { header: 'Admin Checked By', key: 'admin', width: 30 }, { header: 'Final Reviewed By', key: 'final', width: 30 }, { header: 'Status', key: 'status', width: 20 }];
+      rows.forEach(({ employee, record }) => { const tracker = record.fileTracker || {}; const row = { name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), terminationDate: clean(employee['Termination Date']), folder: clean(record.employeeFolderUrl), comments: clean(tracker.comments), admin: clean(tracker.submittedBy), final: clean(tracker.finalLockedBy), status: tracker.finalLockedAt ? 'Final Reviewed' : tracker.submittedAt ? 'Admin Checked' : 'In Process' }; catalog.forEach(field => { row[`f_${field.id}`] = clean(tracker.responses?.[field.id]); }); sheet.addRow(row); });
+      sheet.getRow(1).font = { bold: true }; return await sendWorkbook(res, workbook, `Termination_File_Trackers_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) { console.error('Unable to create termination tracker report:', error); return res.status(500).json({ error: 'The termination tracker report could not be created.' }); } finally { await client.close(); }
+  });
+
+  router.get('/terminations/reports/tasks.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect(); const rows = await terminationReportRows(client.db(databaseName)); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination Tasks');
+      sheet.columns = [{ header: 'Employee', key: 'name', width: 28 }, { header: 'Termination Date', key: 'terminationDate', width: 18 }, { header: 'Task', key: 'task', width: 28 }, { header: 'Task Date', key: 'date', width: 18 }, { header: 'Status', key: 'status', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalBy', width: 30 }, { header: 'Notes', key: 'notes', width: 45 }];
+      rows.forEach(({ employee, record }) => { const base = { name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), terminationDate: clean(employee['Termination Date']) }; const add = (task, date, checked, final, notes = '') => sheet.addRow({ ...base, task, date: clean(date), status: final ? 'Finished' : checked ? 'In Process - Final Review Needed' : 'Unfinished', checkedBy: clean(checked?.by), finalBy: clean(final?.by), notes }); add('Final Pay', record.finalPayrollDate, record.payrollCheckedAt && { by: record.payrollCheckedBy }, record.payrollFinalReviewedAt && { by: record.payrollFinalReviewedBy }); if (record.pendingIssues) add('Payroll Follow-up Issues', record.payrollFollowThroughUntil, record.followUpCheckedAt && { by: record.followUpCheckedBy }, record.followUpFinalReviewedAt && { by: record.followUpFinalReviewedBy }, clean(record.pendingIssuesNotes)); if (record.insuranceParticipation) add('Insurance & COBRA', record.insuranceEndingDate, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }); if (record.retirementParticipation) add('401(k)', record.retirementEndingDate, record.retirementCheckedAt && { by: record.retirementCheckedBy }, record.retirementCheckedAt && { by: record.retirementCheckedBy }); });
+      sheet.getRow(1).font = { bold: true }; return await sendWorkbook(res, workbook, `Termination_All_Tasks_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) { console.error('Unable to create termination task report:', error); return res.status(500).json({ error: 'The termination task report could not be created.' }); } finally { await client.close(); }
   });
 
   return router;
