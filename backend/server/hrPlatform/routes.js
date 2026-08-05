@@ -591,7 +591,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       retirementParticipation: clean(req.body?.retirementParticipation).toLowerCase(),
       retirementEndingDate: clean(req.body?.retirementEndingDate),
     };
-    if (values.employeeFolderUrl && !/^https:\/\//i.test(values.employeeFolderUrl)) return res.status(400).json({ error: 'Employee Folder Link must be a secure https:// link.' });
+    if (!values.employeeFolderUrl) return res.status(400).json({ error: 'Employee Folder Link is required.' });
+    if (!/^https:\/\//i.test(values.employeeFolderUrl)) return res.status(400).json({ error: 'Employee Folder Link must be a secure https:// link.' });
     const dates = [values.finalPayrollDate, values.payrollFollowThroughUntil, values.insuranceEndingDate, values.retirementEndingDate];
     if (dates.some(value => !validDate(value))) return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
     if (!values.finalPayrollDate) return res.status(400).json({ error: 'Final Payroll Date is required.' });
