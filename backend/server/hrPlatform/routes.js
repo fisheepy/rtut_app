@@ -748,6 +748,35 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
+  router.get('/employment-changes/reports/tasks.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const records = await client.db(databaseName).collection('employee_hr_employment_change').find({}).sort({ effectiveDate: 1, createdAt: 1 }).toArray();
+      const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Employment Change Tasks');
+      sheet.columns = [
+        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 },
+        { header: 'Change Effective Date', key: 'effectiveDate', width: 22 }, { header: 'Information Changed', key: 'changes', width: 55 },
+        { header: 'Task', key: 'task', width: 28 }, { header: 'Task Date', key: 'taskDate', width: 18 },
+        { header: 'Status', key: 'status', width: 28 }, { header: 'Checked By', key: 'checkedBy', width: 30 },
+        { header: 'Final Reviewed By', key: 'finalBy', width: 30 }, { header: 'Follow-up Notes', key: 'notes', width: 45 },
+      ];
+      const status = (task = {}, finalRequired = false) => finalRequired
+        ? task.finalReviewedAt ? 'Finished' : task.checkedAt ? 'In Process - Final Review Needed' : 'Unfinished'
+        : (task.checkedAt || task.completedAt) ? 'Finished' : 'Unfinished';
+      records.forEach(record => {
+        const base = { employee: clean(record.employeeName), email: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), changes: (record.changes || []).map(change => `${clean(change.field)}: ${clean(change.from)} -> ${clean(change.to)}`).join('; ') };
+        const add = (task, taskDate, value = {}, finalRequired = false, notes = '') => sheet.addRow({ ...base, task, taskDate: clean(taskDate), status: status(value, finalRequired), checkedBy: clean(value.checkedBy || value.completedBy), finalBy: clean(value.finalReviewedBy), notes });
+        add('Employee File Backup', record.effectiveDate, record.tasks?.file || {}, true);
+        if (record.tasks?.payroll?.applicable === true) add("New Payroll's Payroll Date", record.tasks.payroll.actionDate, record.tasks.payroll, true);
+        if (record.followUpIssues === true) add('Follow-up Issues', record.followUpUntil, record.tasks?.followUp || {}, true, clean(record.followUpNotes));
+        if (record.tasks?.insurance?.applicable === true) add('Insurance Change', record.tasks.insurance.actionDate, record.tasks.insurance);
+        if (record.tasks?.retirement?.applicable === true) add('401(k) Change', record.tasks.retirement.actionDate, record.tasks.retirement);
+      });
+      styleReportSheet(sheet); return await sendWorkbook(res, workbook, `Employment_Change_All_Tasks_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) { console.error('Unable to create Employment Change task report:', error); return res.status(500).json({ error: 'The Employment Change task report could not be created.' }); } finally { await client.close(); }
+  });
+
   router.put('/employment-changes/:id/tasks/:task', async (req, res) => {
     const { id, task } = req.params;
     if (!ObjectId.isValid(id) || !['payroll', 'insurance', 'retirement', 'other'].includes(task)) return res.status(400).json({ error: 'Invalid employment change task.' });
