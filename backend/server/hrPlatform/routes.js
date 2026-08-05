@@ -698,6 +698,49 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     return getTrackerCatalog(db, includeInactive, 'hr_termination_file_tracker_fields');
   }
 
+  async function restoreTerminationCatalogFromSnapshots(db) {
+    const migrationId = 'restore-termination-catalog-from-termination-history-v2';
+    const migrations = db.collection('hr_platform_migrations');
+    if (await migrations.findOne({ id: migrationId })) return;
+    await migrations.createIndex({ id: 1 }, { unique: true });
+    try {
+      await migrations.insertOne({ id: migrationId, status: 'running', startedAt: new Date() });
+    } catch (error) {
+      if (error?.code === 11000) return;
+      throw error;
+    }
+    const trackerRecords = await db.collection('employee_hr_termination').find({ 'fileTracker.fieldsSnapshot.0': { $exists: true } }).sort({ updatedAt: -1, createdAt: -1 }).toArray();
+    const meaningfulRecord = trackerRecords.find(record => record.fileTracker?.submittedAt || record.fileTracker?.finalLockedAt || Object.values(record.fileTracker?.responses || {}).some(Boolean));
+    const selectedRecord = meaningfulRecord || trackerRecords[0];
+    let restoredFields = selectedRecord?.fileTracker?.fieldsSnapshot;
+    let source = selectedRecord ? `termination-record:${selectedRecord.employeeId}` : '';
+    if (!Array.isArray(restoredFields) || !restoredFields.length) {
+      const archivedSharedCatalog = await db.collection('hr_file_tracker_fields_history').find({}).sort({ archivedAt: -1 }).limit(1).toArray();
+      restoredFields = archivedSharedCatalog[0]?.fields?.filter(field => field.deleted !== true);
+      source = archivedSharedCatalog.length ? 'catalog-archive-before-new-hire-restore' : 'defaults';
+    }
+    if (!Array.isArray(restoredFields) || !restoredFields.length) restoredFields = DEFAULT_FILE_TRACKER_FIELDS;
+    const normalized = restoredFields.map(field => ({ id: clean(field.id), label: clean(field.label), options: Array.isArray(field.options) ? field.options.map(clean).filter(Boolean) : [], order: Number(field.order || 0), active: field.active !== false }));
+    const catalog = db.collection('hr_termination_file_tracker_fields');
+    const previous = await catalog.find({}).toArray();
+    await db.collection('hr_termination_file_tracker_fields_history').insertOne({ migrationId, fields: previous, archivedAt: new Date(), reason: 'Archived before restoring the Termination catalog from Termination-only tracker history' });
+    await catalog.updateMany({}, { $set: { deleted: true, deletedAt: new Date(), deletedBy: 'system-recovery' } });
+    await catalog.bulkWrite(normalized.map(field => ({ updateOne: { filter: { id: field.id }, update: { $set: { ...field, deleted: false, restoredAt: new Date(), restoredBy: 'system-recovery' }, $unset: { deletedAt: '', deletedBy: '' } }, upsert: true } })));
+    await migrations.updateOne({ id: migrationId }, { $set: { status: 'complete', completedAt: new Date(), source, restoredFieldCount: normalized.length } });
+  }
+
+  void (async () => {
+    const client = createClient();
+    try {
+      await client.connect();
+      await restoreTerminationCatalogFromSnapshots(client.db(databaseName));
+    } catch (error) {
+      console.error('Unable to restore the Termination File Tracker catalog:', error);
+    } finally {
+      await client.close();
+    }
+  })();
+
   router.get('/termination-file-tracker-fields', async (req, res) => {
     const client = createClient();
     try {
