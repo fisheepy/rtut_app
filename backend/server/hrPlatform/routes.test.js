@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { commentAudit, employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, validDate } = require('./data');
+const { commentAudit, employeeView, terminationEmployeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, validDate } = require('./data');
 
 test('maps Company App employee fields into a New Hire row', () => {
   const employee = {
@@ -57,3 +57,19 @@ test('records the administrator and history when File Tracker comments change', 
   assert.deepEqual(changed.commentHistory, [{ comments: 'Updated note', by: 'admin@example.com', at: now }]);
   assert.deepEqual(commentAudit(changed, 'Updated note', 'other@example.com', new Date()), changed);
 });
+
+test('maps a terminated Company App employee into the termination workflow', () => {
+  const row = terminationEmployeeView({
+    _id: 'employee-2', 'First Name': 'Test080501', 'Last Name': 'Test080501',
+    'Termination Date': '2026-08-05', 'Home Department': 'Office/Admin', 'Job Title': 'Tester',
+  }, {
+    finalPayrollDate: '2026-08-12', pendingIssues: true,
+    payrollFollowThroughUntil: '2026-08-31', insuranceParticipation: 'not-participated',
+  });
+  assert.equal(row.name, 'Test080501 Test080501');
+  assert.equal(row.terminationDate, '2026-08-05');
+  assert.equal(row.finalPayrollDate, '2026-08-12');
+  assert.equal(row.pendingIssues, true);
+  assert.equal(row.insuranceParticipation, 'not-participated');
+});
+
