@@ -1,6 +1,7 @@
 import { MongoClient, ObjectId } from 'mongodb';
 import { DateTime } from 'luxon';
 import { updateEmployeeToNovuSubscriber } from './novuUtilities.mjs';
+import { employeeMatchReasons } from './employeeDuplicate.mjs';
 
 const username = process.env.MONGODB_USERNAME;
 const password = process.env.MONGODB_PASSWORD;
@@ -712,11 +713,13 @@ export async function addNewEmployee(newEmployee) {
 
     // Ignore superficial formatting when checking for an existing employee.
     const phoneDigits = value => String(value || '').replace(/\D/g, '');
-    const duplicateCheck = allEmployees.find(employee => (
-      normalizedValue(employee['First Name']) === normalizedValue(newEmployee.firstName)
-        && normalizedValue(employee['Last Name']) === normalizedValue(newEmployee.lastName)
-    ) || phoneDigits(employee.Phone) === phoneDigits(newEmployee.phone)
-      || normalizedValue(employee.Email) === normalizedValue(newEmployee.email));
+    const matchingEmployees = allEmployees
+      .map(employee => ({ employee, reasons: employeeMatchReasons(employee, newEmployee) }))
+      .filter(match => match.reasons.length);
+    const duplicateMatch = matchingEmployees.find(match => !(['inactive', 'terminated'].includes(
+      String(match.employee['Account Active'] || match.employee['Position Status'] || '').toLowerCase()
+    ) || Boolean(match.employee['Termination Date']))) || matchingEmployees[0];
+    const duplicateCheck = duplicateMatch?.employee;
 
     if (duplicateCheck) {
       const isInactive = ['inactive', 'terminated'].includes(
@@ -724,6 +727,25 @@ export async function addNewEmployee(newEmployee) {
       ) || Boolean(duplicateCheck['Termination Date']);
 
       if (isInactive) {
+        if (newEmployee.approvedReactivation !== true) {
+          const formerName = `${cleanValue(duplicateCheck['First Name'])} ${cleanValue(duplicateCheck['Last Name'])}`.trim();
+          throw new Error(`Error during operation: Possible former employee match: ${formerName}. Confirm reactivation to reuse this employee record and start a new onboarding cycle.`);
+        }
+
+        const hrPlatformCollection = db.collection('employee_hr_platform');
+        const oldHrPlatformRecord = await hrPlatformCollection.findOne({ employeeId: String(duplicateCheck._id) });
+        if (oldHrPlatformRecord) {
+          const { _id: originalRecordId, ...historicalRecord } = oldHrPlatformRecord;
+          await db.collection('employee_hr_platform_history').insertOne({
+            ...historicalRecord,
+            originalRecordId,
+            employeeSnapshot: duplicateCheck,
+            archivedAt: new Date(),
+            archiveReason: 'Employee reactivated in Company App',
+          });
+          await hrPlatformCollection.deleteOne({ _id: originalRecordId });
+        }
+
         await collection.updateOne(
           { _id: duplicateCheck._id },
           {
