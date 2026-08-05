@@ -62,6 +62,32 @@ function employeeView(employee, record) {
   };
 }
 
+function terminationEmployeeView(employee, record = {}) {
+  return {
+    id: String(employee._id),
+    name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '),
+    email: clean(employee.Email), phone: clean(employee.Phone),
+    hireDate: clean(employee['Hire Date'] || employee['First Day']),
+    terminationDate: clean(employee['Termination Date']),
+    homeDepartment: clean(employee['Home Department'] || employee.Department),
+    jobTitle: clean(employee['Job Title']), location: clean(employee.Location),
+    supervisor: [clean(employee['Supervisor First Name']), clean(employee['Supervisor Last Name'])].filter(Boolean).join(' '),
+    payCategory: clean(employee['Pay Category']),
+    finalPayrollDate: clean(record.finalPayrollDate),
+    pendingIssues: record.pendingIssues === true,
+    pendingIssuesNotes: clean(record.pendingIssuesNotes),
+    payrollFollowThroughUntil: clean(record.payrollFollowThroughUntil),
+    insuranceParticipation: clean(record.insuranceParticipation),
+    insuranceEndingDate: clean(record.insuranceEndingDate),
+    retirementParticipation: clean(record.retirementParticipation),
+    retirementEndingDate: clean(record.retirementEndingDate),
+    payrollCheckedAt: record.payrollCheckedAt || null, payrollCheckedBy: clean(record.payrollCheckedBy),
+    payrollFinalReviewedAt: record.payrollFinalReviewedAt || null, payrollFinalReviewedBy: clean(record.payrollFinalReviewedBy),
+    insuranceCobraCheckedAt: record.insuranceCobraCheckedAt || null, insuranceCobraCheckedBy: clean(record.insuranceCobraCheckedBy),
+    retirementCheckedAt: record.retirementCheckedAt || null, retirementCheckedBy: clean(record.retirementCheckedBy),
+  };
+}
+
 const DEFAULT_FILE_TRACKER_FIELDS = [
   ['resumeInformation', 'Resume / Information', ['Yes', 'No']], ['hiringApproval', 'Hiring Approval', ['Yes', 'No']],
   ['federalW4', 'Federal W-4', ['Yes', 'No']], ['stateW4', 'State W-4', ['Yes', 'No']],
@@ -100,6 +126,7 @@ function fileTrackerComplete(tracker, catalog = DEFAULT_FILE_TRACKER_FIELDS) {
 }
 
 module.exports = {
-  clean, commentAudit, employeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
+  clean, commentAudit, employeeView, terminationEmployeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
   payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
 };
+
