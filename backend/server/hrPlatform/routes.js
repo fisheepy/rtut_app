@@ -581,6 +581,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const employeeId = req.params.employeeId;
     if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
     const values = {
+      employeeFolderUrl: clean(req.body?.employeeFolderUrl),
       finalPayrollDate: clean(req.body?.finalPayrollDate),
       pendingIssues: req.body?.pendingIssues === true,
       pendingIssuesNotes: clean(req.body?.pendingIssuesNotes),
@@ -590,6 +591,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       retirementParticipation: clean(req.body?.retirementParticipation).toLowerCase(),
       retirementEndingDate: clean(req.body?.retirementEndingDate),
     };
+    if (values.employeeFolderUrl && !/^https:\/\//i.test(values.employeeFolderUrl)) return res.status(400).json({ error: 'Employee Folder Link must be a secure https:// link.' });
     const dates = [values.finalPayrollDate, values.payrollFollowThroughUntil, values.insuranceEndingDate, values.retirementEndingDate];
     if (dates.some(value => !validDate(value))) return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
     if (!values.finalPayrollDate) return res.status(400).json({ error: 'Final Payroll Date is required.' });
@@ -618,6 +620,40 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) {
       console.error('Unable to save HR Platform termination:', error);
       return res.status(500).json({ error: 'Termination record could not be saved.' });
+    } finally { await client.close(); }
+  });
+
+  router.put('/terminations/:employeeId/file-tracker', async (req, res) => {
+    const employeeId = req.params.employeeId;
+    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const action = clean(req.body?.action || 'save').toLowerCase();
+    const confirmationDate = clean(req.body?.confirmationDate);
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const collection = db.collection('employee_hr_termination');
+      const existing = await collection.findOne({ employeeId }) || {};
+      if (existing.fileTracker?.finalLockedAt) return res.status(409).json({ error: 'This Termination File Tracker is locked and cannot be modified.' });
+      if (action === 'lock') {
+        if (clean(req.adminSession?.email).toLowerCase() !== finalReviewerEmail) return res.status(403).json({ error: 'Only the upper-level manager can lock the Termination File Tracker.' });
+        if (!existing.fileTracker?.submittedAt) return res.status(400).json({ error: 'An administrator must confirm the tracker before it can be locked.' });
+        const fileTracker = { ...existing.fileTracker, finalLockedAt: new Date(), finalLockedBy: finalReviewerEmail };
+        await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: finalReviewerEmail } }, { upsert: true });
+        return res.json({ fileTracker });
+      }
+      if (existing.fileTracker?.submittedAt) return res.status(409).json({ error: 'This tracker has been confirmed and is awaiting final lock.' });
+      const catalog = existing.fileTracker?.fieldsSnapshot || await getTrackerCatalog(db);
+      const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
+      const commentFields = commentAudit(existing.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
+      const submit = action === 'submit';
+      if (submit && (!fileTrackerComplete(tracker, catalog) || !validDate(confirmationDate) || !confirmationDate)) return res.status(400).json({ error: 'Complete every checklist item and enter the confirmation date before confirming.' });
+      const fileTracker = { ...tracker, ...commentFields, fieldsSnapshot: catalog, confirmationDate: submit ? confirmationDate : '', submittedAt: submit ? new Date() : null, submittedBy: submit ? req.adminSession?.email : null, finalLockedAt: null, finalLockedBy: null };
+      await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } }, { upsert: true });
+      return res.json({ fileTracker });
+    } catch (error) {
+      console.error('Unable to save Termination File Tracker:', error);
+      return res.status(500).json({ error: 'The Termination File Tracker could not be saved.' });
     } finally { await client.close(); }
   });
 
