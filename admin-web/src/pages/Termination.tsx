@@ -18,7 +18,6 @@ type TrackerField = { id: string; label: string; options: string[] }
 const emptyRecord: EditRecord = { employeeFolderUrl: '', finalPayrollDate: '', pendingIssues: false, pendingIssuesNotes: '', payrollFollowThroughUntil: '', insuranceParticipation: '', insuranceEndingDate: '', retirementParticipation: '', retirementEndingDate: '' }
 const dateDisplay = (value: string) => value?.match(/^\d{4}-\d{2}-\d{2}/) ? `${value.slice(5, 7)}/${value.slice(8, 10)}/${value.slice(0, 4)}` : value || '--'
 const isCurrentMonth = (value?: string | null) => { if (!value) return false; const date = new Date(value); const now = new Date(); return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() }
-const actionDate = (employee: Employee) => employee.pendingIssues && employee.payrollFollowThroughUntil ? employee.payrollFollowThroughUntil : employee.finalPayrollDate || employee.terminationDate
 const employeeDate = (employee: Employee) => employee.terminationDate || '9999-12-31'
 const statusPill = (done: boolean, label = done ? 'Complete' : 'Action Needed') => <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${done ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{label}</span>
 
