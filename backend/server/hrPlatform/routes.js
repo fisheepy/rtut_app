@@ -109,6 +109,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const sheet = workbook.addWorksheet('File Tracker History');
       sheet.columns = [
         { header: 'Employee', key: 'employee', width: 26 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
+        { header: 'Employment Status', key: 'employmentStatus', width: 20 }, { header: 'Termination Date', key: 'terminationDate', width: 18 },
         { header: 'Checklist Item', key: 'item', width: 34 }, { header: 'File Status', key: 'status', width: 22 },
         { header: 'Tracker Stage', key: 'stage', width: 24 }, { header: 'Comments', key: 'comments', width: 48 },
         { header: 'Comment By', key: 'commentsBy', width: 30 }, { header: 'Comment Updated At', key: 'commentsUpdatedAt', width: 22 },
@@ -123,7 +124,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         const fields = tracker.fieldsSnapshot || [];
         const base = {
           employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
-          hireDate: clean(employee['Hire Date']), stage, comments: clean(tracker.comments),
+          hireDate: clean(employee['Hire Date']), employmentStatus: clean(employee['Position Status']), terminationDate: clean(employee['Termination Date']), stage, comments: clean(tracker.comments),
           commentsBy: clean(tracker.commentsBy), commentsUpdatedAt: tracker.commentsUpdatedAt || '',
           confirmationDate: clean(tracker.confirmationDate), submittedBy: clean(tracker.submittedBy),
           lockedBy: clean(tracker.finalLockedBy || tracker.confirmedBy), lockedAt: tracker.finalLockedAt || tracker.confirmedAt || '',
@@ -199,7 +200,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         const record = byId.get(String(employee._id)) || {};
         const base = {
           employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
-          hireDate: clean(employee['Hire Date']), department: clean(employee['Home Department']), location: clean(employee.Location),
+          hireDate: clean(employee['Hire Date']), employmentStatus: clean(employee['Position Status']), terminationDate: clean(employee['Termination Date']), department: clean(employee['Home Department']), location: clean(employee.Location),
         };
         const completed = [];
         if (record.firstPayrollDate && record.payrollFinalReviewedAt) completed.push({ ...base, actionDate: clean(record.firstPayrollDate), actionType: 'First Payroll', status: 'Completed', adminCheckedBy: clean(record.payrollCheckedBy), finalReviewedBy: clean(record.payrollFinalReviewedBy), reason: '' });
@@ -215,6 +216,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         { header: 'Action / Effective Date', key: 'actionDate', width: 22 }, { header: 'Status', key: 'status', width: 18 },
         { header: 'Admin Checked By', key: 'adminCheckedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalReviewedBy', width: 30 },
         { header: 'Reason / Notes', key: 'reason', width: 38 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
+        { header: 'Employment Status', key: 'employmentStatus', width: 20 }, { header: 'Termination Date', key: 'terminationDate', width: 18 },
         { header: 'Department', key: 'department', width: 24 }, { header: 'Location', key: 'location', width: 20 },
       ];
       rows.forEach(row => sheet.addRow(row));
@@ -522,3 +524,4 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
 }
 
 module.exports = { createHrPlatformRouter };
+
