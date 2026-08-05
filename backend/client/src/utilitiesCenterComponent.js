@@ -59,6 +59,7 @@ const UtilitiesCenterComponent = () => {
     const [openAddModal, setOpenAddModal] = useState(false);
     const [openDeleteModal, setOpenDeleteModal] = useState(false);
     const [openNewValueConfirmation, setOpenNewValueConfirmation] = useState(false);
+    const [formerEmployeeWarning, setFormerEmployeeWarning] = useState(null);
     const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '', email: '', phone: '' });
     const [newEmployee, setNewEmployee] = useState(emptyEmployee);
     const [referenceEmployees, setReferenceEmployees] = useState([]);
@@ -153,10 +154,10 @@ const UtilitiesCenterComponent = () => {
         else handleAddEmployeeSubmit(false);
     };
 
-    const handleAddEmployeeSubmit = async (approveNewValues = false, approvedReactivation = false) => {
+    const handleAddEmployeeSubmit = async (approveNewValues = false, duplicateDecision = '') => {
         setIsSaving(true);
         try {
-            const payload = { ...canonicalEmployeePayload(), approvedNewValues: newReferenceValues.length > 0 && approveNewValues === true, approvedReactivation };
+            const payload = { ...canonicalEmployeePayload(), approvedNewValues: newReferenceValues.length > 0 && approveNewValues === true, duplicateDecision };
             await axios.post('/call-function-add-employee', payload);
             setExecutionStatus(`Employee ${payload.firstName} ${payload.lastName} added successfully.`);
             setOpenNewValueConfirmation(false);
@@ -166,12 +167,8 @@ const UtilitiesCenterComponent = () => {
         } catch (error) {
             const errorMessage = error.response?.data || 'An unexpected error occurred';
             if (String(errorMessage).startsWith('Possible former employee match:')) {
-                const approved = window.confirm(`${errorMessage}\n\nSelect OK only if this is the same returning employee. The previous onboarding record will be archived and a new onboarding cycle will begin.`);
-                if (approved) {
-                    setIsSaving(false);
-                    await handleAddEmployeeSubmit(approveNewValues, true);
-                    return;
-                }
+                setFormerEmployeeWarning({ message: String(errorMessage), approveNewValues });
+                return;
             }
             setExecutionStatus(`Failed to add employee ${newEmployee.firstName} ${newEmployee.lastName}: ${errorMessage}`);
             setOpenNewValueConfirmation(false);
@@ -245,6 +242,23 @@ const UtilitiesCenterComponent = () => {
                 <DialogActions>
                     <Button onClick={() => setOpenNewValueConfirmation(false)}>Go Back</Button>
                     <Button color="error" variant="contained" onClick={() => handleAddEmployeeSubmit(true)} disabled={isSaving}>{isSaving ? 'Adding…' : 'Confirm and Add Employee'}</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={Boolean(formerEmployeeWarning)} onClose={() => setFormerEmployeeWarning(null)} fullWidth maxWidth="sm">
+                <DialogTitle>Possible Former Employee Match</DialogTitle>
+                <DialogContent>
+                    <Alert severity="warning">{formerEmployeeWarning?.message}</Alert>
+                    <Typography sx={{ mt: 2 }}>Choose how this person should be added:</Typography>
+                    <List>
+                        <ListItem><ListItemText primary="Reactivate Former Employee" secondary="Use the former employee record, archive the prior onboarding cycle, and begin a new Draft onboarding cycle." /></ListItem>
+                        <ListItem><ListItemText primary="Add as New Employee" secondary="Create a completely new employee ID and a new Draft onboarding record. No former employee history will be inherited." /></ListItem>
+                    </List>
+                </DialogContent>
+                <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
+                    <Button onClick={() => setFormerEmployeeWarning(null)} disabled={isSaving}>Cancel</Button>
+                    <Button color="secondary" variant="outlined" onClick={() => { const approved = formerEmployeeWarning?.approveNewValues; setFormerEmployeeWarning(null); handleAddEmployeeSubmit(approved, 'new'); }} disabled={isSaving}>Add as New Employee</Button>
+                    <Button color="warning" variant="contained" onClick={() => { const approved = formerEmployeeWarning?.approveNewValues; setFormerEmployeeWarning(null); handleAddEmployeeSubmit(approved, 'reactivate'); }} disabled={isSaving}>Reactivate Former Employee</Button>
                 </DialogActions>
             </Dialog>
 
