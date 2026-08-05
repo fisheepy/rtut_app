@@ -1,4 +1,4 @@
-const express = require('express');
+­r‡^Ñf¥–Ø¦{N¬yÊ'vÃ®¶›­const express = require('express');
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
@@ -222,513 +222,4 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       const completedRowsFor = (employee, record, cycle) => {
         const base = {
-          employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
-          cycle, hireDate: clean(employee['Hire Date']), employmentStatus: clean(employee['Position Status']), terminationDate: clean(employee['Termination Date']), department: clean(employee['Home Department']), location: clean(employee.Location),
-        };
-        const completed = [];
-        if (record.firstPayrollDate && record.payrollFinalReviewedAt) completed.push({ ...base, actionDate: clean(record.firstPayrollDate), actionType: 'First Payroll', status: 'Completed', adminCheckedBy: clean(record.payrollCheckedBy), finalReviewedBy: clean(record.payrollFinalReviewedBy), reason: '' });
-        if (record.payrollChangeDate && record.payrollChangeFinalReviewedAt) completed.push({ ...base, actionDate: clean(record.payrollChangeDate), actionType: 'Payroll Change', status: 'Completed', adminCheckedBy: clean(record.payrollChangeCheckedBy), finalReviewedBy: clean(record.payrollChangeFinalReviewedBy), reason: clean(record.payrollChangeReason) });
-        if (record.insuranceEffectiveDate && record.insuranceCheckedAt) completed.push({ ...base, actionDate: clean(record.insuranceEffectiveDate), actionType: 'Insurance', status: 'Action Taken', adminCheckedBy: clean(record.insuranceCheckedBy), finalReviewedBy: '', reason: '' });
-        if (record.retirementEffectiveDate && record.retirementCheckedAt) completed.push({ ...base, actionDate: clean(record.retirementEffectiveDate), actionType: '401(k)', status: 'Action Taken', adminCheckedBy: clean(record.retirementCheckedBy), finalReviewedBy: '', reason: '' });
-        return completed;
-      };
-      const rows = [
-        ...employees.flatMap(employee => completedRowsFor(employee, byId.get(String(employee._id)) || {}, 'Current')),
-        ...historicalRecords.flatMap(record => completedRowsFor(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle')),
-      ].sort((a, b) => a.employee.localeCompare(b.employee) || a.actionDate.localeCompare(b.actionDate) || a.actionType.localeCompare(b.actionType));
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('Completed Employee Actions');
-      sheet.columns = [
-        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Onboarding Cycle', key: 'cycle', width: 20 }, { header: 'Action Type', key: 'actionType', width: 20 },
-        { header: 'Action / Effective Date', key: 'actionDate', width: 22 }, { header: 'Status', key: 'status', width: 18 },
-        { header: 'Admin Checked By', key: 'adminCheckedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalReviewedBy', width: 30 },
-        { header: 'Reason / Notes', key: 'reason', width: 38 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
-        { header: 'Employment Status', key: 'employmentStatus', width: 20 }, { header: 'Termination Date', key: 'terminationDate', width: 18 },
-        { header: 'Department', key: 'department', width: 24 }, { header: 'Location', key: 'location', width: 20 },
-      ];
-      rows.forEach(row => sheet.addRow(row));
-      styleReportSheet(sheet);
-      return await sendWorkbook(res, workbook, `HR_Completed_Employee_Actions_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    } catch (error) {
-      console.error('Unable to create completed HR action report:', error);
-      return res.status(500).json({ error: 'The completed employee action report could not be created.' });
-    } finally {
-      await client.close();
-    }
-  });
-
-  router.put('/new-hires/:employeeId', async (req, res) => {
-    const employeeId = req.params.employeeId;
-    const employeeFolderUrl = clean(req.body?.employeeFolderUrl);
-    const payRateType = clean(req.body?.payRateType);
-    const payRate = clean(req.body?.payRate);
-    const payRateChangePending = req.body?.payRateChangePending === true;
-    const payrollChangeDate = clean(req.body?.payrollChangeDate);
-    const payrollChangeReason = clean(req.body?.payrollChangeReason);
-    const firstPayrollDate = clean(req.body?.firstPayrollDate);
-    const insuranceEffectiveDate = clean(req.body?.insuranceEffectiveDate);
-    const insuranceNotApplicable = req.body?.insuranceNotApplicable === true;
-    const retirementEffectiveDate = clean(req.body?.retirementEffectiveDate);
-    const retirementNotApplicable = req.body?.retirementNotApplicable === true;
-
-    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
-    if (employeeFolderUrl && !isAllowedFolderUrl(employeeFolderUrl)) {
-      return res.status(400).json({ error: 'Please enter a valid Royal Truck SharePoint employee folder link.' });
-    }
-    if (payRateType && !['Hourly Rate', 'Annual Salary'].includes(payRateType)) {
-      return res.status(400).json({ error: 'Select Hourly Rate or Annual Salary before entering a Pay Rate.' });
-    }
-    if (payRate && !/^\d+(\.\d{1,2})?$/.test(payRate)) {
-      return res.status(400).json({ error: 'Please enter a valid Pay Rate with no more than two decimal places.' });
-    }
-    if (payRateChangePending && (!validDate(payrollChangeDate) || !payrollChangeDate || !payrollChangeReason)) {
-      return res.status(400).json({ error: 'Pending to Change requires a Payroll Change Date and reason.' });
-    }
-    if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
-      return res.status(400).json({ error: 'Please enter valid dates.' });
-    }
-
-    const client = createClient();
-    try {
-      await client.connect();
-      const db = client.db(databaseName);
-      const employee = await db.collection('employees').findOne({ _id: new ObjectId(employeeId) });
-      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
-      const values = {
-        employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate,
-        insuranceEffectiveDate: insuranceNotApplicable ? '' : insuranceEffectiveDate, insuranceNotApplicable,
-        retirementEffectiveDate: retirementNotApplicable ? '' : retirementEffectiveDate, retirementNotApplicable,
-        payRateChangePending, payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
-        payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
-      };
-      const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
-      const dateCorrection = Boolean(existingRecord && (
-        clean(existingRecord.firstPayrollDate) !== firstPayrollDate ||
-        clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate ||
-        (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable ||
-        clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate ||
-        (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable
-      ));
-      if (!dateCorrection) {
-        if (!payRateType || !payRate) return res.status(400).json({ error: 'Pay Type and Pay Rate are required.' });
-        if (!firstPayrollDate) return res.status(400).json({ error: 'First Payroll Date is required.' });
-        if ((!insuranceNotApplicable && !insuranceEffectiveDate) || (insuranceNotApplicable && insuranceEffectiveDate)) return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
-        if ((!retirementNotApplicable && !retirementEffectiveDate) || (retirementNotApplicable && retirementEffectiveDate)) return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
-      } else if ((!insuranceNotApplicable && !insuranceEffectiveDate && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) || (insuranceNotApplicable && insuranceEffectiveDate)) {
-        return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
-      } else if ((!retirementNotApplicable && !retirementEffectiveDate && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) || (retirementNotApplicable && retirementEffectiveDate)) {
-        return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
-      }
-      const changeRequestChanged = payrollChangeRequestChanged(existingRecord || {}, payRateChangePending, payrollChangeDate, payrollChangeReason);
-      const unsetReviewFields = {};
-      const resetResponse = {};
-      const resetReasons = [];
-      const addResetFields = (fields) => fields.forEach(field => {
-        unsetReviewFields[field] = '';
-        resetResponse[field] = field.endsWith('At') ? null : '';
-      });
-      if (existingRecord && clean(existingRecord.firstPayrollDate) !== firstPayrollDate) {
-        resetReasons.push('First Payroll Date changed');
-        addResetFields(['payrollCheckedAt', 'payrollCheckedBy', 'payrollFinalReviewedAt', 'payrollFinalReviewedBy']);
-      }
-      if (existingRecord && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) {
-        resetReasons.push('Insurance applicability or Effective Date changed');
-        addResetFields(['insuranceCheckedAt', 'insuranceCheckedBy']);
-      }
-      if (existingRecord && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) {
-        resetReasons.push('401(k) applicability or Effective Date changed');
-        addResetFields(['retirementCheckedAt', 'retirementCheckedBy']);
-      }
-      if (changeRequestChanged) {
-        resetReasons.push('Payroll Change request changed');
-        addResetFields(['payrollChangeCheckedAt', 'payrollChangeCheckedBy', 'payrollChangeFinalReviewedAt', 'payrollChangeFinalReviewedBy']);
-      }
-      const reviewReset = Object.keys(unsetReviewFields).length ? { $unset: unsetReviewFields } : {};
-      const reviewResetAudit = resetReasons.length ? { $push: { reviewResetHistory: {
-        resetAt: new Date(), resetBy: req.adminSession?.email || null, reasons: resetReasons,
-        previousReviewValues: Object.fromEntries(Object.keys(unsetReviewFields).map(field => [field, existingRecord?.[field] || null])),
-      } } } : {};
-      await db.collection('employee_hr_platform').updateOne(
-        { employeeId },
-        { $set: { ...values, updatedAt: new Date(), updatedBy: req.adminSession?.email || null }, ...reviewReset, ...reviewResetAudit },
-        { upsert: true },
-      );
-      return res.json({ ...values, ...resetResponse });
-    } catch (error) {
-      console.error('Unable to save HR Platform new hire:', error);
-      return res.status(500).json({ error: 'New Hire record could not be saved.' });
-    } finally {
-      await client.close();
-    }
-  });
-
-  router.get('/file-tracker-fields', async (req, res) => {
-    const client = createClient();
-    try {
-      await client.connect();
-      const fields = await getTrackerCatalog(client.db(databaseName), req.query.includeInactive === 'true');
-      return res.json({ fields });
-    } catch (error) {
-      console.error('Unable to load File Tracker fields:', error);
-      return res.status(500).json({ error: 'File Tracker settings could not be loaded.' });
-    } finally { await client.close(); }
-  });
-
-  router.post('/file-tracker-fields', async (req, res) => {
-    const client = createClient();
-    try {
-      const result = sanitizeTrackerCatalogField({ ...req.body, id: crypto.randomUUID() });
-      if (result.error) return res.status(400).json({ error: result.error });
-      await client.connect();
-      const db = client.db(databaseName);
-      const collection = await ensureTrackerCatalog(db);
-      result.field.order = await collection.countDocuments({});
-      await collection.insertOne({ ...result.field, createdAt: new Date(), createdBy: req.adminSession?.email || null });
-      return res.status(201).json({ field: result.field });
-    } catch (error) {
-      console.error('Unable to add File Tracker field:', error);
-      return res.status(500).json({ error: 'The checklist item could not be added.' });
-    } finally { await client.close(); }
-  });
-
-  router.put('/file-tracker-fields/:fieldId', async (req, res) => {
-    const client = createClient();
-    try {
-      await client.connect();
-      const db = client.db(databaseName);
-      const collection = await ensureTrackerCatalog(db);
-      const existing = await collection.findOne({ id: req.params.fieldId });
-      if (!existing) return res.status(404).json({ error: 'Checklist item not found.' });
-      const result = sanitizeTrackerCatalogField(req.body, existing);
-      if (result.error) return res.status(400).json({ error: result.error });
-      await collection.updateOne({ id: existing.id }, { $set: { ...result.field, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } });
-      return res.json({ field: result.field });
-    } catch (error) {
-      console.error('Unable to update File Tracker field:', error);
-      return res.status(500).json({ error: 'The checklist item could not be updated.' });
-    } finally { await client.close(); }
-  });
-
-  router.delete('/file-tracker-fields/:fieldId', async (req, res) => {
-    const client = createClient();
-    try {
-      await client.connect();
-      const collection = client.db(databaseName).collection('hr_file_tracker_fields');
-      const existing = await collection.findOne({ id: req.params.fieldId, deleted: { $ne: true } });
-      if (!existing) return res.status(404).json({ error: 'Checklist item not found.' });
-      await collection.updateOne(
-        { id: existing.id },
-        { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } },
-      );
-      return res.json({ success: true, fieldId: existing.id });
-    } catch (error) {
-      console.error('Unable to delete File Tracker field:', error);
-      return res.status(500).json({ error: 'The checklist item could not be deleted.' });
-    } finally { await client.close(); }
-  });
-
-  router.put('/new-hires/:employeeId/file-tracker', async (req, res) => {
-    const employeeId = req.params.employeeId;
-    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
-    const action = clean(req.body?.action || 'save').toLowerCase();
-    const confirmationDate = clean(req.body?.confirmationDate);
-
-    const client = createClient();
-    try {
-      await client.connect();
-      const db = client.db(databaseName);
-      const collection = db.collection('employee_hr_platform');
-      const existing = await collection.findOne({ employeeId });
-      if (existing?.fileTracker?.finalLockedAt || existing?.fileTracker?.confirmedAt) {
-        return res.status(409).json({ error: 'This File Tracker has been finally confirmed and can no longer be modified.' });
-      }
-      if (action === 'comment') {
-        const comments = clean(req.body?.fileTracker?.comments);
-        const commentFields = commentAudit(existing?.fileTracker || {}, comments, req.adminSession?.email || null);
-        await collection.updateOne(
-          { employeeId },
-          { $set: { ...Object.fromEntries(Object.entries(commentFields).map(([key, value]) => [`fileTracker.${key}`, value])), updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
-          { upsert: true },
-        );
-        return res.json({ fileTracker: { ...(existing?.fileTracker || {}), ...commentFields } });
-      }
-      if (action === 'lock') {
-        if (clean(req.adminSession?.email).toLowerCase() !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform the final File Tracker lock.' });
-        if (!existing?.fileTracker?.submittedAt) return res.status(400).json({ error: 'The File Tracker must be confirmed for review before final locking.' });
-        const fileTracker = { ...existing.fileTracker, finalLockedAt: new Date(), finalLockedBy: finalReviewerEmail };
-        await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: finalReviewerEmail } });
-        return res.json({ fileTracker });
-      }
-      if (existing?.fileTracker?.submittedAt) return res.status(409).json({ error: 'This File Tracker has already been confirmed for final review.' });
-      const catalog = existing?.fileTracker?.fieldsSnapshot || await getTrackerCatalog(db);
-      const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
-      const commentFields = commentAudit(existing?.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
-      const submit = action === 'submit';
-      if (submit && (!fileTrackerComplete(tracker, catalog) || !validDate(confirmationDate) || !confirmationDate)) {
-        return res.status(400).json({ error: 'Complete every checklist item, the handbook version when required, and the confirmation date before confirming for review.' });
-      }
-      const fileTracker = {
-        ...tracker,
-        ...commentFields,
-        fieldsSnapshot: catalog,
-        confirmationDate: submit ? confirmationDate : '',
-        submittedAt: submit ? new Date() : null,
-        submittedBy: submit ? (req.adminSession?.email || null) : null,
-        finalLockedAt: null,
-        finalLockedBy: null,
-      };
-      await collection.updateOne(
-        { employeeId },
-        { $set: { fileTracker, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
-        { upsert: true },
-      );
-      return res.json({ fileTracker });
-    } catch (error) {
-      console.error('Unable to save HR Platform File Tracker:', error);
-      return res.status(500).json({ error: 'The File Tracker could not be saved.' });
-    } finally {
-      await client.close();
-    }
-  });
-
-  router.put('/new-hires/:employeeId/checks', async (req, res) => {
-    const employeeId = req.params.employeeId;
-    const action = clean(req.body?.action).toLowerCase();
-    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
-    const fieldsByAction = {
-      'payroll-check': ['payrollCheckedAt', 'payrollCheckedBy'],
-      'payroll-final-review': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
-      'insurance-check': ['insuranceCheckedAt', 'insuranceCheckedBy'],
-      'retirement-check': ['retirementCheckedAt', 'retirementCheckedBy'],
-      'payroll-final-review-undo': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
-      'payroll-change-check': ['payrollChangeCheckedAt', 'payrollChangeCheckedBy'],
-      'payroll-change-final-review': ['payrollChangeFinalReviewedAt', 'payrollChangeFinalReviewedBy'],
-    };
-    const fields = fieldsByAction[action];
-    if (!fields) return res.status(400).json({ error: 'Invalid review action.' });
-    const reviewerEmail = clean(req.adminSession?.email).toLowerCase();
-    if (['payroll-final-review', 'payroll-final-review-undo', 'payroll-change-final-review'].includes(action) && reviewerEmail !== finalReviewerEmail) {
-      return res.status(403).json({ error: 'Only the authorized upper-level manager can perform Payroll Final Review.' });
-    }
-    const client = createClient();
-    try {
-      await client.connect();
-      const db = client.db(databaseName);
-      const collection = db.collection('employee_hr_platform');
-      const existing = await collection.findOne({ employeeId });
-      if (action === 'payroll-final-review-undo') {
-        if (!existing?.payrollFinalReviewedAt) return res.status(409).json({ error: 'Payroll Final Review is not currently approved.' });
-        await collection.updateOne(
-          { employeeId },
-          {
-            $unset: { payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' },
-            $set: { payrollFinalReviewCorrectedAt: new Date(), payrollFinalReviewCorrectedBy: reviewerEmail, updatedAt: new Date(), updatedBy: reviewerEmail },
-          },
-        );
-        return res.json({ payrollFinalReviewedAt: null, payrollFinalReviewedBy: '' });
-      }
-      if (action === 'payroll-final-review' && !existing?.payrollCheckedAt) {
-        return res.status(400).json({ error: 'Payroll Check must be completed before Payroll Final Review.' });
-      }
-      if (action === 'payroll-change-check' && !existing?.payRateChangePending) {
-        return res.status(400).json({ error: 'This employee does not have a pending Pay Rate change.' });
-      }
-      if (action === 'payroll-change-final-review' && (!existing?.payRateChangePending || !existing?.payrollChangeCheckedAt)) {
-        return res.status(400).json({ error: 'Payroll Change Check must be completed before final review.' });
-      }
-      if (existing?.[fields[0]]) return res.status(409).json({ error: 'This review has already been completed.' });
-      const values = { [fields[0]]: new Date(), [fields[1]]: reviewerEmail };
-      if (action === 'payroll-change-final-review') values.payRateChangePending = false;
-      await collection.updateOne({ employeeId }, { $set: { ...values, updatedAt: new Date(), updatedBy: reviewerEmail } }, { upsert: true });
-      return res.json(values);
-    } catch (error) {
-      console.error('Unable to save HR Platform review check:', error);
-      return res.status(500).json({ error: 'The review check could not be saved.' });
-    } finally { await client.close(); }
-  });
-
-  router.get('/terminations', async (_req, res) => {
-    const client = createClient();
-    try {
-      await client.connect();
-      const db = client.db(databaseName);
-      const employees = await db.collection('employees').find({
-        $or: [
-          { 'Position Status': /^terminated$/i },
-          { 'Termination Date': { $exists: true, $nin: ['', null] } },
-        ],
-      }).toArray();
-      const ids = employees.map(employee => String(employee._id));
-      const records = ids.length ? await db.collection('employee_hr_termination').find({ employeeId: { $in: ids } }).toArray() : [];
-      const existingIds = new Set(records.map(record => String(record.employeeId)));
-      const missingIds = ids.filter(id => !existingIds.has(id));
-      if (missingIds.length) {
-        await db.collection('employee_hr_termination').bulkWrite(missingIds.map(employeeId => ({
-          updateOne: { filter: { employeeId }, update: { $setOnInsert: { employeeId, createdAt: new Date() } }, upsert: true },
-        })));
-        missingIds.forEach(employeeId => records.push({ employeeId }));
-      }
-      const byId = new Map(records.map(record => [String(record.employeeId), record]));
-      return res.json(employees.map(employee => terminationEmployeeView(employee, byId.get(String(employee._id))))
-        .sort((left, right) => clean(right.terminationDate).localeCompare(clean(left.terminationDate)) || left.name.localeCompare(right.name)));
-    } catch (error) {
-      console.error('Unable to load HR Platform terminations:', error);
-      return res.status(500).json({ error: 'Termination records could not be loaded.' });
-    } finally { await client.close(); }
-  });
-
-  router.put('/terminations/:employeeId', async (req, res) => {
-    const employeeId = req.params.employeeId;
-    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
-    const values = {
-      employeeFolderUrl: clean(req.body?.employeeFolderUrl),
-      finalPayrollDate: clean(req.body?.finalPayrollDate),
-      pendingIssues: req.body?.pendingIssues === true,
-      pendingIssuesNotes: clean(req.body?.pendingIssuesNotes),
-      payrollFollowThroughUntil: clean(req.body?.payrollFollowThroughUntil),
-      insuranceParticipation: clean(req.body?.insuranceParticipation).toLowerCase(),
-      insuranceEndingDate: clean(req.body?.insuranceEndingDate),
-      retirementParticipation: clean(req.body?.retirementParticipation).toLowerCase(),
-      retirementEndingDate: clean(req.body?.retirementEndingDate),
-    };
-    if (!values.employeeFolderUrl) return res.status(400).json({ error: 'Employee Folder Link is required.' });
-    if (!/^https:\/\//i.test(values.employeeFolderUrl)) return res.status(400).json({ error: 'Employee Folder Link must be a secure https:// link.' });
-    const dates = [values.finalPayrollDate, values.payrollFollowThroughUntil, values.insuranceEndingDate, values.retirementEndingDate];
-    if (dates.some(value => !validDate(value))) return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
-    if (!values.finalPayrollDate) return res.status(400).json({ error: 'Final Payroll Date is required.' });
-    if (values.pendingIssues && (!values.payrollFollowThroughUntil || !values.pendingIssuesNotes)) return res.status(400).json({ error: 'Pending Issues require a follow-through date and notes.' });
-    if (!['participated', 'not-participated'].includes(values.insuranceParticipation)) return res.status(400).json({ error: 'Select whether the employee participated in Insurance.' });
-    if (values.insuranceParticipation === 'participated' && !values.insuranceEndingDate) return res.status(400).json({ error: 'Insurance Ending Date is required for participating employees.' });
-    if (!['participated', 'not-participated'].includes(values.retirementParticipation)) return res.status(400).json({ error: 'Select whether the employee participated in 401(k).' });
-    if (values.retirementParticipation === 'participated' && !values.retirementEndingDate) return res.status(400).json({ error: '401(k) Ending Date is required for participating employees.' });
-    if (values.insuranceParticipation === 'not-participated') values.insuranceEndingDate = '';
-    if (values.retirementParticipation === 'not-participated') values.retirementEndingDate = '';
-    if (!values.pendingIssues) { values.pendingIssuesNotes = ''; values.payrollFollowThroughUntil = ''; }
-    const client = createClient();
-    try {
-      await client.connect();
-      const collection = client.db(databaseName).collection('employee_hr_termination');
-      const existing = await collection.findOne({ employeeId }) || {};
-      const unset = {};
-      if (clean(existing.finalPayrollDate) !== values.finalPayrollDate) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
-      if (existing.pendingIssues !== values.pendingIssues || clean(existing.pendingIssuesNotes) !== values.pendingIssuesNotes || clean(existing.payrollFollowThroughUntil) !== values.payrollFollowThroughUntil) Object.assign(unset, { followUpCheckedAt: '', followUpCheckedBy: '', followUpFinalReviewedAt: '', followUpFinalReviewedBy: '' });
-      if (clean(existing.insuranceParticipation) !== values.insuranceParticipation || clean(existing.insuranceEndingDate) !== values.insuranceEndingDate) Object.assign(unset, { insuranceCobraCheckedAt: '', insuranceCobraCheckedBy: '' });
-      if (clean(existing.retirementParticipation) !== values.retirementParticipation || clean(existing.retirementEndingDate) !== values.retirementEndingDate) Object.assign(unset, { retirementCheckedAt: '', retirementCheckedBy: '' });
-      const update = { $set: { ...values, updatedAt: new Date(), updatedBy: clean(req.adminSession?.email).toLowerCase() } };
-      if (Object.keys(unset).length) update.$unset = unset;
-      await collection.updateOne({ employeeId }, update, { upsert: true });
-      return res.json({ ...values, reviewsReset: Object.keys(unset) });
-    } catch (error) {
-      console.error('Unable to save HR Platform termination:', error);
-      return res.status(500).json({ error: 'Termination record could not be saved.' });
-    } finally { await client.close(); }
-  });
-
-  router.put('/terminations/:employeeId/file-tracker', async (req, res) => {
-    const employeeId = req.params.employeeId;
-    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
-    const action = clean(req.body?.action || 'save').toLowerCase();
-    const confirmationDate = clean(req.body?.confirmationDate);
-    const client = createClient();
-    try {
-      await client.connect();
-      const db = client.db(databaseName);
-      const collection = db.collection('employee_hr_termination');
-      const existing = await collection.findOne({ employeeId }) || {};
-      if (existing.fileTracker?.finalLockedAt) return res.status(409).json({ error: 'This Termination File Tracker is locked and cannot be modified.' });
-      if (action === 'lock') {
-        if (clean(req.adminSession?.email).toLowerCase() !== finalReviewerEmail) return res.status(403).json({ error: 'Only the upper-level manager can lock the Termination File Tracker.' });
-        if (!existing.fileTracker?.submittedAt) return res.status(400).json({ error: 'An administrator must confirm the tracker before it can be locked.' });
-        const fileTracker = { ...existing.fileTracker, finalLockedAt: new Date(), finalLockedBy: finalReviewerEmail };
-        await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: finalReviewerEmail } }, { upsert: true });
-        return res.json({ fileTracker });
-      }
-      if (existing.fileTracker?.submittedAt) return res.status(409).json({ error: 'This tracker has been confirmed and is awaiting final lock.' });
-      const catalog = existing.fileTracker?.fieldsSnapshot || await getTrackerCatalog(db);
-      const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
-      const commentFields = commentAudit(existing.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
-      const submit = action === 'submit';
-      if (submit && (!fileTrackerComplete(tracker, catalog) || !validDate(confirmationDate) || !confirmationDate)) return res.status(400).json({ error: 'Complete every checklist item and enter the confirmation date before confirming.' });
-      const fileTracker = { ...tracker, ...commentFields, fieldsSnapshot: catalog, confirmationDate: submit ? confirmationDate : '', submittedAt: submit ? new Date() : null, submittedBy: submit ? req.adminSession?.email : null, finalLockedAt: null, finalLockedBy: null };
-      await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } }, { upsert: true });
-      return res.json({ fileTracker });
-    } catch (error) {
-      console.error('Unable to save Termination File Tracker:', error);
-      return res.status(500).json({ error: 'The Termination File Tracker could not be saved.' });
-    } finally { await client.close(); }
-  });
-
-  router.put('/terminations/:employeeId/checks', async (req, res) => {
-    const employeeId = req.params.employeeId;
-    const action = clean(req.body?.action).toLowerCase();
-    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
-    const fieldsByAction = {
-      'payroll-check': ['payrollCheckedAt', 'payrollCheckedBy'],
-      'payroll-final-review': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
-      'payroll-final-review-undo': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
-      'follow-up-check': ['followUpCheckedAt', 'followUpCheckedBy'],
-      'follow-up-final-review': ['followUpFinalReviewedAt', 'followUpFinalReviewedBy'],
-      'insurance-cobra-check': ['insuranceCobraCheckedAt', 'insuranceCobraCheckedBy'],
-      'retirement-check': ['retirementCheckedAt', 'retirementCheckedBy'],
-    };
-    const fields = fieldsByAction[action];
-    if (!fields) return res.status(400).json({ error: 'Invalid review action.' });
-    const reviewerEmail = clean(req.adminSession?.email).toLowerCase();
-    if (['payroll-final-review', 'payroll-final-review-undo', 'follow-up-final-review'].includes(action) && reviewerEmail !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform final review.' });
-    const client = createClient();
-    try {
-      await client.connect();
-      const collection = client.db(databaseName).collection('employee_hr_termination');
-      const existing = await collection.findOne({ employeeId });
-      if (!existing?.finalPayrollDate) return res.status(400).json({ error: 'Complete Termination Details before taking action.' });
-      if (action === 'payroll-final-review' && !existing.payrollCheckedAt) return res.status(400).json({ error: 'Payroll Check must be completed first.' });
-      if (action === 'follow-up-check' && (!existing.pendingIssues || !existing.payrollFinalReviewedAt)) return res.status(400).json({ error: 'Final Pay Review must be completed before checking follow-up issues.' });
-      if (action === 'follow-up-final-review' && (!existing.pendingIssues || !existing.followUpCheckedAt)) return res.status(400).json({ error: 'Follow-up Issues Check must be completed first.' });
-      if (action === 'payroll-final-review-undo') {
-        await collection.updateOne({ employeeId }, { $unset: { payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' }, $set: { updatedAt: new Date(), updatedBy: reviewerEmail } });
-        return res.json({ payrollFinalReviewedAt: null, payrollFinalReviewedBy: '' });
-      }
-      if (existing?.[fields[0]]) return res.status(409).json({ error: 'This action has already been completed.' });
-      const values = { [fields[0]]: new Date(), [fields[1]]: reviewerEmail, updatedAt: new Date(), updatedBy: reviewerEmail };
-      await collection.updateOne({ employeeId }, { $set: values }, { upsert: true });
-      return res.json(values);
-    } catch (error) {
-      console.error('Unable to save termination action:', error);
-      return res.status(500).json({ error: 'Termination action could not be saved.' });
-    } finally { await client.close(); }
-  });
-
-  async function terminationReportRows(db) {
-    const employees = await db.collection('employees').find({ $or: [{ 'Position Status': /^terminated$/i }, { 'Termination Date': { $exists: true, $nin: ['', null] } }] }).toArray();
-    const ids = employees.map(employee => String(employee._id));
-    const records = ids.length ? await db.collection('employee_hr_termination').find({ employeeId: { $in: ids } }).toArray() : [];
-    const byId = new Map(records.map(record => [String(record.employeeId), record]));
-    return employees.map(employee => ({ employee, record: byId.get(String(employee._id)) || {} }));
-  }
-
-  router.get('/terminations/reports/file-tracker.xlsx', async (_req, res) => {
-    const client = createClient();
-    try {
-      await client.connect(); const db = client.db(databaseName); const rows = await terminationReportRows(db);
-      const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination File Trackers');
-      const catalog = await getTrackerCatalog(db, true);
-      sheet.columns = [{ header: 'Employee', key: 'name', width: 28 }, { header: 'Termination Date', key: 'terminationDate', width: 18 }, { header: 'Employee Folder', key: 'folder', width: 45 }, ...catalog.map(field => ({ header: field.label, key: `f_${field.id}`, width: 24 })), { header: 'Comments', key: 'comments', width: 45 }, { header: 'Admin Checked By', key: 'admin', width: 30 }, { header: 'Final Reviewed By', key: 'final', width: 30 }, { header: 'Status', key: 'status', width: 20 }];
-      rows.forEach(({ employee, record }) => { const tracker = record.fileTracker || {}; const row = { name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), terminationDate: clean(employee['Termination Date']), folder: clean(record.employeeFolderUrl), comments: clean(tracker.comments), admin: clean(tracker.submittedBy), final: clean(tracker.finalLockedBy), status: tracker.finalLockedAt ? 'Final Reviewed' : tracker.submittedAt ? 'Admin Checked' : 'In Process' }; catalog.forEach(field => { row[`f_${field.id}`] = clean(tracker.responses?.[field.id]); }); sheet.addRow(row); });
-      sheet.getRow(1).font = { bold: true }; return await sendWorkbook(res, workbook, `Termination_File_Trackers_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    } catch (error) { console.error('Unable to create termination tracker report:', error); return res.status(500).json({ error: 'The termination tracker report could not be created.' }); } finally { await client.close(); }
-  });
-
-  router.get('/terminations/reports/tasks.xlsx', async (_req, res) => {
-    const client = createClient();
-    try {
-      await client.connect(); const rows = await terminationReportRows(client.db(databaseName)); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination Tasks');
-      sheet.columns = [{ header: 'Employee', key: 'name', width: 28 }, { header: 'Termination Date', key: 'terminationDate', width: 18 }, { header: 'Task', key: 'task', width: 28 }, { header: 'Task Date', key: 'date', width: 18 }, { header: 'Status', key: 'status', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalBy', width: 30 }, { header: 'Notes', key: 'notes', width: 45 }];
-      rows.forEach(({ employee, record }) => { const base = { name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), terminationDate: clean(employee['Termination Date']) }; const add = (task, date, checked, final, notes = '') => sheet.addRow({ ...base, task, date: clean(date), status: final ? 'Finished' : checked ? 'In Process - Final Review Needed' : 'Unfinished', checkedBy: clean(checked?.by), finalBy: clean(final?.by), notes }); add('Final Pay', record.finalPayrollDate, record.payrollCheckedAt && { by: record.payrollCheckedBy }, record.payrollFinalReviewedAt && { by: record.payrollFinalReviewedBy }); if (record.pendingIssues) add('Payroll Follow-up Issues', record.payrollFollowThroughUntil, record.followUpCheckedAt && { by: record.followUpCheckedBy }, record.followUpFinalReviewedAt && { by: record.followUpFinalReviewedBy }, clean(record.pendingIssuesNotes)); if (record.insuranceParticipation) add('Insurance & COBRA', record.insuranceEndingDate, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }); if (record.retirementParticipation) add('401(k)', record.retirementEndingDate, record.retirementCheckedAt && { by: record.retirementCheckedBy }, record.retirementCheckedAt && { by: record.retirementCheckedBy }); });
-      sheet.getRow(1).font = { bold: true }; return await sendWorkbook(res, workbook, `Termination_All_Tasks_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    } catch (error) { console.error('Unable to create termination task report:', error); return res.status(500).json({ error: 'The termination task report could not be created.' }); } finally { await client.close(); }
-  });
-
-  return router;
-}
-
-module.exports = { createHrPlatformRouter };
+        ó^·¶‰žËkºwµçe¹…Ñ”¤°4(€€€ôì(€€€¥˜€ …Ù…±Õ•Ì¹•µÁ±½å••½±‘•ÉUÉ°¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€µÁ±½å•”½±‘•È1¥¹¬¥ÌÉ•ÅÕ¥É•¸œô¤ì(€€€¥˜€ „½y¡ÑÑÁÌép½p¼½¤¹Ñ•ÍÐ¡Ù…±Õ•Ì¹•µÁ±½å••½±‘•ÉUÉ°¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€µÁ±½å•”½±‘•È1¥¹¬µÕÍÐ‰”„Í•ÕÉ”¡ÑÑÁÌè¼¼±¥¹¬¸œô¤ì(€€€½¹ÍÐ‘…Ñ•Ì€ômÙ…±Õ•Ì¹™¥¹…±A…åÉ½±±…Ñ”°Ù…±Õ•Ì¹Á…åÉ½±±½±±½ÝQ¡É½Õ¡U¹Ñ¥°°Ù…±Õ•Ì¹¥¹ÍÕÉ…¹•¹‘¥¹…Ñ”°Ù…±Õ•Ì¹É•Ñ¥É•µ•¹Ñ¹‘¥¹…Ñ•tì4(€€€¥˜€¡‘…Ñ•Ì¹Í½µ”¡Ù…±Õ”€ôø€…Ù…±¥‘…Ñ”¡Ù…±Õ”¤¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€…Ñ•ÌµÕÍÐÕÍ”eeedµ54µ™½Éµ…Ð¸œô¤ì4(€€€¥˜€ …Ù…±Õ•Ì¹™¥¹…±A…åÉ½±±…Ñ”¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€¥¹…°A…åÉ½±°…Ñ”¥ÌÉ•ÅÕ¥É•¸œô¤ì4(€€€¥˜€¡Ù…±Õ•Ì¹Á•¹‘¥¹%ÍÍÕ•Ì€˜˜€ …Ù…±Õ•Ì¹Á…åÉ½±±½±±½ÝQ¡É½Õ¡U¹Ñ¥°ñð€…Ù…±Õ•Ì¹Á•¹‘¥¹%ÍÍÕ•Í9½Ñ•Ì¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€A•¹‘¥¹œ%ÍÍÕ•ÌÉ•ÅÕ¥É”„™½±±½ÜµÑ¡É½Õ ‘…Ñ”…¹¹½Ñ•Ì¸œô¤ì4(€€€¥˜€ …lÁ…ÉÑ¥¥Á…Ñ•œ°€¹½ÐµÁ…ÉÑ¥¥Á…Ñ•t¹¥¹±Õ‘•Ì¡Ù…±Õ•Ì¹¥¹ÍÕÉ…¹•A…ÉÑ¥¥Á…Ñ¥½¸¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€M•±•ÐÝ¡•Ñ¡•ÈÑ¡”•µÁ±½å•”Á…ÉÑ¥¥Á…Ñ•¥¸%¹ÍÕÉ…¹”¸œô¤ì4(€€€¥˜€¡Ù…±Õ•Ì¹¥¹ÍÕÉ…¹•A…ÉÑ¥¥Á…Ñ¥½¸€ôôô€Á…ÉÑ¥¥Á…Ñ•œ€˜˜€…Ù…±Õ•Ì¹¥¹ÍÕÉ…¹•¹‘¥¹…Ñ”¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€%¹ÍÕÉ…¹”¹‘¥¹œ…Ñ”¥ÌÉ•ÅÕ¥É•™½ÈÁ…ÉÑ¥¥Á…Ñ¥¹œ•µÁ±½å••Ì¸œô¤ì4(€€€¥˜€ …lÁ…ÉÑ¥¥Á…Ñ•œ°€¹½ÐµÁ…ÉÑ¥¥Á…Ñ•t¹¥¹±Õ‘•Ì¡Ù…±Õ•Ì¹É•Ñ¥É•µ•¹ÑA…ÉÑ¥¥Á…Ñ¥½¸¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€M•±•ÐÝ¡•Ñ¡•ÈÑ¡”•µÁ±½å•”Á…ÉÑ¥¥Á…Ñ•¥¸€ÐÀÄ¡¬¤¸œô¤ì4(€€€¥˜€¡Ù…±Õ•Ì¹É•Ñ¥É•µ•¹ÑA…ÉÑ¥¥Á…Ñ¥½¸€ôôô€Á…ÉÑ¥¥Á…Ñ•œ€˜˜€…Ù…±Õ•Ì¹É•Ñ¥É•µ•¹Ñ¹‘¥¹…Ñ”¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€œÐÀÄ¡¬¤¹‘¥¹œ…Ñ”¥ÌÉ•ÅÕ¥É•™½ÈÁ…ÉÑ¥¥Á…Ñ¥¹œ•µÁ±½å••Ì¸œô¤ì4(€€€¥˜€¡Ù…±Õ•Ì¹¥¹ÍÕÉ…¹•A…ÉÑ¥¥Á…Ñ¥½¸€ôôô€¹½ÐµÁ…ÉÑ¥¥Á…Ñ•œ¤Ù…±Õ•Ì¹¥¹ÍÕÉ…¹•¹‘¥¹…Ñ”€ô€œœì4(€€€¥˜€¡Ù…±Õ•Ì¹É•Ñ¥É•µ•¹ÑA…ÉÑ¥¥Á…Ñ¥½¸€ôôô€¹½ÐµÁ…ÉÑ¥¥Á…Ñ•œ¤Ù…±Õ•Ì¹É•Ñ¥É•µ•¹Ñ¹‘¥¹…Ñ”€ô€œœì4(€€€¥˜€ …Ù…±Õ•Ì¹Á•¹‘¥¹%ÍÍÕ•Ì¤ìÙ…±Õ•Ì¹Á•¹‘¥¹%ÍÍÕ•Í9½Ñ•Ì€ô€œœìÙ…±Õ•Ì¹Á…åÉ½±±½±±½ÝQ¡É½Õ¡U¹Ñ¥°€ô€œœìô4(€€€½¹ÍÐ±¥•¹Ð€ôÉ•…Ñ•±¥•¹Ð ¤ì4(€€€ÑÉäì4(€€€€€…Ý…¥Ð±¥•¹Ð¹½¹¹•Ð ¤ì4(€€€€€½¹ÍÐ½±±•Ñ¥½¸€ô±¥•¹Ð¹‘ˆ¡‘…Ñ…‰…Í•9…µ”¤¹½±±•Ñ¥½¸ •µÁ±½å••}¡É}Ñ•Éµ¥¹…Ñ¥½¸œ¤ì4(€€€€€½¹ÍÐ•á¥ÍÑ¥¹œ€ô…Ý…¥Ð½±±•Ñ¥½¸¹™¥¹‘=¹”¡ì•µÁ±½å••%ô¤ñðíôì4(€€€€€½¹ÍÐÕ¹Í•Ð€ôíôì4(€€€€€¥˜€¡±•…¸¡•á¥ÍÑ¥¹œ¹™¥¹…±A…åÉ½±±…Ñ”¤€„ôôÙ…±Õ•Ì¹™¥¹…±A…åÉ½±±…Ñ”¤=‰©•Ð¹…ÍÍ¥¸¡Õ¹Í•Ð°ìÁ…åÉ½±±¡•­•‘Ðè€œœ°Á…åÉ½±±¡•­•‘	äè€œœ°Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘Ðè€œœ°Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘	äè€œœô¤ì4(€€€€€¥˜€¡•á¥ÍÑ¥¹œ¹Á•¹‘¥¹%ÍÍÕ•Ì€„ôôÙ…±Õ•Ì¹Á•¹‘¥¹%ÍÍÕ•Ìñð±•…¸¡•á¥ÍÑ¥¹œ¹Á•¹‘¥¹%ÍÍÕ•Í9½Ñ•Ì¤€„ôôÙ…±Õ•Ì¹Á•¹‘¥¹%ÍÍÕ•Í9½Ñ•Ìñð±•…¸¡•á¥ÍÑ¥¹œ¹Á…åÉ½±±½±±½ÝQ¡É½Õ¡U¹Ñ¥°¤€„ôôÙ…±Õ•Ì¹Á…åÉ½±±½±±½ÝQ¡É½Õ¡U¹Ñ¥°¤=‰©•Ð¹…ÍÍ¥¸¡Õ¹Í•Ð°ì™½±±½ÝUÁ¡•­•‘Ðè€œœ°™½±±½ÝUÁ¡•­•‘	äè€œœ°™½±±½ÝUÁ¥¹…±I•Ù¥•Ý•‘Ðè€œœ°™½±±½ÝUÁ¥¹…±I•Ù¥•Ý•‘	äè€œœô¤ì(€€€€€¥˜€¡±•…¸¡•á¥ÍÑ¥¹œ¹¥¹ÍÕÉ…¹•A…ÉÑ¥¥Á…Ñ¥½¸¤€„ôôÙ…±Õ•Ì¹¥¹ÍÕÉ…¹•A…ÉÑ¥¥Á…Ñ¥½¸ñð±•…¸¡•á¥ÍÑ¥¹œ¹¥¹ÍÕÉ…¹•¹‘¥¹…Ñ”¤€„ôôÙ…±Õ•Ì¹¥¹ÍÕÉ…¹•¹‘¥¹…Ñ”¤=‰©•Ð¹…ÍÍ¥¸¡Õ¹Í•Ð°ì¥¹ÍÕÉ…¹•½‰É…¡•­•‘Ðè€œœ°¥¹ÍÕÉ…¹•½‰É…¡•­•‘	äè€œœô¤ì4(€€€€€¥˜€¡±•…¸¡•á¥ÍÑ¥¹œ¹É•Ñ¥É•µ•¹ÑA…ÉÑ¥¥Á…Ñ¥½¸¤€„ôôÙ…±Õ•Ì¹É•Ñ¥É•µ•¹ÑA…ÉÑ¥¥Á…Ñ¥½¸ñð±•…¸¡•á¥ÍÑ¥¹œ¹É•Ñ¥É•µ•¹Ñ¹‘¥¹…Ñ”¤€„ôôÙ…±Õ•Ì¹É•Ñ¥É•µ•¹Ñ¹‘¥¹…Ñ”¤=‰©•Ð¹…ÍÍ¥¸¡Õ¹Í•Ð°ìÉ•Ñ¥É•µ•¹Ñ¡•­•‘Ðè€œœ°É•Ñ¥É•µ•¹Ñ¡•­•‘	äè€œœô¤ì4(€€€€€½¹ÍÐÕÁ‘…Ñ”€ôì€‘Í•Ðèì€¸¸¹Ù…±Õ•Ì°ÕÁ‘…Ñ•‘Ðè¹•Ü…Ñ” ¤°ÕÁ‘…Ñ•‘	äè±•…¸¡É•Ä¹…‘µ¥¹M•ÍÍ¥½¸ü¹•µ…¥°¤¹Ñ½1½Ý•É…Í” ¤ôôì4(€€€€€¥˜€¡=‰©•Ð¹­•åÌ¡Õ¹Í•Ð¤¹±•¹Ñ ¤ÕÁ‘…Ñ”¸‘Õ¹Í•Ð€ôÕ¹Í•Ðì4(€€€€€…Ý…¥Ð½±±•Ñ¥½¸¹ÕÁ‘…Ñ•=¹”¡ì•µÁ±½å••%ô°ÕÁ‘…Ñ”°ìÕÁÍ•ÉÐèÑÉÕ”ô¤ì4(€€€€€É•ÑÕÉ¸É•Ì¹©Í½¸¡ì€¸¸¹Ù…±Õ•Ì°É•Ù¥•ÝÍI•Í•Ðè=‰©•Ð¹­•åÌ¡Õ¹Í•Ð¤ô¤ì4(€€€ô…Ñ €¡•ÉÉ½È¤ì4(€€€€€½¹Í½±”¹•ÉÉ½È U¹…‰±”Ñ¼Í…Ù”!HA±…Ñ™½É´Ñ•Éµ¥¹…Ñ¥½¸èœ°•ÉÉ½È¤ì4(€€€€€É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€Q•Éµ¥¹…Ñ¥½¸É•½É½Õ±¹½Ð‰”Í…Ù•¸œô¤ì4(€€€ô™¥¹…±±äì…Ý…¥Ð±¥•¹Ð¹±½Í” ¤ìô4(€ô¤ì((€É½ÕÑ•È¹ÁÕÐ œ½Ñ•Éµ¥¹…Ñ¥½¹Ì¼é•µÁ±½å••%½™¥±”µÑÉ…­•Èœ°…Íå¹Œ€¡É•Ä°É•Ì¤€ôøì(€€€½¹ÍÐ•µÁ±½å••%€ôÉ•Ä¹Á…É…µÌ¹•µÁ±½å••%ì(€€€¥˜€ …=‰©•Ñ%¹¥ÍY…±¥¡•µÁ±½å••%¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€%¹Ù…±¥•µÁ±½å•”¸œô¤ì(€€€½¹ÍÐ…Ñ¥½¸€ô±•…¸¡É•Ä¹‰½‘äü¹…Ñ¥½¸ñð€Í…Ù”œ¤¹Ñ½1½Ý•É…Í” ¤ì(€€€½¹ÍÐ½¹™¥Éµ…Ñ¥½¹…Ñ”€ô±•…¸¡É•Ä¹‰½‘äü¹½¹™¥Éµ…Ñ¥½¹…Ñ”¤ì(€€€½¹ÍÐ±¥•¹Ð€ôÉ•…Ñ•±¥•¹Ð ¤ì(€€€ÑÉäì(€€€€€…Ý…¥Ð±¥•¹Ð¹½¹¹•Ð ¤ì(€€€€€½¹ÍÐ‘ˆ€ô±¥•¹Ð¹‘ˆ¡‘…Ñ…‰…Í•9…µ”¤ì(€€€€€½¹ÍÐ½±±•Ñ¥½¸€ô‘ˆ¹½±±•Ñ¥½¸ •µÁ±½å••}¡É}Ñ•Éµ¥¹…Ñ¥½¸œ¤ì(€€€€€½¹ÍÐ•á¥ÍÑ¥¹œ€ô…Ý…¥Ð½±±•Ñ¥½¸¹™¥¹‘=¹”¡ì•µÁ±½å••%ô¤ñðíôì(€€€€€¥˜€¡•á¥ÍÑ¥¹œ¹™¥±•QÉ…­•Èü¹™¥¹…±1½­•‘Ð¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀä¤¹©Í½¸¡ì•ÉÉ½Èè€Q¡¥ÌQ•Éµ¥¹…Ñ¥½¸¥±”QÉ…­•È¥Ì±½­•…¹…¹¹½Ð‰”µ½‘¥™¥•¸œô¤ì(€€€€€¥˜€¡…Ñ¥½¸€ôôô€±½¬œ¤ì(€€€€€€€¥˜€¡±•…¸¡É•Ä¹…‘µ¥¹M•ÍÍ¥½¸ü¹•µ…¥°¤¹Ñ½1½Ý•É…Í” ¤€„ôô™¥¹…±I•Ù¥•Ý•Éµ…¥°¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÌ¤¹©Í½¸¡ì•ÉÉ½Èè€=¹±äÑ¡”ÕÁÁ•Èµ±•Ù•°µ…¹…•È…¸±½¬Ñ¡”Q•Éµ¥¹…Ñ¥½¸¥±”QÉ…­•È¸œô¤ì(€€€€€€€¥˜€ …•á¥ÍÑ¥¹œ¹™¥±•QÉ…­•Èü¹ÍÕ‰µ¥ÑÑ•‘Ð¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€¸…‘µ¥¹¥ÍÑÉ…Ñ½ÈµÕÍÐ½¹™¥É´Ñ¡”ÑÉ…­•È‰•™½É”¥Ð…¸‰”±½­•¸œô¤ì(€€€€€€€½¹ÍÐ™¥±•QÉ…­•È€ôì€¸¸¹•á¥ÍÑ¥¹œ¹™¥±•QÉ…­•È°™¥¹…±1½­•‘Ðè¹•Ü…Ñ” ¤°™¥¹…±1½­•‘	äè™¥¹…±I•Ù¥•Ý•Éµ…¥°ôì(€€€€€€€…Ý…¥Ð½±±•Ñ¥½¸¹ÕÁ‘…Ñ•=¹”¡ì•µÁ±½å••%ô°ì€‘Í•Ðèì™¥±•QÉ…­•È°ÕÁ‘…Ñ•‘Ðè¹•Ü…Ñ” ¤°ÕÁ‘…Ñ•‘	äè™¥¹…±I•Ù¥•Ý•Éµ…¥°ôô°ìÕÁÍ•ÉÐèÑÉÕ”ô¤ì(€€€€€€€É•ÑÕÉ¸É•Ì¹©Í½¸¡ì™¥±•QÉ…­•Èô¤ì(€€€€€ô(€€€€€¥˜€¡•á¥ÍÑ¥¹œ¹™¥±•QÉ…­•Èü¹ÍÕ‰µ¥ÑÑ•‘Ð¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀä¤¹©Í½¸¡ì•ÉÉ½Èè€Q¡¥ÌÑÉ…­•È¡…Ì‰••¸½¹™¥Éµ•…¹¥Ì…Ý…¥Ñ¥¹œ™¥¹…°±½¬¸œô¤ì(€€€€€½¹ÍÐ…Ñ…±½œ€ô•á¥ÍÑ¥¹œ¹™¥±•QÉ…­•Èü¹™¥•±‘ÍM¹…ÁÍ¡½Ðñð…Ý…¥Ð•ÑQÉ…­•É…Ñ…±½œ¡‘ˆ¤ì(€€€€€½¹ÍÐÑÉ…­•È€ôÍ…¹¥Ñ¥é•¥±•QÉ…­•È¡É•Ä¹‰½‘äü¹™¥±•QÉ…­•È°…Ñ…±½œ¤ì(€€€€€½¹ÍÐ½µµ•¹Ñ¥•±‘Ì€ô½µµ•¹ÑÕ‘¥Ð¡•á¥ÍÑ¥¹œ¹™¥±•QÉ…­•Èñðíô°ÑÉ…­•È¹½µµ•¹ÑÌ°É•Ä¹…‘µ¥¹M•ÍÍ¥½¸ü¹•µ…¥°ñð¹Õ±°¤ì(€€€€€½¹ÍÐÍÕ‰µ¥Ð€ô…Ñ¥½¸€ôôô€ÍÕ‰µ¥Ðœì(€€€€€¥˜€¡ÍÕ‰µ¥Ð€˜˜€ …™¥±•QÉ…­•É½µÁ±•Ñ”¡ÑÉ…­•È°…Ñ…±½œ¤ñð€…Ù…±¥‘…Ñ”¡½¹™¥Éµ…Ñ¥½¹…Ñ”¤ñð€…½¹™¥Éµ…Ñ¥½¹…Ñ”¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€½µÁ±•Ñ”•Ù•Éä¡•­±¥ÍÐ¥Ñ•´…¹•¹Ñ•ÈÑ¡”½¹™¥Éµ…Ñ¥½¸‘…Ñ”‰•™½É”½¹™¥Éµ¥¹œ¸œô¤ì(€€€€€½¹ÍÐ™¥±•QÉ…­•È€ôì€¸¸¹ÑÉ…­•È°€¸¸¹½µµ•¹Ñ¥•±‘Ì°™¥•±‘ÍM¹…ÁÍ¡½Ðè…Ñ…±½œ°½¹™¥Éµ…Ñ¥½¹…Ñ”èÍÕ‰µ¥Ð€ü½¹™¥Éµ…Ñ¥½¹…Ñ”€è€œœ°ÍÕ‰µ¥ÑÑ•‘ÐèÍÕ‰µ¥Ð€ü¹•Ü…Ñ” ¤€è¹Õ±°°ÍÕ‰µ¥ÑÑ•‘	äèÍÕ‰µ¥Ð€üÉ•Ä¹…‘µ¥¹M•ÍÍ¥½¸ü¹•µ…¥°€è¹Õ±°°™¥¹…±1½­•‘Ðè¹Õ±°°™¥¹…±1½­•‘	äè¹Õ±°ôì(€€€€€…Ý…¥Ð½±±•Ñ¥½¸¹ÕÁ‘…Ñ•=¹”¡ì•µÁ±½å••%ô°ì€‘Í•Ðèì™¥±•QÉ…­•È°ÕÁ‘…Ñ•‘Ðè¹•Ü…Ñ” ¤°ÕÁ‘…Ñ•‘	äèÉ•Ä¹…‘µ¥¹M•ÍÍ¥½¸ü¹•µ…¥°ñð¹Õ±°ôô°ìÕÁÍ•ÉÐèÑÉÕ”ô¤ì(€€€€€É•ÑÕÉ¸É•Ì¹©Í½¸¡ì™¥±•QÉ…­•Èô¤ì(€€€ô…Ñ €¡•ÉÉ½È¤ì(€€€€€½¹Í½±”¹•ÉÉ½È U¹…‰±”Ñ¼Í…Ù”Q•Éµ¥¹…Ñ¥½¸¥±”QÉ…­•Èèœ°•ÉÉ½È¤ì(€€€€€É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€Q¡”Q•Éµ¥¹…Ñ¥½¸¥±”QÉ…­•È½Õ±¹½Ð‰”Í…Ù•¸œô¤ì(€€€ô™¥¹…±±äì…Ý…¥Ð±¥•¹Ð¹±½Í” ¤ìô(€ô¤ì(4(€É½ÕÑ•È¹ÁÕÐ œ½Ñ•Éµ¥¹…Ñ¥½¹Ì¼é•µÁ±½å••%½¡•­Ìœ°…Íå¹Œ€¡É•Ä°É•Ì¤€ôøì(€€€½¹ÍÐ•µÁ±½å••%€ôÉ•Ä¹Á…É…µÌ¹•µÁ±½å••%ì4(€€€½¹ÍÐ…Ñ¥½¸€ô±•…¸¡É•Ä¹‰½‘äü¹…Ñ¥½¸¤¹Ñ½1½Ý•É…Í” ¤ì4(€€€¥˜€ …=‰©•Ñ%¹¥ÍY…±¥¡•µÁ±½å••%¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€%¹Ù…±¥•µÁ±½å•”¸œô¤ì4(€€€½¹ÍÐ™¥•±‘Í	åÑ¥½¸€ôì4(€€€€€€Á…åÉ½±°µ¡•¬œèlÁ…åÉ½±±¡•­•‘Ðœ°€Á…åÉ½±±¡•­•‘	ät°4(€€€€€€Á…åÉ½±°µ™¥¹…°µÉ•Ù¥•ÜœèlÁ…åÉ½±±¥¹…±I•Ù¥•Ý•‘Ðœ°€Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘	ät°4(€€€€€€Á…åÉ½±°µ™¥¹…°µÉ•Ù¥•ÜµÕ¹‘¼œèlÁ…åÉ½±±¥¹…±I•Ù¥•Ý•‘Ðœ°€Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘	ät°(€€€€€€™½±±½ÜµÕÀµ¡•¬œèl™½±±½ÝUÁ¡•­•‘Ðœ°€™½±±½ÝUÁ¡•­•‘	ät°(€€€€€€™½±±½ÜµÕÀµ™¥¹…°µÉ•Ù¥•Üœèl™½±±½ÝUÁ¥¹…±I•Ù¥•Ý•‘Ðœ°€™½±±½ÝUÁ¥¹…±I•Ù¥•Ý•‘	ät°(€€€€€€¥¹ÍÕÉ…¹”µ½‰É„µ¡•¬œèl¥¹ÍÕÉ…¹•½‰É…¡•­•‘Ðœ°€¥¹ÍÕÉ…¹•½‰É…¡•­•‘	ät°4(€€€€€€É•Ñ¥É•µ•¹Ðµ¡•¬œèlÉ•Ñ¥É•µ•¹Ñ¡•­•‘Ðœ°€É•Ñ¥É•µ•¹Ñ¡•­•‘	ät°4(€€€ôì4(€€€½¹ÍÐ™¥•±‘Ì€ô™¥•±‘Í	åÑ¥½¹m…Ñ¥½¹tì4(€€€¥˜€ …™¥•±‘Ì¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€%¹Ù…±¥É•Ù¥•Ü…Ñ¥½¸¸œô¤ì4(€€€½¹ÍÐÉ•Ù¥•Ý•Éµ…¥°€ô±•…¸¡É•Ä¹…‘µ¥¹M•ÍÍ¥½¸ü¹•µ…¥°¤¹Ñ½1½Ý•É…Í” ¤ì4(€€€¥˜€¡lÁ…åÉ½±°µ™¥¹…°µÉ•Ù¥•Üœ°€Á…åÉ½±°µ™¥¹…°µÉ•Ù¥•ÜµÕ¹‘¼œ°€™½±±½ÜµÕÀµ™¥¹…°µÉ•Ù¥•Üt¹¥¹±Õ‘•Ì¡…Ñ¥½¸¤€˜˜É•Ù¥•Ý•Éµ…¥°€„ôô™¥¹…±I•Ù¥•Ý•Éµ…¥°¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÌ¤¹©Í½¸¡ì•ÉÉ½Èè€=¹±äÑ¡”…ÕÑ¡½É¥é•ÕÁÁ•Èµ±•Ù•°µ…¹…•È…¸Á•É™½É´™¥¹…°É•Ù¥•Ü¸œô¤ì(€€€½¹ÍÐ±¥•¹Ð€ôÉ•…Ñ•±¥•¹Ð ¤ì4(€€€ÑÉäì4(€€€€€…Ý…¥Ð±¥•¹Ð¹½¹¹•Ð ¤ì4(€€€€€½¹ÍÐ½±±•Ñ¥½¸€ô±¥•¹Ð¹‘ˆ¡‘…Ñ…‰…Í•9…µ”¤¹½±±•Ñ¥½¸ •µÁ±½å••}¡É}Ñ•Éµ¥¹…Ñ¥½¸œ¤ì4(€€€€€½¹ÍÐ•á¥ÍÑ¥¹œ€ô…Ý…¥Ð½±±•Ñ¥½¸¹™¥¹‘=¹”¡ì•µÁ±½å••%ô¤ì4(€€€€€¥˜€ …•á¥ÍÑ¥¹œü¹™¥¹…±A…åÉ½±±…Ñ”¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€½µÁ±•Ñ”Q•Éµ¥¹…Ñ¥½¸•Ñ…¥±Ì‰•™½É”Ñ…­¥¹œ…Ñ¥½¸¸œô¤ì4(€€€€€¥˜€¡…Ñ¥½¸€ôôô€Á…åÉ½±°µ™¥¹…°µÉ•Ù¥•Üœ€˜˜€…•á¥ÍÑ¥¹œ¹Á…åÉ½±±¡•­•‘Ð¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€A…åÉ½±°¡•¬µÕÍÐ‰”½µÁ±•Ñ•™¥ÉÍÐ¸œô¤ì(€€€€€¥˜€¡…Ñ¥½¸€ôôô€™½±±½ÜµÕÀµ¡•¬œ€˜˜€ …•á¥ÍÑ¥¹œ¹Á•¹‘¥¹%ÍÍÕ•Ìñð€…•á¥ÍÑ¥¹œ¹Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘Ð¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€¥¹…°A…äI•Ù¥•ÜµÕÍÐ‰”½µÁ±•Ñ•‰•™½É”¡•­¥¹œ™½±±½ÜµÕÀ¥ÍÍÕ•Ì¸œô¤ì(€€€€€¥˜€¡…Ñ¥½¸€ôôô€™½±±½ÜµÕÀµ™¥¹…°µÉ•Ù¥•Üœ€˜˜€ …•á¥ÍÑ¥¹œ¹Á•¹‘¥¹%ÍÍÕ•Ìñð€…•á¥ÍÑ¥¹œ¹™½±±½ÝUÁ¡•­•‘Ð¤¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€½±±½ÜµÕÀ%ÍÍÕ•Ì¡•¬µÕÍÐ‰”½µÁ±•Ñ•™¥ÉÍÐ¸œô¤ì(€€€€€¥˜€¡…Ñ¥½¸€ôôô€Á…åÉ½±°µ™¥¹…°µÉ•Ù¥•ÜµÕ¹‘¼œ¤ì4(€€€€€€€…Ý…¥Ð½±±•Ñ¥½¸¹ÕÁ‘…Ñ•=¹”¡ì•µÁ±½å••%ô°ì€‘Õ¹Í•ÐèìÁ…åÉ½±±¥¹…±I•Ù¥•Ý•‘Ðè€œœ°Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘	äè€œœô°€‘Í•ÐèìÕÁ‘…Ñ•‘Ðè¹•Ü…Ñ” ¤°ÕÁ‘…Ñ•‘	äèÉ•Ù¥•Ý•Éµ…¥°ôô¤ì4(€€€€€€€É•ÑÕÉ¸É•Ì¹©Í½¸¡ìÁ…åÉ½±±¥¹…±I•Ù¥•Ý•‘Ðè¹Õ±°°Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘	äè€œœô¤ì4(€€€€€ô4(€€€€€¥˜€¡•á¥ÍÑ¥¹œü¹m™¥•±‘ÍlÁut¤É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÐÀä¤¹©Í½¸¡ì•ÉÉ½Èè€Q¡¥Ì…Ñ¥½¸¡…Ì…±É•…‘ä‰••¸½µÁ±•Ñ•¸œô¤ì4(€€€€€½¹ÍÐÙ…±Õ•Ì€ôìm™¥•±‘ÍlÁutè¹•Ü…Ñ” ¤°m™¥•±‘ÍlÅutèÉ•Ù¥•Ý•Éµ…¥°°ÕÁ‘…Ñ•‘Ðè¹•Ü…Ñ” ¤°ÕÁ‘…Ñ•‘	äèÉ•Ù¥•Ý•Éµ…¥°ôì4(€€€€€…Ý…¥Ð½±±•Ñ¥½¸¹ÕÁ‘…Ñ•=¹”¡ì•µÁ±½å••%ô°ì€‘Í•ÐèÙ…±Õ•Ìô°ìÕÁÍ•ÉÐèÑÉÕ”ô¤ì4(€€€€€É•ÑÕÉ¸É•Ì¹©Í½¸¡Ù…±Õ•Ì¤ì4(€€€ô…Ñ €¡•ÉÉ½È¤ì4(€€€€€½¹Í½±”¹•ÉÉ½È U¹…‰±”Ñ¼Í…Ù”Ñ•Éµ¥¹…Ñ¥½¸…Ñ¥½¸èœ°•ÉÉ½È¤ì4(€€€€€É•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€Q•Éµ¥¹…Ñ¥½¸…Ñ¥½¸½Õ±¹½Ð‰”Í…Ù•¸œô¤ì4(€€€ô™¥¹…±±äì…Ý…¥Ð±¥•¹Ð¹±½Í” ¤ìô4(€ô¤ì((€…Íå¹Œ™Õ¹Ñ¥½¸Ñ•Éµ¥¹…Ñ¥½¹I•Á½ÉÑI½ÝÌ¡‘ˆ¤ì(€€€½¹ÍÐ•µÁ±½å••Ì€ô…Ý…¥Ð‘ˆ¹½±±•Ñ¥½¸ •µÁ±½å••Ìœ¤¹™¥¹¡ì€‘½Èèmì€A½Í¥Ñ¥½¸MÑ…ÑÕÌœè€½yÑ•Éµ¥¹…Ñ•½¤ô°ì€Q•Éµ¥¹…Ñ¥½¸…Ñ”œèì€‘•á¥ÍÑÌèÑÉÕ”°€‘¹¥¸èlœœ°¹Õ±±tôõtô¤¹Ñ½ÉÉ…ä ¤ì(€€€½¹ÍÐ¥‘Ì€ô•µÁ±½å••Ì¹µ…À¡•µÁ±½å•”€ôøMÑÉ¥¹œ¡•µÁ±½å•”¹}¥¤¤ì(€€€½¹ÍÐÉ•½É‘Ì€ô¥‘Ì¹±•¹Ñ €ü…Ý…¥Ð‘ˆ¹½±±•Ñ¥½¸ •µÁ±½å••}¡É}Ñ•Éµ¥¹…Ñ¥½¸œ¤¹™¥¹¡ì•µÁ±½å••%èì€‘¥¸è¥‘Ìôô¤¹Ñ½ÉÉ…ä ¤€èmtì(€€€½¹ÍÐ‰å%€ô¹•Ü5…À¡É•½É‘Ì¹µ…À¡É•½É€ôømMÑÉ¥¹œ¡É•½É¹•µÁ±½å••%¤°É•½É‘t¤¤ì(€€€É•ÑÕÉ¸•µÁ±½å••Ì¹µ…À¡•µÁ±½å•”€ôø€¡ì•µÁ±½å•”°É•½Éè‰å%¹•Ð¡MÑÉ¥¹œ¡•µÁ±½å•”¹}¥¤¤ñðíôô¤¤ì(€ô((€É½ÕÑ•È¹•Ð œ½Ñ•Éµ¥¹…Ñ¥½¹Ì½É•Á½ÉÑÌ½™¥±”µÑÉ…­•È¹á±Íàœ°…Íå¹Œ€¡}É•Ä°É•Ì¤€ôøì(€€€½¹ÍÐ±¥•¹Ð€ôÉ•…Ñ•±¥•¹Ð ¤ì(€€€ÑÉäì(€€€€€…Ý…¥Ð±¥•¹Ð¹½¹¹•Ð ¤ì½¹ÍÐ‘ˆ€ô±¥•¹Ð¹‘ˆ¡‘…Ñ…‰…Í•9…µ”¤ì½¹ÍÐÉ½ÝÌ€ô…Ý…¥ÐÑ•Éµ¥¹…Ñ¥½¹I•Á½ÉÑI½ÝÌ¡‘ˆ¤ì(€€€€€½¹ÍÐÝ½É­‰½½¬€ô¹•Üá•±)L¹]½É­‰½½¬ ¤ì½¹ÍÐÍ¡••Ð€ôÝ½É­‰½½¬¹…‘‘]½É­Í¡••Ð Q•Éµ¥¹…Ñ¥½¸¥±”QÉ…­•ÉÌœ¤ì(€€€€€½¹ÍÐ…Ñ…±½œ€ô…Ý…¥Ð•ÑQÉ…­•É…Ñ…±½œ¡‘ˆ°ÑÉÕ”¤ì(€€€€€Í¡••Ð¹½±Õµ¹Ì€ômì¡•…‘•Èè€µÁ±½å•”œ°­•äè€¹…µ”œ°Ý¥‘Ñ è€Èàô°ì¡•…‘•Èè€Q•Éµ¥¹…Ñ¥½¸…Ñ”œ°­•äè€Ñ•Éµ¥¹…Ñ¥½¹…Ñ”œ°Ý¥‘Ñ è€Äàô°ì¡•…‘•Èè€µÁ±½å•”½±‘•Èœ°­•äè€™½±‘•Èœ°Ý¥‘Ñ è€ÐÔô°€¸¸¹…Ñ…±½œ¹µ…À¡™¥•±€ôø€¡ì¡•…‘•Èè™¥•±¹±…‰•°°­•äè™|‘í™¥•±¹¥‘õ€°Ý¥‘Ñ è€ÈÐô¤¤°ì¡•…‘•Èè€½µµ•¹ÑÌœ°­•äè€½µµ•¹ÑÌœ°Ý¥‘Ñ è€ÐÔô°ì¡•…‘•Èè€‘µ¥¸¡•­•	äœ°­•äè€…‘µ¥¸œ°Ý¥‘Ñ è€ÌÀô°ì¡•…‘•Èè€¥¹…°I•Ù¥•Ý•	äœ°­•äè€™¥¹…°œ°Ý¥‘Ñ è€ÌÀô°ì¡•…‘•Èè€MÑ…ÑÕÌœ°­•äè€ÍÑ…ÑÕÌœ°Ý¥‘Ñ è€ÈÀõtì(€€€€€É½ÝÌ¹™½É…  ¡ì•µÁ±½å•”°É•½Éô¤€ôøì½¹ÍÐÑÉ…­•È€ôÉ•½É¹™¥±•QÉ…­•Èñðíôì½¹ÍÐÉ½Ü€ôì¹…µ”èm±•…¸¡•µÁ±½å••l¥ÉÍÐ9…µ”t¤°±•…¸¡•µÁ±½å••l1…ÍÐ9…µ”t¥t¹™¥±Ñ•È¡	½½±•…¸¤¹©½¥¸ œ€œ¤°Ñ•Éµ¥¹…Ñ¥½¹…Ñ”è±•…¸¡•µÁ±½å••lQ•Éµ¥¹…Ñ¥½¸…Ñ”t¤°™½±‘•Èè±•…¸¡É•½É¹•µÁ±½å••½±‘•ÉUÉ°¤°½µµ•¹ÑÌè±•…¸¡ÑÉ…­•È¹½µµ•¹ÑÌ¤°…‘µ¥¸è±•…¸¡ÑÉ…­•È¹ÍÕ‰µ¥ÑÑ•‘	ä¤°™¥¹…°è±•…¸¡ÑÉ…­•È¹™¥¹…±1½­•‘	ä¤°ÍÑ…ÑÕÌèÑÉ…­•È¹™¥¹…±1½­•‘Ð€ü€¥¹…°I•Ù¥•Ý•œ€èÑÉ…­•È¹ÍÕ‰µ¥ÑÑ•‘Ð€ü€‘µ¥¸¡•­•œ€è€%¸AÉ½•ÍÌœôì…Ñ…±½œ¹™½É… ¡™¥•±€ôøìÉ½Ým™|‘í™¥•±¹¥‘õt€ô±•…¸¡ÑÉ…­•È¹É•ÍÁ½¹Í•Ìü¹m™¥•±¹¥‘t¤ìô¤ìÍ¡••Ð¹…‘‘I½Ü¡É½Ü¤ìô¤ì(€€€€€Í¡••Ð¹•ÑI½Ü Ä¤¹™½¹Ð€ôì‰½±èÑÉÕ”ôìÉ•ÑÕÉ¸…Ý…¥ÐÍ•¹‘]½É­‰½½¬¡É•Ì°Ý½É­‰½½¬°Q•Éµ¥¹…Ñ¥½¹}¥±•}QÉ…­•ÉÍ|‘í¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¤¹Í±¥” À°€ÄÀ¥ô¹á±Íá€¤ì(€€€ô…Ñ €¡•ÉÉ½È¤ì½¹Í½±”¹•ÉÉ½È U¹…‰±”Ñ¼É•…Ñ”Ñ•Éµ¥¹…Ñ¥½¸ÑÉ…­•ÈÉ•Á½ÉÐèœ°•ÉÉ½È¤ìÉ•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€Q¡”Ñ•Éµ¥¹…Ñ¥½¸ÑÉ…­•ÈÉ•Á½ÉÐ½Õ±¹½Ð‰”É•…Ñ•¸œô¤ìô™¥¹…±±äì…Ý…¥Ð±¥•¹Ð¹±½Í” ¤ìô(€ô¤ì((€É½ÕÑ•È¹•Ð œ½Ñ•Éµ¥¹…Ñ¥½¹Ì½É•Á½ÉÑÌ½Ñ…Í­Ì¹á±Íàœ°…Íå¹Œ€¡}É•Ä°É•Ì¤€ôøì(€€€½¹ÍÐ±¥•¹Ð€ôÉ•…Ñ•±¥•¹Ð ¤ì(€€€ÑÉäì(€€€€€…Ý…¥Ð±¥•¹Ð¹½¹¹•Ð ¤ì½¹ÍÐÉ½ÝÌ€ô…Ý…¥ÐÑ•Éµ¥¹…Ñ¥½¹I•Á½ÉÑI½ÝÌ¡±¥•¹Ð¹‘ˆ¡‘…Ñ…‰…Í•9…µ”¤¤ì½¹ÍÐÝ½É­‰½½¬€ô¹•Üá•±)L¹]½É­‰½½¬ ¤ì½¹ÍÐÍ¡••Ð€ôÝ½É­‰½½¬¹…‘‘]½É­Í¡••Ð Q•Éµ¥¹…Ñ¥½¸Q…Í­Ìœ¤ì(€€€€€Í¡••Ð¹½±Õµ¹Ì€ômì¡•…‘•Èè€µÁ±½å•”œ°­•äè€¹…µ”œ°Ý¥‘Ñ è€Èàô°ì¡•…‘•Èè€Q•Éµ¥¹…Ñ¥½¸…Ñ”œ°­•äè€Ñ•Éµ¥¹…Ñ¥½¹…Ñ”œ°Ý¥‘Ñ è€Äàô°ì¡•…‘•Èè€Q…Í¬œ°­•äè€Ñ…Í¬œ°Ý¥‘Ñ è€Èàô°ì¡•…‘•Èè€Q…Í¬…Ñ”œ°­•äè€‘…Ñ”œ°Ý¥‘Ñ è€Äàô°ì¡•…‘•Èè€MÑ…ÑÕÌœ°­•äè€ÍÑ…ÑÕÌœ°Ý¥‘Ñ è€ÈÐô°ì¡•…‘•Èè€¡•­•	äœ°­•äè€¡•­•‘	äœ°Ý¥‘Ñ è€ÌÀô°ì¡•…‘•Èè€¥¹…°I•Ù¥•Ý•	äœ°­•äè€™¥¹…±	äœ°Ý¥‘Ñ è€ÌÀô°ì¡•…‘•Èè€9½Ñ•Ìœ°­•äè€¹½Ñ•Ìœ°Ý¥‘Ñ è€ÐÔõtì(€€€€€É½ÝÌ¹™½É…  ¡ì•µÁ±½å•”°É•½Éô¤€ôøì½¹ÍÐ‰…Í”€ôì¹…µ”èm±•…¸¡•µÁ±½å••l¥ÉÍÐ9…µ”t¤°±•…¸¡•µÁ±½å••l1…ÍÐ9…µ”t¥t¹™¥±Ñ•È¡	½½±•…¸¤¹©½¥¸ œ€œ¤°Ñ•Éµ¥¹…Ñ¥½¹…Ñ”è±•…¸¡•µÁ±½å••lQ•Éµ¥¹…Ñ¥½¸…Ñ”t¤ôì½¹ÍÐ…‘€ô€¡Ñ…Í¬°‘…Ñ”°¡•­•°™¥¹…°°¹½Ñ•Ì€ô€œœ¤€ôøÍ¡••Ð¹…‘‘I½Ü¡ì€¸¸¹‰…Í”°Ñ…Í¬°‘…Ñ”è±•…¸¡‘…Ñ”¤°ÍÑ…ÑÕÌè™¥¹…°€ü€¥¹¥Í¡•œ€è¡•­•€ü€%¸AÉ½•ÍÌ€´¥¹…°I•Ù¥•Ü9••‘•œ€è€U¹™¥¹¥Í¡•œ°¡•­•‘	äè±•…¸¡¡•­•ü¹‰ä¤°™¥¹…±	äè±•…¸¡™¥¹…°ü¹‰ä¤°¹½Ñ•Ìô¤ì…‘ ¥¹…°A…äœ°É•½É¹™¥¹…±A…åÉ½±±…Ñ”°É•½É¹Á…åÉ½±±¡•­•‘Ð€˜˜ì‰äèÉ•½É¹Á…åÉ½±±¡•­•‘	äô°É•½É¹Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘Ð€˜˜ì‰äèÉ•½É¹Á…åÉ½±±¥¹…±I•Ù¥•Ý•‘	äô¤ì¥˜€¡É•½É¹Á•¹‘¥¹%ÍÍÕ•Ì¤…‘ A…åÉ½±°½±±½ÜµÕÀ%ÍÍÕ•Ìœ°É•½É¹Á…åÉ½±±½±±½ÝQ¡É½Õ¡U¹Ñ¥°°É•½É¹™½±±½ÝUÁ¡•­•‘Ð€˜˜ì‰äèÉ•½É¹™½±±½ÝUÁ¡•­•‘	äô°É•½É¹™½±±½ÝUÁ¥¹…±I•Ù¥•Ý•‘Ð€˜˜ì‰äèÉ•½É¹™½±±½ÝUÁ¥¹…±I•Ù¥•Ý•‘	äô°±•…¸¡É•½É¹Á•¹‘¥¹%ÍÍÕ•Í9½Ñ•Ì¤¤ì¥˜€¡É•½É¹¥¹ÍÕÉ…¹•A…ÉÑ¥¥Á…Ñ¥½¸€ôôô€Á…ÉÑ¥¥Á…Ñ•œ¤…‘ %¹ÍÕÉ…¹”€˜=	Iœ°É•½É¹¥¹ÍÕÉ…¹•¹‘¥¹…Ñ”°É•½É¹¥¹ÍÕÉ…¹•½‰É…¡•­•‘Ð€˜˜ì‰äèÉ•½É¹¥¹ÍÕÉ…¹•½‰É…¡•­•‘	äô°É•½É¹¥¹ÍÕÉ…¹•½‰É…¡•­•‘Ð€˜˜ì‰äèÉ•½É¹¥¹ÍÕÉ…¹•½‰É…¡•­•‘	äô¤ì¥˜€¡É•½É¹É•Ñ¥É•µ•¹ÑA…ÉÑ¥¥Á…Ñ¥½¸€ôôô€Á…ÉÑ¥¥Á…Ñ•œ¤…‘ œÐÀÄ¡¬¤œ°É•½É¹É•Ñ¥É•µ•¹Ñ¹‘¥¹…Ñ”°É•½É¹É•Ñ¥É•µ•¹Ñ¡•­•‘Ð€˜˜ì‰äèÉ•½É¹É•Ñ¥É•µ•¹Ñ¡•­•‘	äô°É•½É¹É•Ñ¥É•µ•¹Ñ¡•­•‘Ð€˜˜ì‰äèÉ•½É¹É•Ñ¥É•µ•¹Ñ¡•­•‘	äô¤ìô¤ì(€€€€€Í¡••Ð¹•ÑI½Ü Ä¤¹™½¹Ð€ôì‰½±èÑÉÕ”ôìÉ•ÑÕÉ¸…Ý…¥ÐÍ•¹‘]½É­‰½½¬¡É•Ì°Ý½É­‰½½¬°Q•Éµ¥¹…Ñ¥½¹}±±}Q…Í­Í|‘í¹•Ü…Ñ” ¤¹Ñ½%M=MÑÉ¥¹œ ¤¹Í±¥” À°€ÄÀ¥ô¹á±Íá€¤ì(€€€ô…Ñ €¡•ÉÉ½È¤ì½¹Í½±”¹•ÉÉ½È U¹…‰±”Ñ¼É•…Ñ”Ñ•Éµ¥¹…Ñ¥½¸Ñ…Í¬É•Á½ÉÐèœ°•ÉÉ½È¤ìÉ•ÑÕÉ¸É•Ì¹ÍÑ…ÑÕÌ ÔÀÀ¤¹©Í½¸¡ì•ÉÉ½Èè€Q¡”Ñ•Éµ¥¹…Ñ¥½¸Ñ…Í¬É•Á½ÉÐ½Õ±¹½Ð‰”É•…Ñ•¸œô¤ìô™¥¹…±±äì…Ý…¥Ð±¥•¹Ð¹±½Í” ¤ìô(€ô¤ì(4(€É•ÑÕÉ¸É½ÕÑ•Èì4)ô4(4)µ½‘Õ±”¹•áÁ½ÉÑÌ€ôìÉ•…Ñ•!ÉA±…Ñ™½ÉµI½ÕÑ•Èôì4(
