@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
-const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
+const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, terminationEmployeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
 
 function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   const router = express.Router();
@@ -282,68 +282,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       return res.status(400).json({ error: 'Please enter a valid Pay Rate with no more than two decimal places.' });
     }
     if (payRateChangePending && (!validDate(payrollChangeDate) || !payrollChangeDate || !payrollChangeReason)) {
-      return res.status(400).json({ error: 'Pending to Change requires a Payroll Change Date and reason.' });
-    }
-    if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
-      return res.status(400).json({ error: 'Please enter valid dates.' });
-    }
-
-    const client = createClient();
-    try {
-      await client.connect();
-      const db = client.db(databaseName);
-      const employee = await db.collection('employees').findOne({ _id: new ObjectId(employeeId) });
-      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
-      const values = {
-        employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate,
-        insuranceEffectiveDate: insuranceNotApplicable ? '' : insuranceEffectiveDate, insuranceNotApplicable,
-        retirementEffectiveDate: retirementNotApplicable ? '' : retirementEffectiveDate, retirementNotApplicable,
-        payRateChangePending, payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
-        payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
-      };
-      const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
-      const dateCorrection = Boolean(existingRecord && (
-        clean(existingRecord.firstPayrollDate) !== firstPayrollDate ||
-        clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate ||
-        (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable ||
-        clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate ||
-        (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable
-      ));
-      if (!dateCorrection) {
-        if (!payRateType || !payRate) return res.status(400).json({ error: 'Pay Type and Pay Rate are required.' });
-        if (!firstPayrollDate) return res.status(400).json({ error: 'First Payroll Date is required.' });
-        if ((!insuranceNotApplicable && !insuranceEffectiveDate) || (insuranceNotApplicable && insuranceEffectiveDate)) return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
-        if ((!retirementNotApplicable && !retirementEffectiveDate) || (retirementNotApplicable && retirementEffectiveDate)) return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
-      } else if ((!insuranceNotApplicable && !insuranceEffectiveDate && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) || (insuranceNotApplicable && insuranceEffectiveDate)) {
-        return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
-      } else if ((!retirementNotApplicable && !retirementEffectiveDate && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) || (retirementNotApplicable && retirementEffectiveDate)) {
-        return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
-      }
-      const changeRequestChanged = payrollChangeRequestChanged(existingRecord || {}, payRateChangePending, payrollChangeDate, payrollChangeReason);
-      const unsetReviewFields = {};
-      const resetResponse = {};
-      const resetReasons = [];
-      const addResetFields = (fields) => fields.forEach(field => {
-        unsetReviewFields[field] = '';
-        resetResponse[field] = field.endsWith('At') ? null : '';
-      });
-      if (existingRecord && clean(existingRecord.firstPayrollDate) !== firstPayrollDate) {
-        resetReasons.push('First Payroll Date changed');
-        addResetFields(['payrollCheckedAt', 'payrollCheckedBy', 'payrollFinalReviewedAt', 'payrollFinalReviewedBy']);
-      }
-      if (existingRecord && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) {
-        resetReasons.push('Insurance applicability or Effective Date changed');
-        addResetFields(['insuranceCheckedAt', 'insuranceCheckedBy']);
-      }
-      if (existingRecord && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) {
-        resetReasons.push('401(k) applicability or Effective Date changed');
-        addResetFields(['retirementCheckedAt', 'retirementCheckedBy']);
-      }
-      if (changeRequestChanged) {
-        resetReasons.push('Payroll Change request changed');
-        addResetFields(['payrollChangeCheckedAt', 'payrollChangeCheckedBy', 'payrollChangeFinalReviewedAt', 'payrollChangeFinalReviewedBy']);
-      }
-      const reviewReset = Object.keys(unsetReviewFields).length ? { $unset: unsetReviewFields } : {};
+      return res.status(400).json({ error: 'Pending to Cha…1220 tokens truncated…keys(unsetReviewFields).length ? { $unset: unsetReviewFields } : {};
       const reviewResetAudit = resetReasons.length ? { $push: { reviewResetHistory: {
         resetAt: new Date(), resetBy: req.adminSession?.email || null, reasons: resetReasons,
         previousReviewValues: Object.fromEntries(Object.keys(unsetReviewFields).map(field => [field, existingRecord?.[field] || null])),
@@ -547,7 +486,118 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
+  router.get('/terminations', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employees = await db.collection('employees').find({
+        $or: [
+          { 'Position Status': /^terminated$/i },
+          { 'Termination Date': { $exists: true, $nin: ['', null] } },
+        ],
+      }).toArray();
+      const ids = employees.map(employee => String(employee._id));
+      const records = ids.length ? await db.collection('employee_hr_termination').find({ employeeId: { $in: ids } }).toArray() : [];
+      const existingIds = new Set(records.map(record => String(record.employeeId)));
+      const missingIds = ids.filter(id => !existingIds.has(id));
+      if (missingIds.length) {
+        await db.collection('employee_hr_termination').bulkWrite(missingIds.map(employeeId => ({
+          updateOne: { filter: { employeeId }, update: { $setOnInsert: { employeeId, createdAt: new Date() } }, upsert: true },
+        })));
+        missingIds.forEach(employeeId => records.push({ employeeId }));
+      }
+      const byId = new Map(records.map(record => [String(record.employeeId), record]));
+      return res.json(employees.map(employee => terminationEmployeeView(employee, byId.get(String(employee._id))))
+        .sort((left, right) => clean(right.terminationDate).localeCompare(clean(left.terminationDate)) || left.name.localeCompare(right.name)));
+    } catch (error) {
+      console.error('Unable to load HR Platform terminations:', error);
+      return res.status(500).json({ error: 'Termination records could not be loaded.' });
+    } finally { await client.close(); }
+  });
+
+  router.put('/terminations/:employeeId', async (req, res) => {
+    const employeeId = req.params.employeeId;
+    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const values = {
+      finalPayrollDate: clean(req.body?.finalPayrollDate),
+      pendingIssues: req.body?.pendingIssues === true,
+      pendingIssuesNotes: clean(req.body?.pendingIssuesNotes),
+      payrollFollowThroughUntil: clean(req.body?.payrollFollowThroughUntil),
+      insuranceParticipation: clean(req.body?.insuranceParticipation).toLowerCase(),
+      insuranceEndingDate: clean(req.body?.insuranceEndingDate),
+      retirementParticipation: clean(req.body?.retirementParticipation).toLowerCase(),
+      retirementEndingDate: clean(req.body?.retirementEndingDate),
+    };
+    const dates = [values.finalPayrollDate, values.payrollFollowThroughUntil, values.insuranceEndingDate, values.retirementEndingDate];
+    if (dates.some(value => !validDate(value))) return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
+    if (!values.finalPayrollDate) return res.status(400).json({ error: 'Final Payroll Date is required.' });
+    if (values.pendingIssues && (!values.payrollFollowThroughUntil || !values.pendingIssuesNotes)) return res.status(400).json({ error: 'Pending Issues require a follow-through date and notes.' });
+    if (!['participated', 'not-participated'].includes(values.insuranceParticipation)) return res.status(400).json({ error: 'Select whether the employee participated in Insurance.' });
+    if (values.insuranceParticipation === 'participated' && !values.insuranceEndingDate) return res.status(400).json({ error: 'Insurance Ending Date is required for participating employees.' });
+    if (!['participated', 'not-participated'].includes(values.retirementParticipation)) return res.status(400).json({ error: 'Select whether the employee participated in 401(k).' });
+    if (values.retirementParticipation === 'participated' && !values.retirementEndingDate) return res.status(400).json({ error: '401(k) Ending Date is required for participating employees.' });
+    if (values.insuranceParticipation === 'not-participated') values.insuranceEndingDate = '';
+    if (values.retirementParticipation === 'not-participated') values.retirementEndingDate = '';
+    if (!values.pendingIssues) { values.pendingIssuesNotes = ''; values.payrollFollowThroughUntil = ''; }
+    const client = createClient();
+    try {
+      await client.connect();
+      const collection = client.db(databaseName).collection('employee_hr_termination');
+      const existing = await collection.findOne({ employeeId }) || {};
+      const unset = {};
+      if (clean(existing.finalPayrollDate) !== values.finalPayrollDate) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
+      if (existing.pendingIssues !== values.pendingIssues || clean(existing.payrollFollowThroughUntil) !== values.payrollFollowThroughUntil) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
+      if (clean(existing.insuranceParticipation) !== values.insuranceParticipation || clean(existing.insuranceEndingDate) !== values.insuranceEndingDate) Object.assign(unset, { insuranceCobraCheckedAt: '', insuranceCobraCheckedBy: '' });
+      if (clean(existing.retirementParticipation) !== values.retirementParticipation || clean(existing.retirementEndingDate) !== values.retirementEndingDate) Object.assign(unset, { retirementCheckedAt: '', retirementCheckedBy: '' });
+      const update = { $set: { ...values, updatedAt: new Date(), updatedBy: clean(req.adminSession?.email).toLowerCase() } };
+      if (Object.keys(unset).length) update.$unset = unset;
+      await collection.updateOne({ employeeId }, update, { upsert: true });
+      return res.json({ ...values, reviewsReset: Object.keys(unset) });
+    } catch (error) {
+      console.error('Unable to save HR Platform termination:', error);
+      return res.status(500).json({ error: 'Termination record could not be saved.' });
+    } finally { await client.close(); }
+  });
+
+  router.put('/terminations/:employeeId/checks', async (req, res) => {
+    const employeeId = req.params.employeeId;
+    const action = clean(req.body?.action).toLowerCase();
+    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const fieldsByAction = {
+      'payroll-check': ['payrollCheckedAt', 'payrollCheckedBy'],
+      'payroll-final-review': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
+      'payroll-final-review-undo': ['payrollFinalReviewedAt', 'payrollFinalReviewedBy'],
+      'insurance-cobra-check': ['insuranceCobraCheckedAt', 'insuranceCobraCheckedBy'],
+      'retirement-check': ['retirementCheckedAt', 'retirementCheckedBy'],
+    };
+    const fields = fieldsByAction[action];
+    if (!fields) return res.status(400).json({ error: 'Invalid review action.' });
+    const reviewerEmail = clean(req.adminSession?.email).toLowerCase();
+    if (['payroll-final-review', 'payroll-final-review-undo'].includes(action) && reviewerEmail !== finalReviewerEmail) return res.status(403).json({ error: 'Only the authorized upper-level manager can perform Payroll Final Review.' });
+    const client = createClient();
+    try {
+      await client.connect();
+      const collection = client.db(databaseName).collection('employee_hr_termination');
+      const existing = await collection.findOne({ employeeId });
+      if (!existing?.finalPayrollDate) return res.status(400).json({ error: 'Complete Termination Details before taking action.' });
+      if (action === 'payroll-final-review' && !existing.payrollCheckedAt) return res.status(400).json({ error: 'Payroll Check must be completed first.' });
+      if (action === 'payroll-final-review-undo') {
+        await collection.updateOne({ employeeId }, { $unset: { payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' }, $set: { updatedAt: new Date(), updatedBy: reviewerEmail } });
+        return res.json({ payrollFinalReviewedAt: null, payrollFinalReviewedBy: '' });
+      }
+      if (existing?.[fields[0]]) return res.status(409).json({ error: 'This action has already been completed.' });
+      const values = { [fields[0]]: new Date(), [fields[1]]: reviewerEmail, updatedAt: new Date(), updatedBy: reviewerEmail };
+      await collection.updateOne({ employeeId }, { $set: values }, { upsert: true });
+      return res.json(values);
+    } catch (error) {
+      console.error('Unable to save termination action:', error);
+      return res.status(500).json({ error: 'Termination action could not be saved.' });
+    } finally { await client.close(); }
+  });
+
   return router;
 }
 
 module.exports = { createHrPlatformRouter };
+
