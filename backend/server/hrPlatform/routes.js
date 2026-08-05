@@ -26,6 +26,39 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     return collection;
   }
 
+  async function restoreNewHireCatalogFromSnapshots(db) {
+    const migrationId = 'restore-new-hire-catalog-after-termination-separation-v1';
+    const migrations = db.collection('hr_platform_migrations');
+    if (await migrations.findOne({ id: migrationId })) return;
+    await migrations.createIndex({ id: 1 }, { unique: true });
+    try {
+      await migrations.insertOne({ id: migrationId, status: 'running', startedAt: new Date() });
+    } catch (error) {
+      if (error?.code === 11000) return;
+      throw error;
+    }
+    const currentRecords = await db.collection('employee_hr_platform').find({ 'fileTracker.fieldsSnapshot.0': { $exists: true } }).toArray();
+    const historicalRecords = await db.collection('employee_hr_platform_history').find({ 'fileTracker.fieldsSnapshot.0': { $exists: true } }).toArray();
+    const versions = new Map();
+    for (const record of [...currentRecords, ...historicalRecords]) {
+      const fields = record.fileTracker?.fieldsSnapshot;
+      if (!Array.isArray(fields) || !fields.length) continue;
+      const normalized = fields.map(field => ({ id: clean(field.id), label: clean(field.label), options: Array.isArray(field.options) ? field.options.map(clean).filter(Boolean) : [], order: Number(field.order || 0), active: field.active !== false }));
+      const fingerprint = JSON.stringify(normalized);
+      const existing = versions.get(fingerprint) || { fields: normalized, count: 0 };
+      existing.count += 1;
+      versions.set(fingerprint, existing);
+    }
+    const selected = [...versions.values()].sort((a, b) => b.count - a.count || b.fields.length - a.fields.length)[0];
+    const restoredFields = selected?.fields?.length ? selected.fields : DEFAULT_FILE_TRACKER_FIELDS;
+    const catalog = db.collection('hr_file_tracker_fields');
+    const previous = await catalog.find({}).toArray();
+    await db.collection('hr_file_tracker_fields_history').insertOne({ migrationId, fields: previous, archivedAt: new Date(), reason: 'Archived before restoring the New Hire catalog after separating the Termination catalog' });
+    await catalog.updateMany({}, { $set: { deleted: true, deletedAt: new Date(), deletedBy: 'system-recovery' } });
+    await catalog.bulkWrite(restoredFields.map(field => ({ updateOne: { filter: { id: field.id }, update: { $set: { ...field, deleted: false, restoredAt: new Date(), restoredBy: 'system-recovery' }, $unset: { deletedAt: '', deletedBy: '' } }, upsert: true } })));
+    await migrations.updateOne({ id: migrationId }, { $set: { status: 'complete', completedAt: new Date(), selectedSnapshotUsageCount: selected?.count || 0, restoredFieldCount: restoredFields.length } });
+  }
+
   router.use(requireHrToolsSession);
 
   router.get('/new-hires', async (_req, res) => {
@@ -33,6 +66,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
+      await restoreNewHireCatalogFromSnapshots(db);
       const employees = await db.collection('employees').find({
         $and: [
           { 'HR Platform New Hire At': { $exists: true, $ne: null } },
@@ -366,7 +400,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const fields = await getTrackerCatalog(client.db(databaseName), req.query.includeInactive === 'true');
+      const db = client.db(databaseName);
+      await restoreNewHireCatalogFromSnapshots(db);
+      const fields = await getTrackerCatalog(db, req.query.includeInactive === 'true');
       return res.json({ fields });
     } catch (error) {
       console.error('Unable to load File Tracker fields:', error);
