@@ -5,7 +5,7 @@ import { api } from '../shared/api'
 
 const workflows = [
   { title: 'New Hire', description: 'Create and track new employee onboarding records.', icon: UserPlus, tone: 'from-emerald-600 to-teal-500', to: '/hr-platform/new-hire' },
-  { title: 'Termination', description: 'Document employee separations and required follow-up.', icon: UserMinus, tone: 'from-rose-600 to-orange-500' },
+  { title: 'Termination', description: 'Document employee separations and required follow-up.', icon: UserMinus, tone: 'from-rose-600 to-orange-500', to: '/hr-platform/termination' },
   { title: 'Employment Change', description: 'Record changes to an employee’s role, department, location, supervisor, pay, or status.', icon: Repeat2, tone: 'from-blue-600 to-cyan-500' },
   { title: 'FMLA / ADA / Medical Leave', description: 'Manage leave requests, important dates, documentation, and case status.', icon: HeartPulse, tone: 'from-violet-600 to-fuchsia-500' },
 ]
@@ -54,7 +54,7 @@ export default function HRPlatform() {
                 <div className="flex items-start justify-between gap-4"><div className={`grid h-12 w-12 place-items-center rounded-lg bg-gradient-to-br ${workflow.tone} text-white shadow-sm`}><Icon className="h-6 w-6" /></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${workflow.to ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{workflow.to ? 'Available' : 'Coming Soon'}</span></div>
                 <h2 className="mt-5 text-xl font-semibold text-slate-950">{workflow.title}</h2>
                 <p className="mt-2 min-h-12 text-sm leading-6 text-slate-600">{workflow.description}</p>
-                {workflow.to ? <Link className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700" to={workflow.to}>Open New Hire<ArrowRight className="h-4 w-4" /></Link> : null}
+                {workflow.to ? <Link className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700" to={workflow.to}>Open {workflow.title}<ArrowRight className="h-4 w-4" /></Link> : null}
               </div>
             </article>
           )
@@ -63,3 +63,4 @@ export default function HRPlatform() {
     </div>
   )
 }
+
