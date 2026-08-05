@@ -153,10 +153,10 @@ const UtilitiesCenterComponent = () => {
         else handleAddEmployeeSubmit(false);
     };
 
-    const handleAddEmployeeSubmit = async (approveNewValues = false) => {
+    const handleAddEmployeeSubmit = async (approveNewValues = false, approvedReactivation = false) => {
         setIsSaving(true);
         try {
-            const payload = { ...canonicalEmployeePayload(), approvedNewValues: newReferenceValues.length > 0 && approveNewValues === true };
+            const payload = { ...canonicalEmployeePayload(), approvedNewValues: newReferenceValues.length > 0 && approveNewValues === true, approvedReactivation };
             await axios.post('/call-function-add-employee', payload);
             setExecutionStatus(`Employee ${payload.firstName} ${payload.lastName} added successfully.`);
             setOpenNewValueConfirmation(false);
@@ -165,6 +165,14 @@ const UtilitiesCenterComponent = () => {
             setAttemptedSubmit(false);
         } catch (error) {
             const errorMessage = error.response?.data || 'An unexpected error occurred';
+            if (String(errorMessage).startsWith('Possible former employee match:')) {
+                const approved = window.confirm(`${errorMessage}\n\nSelect OK only if this is the same returning employee. The previous onboarding record will be archived and a new onboarding cycle will begin.`);
+                if (approved) {
+                    setIsSaving(false);
+                    await handleAddEmployeeSubmit(approveNewValues, true);
+                    return;
+                }
+            }
             setExecutionStatus(`Failed to add employee ${newEmployee.firstName} ${newEmployee.lastName}: ${errorMessage}`);
             setOpenNewValueConfirmation(false);
         } finally {
