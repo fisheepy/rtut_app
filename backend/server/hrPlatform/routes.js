@@ -739,7 +739,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         employeeEmail: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), reason: clean(record.reason),
         employeeFolderUrl: clean(record.employeeFolderUrl), followUpIssues: record.followUpIssues === true,
         followUpNotes: clean(record.followUpNotes), followUpUntil: clean(record.followUpUntil),
-        changes: Array.isArray(record.changes) ? record.changes : [], tasks: record.tasks || {},
+        changes: Array.isArray(record.changes) ? record.changes : [], tasks: { ...(record.tasks || {}), followUp: record.tasks?.followUp || record.tasks?.other || {} },
         createdAt: record.createdAt || null, createdBy: clean(record.createdBy),
       })));
     } catch (error) {
@@ -769,7 +769,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         const add = (task, taskDate, value = {}, finalRequired = false, notes = '') => sheet.addRow({ ...base, task, taskDate: clean(taskDate), status: status(value, finalRequired), checkedBy: clean(value.checkedBy || value.completedBy), finalBy: clean(value.finalReviewedBy), notes });
         add('Employee File Backup', record.effectiveDate, record.tasks?.file || {}, true);
         if (record.tasks?.payroll?.applicable === true) add("New Payroll's Payroll Date", record.tasks.payroll.actionDate, record.tasks.payroll, true);
-        if (record.followUpIssues === true) add('Follow-up Issues', record.followUpUntil, record.tasks?.followUp || {}, true, clean(record.followUpNotes));
+        if (record.followUpIssues === true) add('Follow-up Issues', record.followUpUntil, record.tasks?.followUp || record.tasks?.other || {}, true, clean(record.followUpNotes));
         if (record.tasks?.insurance?.applicable === true) add('Insurance Change', record.tasks.insurance.actionDate, record.tasks.insurance);
         if (record.tasks?.retirement?.applicable === true) add('401(k) Change', record.tasks.retirement.actionDate, record.tasks.retirement);
       });
