@@ -727,26 +727,27 @@ export async function addNewEmployee(newEmployee) {
       ) || Boolean(duplicateCheck['Termination Date']);
 
       if (isInactive) {
-        if (newEmployee.approvedReactivation !== true) {
+        if (!['new', 'reactivate'].includes(newEmployee.duplicateDecision)) {
           const formerName = `${cleanValue(duplicateCheck['First Name'])} ${cleanValue(duplicateCheck['Last Name'])}`.trim();
-          throw new Error(`Error during operation: Possible former employee match: ${formerName}. Confirm reactivation to reuse this employee record and start a new onboarding cycle.`);
+          throw new Error(`Error during operation: Possible former employee match: ${formerName}. Choose whether to reactivate that employee or add this person as a new employee.`);
         }
 
-        const hrPlatformCollection = db.collection('employee_hr_platform');
-        const oldHrPlatformRecord = await hrPlatformCollection.findOne({ employeeId: String(duplicateCheck._id) });
-        if (oldHrPlatformRecord) {
-          const { _id: originalRecordId, ...historicalRecord } = oldHrPlatformRecord;
-          await db.collection('employee_hr_platform_history').insertOne({
-            ...historicalRecord,
-            originalRecordId,
-            employeeSnapshot: duplicateCheck,
-            archivedAt: new Date(),
-            archiveReason: 'Employee reactivated in Company App',
-          });
-          await hrPlatformCollection.deleteOne({ _id: originalRecordId });
-        }
+        if (newEmployee.duplicateDecision === 'reactivate') {
+          const hrPlatformCollection = db.collection('employee_hr_platform');
+          const oldHrPlatformRecord = await hrPlatformCollection.findOne({ employeeId: String(duplicateCheck._id) });
+          if (oldHrPlatformRecord) {
+            const { _id: originalRecordId, ...historicalRecord } = oldHrPlatformRecord;
+            await db.collection('employee_hr_platform_history').insertOne({
+              ...historicalRecord,
+              originalRecordId,
+              employeeSnapshot: duplicateCheck,
+              archivedAt: new Date(),
+              archiveReason: 'Employee reactivated in Company App',
+            });
+            await hrPlatformCollection.deleteOne({ _id: originalRecordId });
+          }
 
-        await collection.updateOne(
+          await collection.updateOne(
           { _id: duplicateCheck._id },
           {
             $set: {
@@ -772,23 +773,24 @@ export async function addNewEmployee(newEmployee) {
           },
         );
 
-        await updateEmployeeToNovuSubscriber({
-          'Payroll Name: First Name': newEmployee.firstName,
-          'Payroll Name: Last Name': newEmployee.lastName,
-          'Email': newEmployee.email,
-          'Phone': newEmployee.phone
-        });
+          await updateEmployeeToNovuSubscriber({
+            'Payroll Name: First Name': newEmployee.firstName,
+            'Payroll Name: Last Name': newEmployee.lastName,
+            'Email': newEmployee.email,
+            'Phone': newEmployee.phone
+          });
 
-        return { insertedId: duplicateCheck._id, reactivated: true };
+          return { insertedId: duplicateCheck._id, reactivated: true };
+        }
+      } else {
+        if (normalizedValue(duplicateCheck.Email) === normalizedValue(newEmployee.email)) {
+          throw new Error('Error during operation: Duplicate email found.');
+        }
+        if (phoneDigits(duplicateCheck.Phone) === phoneDigits(newEmployee.phone)) {
+          throw new Error('Error during operation: Duplicate phone number found.');
+        }
+        throw new Error('Error during operation: Duplicate employee record found.');
       }
-
-      if (normalizedValue(duplicateCheck.Email) === normalizedValue(newEmployee.email)) {
-        throw new Error('Error during operation: Duplicate email found.');
-      }
-      if (phoneDigits(duplicateCheck.Phone) === phoneDigits(newEmployee.phone)) {
-        throw new Error('Error during operation: Duplicate phone number found.');
-      }
-      throw new Error('Error during operation: Duplicate employee record found.');
     }
 
     // Check for duplicate username
