@@ -333,4 +333,320 @@ function EmployeeSelectionComponent() {
             )).concat(values.length > 2 ? [<Chip key="more" label={`+${values.length - 2}`} size="small" />] : [])}
             renderOption={(props, option, { selected }) => (
                 <li {...props}>
-              ×½<¶‰žËkºwµç@€€€€€€ñÕÑ½½µÁ±•Ñ”4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€µÕ±Ñ¥Á±”4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½ÁÑ¥½¹Ìõì¡™¥±Ñ•ÉY…±Õ•Ì¹9…µ”ñðmt¤¹™¥±Ñ•È¡	½½±•…¸¤¹Í½ÉÐ ¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘¥±Ñ•ÉÌ¹9…µ”ñðmuô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õì¡}•Ù•¹Ð°Ù…±Õ•Ì¤€ôøÍ•Ñ¥±Ñ•ÉM•±•Ñ¥½¸ 9…µ”œ°Ù…±Õ•Ì¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€É•¹‘•É%¹ÁÕÐõì¡Á…É…µÌ¤€ôø€ñQ•áÑ¥•±ì¸¸¹Á…É…µÍô±…‰•°ô‰9…µ”ˆ¡•±Á•ÉQ•áÐô‰¡½½Í”½¹”½Èµ½É”•µÁ±½å•”¹…µ•Ì¸ˆÍ¥é”ô‰Íµ…±°ˆ€¼ùô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôÍ´õìÙôµõìÌ¸Õôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñMÑ…¬‘¥É•Ñ¥½¸ô‰É½ÜˆÍÁ…¥¹œõìÅôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±™Õ±±]¥‘Ñ ¥ô‰ÍÑ…ÉÐµ‘…Ñ”ˆ±…‰•°ô‰!¥É”…Ñ”É½´ˆÑåÁ”ô‰‘…Ñ”ˆÙ…±Õ”õíÍÑ…ÉÑ…Ñ•ô½¹¡…¹”õí¡…¹‘±•MÑ…ÉÑ…Ñ•¡…¹•ô%¹ÁÕÑ1…‰•±AÉ½ÁÌõíìÍ¡É¥¹¬èÑÉÕ”õôÍ¥é”ô‰Íµ…±°ˆ€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±™Õ±±]¥‘Ñ ¥ô‰•¹µ‘…Ñ”ˆ±…‰•°ô‰!¥É”…Ñ”Q¼ˆÑåÁ”ô‰‘…Ñ”ˆÙ…±Õ”õí•¹‘…Ñ•ô½¹¡…¹”õí¡…¹‘±•¹‘…Ñ•¡…¹•ô%¹ÁÕÑ1…‰•±AÉ½ÁÌõíìÍ¡É¥¹¬èÑÉÕ”õôÍ¥é”ô‰Íµ…±°ˆ€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½MÑ…¬ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€ð½	½àø4(€€€€€€€€€€€€€€€€€€€€ð½½±±…ÁÍ”ø4(€€€€€€€€€€€€€€€€€€€í…Ñ¥Ù•¥±Ñ•É½Õ¹Ð€ü€ñMÑ…¬‘¥É•Ñ¥½¸ô‰É½Üˆ…±¥¹%Ñ•µÌô‰•¹Ñ•ÈˆÍÁ…¥¹œõìÅôÍàõíìµÐè€ÈõôøñQåÁ½É…Á¡äÙ…É¥…¹Ðô‰…ÁÑ¥½¸ˆ½±½Èô‰Ñ•áÐ¹Í•½¹‘…ÉäˆùÑ¥Ù”Í•±•Ñ¥½¹Ìèð½QåÁ½É…Á¡äøñ¡¥À±…‰•°õí…Ñ¥Ù•¥±Ñ•É½Õ¹Ñô½±½Èô‰ÁÉ¥µ…ÉäˆÍ¥é”ô‰Íµ…±°ˆ€¼øð½MÑ…¬ø€è¹Õ±±ô4(€€€€€€€€€€€€€€€€ð½	½àø4(€€€€€€€€€€€€ð½A…Á•Èø4(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰•µÁ±½å•”µÍÉ½±±‰…ÈµÁÉ½áäˆÉ•˜õíÑ½ÁMÉ½±±I•™ô½¹MÉ½±°õí¡…¹‘±•Q½Á!½É¥é½¹Ñ…±MÉ½±±ôø4(€€€€€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰•µÁ±½å•”µÍÉ½±±‰…ÈµÁÉ½áäµ¥¹¹•Èˆ€¼ø4(€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€ñQ…‰±•½¹Ñ…¥¹•È4(€€€€€€€€€€€€€€€±…ÍÍ9…µ”ô‰•µÁ±½å•”µÑ…‰±”µ½¹Ñ…¥¹•Èˆ(€€€€€€€€€€€€€€€½µÁ½¹•¹ÐõíA…Á•Éô4(€€€€€€€€€€€€€€€É•˜õíÑ…‰±•½¹Ñ…¥¹•ÉI•™ô4(€€€€€€€€€€€€€€€½¹MÉ½±°õí¡…¹‘±•Q…‰±•MÉ½±±ô4(€€€€€€€€€€€€ø4(€€€€€€€€€€€€€€€€ñQ…‰±”±…ÍÍ9…µ”ô‰•µÁ±½å•”µÍ•±•Ñ¥½¸µÑ…‰±”ˆ…É¥„µ±…‰•°ô‰•µÁ±½å•”Í•±•Ñ¥½¸Ñ…‰±”ˆÍÑ¥­å!•…‘•Èø4(€€€€€€€€€€€€€€€€€€€€ñQ…‰±•!•…ø4(€€€€€€€€€€€€€€€€€€€€€€€€ñQ…‰±•I½Üø(€€€€€€€€€€€€€€€€€€€€€€€€€€€í½±Õµ¹Ì¹µ…À ¡½±Õµ¸¤€ôø€ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ…‰±••±°(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€­•äõí½±Õµ¸¹¥‘ô(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…ÍÍ9…µ”õí½±Õµ¸¹ÍÑ¥­ä€ü€•µÁ±½å•”µ¹…µ”µ•±°•µÁ±½å•”µ¹…µ”µ¡•…‘•Èœ€è€œô(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€í½±Õµ¸¹¥€ôôô€Í•±•Ðœ€ü€ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñ‘¥ØÍÑå±”õíì‘¥ÍÁ±…äè€™±•àœ°…±¥¹%Ñ•µÌè€•¹Ñ•Èœõôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñ¡•­‰½à4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¡•­•õíÍ•±•Ñ…‰±•Y¥Í¥‰±•µÁ±½å••Ì¹±•¹Ñ €ø€À€˜˜Í•±•Ñ…‰±•Y¥Í¥‰±•µÁ±½å••Ì¹•Ù•Éä¡•µÁ±½å•”€ôø€…‘•Í•±•Ñ•‘µÁ±½å••Ì¹¡…Ì¡•µÁ±½å•”¹}¥¤¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¥¹‘•Ñ•Éµ¥¹…Ñ”õíÍ•±•Ñ…‰±•Y¥Í¥‰±•µÁ±½å••Ì¹Í½µ”¡•µÁ±½å•”€ôø€…‘•Í•±•Ñ•‘µÁ±½å••Ì¹¡…Ì¡•µÁ±½å•”¹}¥¤¤€˜˜Í•±•Ñ…‰±•Y¥Í¥‰±•µÁ±½å••Ì¹Í½µ”¡•µÁ±½å•”€ôø‘•Í•±•Ñ•‘µÁ±½å••Ì¹¡…Ì¡•µÁ±½å•”¹}¥¤¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•M•±•Ñ±±¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½±½Èô‰ÁÉ¥µ…Éäˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÍÁ…¸ùM•±•Ðð½ÍÁ…¸ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½‘¥Øø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¤€è½±Õµ¸¹±…‰•±ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½Q…‰±••±°ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€¤¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€ð½Q…‰±•I½Üø4(€€€€€€€€€€€€€€€€€€€€ð½Q…‰±•!•…ø4(4(€€€€€€€€€€€€€€€€€€€€ñQ…‰±•	½‘äø4(€€€€€€€€€€€€€€€€€€€€€€€í™¥±Ñ•É•‘µÁ±½å••Ì¹µ…À ¡•µÁ±½å•”¤€ôø€ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ…‰±•I½Ü(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€­•äõí•µÁ±½å•”¹}¥‘ô(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…ÍÍ9…µ”õí‘•Í•±•Ñ•‘µÁ±½å••Ì¹¡…Ì¡•µÁ±½å•”¹}¥¤€ü€•µÁ±½å•”µÉ½Üµ‘•Í•±•Ñ•œ€è€œô(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€í½±Õµ¹Ì¹µ…À ¡½±Õµ¸¤€ôø€ (€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ…‰±••±°­•äõí½±Õµ¸¹¥‘ô±…ÍÍ9…µ”õí½±Õµ¸¹ÍÑ¥­ä€ü€•µÁ±½å•”µ¹…µ”µ•±°œ€è€œôø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€í½±Õµ¸¹¥€ôôô€•‘¥Ðœ€ü€ñ	ÕÑÑ½¸ÍÑ…ÉÑ%½¸õìñ‘¥Ñ=ÕÑ±¥¹•‘%½¸€¼ùô½¹±¥¬õì ¤€ôø½Á•¹µÁ±½å••‘¥Ñ½È¡•µÁ±½å•”¥ôÍ¥é”ô‰Íµ…±°ˆÙ…É¥…¹Ðô‰½ÕÑ±¥¹•ˆù‘¥Ðð½	ÕÑÑ½¸ø€è½±Õµ¸¹¥€ôôô€Í•±•Ðœ€ü€ (€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñ¡•­‰½à4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¡•­•õí•µÁ±½å•”¹¥ÍÑ¥Ù…Ñ•€ôôôÑÉÕ”€˜˜€…‘•Í•±•Ñ•‘µÁ±½å••Ì¹¡…Ì¡•µÁ±½å•”¹}¥¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€‘¥Í…‰±•õí•µÁ±½å•”¹¥ÍÑ¥Ù…Ñ•€„ôôÑÉÕ•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õì ¤€ôø¡…¹‘±•¡•­‰½á¡…¹”¡•µÁ±½å•”¹}¥¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½±½Èô‰ÁÉ¥µ…Éäˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¤€è€ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½±Õµ¸¹¥€ôôô€!¥É”…Ñ”œ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ü™½Éµ…ÑµÁ±½å••…Ñ”¡•µÁ±½å••m½±Õµ¸¹¥‘t¤4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€è½±Õµ¸¹¥€ôôô€¥ÍÑ¥Ù…Ñ•œ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ü€ñ¡¥À±…ÍÍ9…µ”ô‰•µÁ±½å•”µ…Ñ¥Ù…Ñ¥½¸µ¡¥Àˆ±…‰•°õí•µÁ±½å••m½±Õµ¸¹¥‘t€ü€QÉÕ”œ€è€…±Í”ô½±½Èõí•µÁ±½å••m½±Õµ¸¹¥‘t€ü€ÍÕ•ÍÌœ€è€‘•™…Õ±ÐôÍ¥é”ô‰Íµ…±°ˆÙ…É¥…¹Ðõí•µÁ±½å••m½±Õµ¸¹¥‘t€ü€™¥±±•œ€è€½ÕÑ±¥¹•ô€¼ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€è•µÁ±½å••m½±Õµ¸¹¥‘tñð€œœ(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½Q…‰±••±°ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¤¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½Q…‰±•I½Üø4(€€€€€€€€€€€€€€€€€€€€€€€€¤¥ô4(€€€€€€€€€€€€€€€€€€€€ð½Q…‰±•	½‘äø4(€€€€€€€€€€€€€€€€ð½Q…‰±”ø4(€€€€€€€€€€€€ð½Q…‰±•½¹Ñ…¥¹•Èø4(4(€€€€€€€€€€€€ñ¥…±½œ½Á•¸õí¥Í‘¥Ñ5½‘…±=Á•¹ô½¹±½Í”õí¡…¹‘±•5½‘…±±½Í•ôµ…á]¥‘Ñ ô‰µˆ™Õ±±]¥‘Ñ ø(€€€€€€€€€€€€€€€€ñ¥…±½Q¥Ñ±”ù‘¥ÐµÁ±½å•”%¹™½Éµ…Ñ¥½¸ð½¥…±½Q¥Ñ±”ø(€€€€€€€€€€€€€€€€ñ¥…±½½¹Ñ•¹Ðø(€€€€€€€€€€€€€€€€€€€íÍ•±•Ñ•‘µÁ±½å•”€˜˜€ (€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥½¹Ñ…¥¹•ÈÍÁ…¥¹œõìÉôø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñ±•ÉÐÍ•Ù•É¥Ñäô‰¥¹™¼ˆù‘¥ÐÑ¡”¥¹™½Éµ…Ñ¥½¸‰•±½Ü¸Q¡”ÍåÍÑ•´Ý¥±°…ÕÑ½µ…Ñ¥…±±ä¥‘•¹Ñ¥™äÑ¡”™¥•±‘ÌÑ¡…Ð¡…¹•¸½µÁ…¹äÁÀÕÁ‘…Ñ•ÌÑ…­”•™™•Ð¥µµ•‘¥…Ñ•±ä¸ð½±•ÉÐø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€í•‘¥ÑÉÉ½È€ü€ñ±•ÉÐÍ•Ù•É¥Ñäô‰•ÉÉ½ÈˆÍàõíìµÐè€Äõôùí•‘¥ÑÉÉ½Éôð½±•ÉÐø€è¹Õ±±ô(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÙôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰¥ÉÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰¥ÉÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••l¥ÉÍÐ9…µ”uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÙôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰1…ÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰1…ÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••l1…ÍÐ9…µ”uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÙôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰!¥É”…Ñ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰!¥É”…Ñ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ÑåÁ”ô‰‘…Ñ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õí•µÁ±½å••…Ñ•%¹ÁÕÑY…±Õ”¡Í•±•Ñ•‘µÁ±½å••l!¥É”…Ñ”t¥ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€%¹ÁÕÑ1…‰•±AÉ½ÁÌõíìÍ¡É¥¹¬èÑÉÕ”õô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÙôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰!½µ”•Á…ÉÑµ•¹Ðˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰!½µ”•Á…ÉÑµ•¹Ðˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••l!½µ”•Á…ÉÑµ•¹Ðuô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÙôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰MÕÁ•ÉÙ¥Í½È¥ÉÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰MÕÁ•ÉÙ¥Í½È¥ÉÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••lMÕÁ•ÉÙ¥Í½È¥ÉÍÐ9…µ”uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÙôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰MÕÁ•ÉÙ¥Í½È1…ÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰MÕÁ•ÉÙ¥Í½È1…ÍÐ9…µ”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••lMÕÁ•ÉÙ¥Í½È1…ÍÐ9…µ”uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰)½ˆQ¥Ñ±”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰)½ˆQ¥Ñ±”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••l)½ˆQ¥Ñ±”uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰1½…Ñ¥½¸ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰1½…Ñ¥½¸ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••l1½…Ñ¥½¸uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰µ…¥°ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰µ…¥°ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••lµ…¥°uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰A¡½¹”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰A¡½¹”ˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••lA¡½¹”uô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰=ÍÑ…‰±¥Í¡µ•¹Ðˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰=ÍÑ…‰±¥Í¡µ•¹Ðˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••l=ÍÑ…‰±¥Í¡µ•¹Ðuô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰µÁ±½åµ•¹Ð…Ñ•½Éäˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰]½É­•È…Ñ•½Éäˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••l]½É­•È…Ñ•½Éäuô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôø4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñQ•áÑ¥•±4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€™Õ±±]¥‘Ñ 4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€±…‰•°ô‰A…ä…Ñ•½Éäˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¹…µ”ô‰A…ä…Ñ•½Éäˆ4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€Ù…±Õ”õíÍ•±•Ñ•‘µÁ±½å••lA…ä…Ñ•½Éäuô4(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€½¹¡…¹”õí¡…¹‘±•%¹ÁÕÑ¡…¹•ô(€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€¼ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôøñQåÁ½É…Á¡äÙ…É¥…¹Ðô‰ Øˆù!HÑ¥½¸QÉ…­¥¹œð½QåÁ½É…Á¡äøñQåÁ½É…Á¡äÙ…É¥…¹Ðô‰‰½‘äÈˆ½±½Èô‰Ñ•áÐ¹Í•½¹‘…ÉäˆùA…åÉ½±°°%¹ÍÕÉ…¹”°…¹€ÐÀÄ¡¬¤¡…¹•Ì…É”…±Ý…åÌÑÉ…¹Í™•ÉÉ•Ñ¼!HA±…Ñ™½É´¸½È½Ñ¡•È¡…¹•Ì°¡½½Í”Ý¡•Ñ¡•È!H™½±±½ÜµÕÀ¥Ì¹••‘•¸ð½QåÁ½É…Á¡äøð½É¥ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôÍ´õìÑôøñ½Éµ½¹ÑÉ½±1…‰•°½¹ÑÉ½°õìñ¡•­‰½à¡•­•õí¡…¹••Ñ…¥±Ì¹Á…åÉ½±±ô½¹¡…¹”õí•Ù•¹Ð€ôøÍ•Ñ¡…¹••Ñ…¥±Ì¡ÕÉÉ•¹Ð€ôø€¡ì€¸¸¹ÕÉÉ•¹Ð°Á…åÉ½±°è•Ù•¹Ð¹Ñ…É•Ð¹¡•­•ô¤¥ô€¼ùô±…‰•°ô‰A…åÉ½±°¡…¹”¹••‘•ˆ€¼øð½É¥ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôÍ´õìÑôøñ½Éµ½¹ÑÉ½±1…‰•°½¹ÑÉ½°õìñ¡•­‰½à¡•­•õí¡…¹••Ñ…¥±Ì¹¥¹ÍÕÉ…¹•ô½¹¡…¹”õí•Ù•¹Ð€ôøÍ•Ñ¡…¹••Ñ…¥±Ì¡ÕÉÉ•¹Ð€ôø€¡ì€¸¸¹ÕÉÉ•¹Ð°¥¹ÍÕÉ…¹”è•Ù•¹Ð¹Ñ…É•Ð¹¡•­•ô¤¥ô€¼ùô±…‰•°ô‰%¹ÍÕÉ…¹”¡…¹”¹••‘•ˆ€¼øð½É¥ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôÍ´õìÑôøñ½Éµ½¹ÑÉ½±1…‰•°½¹ÑÉ½°õìñ¡•­‰½à¡•­•õí¡…¹••Ñ…¥±Ì¹É•Ñ¥É•µ•¹Ñô½¹¡…¹”õí•Ù•¹Ð€ôøÍ•Ñ¡…¹••Ñ…¥±Ì¡ÕÉÉ•¹Ð€ôø€¡ì€¸¸¹ÕÉÉ•¹Ð°É•Ñ¥É•µ•¹Ðè•Ù•¹Ð¹Ñ…É•Ð¹¡•­•ô¤¥ô€¼ùô±…‰•°ôˆÐÀÄ¡¬¤¡…¹”¹••‘•ˆ€¼øð½É¥ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€€ñÉ¥¥Ñ•´áÌõìÄÉôøñ½Éµ½¹ÑÉ½±1…‰•°½¹ÑÉ½°õìñ¡•­‰½à¡•­•õí¡…¹••Ñ…¥±Ì¹ÑÉ…­=Ñ¡•Éô½¹¡…¹”õí•Ù•¹Ð€ôøÍ•Ñ¡…¹••Ñ…¥±Ì¡ÕÉÉ•¹Ð€ôø€¡ì€¸¸¹ÕÉÉ•¹Ð°ÑÉ…­=Ñ¡•Èè•Ù•¹Ð¹Ñ…É•Ð¹¡•­•ô¤¥ô€¼ùô±…‰•°ô‰QÉ…¬Ñ¡¥Ì¹½¸µ™¥¹…¹¥…°¡…¹”¥¸!HA±…Ñ™½É´ˆ€¼øð½É¥ø(€€€€€€€€€€€€€€€€€€€€€€€€€€€ì¡¡…¹••Ñ…¥±Ì¹Á…åÉ½±°ñð¡…¹••Ñ…¥±Ì¹¥¹ÍÕÉ…¹”ñð¡…¹••Ñ…¥±Ì¹É•Ñ¥É•µ•¹Ðñð¡…¹••Ñ…¥±Ì¹ÑÉ…­=Ñ¡•È¤€˜˜€ñÉ¥¥Ñ•´áÌõìÄÉôøñ±•ÉÐÍ•Ù•É¥Ñäô‰¥¹™¼ˆùQ¡¥ÌÉ•½ÉÝ¥±°‰”Í•¹ÐÑ¼µÁ±½åµ•¹Ð¡…¹”¸!HÑ¥½¸…Ñ”…¹™½±±½ÜµÕÀ‘•Ñ…¥±ÌÝ¥±°‰”•¹Ñ•É•Ñ¡•É”¸ð½±•ÉÐøð½É¥ùô(€€€€€€€€€€€€€€€€€€€€€€€€ð½É¥ø(€€€€€€€€€€€€€€€€€€€€¥ô4(€€€€€€€€€€€€€€€€ð½¥…±½½¹Ñ•¹Ðø4(€€€€€€€€€€€€€€€€ñ¥…±½Ñ¥½¹Ìø4(€€€€€€€€€€€€€€€€€€€€ñ	ÕÑÑ½¸½¹±¥¬õí¡…¹‘±•5½‘…±±½Í•ôù…¹•°ð½	ÕÑÑ½¸ø4(€€€€€€€€€€€€€€€€€€€€ñ	ÕÑÑ½¸½¹±¥¬õí¡…¹‘±•M…Ù•¡…¹•Íô½±½Èô‰ÁÉ¥µ…ÉäˆÙ…É¥…¹Ðô‰½¹Ñ…¥¹•ˆùI•Ù¥•Ü¡…¹•Ì€˜½¹™¥É´ð½	ÕÑÑ½¸ø(€€€€€€€€€€€€€€€€ð½¥…±½Ñ¥½¹Ìø4(€€€€€€€€€€€€ð½¥…±½œø4(€€€€€€€€ð½‘¥Øø4(€€€€¤ì4)ô4(4)•áÁ½ÉÐ‘•™…Õ±ÐµÁ±½å••M•±•Ñ¥½¹½µÁ½¹•¹Ðì4(4(
+                    <Checkbox checked={selected} size="small" sx={{ mr: 1 }} />
+                    {String(option)}
+                </li>
+            )}
+            renderInput={(params) => <TextField {...params} label={label} placeholder={selectedFilters[id]?.length ? '' : 'All'} size="small" />}
+            size="small"
+        />
+    );
+
+    const handleTopHorizontalScroll = (event) => {
+        if (tableContainerRef.current) {
+            tableContainerRef.current.scrollLeft = event.currentTarget.scrollLeft;
+        }
+    };
+
+    const handleTableScroll = (event) => {
+        if (topScrollRef.current) {
+            topScrollRef.current.scrollLeft = event.currentTarget.scrollLeft;
+        }
+    };
+
+    return (
+        <div>
+            <Box className="employee-section-heading">
+                <Stack direction="row" alignItems="center" spacing={1.25}>
+                    <Box className="employee-section-icon"><PeopleAltOutlinedIcon fontSize="small" /></Box>
+                    <Box>
+                        <Typography variant="h5" component="h3" fontWeight={750}>Employees</Typography>
+                        <Typography variant="body2" color="text.secondary">Filter recipients, review details, or double-click a row to edit.</Typography>
+                    </Box>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                    <Chip label={`${filteredEmployees.length} shown`} variant="outlined" size="small" />
+                    <Chip label={`${selectedVisibleCount} selected`} color="primary" size="small" />
+                </Stack>
+            </Box>
+            <Paper
+                elevation={0}
+                sx={{
+                    mb: 2,
+                    overflow: 'hidden',
+                    border: '1px solid #dbe3ee',
+                    borderRadius: 3,
+                    background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                }}
+            >
+                <Box sx={{ px: { xs: 2, md: 2.5 }, py: 2, borderBottom: '1px solid #e8edf3' }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" spacing={1.5}>
+                        <Stack direction="row" alignItems="center" spacing={1.25}>
+                            <Box sx={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 2, bgcolor: '#e8f2ff', color: '#1769aa' }}>
+                                <FilterAltOutlinedIcon fontSize="small" />
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle1" fontWeight={700}>Filter Employees</Typography>
+                                <Typography variant="body2" color="text.secondary">{filteredEmployees.length} of {employees.length} employees shown</Typography>
+                            </Box>
+                        </Stack>
+                        <Stack direction="row" spacing={1}>
+                            <Button startIcon={<TuneIcon />} onClick={() => setShowMoreFilters(value => !value)} size="small" variant={showMoreFilters ? 'contained' : 'outlined'}>
+                                {showMoreFilters ? 'Hide More Filters' : 'More Filters'}
+                            </Button>
+                            <Button onClick={resetFilters} size="small" color="inherit">Reset</Button>
+                        </Stack>
+                    </Stack>
+                </Box>
+                <Box sx={{ p: { xs: 2, md: 2.5 } }}>
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} md={4}>
+                            <TextField
+                                fullWidth
+                                label="Search employee"
+                                placeholder="Name, email, or phone"
+                                value={employeeSearch}
+                                onChange={(event) => setEmployeeSearch(event.target.value)}
+                                size="small"
+                                InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.disabled' }} fontSize="small" /> }}
+                            />
+                        </Grid>
+                        {primaryFilterColumns.map((column) => <Grid item xs={12} sm={6} md={2} key={column.id}>{renderFilter(column)}</Grid>)}
+                    </Grid>
+                    <Collapse in={showMoreFilters}>
+                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e8edf3' }}>
+                            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Additional Filters</Typography>
+                            <Grid container spacing={2}>
+                                {additionalFilterColumns.map((column) => <Grid item xs={12} sm={6} md={2.4} key={column.id}>{renderFilter(column)}</Grid>)}
+                                <Grid item xs={12} md={5}>
+                                    <Autocomplete
+                                        multiple
+                                        options={(filterValues.Name || []).filter(Boolean).sort()}
+                                        value={selectedFilters.Name || []}
+                                        onChange={(_event, values) => setFilterSelection('Name', values)}
+                                        renderInput={(params) => <TextField {...params} label="Name" helperText="Choose one or more employee names." size="small" />}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3.5}>
+                                    <Stack direction="row" spacing={1}>
+                                        <TextField fullWidth id="start-date" label="Hire Date From" type="date" value={startDate} onChange={handleStartDateChange} InputLabelProps={{ shrink: true }} size="small" />
+                                        <TextField fullWidth id="end-date" label="Hire Date To" type="date" value={endDate} onChange={handleEndDateChange} InputLabelProps={{ shrink: true }} size="small" />
+                                    </Stack>
+                                </Grid>
+                            </Grid>
+                        </Box>
+                    </Collapse>
+                    {activeFilterCount ? <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 2 }}><Typography variant="caption" color="text.secondary">Active selections:</Typography><Chip label={activeFilterCount} color="primary" size="small" /></Stack> : null}
+                </Box>
+            </Paper>
+            <div className="employee-scrollbar-proxy" ref={topScrollRef} onScroll={handleTopHorizontalScroll}>
+                <div className="employee-scrollbar-proxy-inner" />
+            </div>
+            <TableContainer
+                className="employee-table-container"
+                component={Paper}
+                ref={tableContainerRef}
+                onScroll={handleTableScroll}
+            >
+                <Table className="employee-selection-table" aria-label="employee selection table" stickyHeader>
+                    <TableHead>
+                        <TableRow>
+                            {columns.map((column) => (
+                                <TableCell
+                                    key={column.id}
+                                    className={column.sticky ? 'employee-name-cell employee-name-header' : ''}
+                                >
+                                    {column.id === 'select' ? (
+                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <Checkbox
+                                                checked={selectableVisibleEmployees.length > 0 && selectableVisibleEmployees.every(employee => !deselectedEmployees.has(employee._id))}
+                                                indeterminate={selectableVisibleEmployees.some(employee => !deselectedEmployees.has(employee._id)) && selectableVisibleEmployees.some(employee => deselectedEmployees.has(employee._id))}
+                                                onChange={handleSelectAllChange}
+                                                color="primary"
+                                            />
+                                            <span>Select</span>
+                                        </div>
+                                    ) : column.label}
+                                </TableCell>
+                            ))}
+                        </TableRow>
+                    </TableHead>
+
+                    <TableBody>
+                        {filteredEmployees.map((employee) => (
+                            <TableRow
+                                key={employee._id}
+                                className={deselectedEmployees.has(employee._id) ? 'employee-row-deselected' : ''}
+                            >
+                                {columns.map((column) => (
+                                    <TableCell key={column.id} className={column.sticky ? 'employee-name-cell' : ''}>
+                                        {column.id === 'edit' ? <Button startIcon={<EditOutlinedIcon />} onClick={() => openEmployeeEditor(employee)} size="small" variant="outlined">Edit</Button> : column.id === 'select' ? (
+                                            <Checkbox
+                                                checked={employee.isActivated === true && !deselectedEmployees.has(employee._id)}
+                                                disabled={employee.isActivated !== true}
+                                                onChange={() => handleCheckboxChange(employee._id)}
+                                                color="primary"
+                                            />
+                                        ) : (
+                                            column.id === 'Hire Date'
+                                                ? formatEmployeeDate(employee[column.id])
+                                                : column.id === 'isActivated'
+                                                    ? <Chip className="employee-activation-chip" label={employee[column.id] ? 'True' : 'False'} color={employee[column.id] ? 'success' : 'default'} size="small" variant={employee[column.id] ? 'filled' : 'outlined'} />
+                                                    : employee[column.id] || ''
+                                        )}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
+            <Dialog open={isEditModalOpen} onClose={handleModalClose} maxWidth="md" fullWidth>
+                <DialogTitle>Edit Employee Information</DialogTitle>
+                <DialogContent>
+                    {selectedEmployee && (
+                        <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <Alert severity="info">Edit the information below. The system will automatically identify the fields that changed. Company App updates take effect immediately.</Alert>
+                                {editError ? <Alert severity="error" sx={{ mt: 1 }}>{editError}</Alert> : null}
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="First Name"
+                                    name="First Name"
+                                    value={selectedEmployee['First Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Last Name"
+                                    name="Last Name"
+                                    value={selectedEmployee['Last Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Hire Date"
+                                    name="Hire Date"
+                                    type="date"
+                                    value={employeeDateInputValue(selectedEmployee['Hire Date'])}
+                                    onChange={handleInputChange}
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Home Department"
+                                    name="Home Department"
+                                    value={selectedEmployee['Home Department']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Supervisor First Name"
+                                    name="Supervisor First Name"
+                                    value={selectedEmployee['Supervisor First Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    label="Supervisor Last Name"
+                                    name="Supervisor Last Name"
+                                    value={selectedEmployee['Supervisor Last Name']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Job Title"
+                                    name="Job Title"
+                                    value={selectedEmployee['Job Title']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Location"
+                                    name="Location"
+                                    value={selectedEmployee['Location']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Email"
+                                    name="Email"
+                                    value={selectedEmployee['Email']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Phone"
+                                    name="Phone"
+                                    value={selectedEmployee['Phone']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="EEOC Establishment"
+                                    name="EEOC Establishment"
+                                    value={selectedEmployee['EEOC Establishment']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Employment Category"
+                                    name="Worker Category"
+                                    value={selectedEmployee['Worker Category']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    label="Pay Category"
+                                    name="Pay Category"
+                                    value={selectedEmployee['Pay Category']}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                            <Grid item xs={12}><Typography variant="h6">HR Action Tracking</Typography><Typography variant="body2" color="text.secondary">Payroll, Insurance, and 401(k) changes are always transferred to HR Platform. For other changes, choose whether HR follow-up is needed.</Typography></Grid>
+                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked }))} />} label="Payroll change needed" /></Grid>
+                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
+                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
+                            <Grid item xs={12}><FormControlLabel control={<Checkbox checked={changeDetails.trackOther} onChange={event => setChangeDetails(current => ({ ...current, trackOther: event.target.checked }))} />} label="Track this non-financial change in HR Platform" /></Grid>
+                            {(changeDetails.payroll || changeDetails.insurance || changeDetails.retirement || changeDetails.trackOther) && <Grid item xs={12}><Alert severity="info">This record will be sent to Employment Change. HR Action Date and follow-up details will be entered there.</Alert></Grid>}
+                        </Grid>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleModalClose}>Cancel</Button>
+                    <Button onClick={handleSaveChanges} color="primary" variant="contained">Review Changes & Confirm</Button>
+                </DialogActions>
+            </Dialog>
+        </div>
+    );
+}
+
+export default EmployeeSelectionComponent;
+

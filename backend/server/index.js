@@ -394,4 +394,1517 @@ app.post('/api/hr-question', async (req, res) => {
     res.status(200).send('Question submitted');
   } catch (err) {
     console.error('Failed to handle HR question', err);
-    res.stat×xâÚ$z{-®éÜj×R‚tf—'7BæÖR—2&WV—&VBr’ÀÐ¢&öG’‚vÆ7DæÖRr’ææ÷DV×G’‚’çv—F„ÖW76vR‚tÆ7BæÖR—2&WV—&VBr’ÀÐ¢&öG’‚w77v÷&Br’æ—4ÆVæwF‚‡²Ö–ã¢‚Ò’çv—F„ÖW76vR‚u77v÷&B×W7B&RBÆV7B‚6†&7FW'2ÆöærrÐ¢æÖF6†W2‚õ´Õ¦×¥Òò’çv—F„ÖW76vR‚u77v÷&B×W7B6öçF–âBÆV7BöæRÆWGFW"rÐ¢æÖF6†W2‚õÆBò’çv—F„ÖW76vR‚u77v÷&B×W7B6öçF–âBÆV7BöæRçVÖ&W"rÐ¢æÖF6†W2‚õ´BR¢3òeÒò’çv—F„ÖW76vR‚u77v÷&B×W7B6öçF–âBÆV7BöæR7V6–Â6†&7FW"r’ÀÐ¢ÒÀÐ¢7–æ2‡&WÂ&W2’Óâ°Ð¢6öç7BW'&÷'2ÒfÆ–FF–öå&W7VÇB‡&W“°Ð¢–b‚W'&÷'2æ—4V×G’‚’’°Ð¢&WGW&â&W2ç7FGW2ƒC’æ§6öâ‡²W'&÷'3¢W'&÷'2æ'&’‚’Ò“°Ð¢ÐÐ¢6öç7B²f—'7DæÖRÂÆ7DæÖRÂ77v÷&BÂG—RÂ†öæTçVÖ&W"ÂVÖ–ÂÒÒ&Wæ&öG“°Ð¢òòW†V7WFRF†R67&—@Ð¢W†V2†æöFRâö&6¶VæB÷6W'fW"÷&Vv—7FW$W‡FW&æÂæÖ§2"G¶f—'7DæÖWÒ""G¶Æ7DæÖWÒ""G·77v÷&GÒ""G·G—WÒ""G·†öæTçVÖ&W'Ò""G¶VÖ–ÇÒ&Â†W'&÷"Â7FF÷WBÂ7FFW'"’Óâ°Ð¢–b†W'&÷"’°Ð¢6öç6öÆRæW'&÷"†W'&÷"W†V7WF–ær67&—C¢G¶W'&÷"æÖW76vWÖ“°Ð¢&W2ç7FGW2ƒS’ç6VæB†–çFW&æÂ6W'fW"W'&÷#¢G¶W'&÷"æÖW76vWÖ“°Ð¢&WGW&ã°Ð¢ÐÐ¢6öç6öÆRæÆör‡7FF÷WB“°Ð¢–b‡7FF÷WBæ–æ6ÇVFW2‚%&Vv—7FW"fÆ–C¢G'VR"’’°Ð¢&W2ç7FGW2ƒ#’ç6VæB‚%&Vv—7FW"7V66W76gVÂ"“°Ð¢ÒVÇ6R°Ð¢&W2ç7FGW2ƒC’ç6VæB‚%&Vv—7FW"f–ÆVB"“°Ð¢ÐÐ¢Ò“°Ð¢ÐÐ¢“°Ð Ð¦ç÷7B‚rö’÷7V&Ö—BÖfVVF&6²rÂ7–æ2‡&WÂ&W2’Óâ°Ð¢G'’°Ð¢òò&WG&–WfRF†RfVVF&6²FFg&öÒF†R&WVW7B&öGÐ¢6öç7B²æÖRÂfVVF&6²ÒÒ&Wæ&öG“°Ð Ð¢òò6öææV7BFòÖöævôD Ð¢v—B6Æ–VçBæ6öææV7B‚“°Ð¢6öç6öÆRæÆör‚t6öææV7FVBFòÖöævôD"r“°Ð Ð¢òò66W72F†RFF&6PÐ¢6öç7BF"Ò6Æ–VçBæF"†FF&6UöæÖR“°Ð¢6öç7B6öÆÆV7F–öâÒF"æ6öÆÆV7F–öâ‚vfVVF&6²r“°Ð Ð¢òò–ç6W'BF†RfVVF&6²FF–çFòF†RÖöævôD"6öÆÆV7F–öàÐ¢v—B6öÆÆV7F–öâæ–ç6W'DöæR‡²æÖRÂfVVF&6²ÂF–ÖW7F×¢æWrFFR‚’Ò“°Ð Ð¢6öç6öÆRæÆör‚tfVVF&6²FF–ç6W'FVB7V66W76gVÆÇ’r“°Ð¢&W2ç7FGW2ƒ#’ç6VæB‚tfVVF&6²&V6V—fVB7V66W76gVÆÇ’r“°Ð¢Ò6F6‚†W'&÷"’°Ð¢6öç6öÆRæW'&÷"‚tW'&÷"†æFÆ–ærfVVF&6²7V&Ö—76–öã¢rÂW'&÷"æÖW76vR“°Ð¢&W2ç7FGW2ƒS’ç6VæB‚t–çFW&æÂ6W'fW"W'&÷"r“°Ð¢Òf–æÆÇ’°Ð¢òò6Æ÷6RF†RÖöævôD"6öææV7F–öàÐ¢v—B6Æ–VçBæ6Æ÷6R‚“°Ð¢6öç6öÆRæÆör‚t6öææV7F–öâFòÖöævôD"6Æ÷6VBr“°Ð¢ÐÐ§Ò“°Ð Ð¦ç÷7B‚rö’öfWF6‚ÖWfVçG2rÂ7–æ2‡&WÂ&W2’Óâ°Ð¢G'’°Ð¢òò6öææV7BFòÖöævôD Ð¢v—B6Æ–VçBæ6öææV7B‚“°Ð¢6öç6öÆRæÆör‚t6öææV7FVBFòÖöævôD"r“°Ð¢òò66W72F†RFF&6PÐ¢6öç7BF"Ò6Æ–VçBæF"†FF&6UöæÖR“°Ð¢6öç7B6öÆÆV7F–öâÒF"æ6öÆÆV7F–öâ‚vWfVçG2r“°Ð¢6öç7BFFÒv—B6öÆÆV7F–öâæf–æB‚’çFô'&’‚“°Ð¢òò6†V6²–bFF—2&WG&–WfV@Ð¢–b‚FFÇÂFFæÆVæwF‚ÓÓÒ’°Ð¢6öç6öÆRæW'&÷"‚tæòFFf÷VæB–âÖöævôD"6öÆÆV7F–öâr“°Ð¢&W2ç7FGW2ƒCB’ç6VæB‚tæòFFf÷VæBr“°Ð¢&WGW&ã°Ð¢ÐÐ¢&W2æ§6öâ†FF“°Ð¢Ò6F6‚†W'&÷"’°Ð¢6öç6öÆRæW'&÷"‚tW'&÷"†æFÆ–ærWfVçBfWF6†–æs¢rÂW'&÷"æÖW76vR“°Ð¢&W2ç7FGW2ƒS’ç6VæB‚t–çFW&æÂ6W'fW"W'&÷"r“°Ð¢Òf–æÆÇ’°Ð¢òò6Æ÷6RF†RÖöævôD"6öææV7F–öàÐ¢v—B6Æ–VçBæ6Æ÷6R‚“°Ð¢6öç6öÆRæÆör‚t6öææV7F–öâFòÖöævôD"6Æ÷6VBr“°Ð¢ÐÐ§Ò“°Ð Ð¦ç÷7B‚rö’÷&Vv—7FW%÷Fö¶VârÂ‡&WÂ&W2’Óâ°Ð¢G'’°Ð¢6öç7B²Fö¶VâÂW6W"ÒÒ&Wæ&öG“°Ð¢6öç6öÆRæÆör‚u&V6V—fVBFö¶Vã¢rÂFö¶Vâ“°Ð¢6öç6öÆRæÆör‚u&V6V—fVBW6W"–æfó¢rÂW6W"“°Ð Ð¢6öç7Bf—'7DæÖRÒW6W"çW6W$f—'7DæÖS²ò÷&Wæ&öG’æf—'7DæÖS°Ð¢6öç7BÆ7DæÖRÒW6W"çW6W$Æ7DæÖS²ò÷&Wæ&öG’æÆ7DæÖS°Ð Ð¢òòW†V7WFRF†R67&—BæB72F†RFV×÷&'’f–ÆRF‚2â&wVÖVç@Ð¢W†V2†æöFRâö&6¶VæB÷6W'fW"÷WFFTV×Æ÷–VUFö¶VâæÖ§2"G¶f—'7DæÖWÒ""G¶Æ7DæÖWÒ""G·Fö¶VçÒ&Â†W'&÷"Â7FF÷WBÂ7FFW'"’Óâ°Ð¢–b†W'&÷"’°Ð¢6öç6öÆRæW'&÷"†W'&÷"W†V7WF–ær67&—C¢G¶W'&÷"æÖW76vWÖ“°Ð¢&W2ç7FGW2ƒS’ç6VæB†–çFW&æÂ6W'fW"W'&÷#¢G¶W'&÷"æÖW76vWÖ“°Ð¢&WGW&ã°Ð¢ÐÐ Ð¢&W2ç7FGW2ƒ#’æ§6öâ‡²ÖW76vS¢uFö¶VâæBW6W"–æfò&V6V—fVB7V66W76gVÆÇ’rÒ“°Ð¢Ò“°Ð¢Ò6F6‚†W'&÷"’°Ð¢6öç6öÆRæW'&÷"‚tW'&÷"†æFÆ–ær77v÷&B&W6WC¢rÂW'&÷"æÖW76vR“°Ð¢&W2ç7FGW2ƒS’ç6VæB‚t–çFW&æÂ6W'fW"W'&÷"r“°Ð¢ÐÐ§Ò“°Ð Ð¦ç÷7B‚rö’÷&W6WB×77v÷&BrÀÐ¢°Ð¢&öG’‚wW6W$–Br’ææ÷DV×G’‚’çv—F„ÖW76vR‚uW6W"”B—2&WV—&VBr’ÀÐ¢&öG’‚væWu77v÷&BrÐ¢æ—4ÆVæwF‚‡²Ö–ã¢‚Ò’çv—F„ÖW76vR‚u77v÷&B×W7B&RBÆV7B‚6†&7FW'2ÆöærrÐ¢æÖF6†W2‚õ´Õ¦×¥Òò’çv—F„ÖW76vR‚u77v÷&B×W7B6öçF–âBÆV7BöæRÆWGFW"rÐ¢æÖF6†W2‚õÆBò’çv—F„ÖW76vR‚u77v÷&B×W7B6öçF–âBÆV7BöæRçVÖ&W"rÐ¢æÖF6†W2‚õ´BR¢3òeÒò’çv—F„ÖW76vR‚u77v÷&B×W7B6öçF–âBÆV7BöæR7V6–Â6†&7FW"r’ÀÐ¢ÒÀÐ¢7–æ2‡&WÂ&W2’Óâ°Ð¢6öç7BW'&÷'2ÒfÆ–FF–öå&W7VÇB‡&W“°Ð¢–b‚W'&÷'2æ—4V×G’‚’’°Ð¢&WGW&â&W2ç7FGW2ƒC’æ§6öâ‡²W'&÷'3¢W'&÷'2æ'&’‚’Ò“°Ð¢ÐÐ Ð¢6öç7B²W6W$–BÂæWu77v÷&BÒÒ&Wæ&öG“°Ð¢G'’°Ð¢òò6öææV7BFòÖöævôD Ð¢v—B6Æ–VçBæ6öææV7B‚“°Ð¢6öç6öÆRæÆör‚t6öææV7FVBFòÖöævôD"r“°Ð Ð¢òò66W72F†RFF&6RæB6öÆÆV7F–öàÐ¢6öç7BF"Ò6Æ–VçBæF"†FF&6UöæÖR“°Ð¢6öç7B6öÆÆV7F–öâÒF"æ6öÆÆV7F–öâ‚vV×Æ÷–VW2r“°Ð Ð¢òòf–æBF†RW6W Ð¢6öç7BW6W"Òv—B6öÆÆV7F–öâæf–æDöæR‡²W6W&æÖS¢W6W$–BÒ“°Ð Ð¢òò6†V6²–bW6W"W†—7G0Ð¢–b‚W6W"’°Ð¢6öç6öÆRæW'&÷"‚tæòfÆ–BÆöv–âf÷VæB–âÖöævôD"6öÆÆV7F–öâr“°Ð¢&W2ç7FGW2ƒCB’æ§6öâ‡²ÖW76vS¢uW6W"æ÷Bf÷VæBrÒ“°Ð¢&WGW&ã°Ð¢ÐÐ Ð¢òòWFFRF†RW6W"w277v÷&BæB6WBF†R77v÷&B&W6WBFFPÐ¢6öç7BWFFU&W7VÇBÒv—B6öÆÆV7F–öâçWFFTöæR€Ð¢²W6W&æÖS¢W6W$–BÒÀÐ¢²G6WC¢²77v÷&C¢æWu77v÷&BÂ77v÷&E&W6WDFFS¢æWrFFR‚’ÒÐÐ¢“°Ð Ð¢–b‡WFFU&W7VÇBæÖöF–f–VD6÷VçBÓÓÒ’°Ð¢&W2ç7FGW2ƒ#’æ§6öâ‡²ÖW76vS¢u77v÷&B&W6WB7V66W76gVÂrÒ“°Ð¢ÒVÇ6R°Ð¢&W2ç7FGW2ƒS’æ§6öâ‡²ÖW76vS¢tf–ÆVBFòWFFR77v÷&BrÒ“°Ð¢ÐÐ Ð¢Ò6F6‚†W'&÷"’°Ð¢6öç6öÆRæW'&÷"‚tW'&÷"†æFÆ–ær77v÷&B&W6WC¢rÂW'&÷"æÖW76vR“°Ð¢&W2ç7FGW2ƒS’ç6VæB‚t–çFW&æÂ6W'fW"W'&÷"r“°Ð¢Òf–æÆÇ’°Ð¢òò6Æ÷6RF†RÖöævôD"6öææV7F–öàÐ¢v—B6Æ–VçBæ6Æ÷6R‚“°Ð¢6öç6öÆRæÆör‚t6öææV7F–öâFòÖöævôD"6Æ÷6VBr“°Ð¢ÐÐ¢ÐÐ¢“°Ð Ð¢òò’VæGö–çBFò†æFÆRf÷&vWB×77v÷&B&WVW7G0Ð¦ç÷7B‚rö’öf÷&vWB×77v÷&BrÂ7–æ2‡&WÂ&W2’Óâ°Ð¢6öç7B²†öæRÒÒ&Wæ&öG“°Ð¢G'’°Ð¢6öç7BF–v—G2Ò†öæRç&WÆ6R‚õÄBörÂrr“°Ð¢–b†F–v—G2æÆVæwF‚ÓÒ’°Ð¢F‡&÷ræWrW'&÷"‚t–çfÆ–B†öæRçVÖ&W"f÷&ÖBâ×W7B6öçF–âF–v—G2âr“°Ð¢ÐÐ¢6öç7B†öæRÒ‚G¶F–v—G2ç6Æ–6RƒÂ2—Ò’G¶F–v—G2ç6Æ–6Rƒ2Âb—ÒÒG¶F–v—G2ç6Æ–6Rƒb—Ö°Ð¢6öç6öÆRæÆör†f÷&ÖGFVB†öæS¢Gµ†öæWÖ“°Ð¢v—B6Æ–VçBæ6öææV7B‚“°Ð¢6öç7BF"Ò6Æ–VçBæF"†FF&6UöæÖR“°Ð¢6öç7B6öÆÆV7F–öâÒF"æ6öÆÆV7F–öâ‚vV×Æ÷–VW2r“°Ð Ð¢òò6öç7G'V7B&VvW‚GFW&àÐ¢6öç7B&VvW…GFW&âÒâ¢G¶F–v—G2ç7Æ—B‚rr’æ¦ö–â‚râ¢r—Òâ¦°Ð Ð¢òòÖF6‚W6W"'’&VvW€Ð¢6öç7BW6W"Òv—B6öÆÆV7F–öâæf–æDöæR‡°Ð¢†öæS¢²G&VvWƒ¢&VvW…GFW&âÐÐ¢Ò“°Ð¢6öç6öÆRæÆör‡W6W"“°Ð Ð¢–b‚W6W"’°Ð¢6öç6öÆRæW'&÷"‚uW6W"æ÷Bf÷VæBr“°Ð¢&W2ç7FGW2ƒCB’æ§6öâ‡²ÖW76vS¢uW6W"æ÷Bf÷VæBrÒ“°Ð¢&WGW&ã°Ð¢ÐÐ¢VÇ6R°Ð¢6öç7BW6W$–BÒW6W"çW6W&æÖS°Ð¢6öç6öÆRæÆör‡W6W$–B“°Ð Ð¢òòW†V7WFRF†RÔ¥267&—Bv—F‚æV6W76'’&ÖWFW'0Ð¢W†V2†æöFRâö&6¶VæB÷6W'fW"öf÷&vWE77v÷&BæÖ§2"G·W6W$–GÒ""G·W&—Ò""G¶FF&6UöæÖWÒ&Â†W'&÷"Â7FF÷WBÂ7FFW'"’Óâ°Ð¢–b†W'&÷"’°Ð¢6öç6öÆRæW'&÷"†W'&÷"W†V7WF–ær67&—C¢G¶W'&÷"æÖW76vWÖ“°Ð¢&W2ç7FGW2ƒS’ç6VæB†–çFW&æÂ6W'fW"W'&÷#¢G¶W'&÷"æÖW76vWÖ“°Ð¢&WGW&ã°Ð¢ÐÐ Ð¢6öç6öÆRæÆör‡7FF÷WB“°Ð¢&W2ç7FGW2ƒ#’æ§6öâ‡²ÖW76vS¢u77v÷&B&W6WB7V66W76gVÂrÒ“°Ð¢Ò“°Ð¢ÐÐ¢Ò6F6‚†W'&÷"’°Ð¢6öç6öÆRæW'&÷"‚tW'&÷"†æFÆ–ærf÷&vWB77v÷&C¢rÂW'&÷"æÖW76vR“°Ð¢&W2ç7FGW2ƒS’ç6VæB‚t–çFW&æÂ6W'fW"W'&÷"r“°Ð¢Òf–æÆÇ’°Ð¢v—B6Æ–VçBæ6Æ÷6R‚“°Ð¢ÐÐ§Ò“°Ð Ð¦ç÷7B‚rö’ö66WBÖF—66Æ–ÖW"rÂ7–æ2‡&WÂ&W2’Óâ°Ð¢7–æ2gVæ7F–öâ7F—fFUW6W$–dæVVFVB‡W6W$–æfòÂ66WFVBÂ6öÆÆV7F–öâ’°Ð¢–b‡W6W$–æfòæ—47F—fFVBÓÒwG'VRrbb66WFVB’°Ð¢òòWFFRW6W"Fò7F—fFR66÷VçBæB6WB7F—fF–öâFFPÐ¢6öç7B&Vv—7G&F–öäFFRÒæWrFFR‚“°Ð¢v—B6öÆÆV7F–öâçWFFTöæR€Ð¢²W6W&æÖS¢²G&VvWƒ¢æWr&VtW‡†âG·W6W$–æfòçW6W&æÖWÒFÂv’r’ÒÒÀÐ¢°Ð¢G6WC¢°Ð¢—47F—fFVC¢wG'VRrÀÐ¢7F—fF–öäFFS¢&Vv—7G&F–öäFFRÀÐ¢t&Vv—7G&F–öâFFRs¢&Vv—7G&F–öäFFPÐ¢ÐÐ¢ÐÐ¢“°Ð¢ÐÐ¢ÐÐ Ð¢7–æ2gVæ7F–öâÆötF—66Æ–ÖW$66WFæ6R‡W6W$–æfòÂ66WFVBÂfW'6–öâÂFWf–6T–æfòÂF"’°Ð¢òòÆör66WFæ6RFWF–Ç2–â6W&FR6öÆÆV7F–öàÐ¢6öç7B66WFæ6U&V6÷&BÒ°Ð¢W6W&æÖS¢W6W$–æfòçW6W&æÖRÀÐ¢66WFVBÀÐ¢fW'6–öâÀÐ¢FWf–6T–æfòÀÐ¢F–ÖW7F×¢æWrFFR‚Ð¢Ó°Ð¢6öç7BÆöt6öÆÆV7F–öâÒF"æ6öÆÆV7F–öâ‚vF—66Æ–ÖW"66WFæ6W2r“°Ð¢v—BÆöt6öÆÆV7F–öâæ–ç6W'DöæR†66WFæ6U&V6÷&B“°Ð¢ÐÐ Ð¢G'’°Ð¢6öç7B²66WFVBÂW6W&æÖRÂfW'6–öâÂFWf–6T–æfòÒÒ&Wæ&öG“°Ð Ð¢–b‚66WFVBÇÂW6W&æÖR’°Ð¢&WGW&â&W2ç7FGW2ƒC’ç6VæB‚tÖ—76–ær&WV—&VBf–VÆG2r“°Ð¢ÐÐ Ð¢òò6öææV7BFòÖöævôD Ð¢v—B6Æ–VçBæ6öææV7B‚“°Ð¢6öç6öÆRæÆör‚t6öææV7FVBFòÖöævôD"r“°Ð Ð¢òò66W72F†RFF&6RæB6öÆÆV7F–öàÐ¢6öç7BF"Ò6Æ–VçBæF"†FF&6UöæÖR“°Ð¢6öç7B6öÆÆV7F–öâÒF"æ6öÆÆV7F–öâ‚vV×Æ÷–VW2r“°Ð Ð¢òòfWF6‚F†RW6W"g&öÒF†RFF&6PÐ¢6öç7BW6W"Òv—B6öÆÆV7F–öâæf–æDöæR‡°Ð¢W6W&æÖS¢²G&VvWƒ¢æWr&VtW‡†âG·W6W&æÖWÒFÂv’r’ÐÐ¢Ò“°Ð Ð¢–b‚W6W"’°Ð¢6öç6öÆRæW'&÷"‚uW6W"æ÷Bf÷VæB–âÖöævôD"6öÆÆV7F–öâr“°Ð¢&WGW&â&W2ç7FGW2ƒCB’ç6VæB‚uW6W"æ÷Bf÷VæBr“°Ð¢ÐÐ Ð¢òò7F—fFRW6W"–bæVVFV@Ð¢v—B7F—fFUW6W$–dæVVFVB‡W6W"Â66WFVBÂ6öÆÆV7F–öâ“°Ð Ð¢òòÆörF†RF—66Æ–ÖW"66WFæ6RFò6W&FR6öÆÆV7F–öàÐ¢v—BÆötF—66Æ–ÖW$66WFæ6R‡W6W"Â66WFVBÂfW'6–öâÂFWf–6T–æfòÂF"“°Ð Ð¢&W2ç7FGW2ƒ#’ç6VæB‚tF—66Æ–ÖW"66WFVBæBÆövvVBr“°Ð¢Ò6F6‚†W'&÷"’°Ð¢6öç6öÆRæW'&÷"‚tW'&÷"†æFÆ–ærF—66Æ–ÖW"66WFæ6S¢rÂW'&÷"æÖW76vR“°Ð¢&W2ç7FGW2ƒS’ç6VæB‚t–çFW&æÂ6W'fW"W'&÷"r“°Ð¢Òf–æÆÇ’°Ð¢òòVç7W&RF†RÖöævôD"6öææV7F–öâ—26Æ÷6V@Ð¢v—B6Æ–VçBæ6Æ÷6R‚“°Ð¢6öç6öÆRæÆör‚t6öææV7F–öâFòÖöævôD"6Æ÷6VBr“°Ð¢ÐÐ§Ò“°Ð Ð¦ç÷7B‚rö’öWF†VçF–6F–öârÂ7–æ2‡&WÂ&W2’Óâ°Ð¢G'’°Ð¢ÆWB²W6W$æÖRÂ77v÷&BÒÒ&Wæ&öG“°Ð¢W6W$æÖRÒW6W$æÖRçG&–Ò‚“°Ð Ð¢òò6öææV7BFòÖöævôD Ð¢v—B6Æ–VçBæ6öææV7B‚“°Ð¢6öç6öÆRæÆör‚t6öææV7FVBFòÖöævôD"r“°Ð Ð¢òò66W72F†RFF&6PÐ¢6öç7BF"Ò6Æ–VçBæF"†FF&6UöæÖR“°Ð¢6öç7B6öÆÆV7F–öâÒF"æ6öÆÆV7F–öâ‚vV×Æ÷–VW2r“°Ð Ð¢6öç7BW6W"Òv—B6öÆÆV7F–öâæf–æB‡°Ð¢W6W&æÖS¢²G&VvWƒ¢æWr&VtW‡†âG·W6W$æÖWÒFÂv’r’ÒÀÐ¢77v÷&C¢77v÷&@Ð¢Ò’çFô'&’‚“°Ð Ð¢–b‚W6W"ÇÂW6W"æÆVæwF‚ÓÓÒ’°Ð¢6öç6öÆRæW'&÷"‚tæòfÆ–BÆöv–âf÷VæB–âÖöævôD"6öÆÆV7F–öâr“°Ð¢&W2ç7FGW2ƒCB’ç6VæB‚ufÆ–FF–öâf–ÆVBr“°Ð¢&WGW&ã°Ð¢ÐÐ Ð¢òòW‡G&7BF†RW6W"ö&¦V7@Ð¢6öç7BW6W$–æfòÒW6W%³Ó°Ð Ð¢&W2æ§6öâ…·W6W$–æfõÒ“²òò&W7öæBv—F‚F†RW6W"–æfò'&Ð¢Ò6F6‚†W'&÷"’°Ð¢6öç6öÆRæW'&÷"‚tW'&÷"†æFÆ–ærfÆ–FF–öã¢rÂW'&÷"æÖW76vR“°Ð¢&W2ç7FGW2ƒS’ç6VæB‚t–çFW&æÂ6W'fW"W'&÷"r“°Ð¢Òf–æÆÇ’°Ð¢òò6Æ÷6RF†RÖöævôD"6öææV7F–öàÐ¢v—B6Æ–VçBæ6Æ÷6R‚“°Ð¢6öç6öÆRæÆör‚t6öææV7F–öâFòÖöævôD"6Æ÷6VBr“°Ð¢ÐÐ§Ò“°Ð Ð¦ævWB‚rö’ö†VÇF‚rÂ‡&WÂ&W2’Óâ°Ð¢&W2æ§6öâ‡²ö³¢G'VRÂF–ÖS¢æWrFFR‚’çFô•4õ7G&–ær‚’ÒÐ§ÒÐ Ð¢òòÓÓÓÓÓÓÒjøþiz^Zé®i{nK»¾XªûÈƒs£RUNûÉ¾XúþiK’æVçbD”tU5Eô5$ôîûÈ’ÓÓÓÓÓÓÐÐ¦7&öâç66†VGVÆR‡&ö6W72æVçbäD”tU5Eô5$ôâÇÂsRr¢¢¢rÂ7–æ2‚’Óâ°Ð¢v—B'VäF–Ç”F–vW7B‚“²òò›¹ŽŠêNk~h¾(	ÎiŠŽiz^ûÈŽ{èîK‰ÎûÈž(	ÐÐ§ÒÂ²F–ÖW¦öæS¢&ö6W72æVçbåD”ÔU¤ôäRÇÂtÖW&–6ôFWG&ö—BrÒ“°Ð Ð¢òòÓÓÓÓÓÓÒh˜¾XªŽŠznXùhê^Xú>ûÉ¢öFÖ–âöF–vW7CöFFSÕ•••’ÔÔÒÔDBÓÓÓÓÓÓÐÐ¦gVæ7F–öâ”¶W”wV&B‡&WÂ&W2ÂæW‡B’°Ð¢6öç7B¶W’Ò&Wæ†VFW'5²w‚Ö’Ö¶W’uÓ°Ð¢–b‚&ö6W72æVçbäDÔ”åô•ô´U’ÇÂ¶W’ÓÓÒ&ö6W72æVçbäDÔ”åô•ô´U’’&WGW&âæW‡B‚“°Ð¢&WGW&â&W2ç7FGW2ƒC’æ§6öâ‡²ö³¢fÇ6RÂW'&÷#¢wVæWF†÷&—¦VBrÒ“°Ð§ÐÐ Ð¦ç÷7B‚röFÖ–âöF–vW7BrÂ”¶W”wV&BÂ7–æ2‡&WÂ&W2’Óâ°Ð¢G'’°Ð¢6öç7BFFTUBÒ‡&WçVW'’æFFRÇÂrr’çG&–Ò‚“²òòKÊz›£Þ›¹ŽŠêNiŠŽizPÐ¢6öç7B&W7VÇBÒv—B'VäF–Ç”F–vW7B†FFTUBÇÂVæFVf–æVB“°Ð¢&W2æ§6öâ‡&W7VÇB“°Ð¢Ò6F6‚†R’°Ð¢&W2ç7FGW2ƒS’æ§6öâ‡²ö³¢fÇ6RÂW'&÷#¢7G&–ær†R’Ò“°Ð¢ÐÐ§Ò“°Ð Ð¦6öç7BöÆDF—"ÒF‚æ¦ö–â…õöF—&æÖRÂrââö6Æ–VçBö'V–ÆBr“°Ð¦çW6R†W‡&W72ç7FF–2†öÆDF—"Â²–æFWƒ¢fÇ6RÒ’“°Ð¦6öç7BæWtF—"ÒF‚æ¦ö–â…õöF—&æÖRÂrââòââöFÖ–â×vV"öF—7Br“°Ð¦çW6R‚röFÖ–ârÂW‡&W72ç7FF–2†æWtF—"’“°Ð¦çW6R‚rö‡"×FööÇ2rÂW‡&W72ç7FF–2†æWtF—"Â²–æFWƒ¢fÇ6RÒ’“°Ð¦çW6R‚röÖ6öç6öÆRrÂW‡&W72ç7FF–2†öÆDF—"Â²–æFWƒ¢fÇ6RÒ’“°Ð Ð¦ævWB‚röFÖ–âò¢rÂ‡&WÂ&W2’Óâ°Ð¢&W2ç6VæDf–ÆR‡F‚æ¦ö–â†æWtF—"Âv–æFW‚æ‡FÖÂr’“°Ð§Ò“°Ð Ð¦ævWB…²rö‡"×FööÇ2rÂrö‡"×FööÇ2÷—&öÆÂ×fW&–f–6F–öârÂrö‡"×FööÇ2ö–ç7W&æ6RÖ'&V¶÷WBrÂrö‡"×FööÇ2ö6öÖÖ—76–öâ×&÷7FW"rÂrö‡"×FööÇ2÷G&–æ–ærrÂrö‡"×FööÇ2ö‡"×ÆFf÷&ÒrÂrö‡"×FööÇ2ö‡"×ÆFf÷&ÒöæWrÖ†—&RrÂrö‡"×FööÇ2ö‡"×ÆFf÷&Ò÷FW&Ö–æF–öârÂrö‡"×FööÇ2ö‡"×ÆFf÷&ÒöV×Æ÷–ÖVçBÖ6†ævRuÒÂ‡&WÂ&W2’Óâ°¢&W2ç6VæDf–ÆR‡F‚æ¦ö–â†æWtF—"Âv–æFW‚æ‡FÖÂr’“°Ð§Ò“°Ð Ð¦ævWB…²röÖ6öç6öÆRrÂröÖ6öç6öÆRò¢uÒÂ‡&WÂ&W2’Óâ°Ð¢6öç7B6W76–öâÒvWE6W76–öäg&öÕ&WVW7B‡&W“°Ð¢–b‚6W76–öâ’&WGW&â&W2ç&VF—&V7B‚röFÖ–âr“°Ð¢&W2ç6VæDf–ÆR‡F‚æ¦ö–â†öÆDF—"Âv–æFW‚æ‡FÖÂr’“°Ð§Ò“°Ð Ð¦ævWB‚ròrÂ‡&WÂ&W2’Óâ°Ð¢&W2ç&VF—&V7B‚röFÖ–âr“°Ð§Ò“°Ð Ð¦ævWB‚õåÂòƒò—ÆFÖ–çÆ‡"×FööÇ2’â¢òÂ‡&WÂ&W2’Óâ°Ð¢&W2ç&VF—&V7B‚röFÖ–âr“°Ð§Ò“°Ð Ð¢òò7F'BF†R6W'fW Ð¦æÆ—7FVâ‡&ö6W72æVçbåõ%BÇÂ÷'BÂ‚’Óâ°Ð¢6öç6öÆRæÆör†6W'fW"—2'Vææ–æröâ÷'BG·÷'GÖ“°Ð¢&V6öæ6–ÆT†—7F÷&–6Ä&Vv—7G&F–öäFFW2‚“°Ð§Ò“°Ð
+    res.status(500).send('Internal server error');
+  } finally {
+    await client.close();
+  }
+});
+
+app.post("/search", async (req, res) => {
+    console.log("ðŸŸ¢ Received search request:", req.body);
+
+    try {
+        const { query } = req.body;
+        const response = await axios.post(`${FAISS_SERVER_URL}/search`, { query }, { timeout: 30000 });
+
+        console.log("âœ… Search response received.");
+        return res.json(response.data);
+    } catch (error) {
+        console.error("âŒ Error calling FAISS server:", error.message);
+
+        if (error.code === 'ECONNABORTED') {
+            return res.status(504).json({ error: "FAISS server timeout. Please try again later." });
+        }
+
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+app.get('/employees', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+
+        // Query database to retrieve data with "Account Active" = 'Active'
+        const data = await collection.find({ "Account Active": "Active" }).toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        const usernames = data.map(employee => employee.username).filter(Boolean);
+        const acceptanceRecords = usernames.length
+            ? await db.collection('disclaimer acceptances').find({
+                accepted: true,
+                username: { $in: usernames },
+            }).collation({ locale: 'en', strength: 2 }).project({ username: 1, timestamp: 1, accepted: 1 }).toArray()
+            : [];
+        const earliestAcceptanceByUsername = buildEarliestAcceptanceMap(acceptanceRecords);
+        const registrationDateUpdates = [];
+        const exportData = data.map(employee => {
+            const registrationDate = resolveAppRegistrationDate(employee, earliestAcceptanceByUsername);
+            const storedDate = employee['App Registration Date'] ? new Date(employee['App Registration Date']) : null;
+            const needsRegistrationDate = registrationDate && (!storedDate || Number.isNaN(storedDate.getTime()) || storedDate.getTime() !== registrationDate.getTime());
+            const needsActivation = shouldActivateRegisteredEmployee(employee, registrationDate);
+            if (needsRegistrationDate || needsActivation) {
+                const update = {};
+                if (needsRegistrationDate) update['App Registration Date'] = registrationDate;
+                if (needsActivation) update.isActivated = 'true';
+                registrationDateUpdates.push({
+                    updateOne: {
+                        filter: { _id: employee._id },
+                        update: { $set: update },
+                    },
+                });
+            }
+            return employeeForExport(needsActivation ? { ...employee, isActivated: 'true' } : employee, registrationDate);
+        });
+        if (registrationDateUpdates.length) await collection.bulkWrite(registrationDateUpdates);
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdmin = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName
+        );
+        const isRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+
+        let filteredData = [];
+
+        if (isRoot) {
+            filteredData = exportData;
+        } else if (isAdmin) {
+            // User is not a root user, filter data accordingly
+            filteredData = exportData.filter(employee => isSupervisorOrSubordinate(employee, loginName, exportData));
+        }
+
+        // Send filtered data as JSON response
+        res.json(filteredData);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+
+    // Function to check if an employee is the supervisor or subordinate of the given login name
+    function isSupervisorOrSubordinate(employee, loginName, allEmployees) {
+        if (employee["Supervisor First Name"].toUpperCase() === loginName.firstName.toUpperCase() &&
+            employee["Supervisor Last Name"].toUpperCase() === loginName.lastName.toUpperCase()) {
+            return true; // Employee directly reports to the login user
+        } else {
+            // Check recursively if the supervisor's supervisor is the login user
+            const supervisor = allEmployees.find(emp => emp["First Name"] === employee["Supervisor First Name"] &&
+                emp["Last Name"] === employee["Supervisor Last Name"]);
+            if (supervisor) {
+                return isSupervisorOrSubordinate(supervisor, loginName, allEmployees);
+            }
+        }
+        return false;
+    }
+});
+
+app.get('/notifications', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('notifications');
+
+        // Query database to retrieve notification data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+
+        if (isAdminRoot) {
+            // If the user is root, return all notification data
+            res.json(data);
+        } else {
+            // Filter the notifications to only show the ones created by this admin
+            const filteredData = data.filter(notification =>
+                notification.adminUser?.firstName === loginName.firstName &&
+                notification.adminUser?.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.get('/surveys', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey forms');
+
+        // Query database to retrieve data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+
+        if (isAdminRoot) {
+            // If the user is root, return all survey data
+            res.json(data);
+        } else {
+            // Filter the surveys to only show the ones created by this admin
+            const filteredData = data.filter(survey =>
+                survey.adminUser?.firstName === loginName.firstName &&
+                survey.adminUser?.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+
+app.get('/events', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('events');
+
+        // Query database to retrieve data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdmin = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+        // Filter data based on user's admin status
+
+        if (isAdmin) {
+            res.json(data);
+        }
+        else {
+            res.status(401).send('Not Authorized');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.get('/survey-results/:surveyId', cors(), requireAdminSession, async (req, res, next) => {
+    const { surveyId } = req.params;
+    const loginName = req.adminSession;
+
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey results');
+
+        // Query database to retrieve data
+        const data = await collection.find({ UID: surveyId }).toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Access the admin collection
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+
+        // Check if the user is a root admin
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+
+        // If the user is root, return all data
+        if (isAdminRoot) {
+            res.json(data);
+        } else {
+            // If the user is not root, check if they are the sender of the survey
+            const filteredData = data.filter(survey =>
+                survey.adminUser?.firstName === loginName.firstName &&
+                survey.adminUser?.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized to view this survey');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+
+async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSession) {
+    try {
+        await client.connect();
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+        const { _id, _employmentChange = {}, Name, Supervisor, ...submittedEmployee } = updatedEmployee;
+        const allowedFields = new Set([
+            'First Name', 'Last Name', 'Hire Date', 'Home Department', 'Supervisor First Name',
+            'Supervisor Last Name', 'Job Title', 'Location', 'Email', 'Phone',
+            'EEOC Establishment', 'Worker Category', 'Pay Category',
+        ]);
+        const selectedFields = Array.isArray(_employmentChange.changedFields)
+            ? _employmentChange.changedFields.filter(field => allowedFields.has(field)) : [];
+        if (!selectedFields.length) return { found: false, error: 'Select at least one item to change.' };
+        const existing = await collection.findOne({ _id: new ObjectId(employeeId) });
+        if (!existing) return { found: false };
+        const employeeUpdate = Object.fromEntries(selectedFields.map(field => [field, submittedEmployee[field] == null ? '' : String(submittedEmployee[field]).trim()]));
+        const changes = selectedFields
+            .filter(field => String(existing[field] || '').trim() !== String(employeeUpdate[field] || '').trim())
+            .map(field => ({ field, from: existing[field] || '', to: employeeUpdate[field] || '' }));
+        if (!changes.length) return { found: true, changed: false, error: 'The selected information has not changed.' };
+        const payroll = _employmentChange.payroll === true;
+        const insurance = _employmentChange.insurance === true;
+        const retirement = _employmentChange.retirement === true;
+        const trackOther = _employmentChange.trackOther === true;
+        const result = await collection.updateOne(
+            { _id: new ObjectId(employeeId) },
+            { $set: employeeUpdate }
+        );
+        if (payroll || insurance || retirement || trackOther) {
+            await db.collection('employee_hr_employment_change').insertOne({
+                employeeId,
+                employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),
+                employeeEmail: employeeUpdate.Email ?? existing.Email ?? '',
+                effectiveDate: String(_employmentChange.effectiveDate || '').trim(),
+                reason: String(_employmentChange.reason || '').trim(),
+                employeeFolderUrl: '', followUpIssues: false, followUpNotes: '', followUpUntil: '',
+                changes,
+                tasks: {
+                    file: { required: true, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
+                    payroll: { required: payroll, applicable: payroll ? null : false, actionDate: '', checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
+                    insurance: { required: insurance, applicable: insurance ? null : false, actionDate: '', checkedAt: null, checkedBy: '' },
+                    retirement: { required: retirement, applicable: retirement ? null : false, actionDate: '', checkedAt: null, checkedBy: '' },
+                    followUp: { required: trackOther, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
+                },
+                createdAt: new Date(), createdBy: adminSession?.email || '',
+            });
+        }
+        return { found: true, changed: result.modifiedCount > 0, tracked: payroll || insurance || retirement || trackOther };
+    } catch (error) {
+        console.error('Error updating employee in database:', error);
+        throw error;
+    } finally {
+        await client.close();
+    }
+}
+
+app.put('/employees/:id', requireAdminSession, async (req, res) => {
+    const employeeId = req.params.id;
+    const updatedEmployee = req.body;
+
+    try {
+        const result = await updateEmployeeInDatabase(employeeId, updatedEmployee, req.adminSession);
+        if (result.error) {
+            res.status(400).send(result.error);
+        } else if (result.found) {
+            res.status(200).json({ message: 'Employee updated successfully', tracked: result.tracked === true });
+        } else {
+            res.status(404).send('Employee not found');
+        }
+    } catch (error) {
+        res.status(500).send('Error updating employee');
+    }
+});
+
+// Define a route to handle the POST request for executing the script
+app.post('/call-function-send-event', requireAdminSession, (req, res) => {
+    const { endDate, location, startDate, title, allDay, detail, selectedEmployees } = req.body.data;
+    const adminUser = req.adminSession;
+    const creator = getOperatorDisplayName(adminUser);
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}" "${detail}" "${tempFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_event',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { title, location, allDay, isRecurring: false },
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_event',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { title, location, allDay, isRecurring: false },
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+// Define a route to handle the POST request for deleting an event
+app.post('/call-function-delete-event', requireAdminSession, (req, res) => {
+    const { eventId } = req.body;
+
+    exec(`node ./backend/server/deleteEvent.mjs "${eventId}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Event deleted successfully');
+    });
+});
+
+// Define a route to handle the POST request for updating an event
+app.post('/call-function-update-event', requireAdminSession, (req, res) => {
+    const { eventId, updatedEvent } = req.body;
+
+    const tempFilePath = path.join(__dirname, 'temp', 'updatedEvent.json');
+    fs.writeFileSync(tempFilePath, JSON.stringify(updatedEvent));
+
+    exec(`node ./backend/server/updateEvent.mjs "${eventId}" "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Event updated successfully');
+    });
+});
+
+app.post('/call-function-send-one-time-code', async (req, res) => {
+    const { firstName, lastName } = req.body;
+
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+        // Check if the user is an admin
+        const adminCollection = client.db(database_name).collection('admins');
+        const isAdmin = await adminCollection.findOne({
+            "Last Name": lastName,
+            "First Name": firstName
+        });
+
+        if (isAdmin) {
+            // Execute the script to send the one-time code
+            exec(`node ./backend/server/sendOTC.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error executing script: ${error.message}`);
+                    res.status(500).send(`Internal Server Error: ${error.message}`);
+                    return;
+                }
+
+                res.status(200).send('Script executed successfully');
+            });
+        } else {
+            // User is not an admin, respond with an error message
+            res.status(403).send('You are not authorized to request a one-time code');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/call-function-validate-log-in', async (req, res) => {
+    const { firstName, lastName, enteredCode } = req.body;
+
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const admin = await validateOtpAdmin(db, firstName, lastName, enteredCode);
+
+        if (!admin) {
+            return res.status(401).send("Login failed: Invalid code or code expired");
+        }
+
+        setSessionCookie(res, admin);
+        return res.status(200).send("Login successful");
+    } catch (error) {
+        console.error('Admin OTP login failed:', error);
+        return res.status(500).send(`Internal Server Error: ${error.message}`);
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.get('/api/admin-auth/me', (req, res) => {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ authenticated: false });
+    return res.json({ authenticated: true, user: publicSession(session) });
+});
+
+async function getAdminAuthConfig(db) {
+    const config = await db.collection('app_config').findOne({
+        $or: [{ key: 'adminAuth' }, { _id: 'adminAuth' }]
+    });
+
+    return {
+        googleClientId: config?.googleClientId || config?.googleOAuthClientId || process.env.GOOGLE_CLIENT_ID || '',
+    };
+}
+
+app.get('/api/admin-auth/config', async (req, res) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const config = await getAdminAuthConfig(db);
+        res.json({ googleClientId: config.googleClientId });
+    } catch (error) {
+        console.error('Failed to load admin auth config:', error);
+        res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || '' });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/request-code', async (req, res) => {
+    const { firstName, lastName } = req.body;
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const adminCollection = localClient.db(database_name).collection('admins');
+        const isAdmin = await adminCollection.findOne({
+            "Last Name": lastName,
+            "First Name": firstName
+        });
+
+        if (!isAdmin) {
+            return res.status(403).json({ error: 'You are not authorized to request a one-time code' });
+        }
+
+        exec(`node ./backend/server/sendOTC.mjs "${firstName}" "${lastName}"`, (error) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                return res.status(500).json({ error: error.message });
+            }
+            return res.json({ ok: true });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/logout', (req, res) => {
+    clearSessionCookie(res);
+    res.json({ ok: true });
+});
+
+app.post('/api/admin-auth/otp-login', async (req, res) => {
+    const { firstName, lastName, enteredCode } = req.body;
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const admin = await validateOtpAdmin(db, firstName, lastName, enteredCode);
+
+        if (!admin) {
+            return res.status(401).json({ error: 'Invalid code or code expired' });
+        }
+
+        setSessionCookie(res, admin);
+        return res.json({ user: publicSession(getSessionFromRequest(req)) || {
+            firstName: admin['First Name'],
+            lastName: admin['Last Name'],
+            email: admin.Email || admin.email || admin['Google Email'] || null,
+            type: admin.Type || 'admin',
+        } });
+    } catch (error) {
+        console.error('Admin OTP login failed:', error);
+        return res.status(500).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/google', async (req, res) => {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Missing Google credential.' });
+
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const config = await getAdminAuthConfig(db);
+        const googleUser = await verifyGoogleCredential(credential, config.googleClientId);
+        const admin = await findAdminByEmail(db, googleUser.email);
+
+        if (!admin) {
+            return res.status(403).json({ error: 'This Google account is not authorized for RTUT Admin.' });
+        }
+
+        setSessionCookie(res, admin);
+        return res.json({
+            user: {
+                firstName: admin['First Name'],
+                lastName: admin['Last Name'],
+                email: googleUser.email,
+                type: admin.Type || 'admin',
+            },
+        });
+    } catch (error) {
+        console.error('Google admin login failed:', error);
+        return res.status(401).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.get('/call-function-generate-user-names', requireAdminSession, async (req, res) => {
+    // Execute the script
+    exec(`node ./backend/server/generateUserNames.mjs`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        if (stdout.includes("Generate UserNames successful!")) {
+            res.status(200).send("Generate UserNames successful!");
+        } else {
+            res.status(401).send("Generate UserNames error!");
+        }
+    });
+});
+
+app.post('/call-function-send-onboarding', requireAdminSession, async (req, res) => {
+    const selectedEmployees = req.body.batch;
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+
+    exec(`node ./backend/server/sendOnboarding.mjs "${tempFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_onboarding',
+                adminUser: req.adminSession,
+                selectedEmployees,
+                payloadSummary: {},
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_onboarding',
+            adminUser: req.adminSession,
+            selectedEmployees,
+            payloadSummary: {},
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+const getOperatorDisplayName = (adminUser) => {
+    if (!adminUser) return 'unknown';
+    if (typeof adminUser === 'string') return adminUser;
+    return [adminUser.firstName, adminUser.lastName].filter(Boolean).join(' ') || adminUser.email || 'unknown';
+};
+
+const getRecipientCount = (selectedEmployees) => Array.isArray(selectedEmployees) ? selectedEmployees.length : 0;
+
+// Unified operation audit log
+const logOperationToDatabase = async ({ action, adminUser, selectedEmployees, payloadSummary, status, errorMessage }) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const collection = db.collection('operation_logs');
+        await collection.insertOne({
+            action,
+            operatorName: getOperatorDisplayName(adminUser),
+            operatorEmail: adminUser?.email || null,
+            recipientCount: getRecipientCount(selectedEmployees),
+            payloadSummary: payloadSummary || {},
+            status,
+            errorMessage: errorMessage || null,
+            timestamp: new Date(),
+        });
+    } catch (error) {
+        console.error('Error saving operation log:', error);
+    } finally {
+        await localClient.close();
+    }
+};
+
+app.use('/api/payroll-verification', createPayrollVerificationRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+
+app.use('/api/insurance-breakout', createInsuranceBreakoutRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+
+app.use('/api/commission-roster', createCommissionRosterRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+const requireTrainingSession = createRequireTrainingSession(getSessionFromRequest);
+const requireHrToolsSession = createRequireHrToolsSession(getSessionFromRequest);
+const loginCodeSecret = process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-login-secret';
+app.use('/api/training-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: loginCodeSecret,
+}));
+app.use('/api/hr-tools-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: loginCodeSecret,
+  isAuthorizedEmail: isAuthorizedHrToolsEmail,
+  collectionName: 'hr_tools_login_codes',
+  toolName: 'RTUT HR Tools',
+  sessionType: 'hr-tools',
+}));
+app.use('/api/training', createTrainingRouter({
+  uri,
+  databaseName: database_name,
+  requireTrainingSession,
+}));
+app.use('/api/hr-platform', createHrPlatformRouter({
+  uri,
+  databaseName: database_name,
+  requireHrToolsSession,
+}));
+
+// Function to log errors to the database
+const logErrorToDatabase = async (error, context) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const collection = db.collection('error logs');
+
+        const errorLogEntry = {
+            error: typeof error === 'string' ? error : (error?.message || String(error)),
+            context,
+            timestamp: new Date()
+        };
+
+        await collection.insertOne(errorLogEntry);
+        console.log('Error log saved successfully.');
+    } catch (logError) {
+        console.error('Error saving error log:', logError);
+    } finally {
+        await localClient.close();
+    }
+};
+
+// Define a route to handle the POST request for executing the script
+app.post('/call-function-send-notification', requireAdminSession, async (req, res) => {
+    const messageContent = req.body.body;
+    const subject = req.body.subject;
+    const sender = req.body.sender;
+    const selectedEmployees = req.body.selectedEmployees;
+    const sendEmail = req.body.sendEmail;
+    const sendSms = req.body.sendSms;
+    const sendApp = req.body.sendApp;
+    const adminUser = req.adminSession;
+
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+    const messageContentJSON = JSON.stringify({ messageContent });
+    const adminUserJSON = JSON.stringify(adminUser);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    const messageContentFilePath = path.join(__dirname, 'temp', 'messageContent.json');
+    const adminUserJSONFilePath = path.join(__dirname, 'temp', 'adminUser.json');
+
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+    fs.writeFileSync(messageContentFilePath, messageContentJSON);
+    fs.writeFileSync(adminUserJSONFilePath, adminUserJSON);
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/sendNotification.mjs "${messageContentFilePath}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}" "${adminUserJSONFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+
+            await logErrorToDatabase(error.message, 'sendNotification.mjs');
+            await logOperationToDatabase({
+                action: 'send_notification',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { subject, sender, channels: { app: sendApp, sms: sendSms, email: sendEmail } },
+                status: 'failed',
+                errorMessage: error.message,
+            });
+
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_notification',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { subject, sender, channels: { app: sendApp, sms: sendSms, email: sendEmail } },
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-send-survey', requireAdminSession, (req, res) => {
+    const surveyJson = req.body.surveyJson;
+    const selectedEmployees = req.body.selectedEmployees;
+    const adminUser = req.adminSession;
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+    const surveyQuestionsJSON = JSON.stringify(surveyJson);
+    const adminUserJSON = JSON.stringify(adminUser);
+
+    const subject = req.body.subject;
+    const sender = req.body.sender;
+
+    // Write the JSON string to a temporary file
+    const selectedEmployeesFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(selectedEmployeesFilePath, selectedEmployeesJSON);
+
+    const surveyQuestionsFilePath = path.join(__dirname, 'temp', 'surveyQuestions.json');
+    fs.writeFileSync(surveyQuestionsFilePath, surveyQuestionsJSON);
+
+    const adminUserJSONFilePath = path.join(__dirname, 'temp', 'adminUser.json');
+    fs.writeFileSync(adminUserJSONFilePath, adminUserJSON);
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}" "${adminUserJSONFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_survey',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { subject, sender, questionCount: Array.isArray(surveyJson?.elements) ? surveyJson.elements.length : null },
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_survey',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { subject, sender, questionCount: Array.isArray(surveyJson?.elements) ? surveyJson.elements.length : null },
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-add-employee', requireAdminSession, async (req, res) => {
+    const newEmployee = req.body;
+    const newEmployeeJSON = JSON.stringify(newEmployee);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'newEmployee.json');
+    fs.writeFileSync(tempFilePath, newEmployeeJSON);
+
+    // Execute the script
+    exec(`node ./backend/server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            // Find the relevant error line
+            const errorLines = stderr.split('\n');
+            const relevantError = errorLines.find(line => line.includes("Error during operation"));
+
+            if (relevantError) {
+                // Remove "Error during operation: " text
+                const cleanErrorMessage = relevantError.replace("Error during operation: ", "");
+                res.status(500).send(cleanErrorMessage);
+            } else {
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+            }
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+
+app.post('/call-function-delete-employee', requireAdminSession, async (req, res) => {
+    const firstName = req.body.firstName;
+    const lastName = req.body.lastName;
+
+    // Execute the script
+    exec(`node ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+        if (error) {
+            // Find the relevant error line
+            const errorLines = stderr.split('\n');
+            const relevantError = errorLines.find(line => line.includes("Error during operation"));
+
+            if (relevantError) {
+                // Remove "Error during operation: " text
+                const cleanErrorMessage = relevantError.replace("Error during operation: ", "");
+                res.status(500).send(cleanErrorMessage);
+            } else {
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+            }
+            return;
+        }
+        res.status(200).send(stdout.trim());
+    });
+});
+
+app.post('/call-function-import-employees', requireAdminSession, upload.single('file'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).send('No file uploaded.');
+    }
+
+    const tempFilePath = req.file.path;
+
+    exec(`node ./backend/server/importEmployeeData.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        fs.unlink(tempFilePath, (err) => {
+            if (err) console.error(`Failed to delete temp file: ${err.message}`);
+        });
+
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        const resultMatch = stdout.match(/IMPORT_RESULT:(\{.*\})/);
+        if (!resultMatch) {
+            console.error('Employee import completed without a result summary.');
+            res.status(500).send('Employee import completed without a verifiable result.');
+            return;
+        }
+
+        res.status(200).json(JSON.parse(resultMatch[1]));
+    });
+});
+
+app.post('/call-function-delete-notification', requireAdminSession, (req, res) => {
+    const transactionId = req.body.transactionId;
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/deleteNotification.mjs "${transactionId}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-activate-app-usage', requireAdminSession, async (req, res) => {
+    const users = JSON.stringify(req.body);
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'activateUsers.json');
+    fs.writeFileSync(tempFilePath, users);
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/activateAppUsage.mjs "${tempFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'activate_app_usage',
+                adminUser: req.adminSession,
+                selectedEmployees: req.body,
+                payloadSummary: { source: 'csv_workflow' },
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'activate_app_usage',
+            adminUser: req.adminSession,
+            selectedEmployees: req.body,
+            payloadSummary: { source: 'csv_workflow' },
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/api/submit-survey', async (req, res) => {
+    try {
+        // Retrieve the survey result data from the request body
+        const { surveyId, answers, timestamp } = req.body;
+
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey results');
+
+        // Insert the survey data into the MongoDB collection
+        await collection.insertOne({ UID: surveyId, answers, timestamp });
+
+        console.log('Survey data inserted successfully');
+        res.status(200).send('Survey result received successfully');
+    } catch (error) {
+        console.error('Error handling survey submission:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+// Endpoint to handle user registration
+app.post('/api/register_external',
+    [
+        body('firstName').notEmpty().withMessage('First Name is required'),
+        body('lastName').notEmpty().withMessage('Last Name is required'),
+        body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
+            .matches(/[A-Za-z]/).withMessage('Password must contain at least one letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[@$!%*#?&]/).withMessage('Password must contain at least one special character'),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        const { firstName, lastName, password, type, phoneNumber, email } = req.body;
+        // Execute the script
+        exec(`node ./backend/server/registerExternal.mjs "${firstName}" "${lastName}" "${password}" "${type}" "${phoneNumber}" "${email}"`, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+                return;
+            }
+            console.log(stdout);
+            if (stdout.includes("Register valid: true")) {
+                res.status(200).send("Register successful");
+            } else {
+                res.status(401).send("Register failed");
+            }
+        });
+    }
+);
+
+app.post('/api/submit-feedback', async (req, res) => {
+    try {
+        // Retrieve the feedback data from the request body
+        const { name, feedback } = req.body;
+
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('feedback');
+
+        // Insert the feedback data into the MongoDB collection
+        await collection.insertOne({ name, feedback, timestamp: new Date() });
+
+        console.log('Feedback data inserted successfully');
+        res.status(200).send('Feedback received successfully');
+    } catch (error) {
+        console.error('Error handling feedback submission:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/api/fetch-events', async (req, res) => {
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('events');
+        const data = await collection.find().toArray();
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+        res.json(data);
+    } catch (error) {
+        console.error('Error handling event fetching:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/api/register_token', (req, res) => {
+    try {
+        const { token, user } = req.body;
+        console.log('Received token:', token);
+        console.log('Received user info:', user);
+
+        const firstName = user.userFirstName;//req.body.firstName;
+        const lastName = user.userLastName;//req.body.lastName;
+
+        // Execute the script and pass the temporary file path as an argument
+        exec(`node ./backend/server/updateEmployeeToken.mjs "${firstName}" "${lastName}" "${token}"`, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+                return;
+            }
+
+            res.status(200).json({ message: 'Token and user info received successfully' });
+        });
+    } catch (error) {
+        console.error('Error handling password reset:', error.message);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+app.post('/api/reset-password',
+    [
+        body('userId').notEmpty().withMessage('User ID is required'),
+        body('newPassword')
+            .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
+            .matches(/[A-Za-z]/).withMessage('Password must contain at least one letter')
+            .matches(/\d/).withMessage('Password must contain at least one number')
+            .matches(/[@$!%*#?&]/).withMessage('Password must contain at least one special character'),
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { userId, newPassword } = req.body;
+        try {
+            // Connect to MongoDB
+            await client.connect();
+            console.log('Connected to MongoDB');
+
+            // Access the database and collection
+            const db = client.db(database_name);
+            const collection = db.collection('employees');
+
+            // Find the user
+            const user = await collection.findOne({ username: userId });
+
+            // Check if user exists
+            if (!user) {
+                console.error('No valid login found in MongoDB collection');
+                res.status(404).json({ message: 'User not found' });
+                return;
+            }
+
+            // Update the user's password and set the password reset date
+            const updateResult = await collection.updateOne(
+                { username: userId },
+                { $set: { password: newPassword, passwordResetDate: new Date() } }
+            );
+
+            if (updateResult.modifiedCount === 1) {
+                res.status(200).json({ message: 'Password reset successful' });
+            } else {
+                res.status(500).json({ message: 'Failed to update password' });
+            }
+
+        } catch (error) {
+            console.error('Error handling password reset:', error.message);
+            res.status(500).send('Internal Server Error');
+        } finally {
+            // Close the MongoDB connection
+            await client.close();
+            console.log('Connection to MongoDB closed');
+        }
+    }
+);
+
+// API endpoint to handle forget-password requests
+app.post('/api/forget-password', async (req, res) => {
+    const { phone } = req.body;
+    try {
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length !== 10) {
+            throw new Error('Invalid phone number format. Must contain 10 digits.');
+        }
+        const Phone = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+        console.log(`Formatted phone: ${Phone}`);
+        await client.connect();
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+
+        // Construct regex pattern
+        const regexPattern = `.*${digits.split('').join('.*')}.*`;
+
+        // Match user by regex
+        const user = await collection.findOne({
+            Phone: { $regex: regexPattern }
+        });
+        console.log(user);
+
+        if (!user) {
+            console.error('User not found');
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        else {
+            const userId = user.username;
+            console.log(userId);
+
+            // Execute the MJS script with necessary parameters
+            exec(`node ./backend/server/forgetPassword.mjs "${userId}" "${uri}" "${database_name}"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error executing script: ${error.message}`);
+                    res.status(500).send(`Internal Server Error: ${error.message}`);
+                    return;
+                }
+
+                console.log(stdout);
+                res.status(200).json({ message: 'Password reset successful' });
+            });
+        }
+    } catch (error) {
+        console.error('Error handling forget password:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        await client.close();
+    }
+});
+
+app.post('/api/accept-disclaimer', async (req, res) => {
+    async function activateUserIfNeeded(userInfo, accepted, collection) {
+        if (userInfo.isActivated !== 'true' && accepted) {
+            // Update user to activate account and set activation date
+            const registrationDate = new Date();
+            await collection.updateOne(
+                { username: { $regex: new RegExp(`^${userInfo.username}$`, 'i') } },
+                {
+                    $set: {
+                        isActivated: 'true',
+                        activationDate: registrationDate,
+                        'App Registration Date': registrationDate
+                    }
+                }
+            );
+        }
+    }
+
+    async function logDisclaimerAcceptance(userInfo, accepted, appVersion, deviceInfo, db) {
+        // Log acceptance details in a separate collection
+        const acceptanceRecord = {
+            username: userInfo.username,
+            accepted,
+            appVersion,
+            deviceInfo,
+            timestamp: new Date()
+        };
+        const logCollection = db.collection('disclaimer acceptances');
+        await logCollection.insertOne(acceptanceRecord);
+    }
+
+    try {
+        const { accepted, username, appVersion, deviceInfo } = req.body;
+
+        if (!accepted || !username) {
+            return res.status(400).send('Missing required fields');
+        }
+
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database and collection
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+
+        // Fetch the user from the database
+        const user = await collection.findOne({
+            username: { $regex: new RegExp(`^${username}$`, 'i') }
+        });
+
+        if (!user) {
+            console.error('User not found in MongoDB collection');
+            return res.status(404).send('User not found');
+        }
+
+        // Activate user if needed
+        await activateUserIfNeeded(user, accepted, collection);
+
+        // Log the disclaimer acceptance to a separate collection
+        await logDisclaimerAcceptance(user, accepted, appVersion, deviceInfo, db);
+
+        res.status(200).send('Disclaimer Accepted and Logged!');
+    } catch (error) {
+        console.error('Error handling disclaimer acceptance:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Ensure the MongoDB connection is closed
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/api/authentication', async (req, res) => {
+    try {
+        let { userName, password } = req.body;
+        userName = userName.trim();
+
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+
+        const user = await collection.find({
+            username: { $regex: new RegExp(`^${userName}$`, 'i') },
+            password: password
+        }).toArray();
+
+        if (!user || user.length === 0) {
+            console.error('No valid login found in MongoDB collection');
+            res.status(404).send('Validation failed');
+            return;
+        }
+
+        // Extract the user object
+        const userInfo = user[0];
+
+        res.json([userInfo]);  // Respond with the user info array
+    } catch (error) {
+        console.error('Error handling validation:', error.message);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() })
+})
+
+// ======= æ¯æ—¥å®šæ—¶ä»»åŠ¡ï¼ˆ07:05 ETï¼›å¯æ”¹ .env DIGEST_CRONï¼‰ =======
+cron.schedule(process.env.DIGEST_CRON || '5 7 * * *', async () => {
+  await runDailyDigest(); // é»˜è®¤æ±‡æ€»â€œæ˜¨æ—¥ï¼ˆç¾Žä¸œï¼‰â€
+}, { timezone: process.env.TIMEZONE || 'America/Detroit' });
+
+// ======= æ‰‹åŠ¨è§¦å‘æŽ¥å£ï¼š/admin/digest?date=YYYY-MM-DD =======
+function apiKeyGuard(req, res, next) {
+  const key = req.headers['x-api-key'];
+  if (!process.env.ADMIN_API_KEY || key === process.env.ADMIN_API_KEY) return next();
+  return res.status(401).json({ ok: false, error: 'unauthorized' });
+}
+
+app.post('/admin/digest', apiKeyGuard, async (req, res) => {
+  try {
+    const dateET = (req.query.date || '').trim(); // ä¼ ç©º=é»˜è®¤æ˜¨æ—¥
+    const result = await runDailyDigest(dateET || undefined);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+const oldDir = path.join(__dirname, '../client/build');
+app.use(express.static(oldDir, { index: false }));
+const newDir = path.join(__dirname, '../../admin-web/dist');
+app.use('/admin', express.static(newDir));
+app.use('/hr-tools', express.static(newDir, { index: false }));
+app.use('/app-console', express.static(oldDir, { index: false }));
+
+app.get('/admin/*', (req, res) => {
+  res.sendFile(path.join(newDir, 'index.html'));
+});
+
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change'], (req, res) => {
+  res.sendFile(path.join(newDir, 'index.html'));
+});
+
+app.get(['/app-console', '/app-console/*'], (req, res) => {
+  const session = getSessionFromRequest(req);
+  if (!session) return res.redirect('/admin');
+  res.sendFile(path.join(oldDir, 'index.html'));
+});
+
+app.get('/', (req, res) => {
+  res.redirect('/admin');
+});
+
+app.get(/^\/(?!api|admin|hr-tools).*/, (req, res) => {
+  res.redirect('/admin');
+});
+
+// Start the server
+app.listen(process.env.PORT || port, () => {
+    console.log(`Server is running on port ${port}`);
+    reconcileHistoricalAppRegistrationDates();
+});
