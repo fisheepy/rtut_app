@@ -282,7 +282,68 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       return res.status(400).json({ error: 'Please enter a valid Pay Rate with no more than two decimal places.' });
     }
     if (payRateChangePending && (!validDate(payrollChangeDate) || !payrollChangeDate || !payrollChangeReason)) {
-      return res.status(400).json({ error: 'Pending to Cha…1220 tokens truncated…keys(unsetReviewFields).length ? { $unset: unsetReviewFields } : {};
+      return res.status(400).json({ error: 'Pending to Change requires a Payroll Change Date and reason.' });
+    }
+    if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
+      return res.status(400).json({ error: 'Please enter valid dates.' });
+    }
+
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employee = await db.collection('employees').findOne({ _id: new ObjectId(employeeId) });
+      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+      const values = {
+        employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate,
+        insuranceEffectiveDate: insuranceNotApplicable ? '' : insuranceEffectiveDate, insuranceNotApplicable,
+        retirementEffectiveDate: retirementNotApplicable ? '' : retirementEffectiveDate, retirementNotApplicable,
+        payRateChangePending, payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
+        payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
+      };
+      const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
+      const dateCorrection = Boolean(existingRecord && (
+        clean(existingRecord.firstPayrollDate) !== firstPayrollDate ||
+        clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate ||
+        (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable ||
+        clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate ||
+        (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable
+      ));
+      if (!dateCorrection) {
+        if (!payRateType || !payRate) return res.status(400).json({ error: 'Pay Type and Pay Rate are required.' });
+        if (!firstPayrollDate) return res.status(400).json({ error: 'First Payroll Date is required.' });
+        if ((!insuranceNotApplicable && !insuranceEffectiveDate) || (insuranceNotApplicable && insuranceEffectiveDate)) return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
+        if ((!retirementNotApplicable && !retirementEffectiveDate) || (retirementNotApplicable && retirementEffectiveDate)) return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
+      } else if ((!insuranceNotApplicable && !insuranceEffectiveDate && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) || (insuranceNotApplicable && insuranceEffectiveDate)) {
+        return res.status(400).json({ error: 'Insurance must have an Effective Date or be marked Not Applicable.' });
+      } else if ((!retirementNotApplicable && !retirementEffectiveDate && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) || (retirementNotApplicable && retirementEffectiveDate)) {
+        return res.status(400).json({ error: '401(k) must have an Effective Date or be marked Not Applicable.' });
+      }
+      const changeRequestChanged = payrollChangeRequestChanged(existingRecord || {}, payRateChangePending, payrollChangeDate, payrollChangeReason);
+      const unsetReviewFields = {};
+      const resetResponse = {};
+      const resetReasons = [];
+      const addResetFields = (fields) => fields.forEach(field => {
+        unsetReviewFields[field] = '';
+        resetResponse[field] = field.endsWith('At') ? null : '';
+      });
+      if (existingRecord && clean(existingRecord.firstPayrollDate) !== firstPayrollDate) {
+        resetReasons.push('First Payroll Date changed');
+        addResetFields(['payrollCheckedAt', 'payrollCheckedBy', 'payrollFinalReviewedAt', 'payrollFinalReviewedBy']);
+      }
+      if (existingRecord && (clean(existingRecord.insuranceEffectiveDate) !== values.insuranceEffectiveDate || (existingRecord.insuranceNotApplicable === true) !== insuranceNotApplicable)) {
+        resetReasons.push('Insurance applicability or Effective Date changed');
+        addResetFields(['insuranceCheckedAt', 'insuranceCheckedBy']);
+      }
+      if (existingRecord && (clean(existingRecord.retirementEffectiveDate) !== values.retirementEffectiveDate || (existingRecord.retirementNotApplicable === true) !== retirementNotApplicable)) {
+        resetReasons.push('401(k) applicability or Effective Date changed');
+        addResetFields(['retirementCheckedAt', 'retirementCheckedBy']);
+      }
+      if (changeRequestChanged) {
+        resetReasons.push('Payroll Change request changed');
+        addResetFields(['payrollChangeCheckedAt', 'payrollChangeCheckedBy', 'payrollChangeFinalReviewedAt', 'payrollChangeFinalReviewedBy']);
+      }
+      const reviewReset = Object.keys(unsetReviewFields).length ? { $unset: unsetReviewFields } : {};
       const reviewResetAudit = resetReasons.length ? { $push: { reviewResetHistory: {
         resetAt: new Date(), resetBy: req.adminSession?.email || null, reasons: resetReasons,
         previousReviewValues: Object.fromEntries(Object.keys(unsetReviewFields).map(field => [field, existingRecord?.[field] || null])),
@@ -600,4 +661,3 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
 }
 
 module.exports = { createHrPlatformRouter };
-

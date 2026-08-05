@@ -129,4 +129,3 @@ module.exports = {
   clean, commentAudit, employeeView, terminationEmployeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
   payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
 };
-

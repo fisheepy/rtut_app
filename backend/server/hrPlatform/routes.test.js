@@ -72,4 +72,3 @@ test('maps a terminated Company App employee into the termination workflow', () 
   assert.equal(row.pendingIssues, true);
   assert.equal(row.insuranceParticipation, 'not-participated');
 });
-

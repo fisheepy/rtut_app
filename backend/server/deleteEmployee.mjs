@@ -105,4 +105,3 @@ deleteEmployee(firstName, lastName)
         console.error(error.message);
         process.exit(1);
     });
-
