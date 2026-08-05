@@ -741,20 +741,57 @@ app.get('/survey-results/:surveyId', cors(), requireAdminSession, async (req, re
 });
 
 
-async function updateEmployeeInDatabase(employeeId, updatedEmployee) {
+async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSession) {
     try {
         await client.connect();
         const db = client.db(database_name);
         const collection = db.collection('employees');
-        const { _id, ...employeeUpdate } = updatedEmployee;
+        const { _id, _employmentChange = {}, Name, Supervisor, ...submittedEmployee } = updatedEmployee;
+        const allowedFields = new Set([
+            'First Name', 'Last Name', 'Hire Date', 'Home Department', 'Supervisor First Name',
+            'Supervisor Last Name', 'Job Title', 'Location', 'Email', 'Phone',
+            'EEOC Establishment', 'Worker Category', 'Pay Category',
+        ]);
+        const selectedFields = Array.isArray(_employmentChange.changedFields)
+            ? _employmentChange.changedFields.filter(field => allowedFields.has(field)) : [];
+        if (!selectedFields.length) return { found: false, error: 'Select at least one item to change.' };
+        const existing = await collection.findOne({ _id: new ObjectId(employeeId) });
+        if (!existing) return { found: false };
+        const employeeUpdate = Object.fromEntries(selectedFields.map(field => [field, submittedEmployee[field] == null ? '' : String(submittedEmployee[field]).trim()]));
+        const changes = selectedFields
+            .filter(field => String(existing[field] || '').trim() !== String(employeeUpdate[field] || '').trim())
+            .map(field => ({ field, from: existing[field] || '', to: employeeUpdate[field] || '' }));
+        if (!changes.length) return { found: true, changed: false, error: 'The selected information has not changed.' };
+        const payroll = _employmentChange.payroll === true;
+        const insurance = _employmentChange.insurance === true;
+        const retirement = _employmentChange.retirement === true;
+        const trackOther = _employmentChange.trackOther === true;
+        if ((payroll || insurance || retirement || trackOther) && (!/^\d{4}-\d{2}-\d{2}$/.test(String(_employmentChange.effectiveDate || '')) || !String(_employmentChange.reason || '').trim())) {
+            return { found: true, changed: false, error: 'Effective Date and Reason are required for tracked changes.' };
+        }
 
-        // Update the employee with the new information
         const result = await collection.updateOne(
             { _id: new ObjectId(employeeId) },
             { $set: employeeUpdate }
         );
-
-        return result.modifiedCount > 0;
+        if (payroll || insurance || retirement || trackOther) {
+            await db.collection('employee_hr_employment_change').insertOne({
+                employeeId,
+                employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),
+                employeeEmail: employeeUpdate.Email ?? existing.Email ?? '',
+                effectiveDate: String(_employmentChange.effectiveDate || '').trim(),
+                reason: String(_employmentChange.reason || '').trim(),
+                changes,
+                tasks: {
+                    payroll: { required: payroll, completedAt: null, completedBy: '' },
+                    insurance: { required: insurance, completedAt: null, completedBy: '' },
+                    retirement: { required: retirement, completedAt: null, completedBy: '' },
+                    other: { required: trackOther, completedAt: null, completedBy: '' },
+                },
+                createdAt: new Date(), createdBy: adminSession?.email || '',
+            });
+        }
+        return { found: true, changed: result.modifiedCount > 0, tracked: payroll || insurance || retirement || trackOther };
     } catch (error) {
         console.error('Error updating employee in database:', error);
         throw error;
@@ -768,9 +805,11 @@ app.put('/employees/:id', requireAdminSession, async (req, res) => {
     const updatedEmployee = req.body;
 
     try {
-        const success = await updateEmployeeInDatabase(employeeId, updatedEmployee);
-        if (success) {
-            res.status(200).send('Employee updated successfully');
+        const result = await updateEmployeeInDatabase(employeeId, updatedEmployee, req.adminSession);
+        if (result.error) {
+            res.status(400).send(result.error);
+        } else if (result.found) {
+            res.status(200).json({ message: 'Employee updated successfully', tracked: result.tracked === true });
         } else {
             res.status(404).send('Employee not found');
         }
@@ -1848,7 +1887,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 

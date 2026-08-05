@@ -728,6 +728,42 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to create termination task report:', error); return res.status(500).json({ error: 'The termination task report could not be created.' }); } finally { await client.close(); }
   });
 
+  router.get('/employment-changes', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const records = await client.db(databaseName).collection('employee_hr_employment_change')
+        .find({}).sort({ effectiveDate: 1, createdAt: 1 }).toArray();
+      return res.json(records.map(record => ({
+        id: String(record._id), employeeId: clean(record.employeeId), employeeName: clean(record.employeeName),
+        employeeEmail: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), reason: clean(record.reason),
+        changes: Array.isArray(record.changes) ? record.changes : [], tasks: record.tasks || {},
+        createdAt: record.createdAt || null, createdBy: clean(record.createdBy),
+      })));
+    } catch (error) {
+      console.error('Unable to load employment changes:', error);
+      return res.status(500).json({ error: 'Employment Change records could not be loaded.' });
+    } finally { await client.close(); }
+  });
+
+  router.put('/employment-changes/:id/tasks/:task', async (req, res) => {
+    const { id, task } = req.params;
+    if (!ObjectId.isValid(id) || !['payroll', 'insurance', 'retirement', 'other'].includes(task)) return res.status(400).json({ error: 'Invalid employment change task.' });
+    const client = createClient();
+    try {
+      await client.connect();
+      const collection = client.db(databaseName).collection('employee_hr_employment_change');
+      const record = await collection.findOne({ _id: new ObjectId(id) });
+      if (!record?.tasks?.[task]?.required) return res.status(400).json({ error: 'This task is not required.' });
+      const completedAt = new Date(); const completedBy = clean(req.adminSession?.email).toLowerCase();
+      await collection.updateOne({ _id: record._id }, { $set: { [`tasks.${task}.completedAt`]: completedAt, [`tasks.${task}.completedBy`]: completedBy, updatedAt: completedAt } });
+      return res.json({ completedAt, completedBy });
+    } catch (error) {
+      console.error('Unable to complete employment change task:', error);
+      return res.status(500).json({ error: 'The employment change task could not be completed.' });
+    } finally { await client.close(); }
+  });
+
   return router;
 }
 

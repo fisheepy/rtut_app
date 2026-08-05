@@ -18,16 +18,19 @@ import {
     Button,
     Grid,
     Autocomplete,
+    Alert,
     Box,
     Chip,
     Collapse,
     Stack,
     Typography,
+    FormControlLabel,
 } from '@mui/material';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { canonicalizeEmployeeFilters } from './employeeFilterUtils';
 
 const parseEmployeeDate = (value) => {
@@ -62,6 +65,12 @@ const employeeDateInputValue = (value) => {
     return `${parsed.year}-${String(parsed.month).padStart(2, '0')}-${String(parsed.day).padStart(2, '0')}`;
 };
 
+const editableEmployeeFields = [
+    'First Name', 'Last Name', 'Hire Date', 'Home Department', 'Supervisor First Name',
+    'Supervisor Last Name', 'Job Title', 'Location', 'Email', 'Phone',
+    'EEOC Establishment', 'Worker Category', 'Pay Category',
+];
+
 function EmployeeSelectionComponent() {
     const { selectedEmployees, setSelectedEmployees } = useContext(SelectedEmployeesContext);
     const tableContainerRef = useRef(null);
@@ -75,6 +84,10 @@ function EmployeeSelectionComponent() {
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [originalEmployee, setOriginalEmployee] = useState(null);
+    const [changedFields, setChangedFields] = useState([]);
+    const [changeDetails, setChangeDetails] = useState({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false });
+    const [editError, setEditError] = useState('');
     const [employeeSearch, setEmployeeSearch] = useState('');
     const [showMoreFilters, setShowMoreFilters] = useState(false);
 
@@ -226,14 +239,19 @@ function EmployeeSelectionComponent() {
         });
     };
 
-    const handleRowDoubleClick = (employee) => {
-        setSelectedEmployee(employee);
+    const openEmployeeEditor = (employee) => {
+        setOriginalEmployee(employee);
+        setSelectedEmployee({ ...employee });
+        setChangedFields([]);
+        setChangeDetails({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false });
+        setEditError('');
         setIsEditModalOpen(true);
     };
 
     const handleModalClose = () => {
         setIsEditModalOpen(false);
         setSelectedEmployee(null);
+        setOriginalEmployee(null);
     };
 
     const handleInputChange = (e) => {
@@ -245,18 +263,25 @@ function EmployeeSelectionComponent() {
     };
 
     const handleSaveChanges = async () => {
+        if (!changedFields.length) return setEditError('Select at least one item to change.');
+        if (!changeDetails.effectiveDate || !changeDetails.reason.trim()) return setEditError('Effective Date and Reason are required.');
         try {
-            await axios.put(`/employees/${selectedEmployee._id}`, selectedEmployee);
+            const updatedEmployee = { ...originalEmployee };
+            changedFields.forEach(field => { updatedEmployee[field] = selectedEmployee[field]; });
+            updatedEmployee._employmentChange = { ...changeDetails, changedFields };
+            await axios.put(`/employees/${selectedEmployee._id}`, updatedEmployee);
             setEmployees((prevEmployees) => prevEmployees.map((emp) => (emp._id === selectedEmployee._id ? selectedEmployee : emp)));
             applyFilters();
             handleModalClose();
         } catch (error) {
             console.error('Error updating employee:', error);
+            setEditError(error.response?.data || 'The employee could not be updated.');
         }
     };
 
     const columns = [
         { id: 'Name', label: 'Name', filter: true, sticky: true },
+        { id: 'edit', label: 'Edit Employee', filter: false },
         { id: 'Hire Date', label: 'Hire Date', filter: false },
         { id: 'Position Status', label: 'Status', filter: true },
         { id: 'Home Department', label: 'Home Department', filter: true },
@@ -449,12 +474,11 @@ function EmployeeSelectionComponent() {
                         {filteredEmployees.map((employee) => (
                             <TableRow
                                 key={employee._id}
-                                onDoubleClick={() => handleRowDoubleClick(employee)}
                                 className={deselectedEmployees.has(employee._id) ? 'employee-row-deselected' : ''}
                             >
                                 {columns.map((column) => (
                                     <TableCell key={column.id} className={column.sticky ? 'employee-name-cell' : ''}>
-                                        {column.id === 'select' ? (
+                                        {column.id === 'edit' ? <Button startIcon={<EditOutlinedIcon />} onClick={() => openEmployeeEditor(employee)} size="small" variant="outlined">Edit</Button> : column.id === 'select' ? (
                                             <Checkbox
                                                 checked={employee.isActivated === true && !deselectedEmployees.has(employee._id)}
                                                 disabled={employee.isActivated !== true}
@@ -481,6 +505,11 @@ function EmployeeSelectionComponent() {
                 <DialogContent>
                     {selectedEmployee && (
                         <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                                <Alert severity="info">Select exactly which information is changing. Employee information can only be updated through this controlled workflow.</Alert>
+                                {editError ? <Alert severity="error" sx={{ mt: 1 }}>{editError}</Alert> : null}
+                                <Autocomplete multiple options={editableEmployeeFields} value={changedFields} onChange={(_event, values) => setChangedFields(values)} renderInput={(params) => <TextField {...params} label="Information to Change *" margin="normal" />} />
+                            </Grid>
                             <Grid item xs={6}>
                                 <TextField
                                     fullWidth
@@ -600,6 +629,13 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                 />
                             </Grid>
+                            <Grid item xs={12}><Typography variant="h6">HR Action Tracking</Typography><Typography variant="body2" color="text.secondary">Payroll, Insurance, and 401(k) changes are always transferred to HR Platform. For other changes, choose whether HR follow-up is needed.</Typography></Grid>
+                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked }))} />} label="Payroll change needed" /></Grid>
+                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
+                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
+                            <Grid item xs={12}><FormControlLabel control={<Checkbox checked={changeDetails.trackOther} onChange={event => setChangeDetails(current => ({ ...current, trackOther: event.target.checked }))} />} label="Track this non-financial change in HR Platform" /></Grid>
+                            <Grid item xs={12} sm={5}><TextField fullWidth label="Effective Date *" type="date" value={changeDetails.effectiveDate} onChange={event => setChangeDetails(current => ({ ...current, effectiveDate: event.target.value }))} InputLabelProps={{ shrink: true }} /></Grid>
+                            <Grid item xs={12} sm={7}><TextField fullWidth label="Reason / Notes *" value={changeDetails.reason} onChange={event => setChangeDetails(current => ({ ...current, reason: event.target.value }))} /></Grid>
                         </Grid>
                     )}
                 </DialogContent>

@@ -10,6 +10,7 @@ import TrainingTools from './pages/TrainingTools'
 import HRPlatform from './pages/HRPlatform'
 import NewHire from './pages/NewHire'
 import Termination from './pages/Termination'
+import EmploymentChange from './pages/EmploymentChange'
 
 type AdminUser = {
   firstName?: string
@@ -306,6 +307,7 @@ export default function App() {
           <Route path="/hr-platform" element={<HRPlatform />} />
           <Route path="/hr-platform/new-hire" element={<NewHire />} />
           <Route path="/hr-platform/termination" element={<Termination />} />
+          <Route path="/hr-platform/employment-change" element={<EmploymentChange />} />
         </Routes>
       </HrToolShell>
     )
