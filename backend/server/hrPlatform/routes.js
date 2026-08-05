@@ -46,6 +46,25 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray()
         : [];
       const catalog = await getTrackerCatalog(db);
+      const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
+      for (let index = 0; index < records.length; index += 1) {
+        const record = records[index];
+        const employee = employeeById.get(String(record.employeeId));
+        const reactivationDate = employee?.['Reactivation Date'] ? new Date(employee['Reactivation Date']) : null;
+        const lockedAtValue = record.fileTracker?.finalLockedAt || record.fileTracker?.confirmedAt;
+        const lockedAt = lockedAtValue ? new Date(lockedAtValue) : null;
+        if (reactivationDate && lockedAt && !Number.isNaN(reactivationDate.getTime()) && !Number.isNaN(lockedAt.getTime()) && lockedAt < reactivationDate) {
+          const { _id: originalRecordId, ...historicalRecord } = record;
+          await db.collection('employee_hr_platform_history').updateOne(
+            { originalRecordId, reactivationDate },
+            { $setOnInsert: { ...historicalRecord, originalRecordId, employeeSnapshot: employee, archivedAt: new Date(), archiveReason: 'Legacy onboarding cycle separated after employee reactivation', reactivationDate } },
+            { upsert: true },
+          );
+          const freshRecord = { employeeId: String(record.employeeId), onboardingCycleStartedAt: reactivationDate, fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } };
+          await db.collection('employee_hr_platform').replaceOne({ _id: originalRecordId }, freshRecord);
+          records[index] = freshRecord;
+        }
+      }
       const recordsWithoutSnapshot = records.filter(record => !record.fileTracker?.fieldsSnapshot);
       const existingIds = new Set(records.map(record => String(record.employeeId)));
       const missingEmployeeIds = ids.filter(id => !existingIds.has(id));
@@ -104,11 +123,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const employees = await db.collection('employees').find({ 'HR Platform New Hire At': { $exists: true, $ne: null } }).toArray();
       const ids = employees.map(employee => String(employee._id));
       const records = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray() : [];
+      const historicalRecords = ids.length ? await db.collection('employee_hr_platform_history').find({ employeeId: { $in: ids } }).toArray() : [];
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('File Tracker History');
       sheet.columns = [
-        { header: 'Employee', key: 'employee', width: 26 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
+        { header: 'Employee', key: 'employee', width: 26 }, { header: 'Onboarding Cycle', key: 'cycle', width: 20 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
         { header: 'Employment Status', key: 'employmentStatus', width: 20 }, { header: 'Termination Date', key: 'terminationDate', width: 18 },
         { header: 'Checklist Item', key: 'item', width: 34 }, { header: 'File Status', key: 'status', width: 22 },
         { header: 'Tracker Stage', key: 'stage', width: 24 }, { header: 'Comments', key: 'comments', width: 48 },
@@ -116,22 +136,25 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         { header: 'Confirmation Date', key: 'confirmationDate', width: 18 }, { header: 'Admin Confirmed By', key: 'submittedBy', width: 30 },
         { header: 'Final Locked By', key: 'lockedBy', width: 30 }, { header: 'Final Locked At', key: 'lockedAt', width: 22 },
       ];
-      employees.sort((a, b) => clean(a['Last Name']).localeCompare(clean(b['Last Name']))).forEach(employee => {
-        const record = byId.get(String(employee._id)) || {};
+      const appendTrackerRows = (employee, record, cycle) => {
         const tracker = record.fileTracker || {};
         const locked = tracker.finalLockedAt || tracker.confirmedAt;
         const stage = locked ? 'Locked' : tracker.submittedAt ? 'Confirmed for Review' : 'Draft';
         const fields = tracker.fieldsSnapshot || [];
         const base = {
           employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
-          hireDate: clean(employee['Hire Date']), employmentStatus: clean(employee['Position Status']), terminationDate: clean(employee['Termination Date']), stage, comments: clean(tracker.comments),
+          cycle, hireDate: clean(employee['Hire Date']), employmentStatus: clean(employee['Position Status']), terminationDate: clean(employee['Termination Date']), stage, comments: clean(tracker.comments),
           commentsBy: clean(tracker.commentsBy), commentsUpdatedAt: tracker.commentsUpdatedAt || '',
           confirmationDate: clean(tracker.confirmationDate), submittedBy: clean(tracker.submittedBy),
           lockedBy: clean(tracker.finalLockedBy || tracker.confirmedBy), lockedAt: tracker.finalLockedAt || tracker.confirmedAt || '',
         };
         if (fields.length) fields.forEach(field => sheet.addRow({ ...base, item: clean(field.label), status: clean(tracker.responses?.[field.id]) || 'Missing' }));
         else sheet.addRow({ ...base, item: 'No checklist snapshot', status: 'Missing' });
+      };
+      employees.sort((a, b) => clean(a['Last Name']).localeCompare(clean(b['Last Name']))).forEach(employee => {
+        appendTrackerRows(employee, byId.get(String(employee._id)) || {}, 'Current');
       });
+      historicalRecords.forEach(record => appendTrackerRows(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle'));
       styleReportSheet(sheet);
       return await sendWorkbook(res, workbook, `New_Hire_File_Tracker_History_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (error) {
@@ -195,12 +218,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const employees = await db.collection('employees').find({ 'HR Platform New Hire At': { $exists: true, $ne: null } }).toArray();
       const ids = employees.map(employee => String(employee._id));
       const records = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray() : [];
+      const historicalRecords = ids.length ? await db.collection('employee_hr_platform_history').find({ employeeId: { $in: ids } }).toArray() : [];
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
-      const rows = employees.flatMap(employee => {
-        const record = byId.get(String(employee._id)) || {};
+      const completedRowsFor = (employee, record, cycle) => {
         const base = {
           employee: [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', '),
-          hireDate: clean(employee['Hire Date']), employmentStatus: clean(employee['Position Status']), terminationDate: clean(employee['Termination Date']), department: clean(employee['Home Department']), location: clean(employee.Location),
+          cycle, hireDate: clean(employee['Hire Date']), employmentStatus: clean(employee['Position Status']), terminationDate: clean(employee['Termination Date']), department: clean(employee['Home Department']), location: clean(employee.Location),
         };
         const completed = [];
         if (record.firstPayrollDate && record.payrollFinalReviewedAt) completed.push({ ...base, actionDate: clean(record.firstPayrollDate), actionType: 'First Payroll', status: 'Completed', adminCheckedBy: clean(record.payrollCheckedBy), finalReviewedBy: clean(record.payrollFinalReviewedBy), reason: '' });
@@ -208,11 +231,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         if (record.insuranceEffectiveDate && record.insuranceCheckedAt) completed.push({ ...base, actionDate: clean(record.insuranceEffectiveDate), actionType: 'Insurance', status: 'Action Taken', adminCheckedBy: clean(record.insuranceCheckedBy), finalReviewedBy: '', reason: '' });
         if (record.retirementEffectiveDate && record.retirementCheckedAt) completed.push({ ...base, actionDate: clean(record.retirementEffectiveDate), actionType: '401(k)', status: 'Action Taken', adminCheckedBy: clean(record.retirementCheckedBy), finalReviewedBy: '', reason: '' });
         return completed;
-      }).sort((a, b) => a.employee.localeCompare(b.employee) || a.actionDate.localeCompare(b.actionDate) || a.actionType.localeCompare(b.actionType));
+      };
+      const rows = [
+        ...employees.flatMap(employee => completedRowsFor(employee, byId.get(String(employee._id)) || {}, 'Current')),
+        ...historicalRecords.flatMap(record => completedRowsFor(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle')),
+      ].sort((a, b) => a.employee.localeCompare(b.employee) || a.actionDate.localeCompare(b.actionDate) || a.actionType.localeCompare(b.actionType));
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('Completed Employee Actions');
       sheet.columns = [
-        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Action Type', key: 'actionType', width: 20 },
+        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Onboarding Cycle', key: 'cycle', width: 20 }, { header: 'Action Type', key: 'actionType', width: 20 },
         { header: 'Action / Effective Date', key: 'actionDate', width: 22 }, { header: 'Status', key: 'status', width: 18 },
         { header: 'Admin Checked By', key: 'adminCheckedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalReviewedBy', width: 30 },
         { header: 'Reason / Notes', key: 'reason', width: 38 }, { header: 'Hire Date', key: 'hireDate', width: 14 },
