@@ -8,7 +8,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
 const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL || "https://rtut-app-faiss-0a3485bd0bc8.herokuapp.com/";
-console.log(`?? Using FAISS Server URL: ${FAISS_SERVER_URL}`);
+console.log(`🔗 Using FAISS Server URL: ${FAISS_SERVER_URL}`);
 const axios = require("axios");
 const nodemailer = require('nodemailer'); 
 const cron = require('node-cron');
@@ -75,7 +75,7 @@ function buildDigestHtml({ etDate, rows }) {
 function rowsToCsvBuffer(rows) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    const csv = format({ headers: true })            // ????format()
+    const csv = format({ headers: true })            // ← 用 format()
       .on('data', c => chunks.push(Buffer.from(c)))
       .on('end', () => resolve(Buffer.concat(chunks)))
       .on('error', reject);
@@ -96,7 +96,7 @@ function rowsToCsvBuffer(rows) {
   });
 }
 
-// 蝏???靽∪?堆?雿歇撘? nodemailer嚗????嫣??唳?憌嚗?
+// 统一的发信函数（你已引过 nodemailer，不重复改你现有风格）
 function makeTransporter() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -225,16 +225,16 @@ async function reconcileHistoricalAppRegistrationDates() {
     }
 }
 
-// ======= Daily Digest 銝餃?堆??祉?餈/?祉??喲嚗?=======
+// ======= Daily Digest 主函数（独立连接/独立关闭） =======
 async function runDailyDigest(etDateOpt) {
   const TZ = process.env.TIMEZONE || 'America/Detroit';
-  const etDate = etDateOpt || DateTime.now().setZone(TZ).minus({ days: 1 }).toISODate(); // ?冽嚗?銝?
+  const etDate = etDateOpt || DateTime.now().setZone(TZ).minus({ days: 1 }).toISODate(); // 昨日（美东）
   const startET = DateTime.fromISO(etDate, { zone: TZ }).startOf('day');
   const endET   = startET.endOf('day');
   const startUTC = startET.toUTC().toJSDate();
   const endUTC   = endET.toUTC().toJSDate();
 
-  // ?函蝡?MongoClient嚗?撟脫雿隞楝?梢???connect/close
+  // 用独立 MongoClient，不干扰你其他路由里的 connect/close
   const localClient = new MongoClient(uri, {
     serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
   });
@@ -243,7 +243,7 @@ async function runDailyDigest(etDateOpt) {
     await localClient.connect();
     const db = localClient.db(database_name);
 
-    // 撟?嚗??嚗?憭拙歇??撠梯歲餈?
+    // 幂等（可删）：当天已发过就跳过
     const digests = db.collection('digests');
     const sent = await digests.findOne({ dateET: etDate });
     if (sent && !process.env.DIGEST_FORCE_ON_START) {
@@ -296,7 +296,7 @@ async function runDailyDigest(etDateOpt) {
 
     return { ok: true, count: rows.length, dateET: etDate };
   } catch (err) {
-    console.error('??Daily digest error:', err);
+    console.error('❌ Daily digest error:', err);
     const alertTo = (process.env.ALERT_EMAIL || '').split(',').filter(Boolean);
     if (alertTo.length) {
       try {
@@ -318,27 +318,27 @@ app.get("/status", async (req, res) => {
         const response = await axios.get(`${FAISS_SERVER_URL}/status`);
         res.json(response.data);
     } catch (error) {
-        console.error("??Error calling FAISS server:", error.message);
+        console.error("❌ Error calling FAISS server:", error.message);
         res.status(500).json({ error: "Could not connect to FAISS server." });
     }
 });
 
-// ??Route: Chat with AI
+// ✅ Route: Chat with AI
 app.post("/chat", async (req, res) => {
-    console.log("? Received chat request:", req.body);
+    console.log("🟢 Received chat request:", req.body);
 
     try {
-        const { query } = req.body;  // ??This should be "question"
+        const { query } = req.body;  // ❌ This should be "question"
         if (!query) {
             return res.status(400).json({ error: "Missing 'query' parameter." });
         }
 
         const response = await axios.post(`${FAISS_SERVER_URL}/chat`, { question: query }, { timeout: 30000 });
 
-        console.log("??Chat response received:", response.data);
+        console.log("✅ Chat response received:", response.data);
         return res.json(response.data);
     } catch (error) {
-        console.error("??Error calling FAISS server:", error.message, error.response?.data);
+        console.error("❌ Error calling FAISS server:", error.message, error.response?.data);
 
         if (error.response) {
             return res.status(error.response.status).json(error.response.data);
@@ -356,7 +356,7 @@ app.post('/api/hr-question', async (req, res) => {
     await client.connect();
     const db = client.db(database_name);
 
-    // ????emailed: false嚗??桐辣??? true嚗????
+    // 先写入 emailed: false；发邮件成功再改 true（避免“写假”）
     const insert = await db.collection('hr_questions').insertOne({
       question,
       phone,
@@ -368,7 +368,7 @@ app.post('/api/hr-question', async (req, res) => {
       resolved: false,
     });
 
-    // 蝏?撟嗅??隞塚?憒?瘝⊿?蝵格隞嗡犖撠梯歲餈?
+    // 组装并发送邮件（如果没配置收件人就跳过）
     const to = (process.env.HR_QUESTION_RECIPIENTS || '').split(',').map(s => s.trim()).filter(Boolean);
     if (to.length) {
       const subject = 'New HR Question Submitted';
@@ -386,8 +386,8 @@ app.post('/api/hr-question', async (req, res) => {
           { $set: { emailed: true } }
         );
       } catch (mailErr) {
-        console.error('?? ???⊥?鈭日憭梯揖嚗?, mailErr.message);
-        // 銝??綽?霈拇?鈭斗?蝔??嗉???200
+        console.error('⚠️ 发送单条提交通知失败：', mailErr.message);
+        // 不抛出，让提交流程仍然返回 200
       }
     }
 
@@ -401,16 +401,16 @@ app.post('/api/hr-question', async (req, res) => {
 });
 
 app.post("/search", async (req, res) => {
-    console.log("? Received search request:", req.body);
+    console.log("🟢 Received search request:", req.body);
 
     try {
         const { query } = req.body;
         const response = await axios.post(`${FAISS_SERVER_URL}/search`, { query }, { timeout: 30000 });
 
-        console.log("??Search response received.");
+        console.log("✅ Search response received.");
         return res.json(response.data);
     } catch (error) {
-        console.error("??Error calling FAISS server:", error.message);
+        console.error("❌ Error calling FAISS server:", error.message);
 
         if (error.code === 'ECONNABORTED') {
             return res.status(504).json({ error: "FAISS server timeout. Please try again later." });
@@ -506,7 +506,855 @@ app.get('/employees', cors(), requireAdminSession, async (req, res, next) => {
     // Function to check if an employee is the supervisor or subordinate of the given login name
     function isSupervisorOrSubordinate(employee, loginName, allEmployees) {
         if (employee["Supervisor First Name"].toUpperCase() === loginName.firstName.toUpperCase() &&
-            employee[…8041 tokens truncated…e ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+            employee["Supervisor Last Name"].toUpperCase() === loginName.lastName.toUpperCase()) {
+            return true; // Employee directly reports to the login user
+        } else {
+            // Check recursively if the supervisor's supervisor is the login user
+            const supervisor = allEmployees.find(emp => emp["First Name"] === employee["Supervisor First Name"] &&
+                emp["Last Name"] === employee["Supervisor Last Name"]);
+            if (supervisor) {
+                return isSupervisorOrSubordinate(supervisor, loginName, allEmployees);
+            }
+        }
+        return false;
+    }
+});
+
+app.get('/notifications', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('notifications');
+
+        // Query database to retrieve notification data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+
+        if (isAdminRoot) {
+            // If the user is root, return all notification data
+            res.json(data);
+        } else {
+            // Filter the notifications to only show the ones created by this admin
+            const filteredData = data.filter(notification =>
+                notification.adminUser?.firstName === loginName.firstName &&
+                notification.adminUser?.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.get('/surveys', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey forms');
+
+        // Query database to retrieve data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+
+        if (isAdminRoot) {
+            // If the user is root, return all survey data
+            res.json(data);
+        } else {
+            // Filter the surveys to only show the ones created by this admin
+            const filteredData = data.filter(survey =>
+                survey.adminUser?.firstName === loginName.firstName &&
+                survey.adminUser?.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+
+app.get('/events', cors(), requireAdminSession, async (req, res, next) => {
+    const loginName = req.adminSession;
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('events');
+
+        // Query database to retrieve data
+        const data = await collection.find().toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Check if the user is a root user
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+        const isAdmin = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+        // Filter data based on user's admin status
+
+        if (isAdmin) {
+            res.json(data);
+        }
+        else {
+            res.status(401).send('Not Authorized');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.get('/survey-results/:surveyId', cors(), requireAdminSession, async (req, res, next) => {
+    const { surveyId } = req.params;
+    const loginName = req.adminSession;
+
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+
+        // Access the database
+        const db = client.db(database_name);
+        const collection = db.collection('survey results');
+
+        // Query database to retrieve data
+        const data = await collection.find({ UID: surveyId }).toArray();
+
+        // Check if data is retrieved
+        if (!data || data.length === 0) {
+            console.error('No data found in MongoDB collection');
+            res.status(404).send('No Data Found');
+            return;
+        }
+
+        // Access the admin collection
+        const adminCollection = db.collection('admins');
+        const admins = await adminCollection.find().toArray();
+
+        // Check if the user is a root admin
+        const isAdminRoot = admins.some(admin =>
+            admin['First Name'] === loginName.firstName &&
+            admin['Last Name'] === loginName.lastName &&
+            admin['Type'] === 'root'
+        );
+
+        // If the user is root, return all data
+        if (isAdminRoot) {
+            res.json(data);
+        } else {
+            // If the user is not root, check if they are the sender of the survey
+            const filteredData = data.filter(survey =>
+                survey.adminUser?.firstName === loginName.firstName &&
+                survey.adminUser?.lastName === loginName.lastName
+            );
+
+            if (filteredData.length > 0) {
+                res.json(filteredData);
+            } else {
+                res.status(401).send('Not Authorized to view this survey');
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+
+async function updateEmployeeInDatabase(employeeId, updatedEmployee) {
+    try {
+        await client.connect();
+        const db = client.db(database_name);
+        const collection = db.collection('employees');
+        const { _id, ...employeeUpdate } = updatedEmployee;
+
+        // Update the employee with the new information
+        const result = await collection.updateOne(
+            { _id: new ObjectId(employeeId) },
+            { $set: employeeUpdate }
+        );
+
+        return result.modifiedCount > 0;
+    } catch (error) {
+        console.error('Error updating employee in database:', error);
+        throw error;
+    } finally {
+        await client.close();
+    }
+}
+
+app.put('/employees/:id', requireAdminSession, async (req, res) => {
+    const employeeId = req.params.id;
+    const updatedEmployee = req.body;
+
+    try {
+        const success = await updateEmployeeInDatabase(employeeId, updatedEmployee);
+        if (success) {
+            res.status(200).send('Employee updated successfully');
+        } else {
+            res.status(404).send('Employee not found');
+        }
+    } catch (error) {
+        res.status(500).send('Error updating employee');
+    }
+});
+
+// Define a route to handle the POST request for executing the script
+app.post('/call-function-send-event', requireAdminSession, (req, res) => {
+    const { endDate, location, startDate, title, allDay, detail, selectedEmployees } = req.body.data;
+    const adminUser = req.adminSession;
+    const creator = getOperatorDisplayName(adminUser);
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+    exec(`node ./backend/server/sendEvent.mjs "${creator}" "${endDate}" "${location}" "${startDate}" "${title}" "${allDay}" "${detail}" "${tempFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_event',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { title, location, allDay, isRecurring: false },
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_event',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { title, location, allDay, isRecurring: false },
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+// Define a route to handle the POST request for deleting an event
+app.post('/call-function-delete-event', requireAdminSession, (req, res) => {
+    const { eventId } = req.body;
+
+    exec(`node ./backend/server/deleteEvent.mjs "${eventId}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Event deleted successfully');
+    });
+});
+
+// Define a route to handle the POST request for updating an event
+app.post('/call-function-update-event', requireAdminSession, (req, res) => {
+    const { eventId, updatedEvent } = req.body;
+
+    const tempFilePath = path.join(__dirname, 'temp', 'updatedEvent.json');
+    fs.writeFileSync(tempFilePath, JSON.stringify(updatedEvent));
+
+    exec(`node ./backend/server/updateEvent.mjs "${eventId}" "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        res.status(200).send('Event updated successfully');
+    });
+});
+
+app.post('/call-function-send-one-time-code', async (req, res) => {
+    const { firstName, lastName } = req.body;
+
+    try {
+        // Connect to MongoDB
+        await client.connect();
+        console.log('Connected to MongoDB');
+        // Check if the user is an admin
+        const adminCollection = client.db(database_name).collection('admins');
+        const isAdmin = await adminCollection.findOne({
+            "Last Name": lastName,
+            "First Name": firstName
+        });
+
+        if (isAdmin) {
+            // Execute the script to send the one-time code
+            exec(`node ./backend/server/sendOTC.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error executing script: ${error.message}`);
+                    res.status(500).send(`Internal Server Error: ${error.message}`);
+                    return;
+                }
+
+                res.status(200).send('Script executed successfully');
+            });
+        } else {
+            // User is not an admin, respond with an error message
+            res.status(403).send('You are not authorized to request a one-time code');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Internal Server Error');
+    } finally {
+        // Close the MongoDB connection
+        await client.close();
+        console.log('Connection to MongoDB closed');
+    }
+});
+
+app.post('/call-function-validate-log-in', async (req, res) => {
+    const { firstName, lastName, enteredCode } = req.body;
+
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const admin = await validateOtpAdmin(db, firstName, lastName, enteredCode);
+
+        if (!admin) {
+            return res.status(401).send("Login failed: Invalid code or code expired");
+        }
+
+        setSessionCookie(res, admin);
+        return res.status(200).send("Login successful");
+    } catch (error) {
+        console.error('Admin OTP login failed:', error);
+        return res.status(500).send(`Internal Server Error: ${error.message}`);
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.get('/api/admin-auth/me', (req, res) => {
+    const session = getSessionFromRequest(req);
+    if (!session) return res.status(401).json({ authenticated: false });
+    return res.json({ authenticated: true, user: publicSession(session) });
+});
+
+async function getAdminAuthConfig(db) {
+    const config = await db.collection('app_config').findOne({
+        $or: [{ key: 'adminAuth' }, { _id: 'adminAuth' }]
+    });
+
+    return {
+        googleClientId: config?.googleClientId || config?.googleOAuthClientId || process.env.GOOGLE_CLIENT_ID || '',
+    };
+}
+
+app.get('/api/admin-auth/config', async (req, res) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const config = await getAdminAuthConfig(db);
+        res.json({ googleClientId: config.googleClientId });
+    } catch (error) {
+        console.error('Failed to load admin auth config:', error);
+        res.json({ googleClientId: process.env.GOOGLE_CLIENT_ID || '' });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/request-code', async (req, res) => {
+    const { firstName, lastName } = req.body;
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const adminCollection = localClient.db(database_name).collection('admins');
+        const isAdmin = await adminCollection.findOne({
+            "Last Name": lastName,
+            "First Name": firstName
+        });
+
+        if (!isAdmin) {
+            return res.status(403).json({ error: 'You are not authorized to request a one-time code' });
+        }
+
+        exec(`node ./backend/server/sendOTC.mjs "${firstName}" "${lastName}"`, (error) => {
+            if (error) {
+                console.error(`Error executing script: ${error.message}`);
+                return res.status(500).json({ error: error.message });
+            }
+            return res.json({ ok: true });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/logout', (req, res) => {
+    clearSessionCookie(res);
+    res.json({ ok: true });
+});
+
+app.post('/api/admin-auth/otp-login', async (req, res) => {
+    const { firstName, lastName, enteredCode } = req.body;
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const admin = await validateOtpAdmin(db, firstName, lastName, enteredCode);
+
+        if (!admin) {
+            return res.status(401).json({ error: 'Invalid code or code expired' });
+        }
+
+        setSessionCookie(res, admin);
+        return res.json({ user: publicSession(getSessionFromRequest(req)) || {
+            firstName: admin['First Name'],
+            lastName: admin['Last Name'],
+            email: admin.Email || admin.email || admin['Google Email'] || null,
+            type: admin.Type || 'admin',
+        } });
+    } catch (error) {
+        console.error('Admin OTP login failed:', error);
+        return res.status(500).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.post('/api/admin-auth/google', async (req, res) => {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Missing Google credential.' });
+
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const config = await getAdminAuthConfig(db);
+        const googleUser = await verifyGoogleCredential(credential, config.googleClientId);
+        const admin = await findAdminByEmail(db, googleUser.email);
+
+        if (!admin) {
+            return res.status(403).json({ error: 'This Google account is not authorized for RTUT Admin.' });
+        }
+
+        setSessionCookie(res, admin);
+        return res.json({
+            user: {
+                firstName: admin['First Name'],
+                lastName: admin['Last Name'],
+                email: googleUser.email,
+                type: admin.Type || 'admin',
+            },
+        });
+    } catch (error) {
+        console.error('Google admin login failed:', error);
+        return res.status(401).json({ error: error.message });
+    } finally {
+        await localClient.close();
+    }
+});
+
+app.get('/call-function-generate-user-names', requireAdminSession, async (req, res) => {
+    // Execute the script
+    exec(`node ./backend/server/generateUserNames.mjs`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+        if (stdout.includes("Generate UserNames successful!")) {
+            res.status(200).send("Generate UserNames successful!");
+        } else {
+            res.status(401).send("Generate UserNames error!");
+        }
+    });
+});
+
+app.post('/call-function-send-onboarding', requireAdminSession, async (req, res) => {
+    const selectedEmployees = req.body.batch;
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+
+    exec(`node ./backend/server/sendOnboarding.mjs "${tempFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_onboarding',
+                adminUser: req.adminSession,
+                selectedEmployees,
+                payloadSummary: {},
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_onboarding',
+            adminUser: req.adminSession,
+            selectedEmployees,
+            payloadSummary: {},
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+const getOperatorDisplayName = (adminUser) => {
+    if (!adminUser) return 'unknown';
+    if (typeof adminUser === 'string') return adminUser;
+    return [adminUser.firstName, adminUser.lastName].filter(Boolean).join(' ') || adminUser.email || 'unknown';
+};
+
+const getRecipientCount = (selectedEmployees) => Array.isArray(selectedEmployees) ? selectedEmployees.length : 0;
+
+// Unified operation audit log
+const logOperationToDatabase = async ({ action, adminUser, selectedEmployees, payloadSummary, status, errorMessage }) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const collection = db.collection('operation_logs');
+        await collection.insertOne({
+            action,
+            operatorName: getOperatorDisplayName(adminUser),
+            operatorEmail: adminUser?.email || null,
+            recipientCount: getRecipientCount(selectedEmployees),
+            payloadSummary: payloadSummary || {},
+            status,
+            errorMessage: errorMessage || null,
+            timestamp: new Date(),
+        });
+    } catch (error) {
+        console.error('Error saving operation log:', error);
+    } finally {
+        await localClient.close();
+    }
+};
+
+app.use('/api/payroll-verification', createPayrollVerificationRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+
+app.use('/api/insurance-breakout', createInsuranceBreakoutRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+
+app.use('/api/commission-roster', createCommissionRosterRouter({
+    upload,
+    uploadDirectory,
+    logOperationToDatabase,
+}));
+const requireTrainingSession = createRequireTrainingSession(getSessionFromRequest);
+const requireHrToolsSession = createRequireHrToolsSession(getSessionFromRequest);
+const loginCodeSecret = process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-login-secret';
+app.use('/api/training-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: loginCodeSecret,
+}));
+app.use('/api/hr-tools-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: loginCodeSecret,
+  isAuthorizedEmail: isAuthorizedHrToolsEmail,
+  collectionName: 'hr_tools_login_codes',
+  toolName: 'RTUT HR Tools',
+  sessionType: 'hr-tools',
+}));
+app.use('/api/training', createTrainingRouter({
+  uri,
+  databaseName: database_name,
+  requireTrainingSession,
+}));
+app.use('/api/hr-platform', createHrPlatformRouter({
+  uri,
+  databaseName: database_name,
+  requireHrToolsSession,
+}));
+
+// Function to log errors to the database
+const logErrorToDatabase = async (error, context) => {
+    const localClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+
+    try {
+        await localClient.connect();
+        const db = localClient.db(database_name);
+        const collection = db.collection('error logs');
+
+        const errorLogEntry = {
+            error: typeof error === 'string' ? error : (error?.message || String(error)),
+            context,
+            timestamp: new Date()
+        };
+
+        await collection.insertOne(errorLogEntry);
+        console.log('Error log saved successfully.');
+    } catch (logError) {
+        console.error('Error saving error log:', logError);
+    } finally {
+        await localClient.close();
+    }
+};
+
+// Define a route to handle the POST request for executing the script
+app.post('/call-function-send-notification', requireAdminSession, async (req, res) => {
+    const messageContent = req.body.body;
+    const subject = req.body.subject;
+    const sender = req.body.sender;
+    const selectedEmployees = req.body.selectedEmployees;
+    const sendEmail = req.body.sendEmail;
+    const sendSms = req.body.sendSms;
+    const sendApp = req.body.sendApp;
+    const adminUser = req.adminSession;
+
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+    const messageContentJSON = JSON.stringify({ messageContent });
+    const adminUserJSON = JSON.stringify(adminUser);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    const messageContentFilePath = path.join(__dirname, 'temp', 'messageContent.json');
+    const adminUserJSONFilePath = path.join(__dirname, 'temp', 'adminUser.json');
+
+    fs.writeFileSync(tempFilePath, selectedEmployeesJSON);
+    fs.writeFileSync(messageContentFilePath, messageContentJSON);
+    fs.writeFileSync(adminUserJSONFilePath, adminUserJSON);
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/sendNotification.mjs "${messageContentFilePath}" "${subject}" "${sender}" "${tempFilePath}" "${sendApp}" "${sendSms}" "${sendEmail}" "${adminUserJSONFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+
+            await logErrorToDatabase(error.message, 'sendNotification.mjs');
+            await logOperationToDatabase({
+                action: 'send_notification',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { subject, sender, channels: { app: sendApp, sms: sendSms, email: sendEmail } },
+                status: 'failed',
+                errorMessage: error.message,
+            });
+
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_notification',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { subject, sender, channels: { app: sendApp, sms: sendSms, email: sendEmail } },
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-send-survey', requireAdminSession, (req, res) => {
+    const surveyJson = req.body.surveyJson;
+    const selectedEmployees = req.body.selectedEmployees;
+    const adminUser = req.adminSession;
+    // Construct the JSON string with proper formatting
+    const selectedEmployeesJSON = JSON.stringify(selectedEmployees);
+    const surveyQuestionsJSON = JSON.stringify(surveyJson);
+    const adminUserJSON = JSON.stringify(adminUser);
+
+    const subject = req.body.subject;
+    const sender = req.body.sender;
+
+    // Write the JSON string to a temporary file
+    const selectedEmployeesFilePath = path.join(__dirname, 'temp', 'selectedEmployees.json');
+    fs.writeFileSync(selectedEmployeesFilePath, selectedEmployeesJSON);
+
+    const surveyQuestionsFilePath = path.join(__dirname, 'temp', 'surveyQuestions.json');
+    fs.writeFileSync(surveyQuestionsFilePath, surveyQuestionsJSON);
+
+    const adminUserJSONFilePath = path.join(__dirname, 'temp', 'adminUser.json');
+    fs.writeFileSync(adminUserJSONFilePath, adminUserJSON);
+
+    // Execute the script and pass the temporary file path as an argument
+    exec(`node ./backend/server/sendSurvey.mjs "${subject}" "${sender}" "${surveyQuestionsFilePath}" "${selectedEmployeesFilePath}" "${adminUserJSONFilePath}"`, async (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error executing script: ${error.message}`);
+            await logOperationToDatabase({
+                action: 'send_survey',
+                adminUser,
+                selectedEmployees,
+                payloadSummary: { subject, sender, questionCount: Array.isArray(surveyJson?.elements) ? surveyJson.elements.length : null },
+                status: 'failed',
+                errorMessage: error.message,
+            });
+            res.status(500).send(`Internal Server Error: ${error.message}`);
+            return;
+        }
+
+        await logOperationToDatabase({
+            action: 'send_survey',
+            adminUser,
+            selectedEmployees,
+            payloadSummary: { subject, sender, questionCount: Array.isArray(surveyJson?.elements) ? surveyJson.elements.length : null },
+            status: 'success',
+        });
+        res.status(200).send('Script executed successfully');
+    });
+});
+
+app.post('/call-function-add-employee', requireAdminSession, async (req, res) => {
+    const newEmployee = req.body;
+    const newEmployeeJSON = JSON.stringify(newEmployee);
+
+    // Write the JSON string to a temporary file
+    const tempFilePath = path.join(__dirname, 'temp', 'newEmployee.json');
+    fs.writeFileSync(tempFilePath, newEmployeeJSON);
+
+    // Execute the script
+    exec(`node ./backend/server/addEmployee.mjs "${tempFilePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            // Find the relevant error line
+            const errorLines = stderr.split('\n');
+            const relevantError = errorLines.find(line => line.includes("Error during operation"));
+
+            if (relevantError) {
+                // Remove "Error during operation: " text
+                const cleanErrorMessage = relevantError.replace("Error during operation: ", "");
+                res.status(500).send(cleanErrorMessage);
+            } else {
+                res.status(500).send(`Internal Server Error: ${error.message}`);
+            }
+            return;
+        }
+        res.status(200).send(stdout);
+    });
+});
+
+
+app.post('/call-function-delete-employee', requireAdminSession, async (req, res) => {
+    const firstName = req.body.firstName;
+    const lastName = req.body.lastName;
+
+    // Execute the script
+    exec(`node ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
         if (error) {
             // Find the relevant error line
             const errorLines = stderr.split('\n');
@@ -967,12 +1815,12 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() })
 })
 
-// ======= 瘥摰隞餃嚗?7:05 ET嚗??.env DIGEST_CRON嚗?=======
+// ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
 cron.schedule(process.env.DIGEST_CRON || '5 7 * * *', async () => {
-  await runDailyDigest(); // 暺恕瘙領?伐?蝢?嚗?
+  await runDailyDigest(); // 默认汇总“昨日（美东）”
 }, { timezone: process.env.TIMEZONE || 'America/Detroit' });
 
-// ======= ?閫血??亙嚗?admin/digest?date=YYYY-MM-DD =======
+// ======= 手动触发接口：/admin/digest?date=YYYY-MM-DD =======
 function apiKeyGuard(req, res, next) {
   const key = req.headers['x-api-key'];
   if (!process.env.ADMIN_API_KEY || key === process.env.ADMIN_API_KEY) return next();
@@ -981,7 +1829,7 @@ function apiKeyGuard(req, res, next) {
 
 app.post('/admin/digest', apiKeyGuard, async (req, res) => {
   try {
-    const dateET = (req.query.date || '').trim(); // 隡征=暺恕?冽
+    const dateET = (req.query.date || '').trim(); // 传空=默认昨日
     const result = await runDailyDigest(dateET || undefined);
     res.json(result);
   } catch (e) {
@@ -1023,4 +1871,3 @@ app.listen(process.env.PORT || port, () => {
     console.log(`Server is running on port ${port}`);
     reconcileHistoricalAppRegistrationDates();
 });
-
