@@ -70,7 +70,7 @@ export default function Termination() {
     return true
   }), [employees, query, dateFrom, dateTo, departmentFilter, locationFilter, payrollFilter])
   const rangeActive = Boolean(dateFrom || dateTo)
-  const payroll = [...filtered].filter(employee => rangeActive || !employee.payrollFinalReviewedAt || (employee.pendingIssues && !employee.followUpFinalReviewedAt) || isCurrentMonth(employee.finalPayrollDate) || (employee.pendingIssues && isCurrentMonth(employee.payrollFollowThroughUntil))).sort((a, b) => employeeDate(a).localeCompare(employeeDate(b)) || a.name.localeCompare(b.name))
+  const payroll = [...filtered].filter(employee => rangeActive || !employee.payrollFinalReviewedAt || (employee.pendingIssues && !employee.followUpFinalReviewedAt) || !employee.fileTracker?.finalLockedAt || isCurrentMonth(employee.finalPayrollDate) || (employee.pendingIssues && isCurrentMonth(employee.payrollFollowThroughUntil))).sort((a, b) => employeeDate(a).localeCompare(employeeDate(b)) || a.name.localeCompare(b.name))
   const insurance = [...filtered].filter(employee => Boolean(employee.insuranceParticipation) && (rangeActive || !employee.insuranceCobraCheckedAt)).sort((a, b) => (a.insuranceEndingDate || '9999-12-31').localeCompare(b.insuranceEndingDate || '9999-12-31') || a.name.localeCompare(b.name))
   const retirement = [...filtered].filter(employee => Boolean(employee.retirementParticipation) && (rangeActive || !employee.retirementCheckedAt)).sort((a, b) => (a.retirementEndingDate || '9999-12-31').localeCompare(b.retirementEndingDate || '9999-12-31') || a.name.localeCompare(b.name))
   const monthlyActions = employees.flatMap(employee => [
