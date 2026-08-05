@@ -777,12 +777,14 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 employeeEmail: employeeUpdate.Email ?? existing.Email ?? '',
                 effectiveDate: String(_employmentChange.effectiveDate || '').trim(),
                 reason: String(_employmentChange.reason || '').trim(),
+                employeeFolderUrl: '', followUpIssues: false, followUpNotes: '', followUpUntil: '',
                 changes,
                 tasks: {
-                    payroll: { required: payroll, completedAt: null, completedBy: '' },
-                    insurance: { required: insurance, completedAt: null, completedBy: '' },
-                    retirement: { required: retirement, completedAt: null, completedBy: '' },
-                    other: { required: trackOther, completedAt: null, completedBy: '' },
+                    file: { required: true, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
+                    payroll: { required: payroll, applicable: payroll ? null : false, actionDate: '', checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
+                    insurance: { required: insurance, applicable: insurance ? null : false, actionDate: '', checkedAt: null, checkedBy: '' },
+                    retirement: { required: retirement, applicable: retirement ? null : false, actionDate: '', checkedAt: null, checkedBy: '' },
+                    followUp: { required: trackOther, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
                 },
                 createdAt: new Date(), createdBy: adminSession?.email || '',
             });

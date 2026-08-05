@@ -737,6 +737,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       return res.json(records.map(record => ({
         id: String(record._id), employeeId: clean(record.employeeId), employeeName: clean(record.employeeName),
         employeeEmail: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), reason: clean(record.reason),
+        employeeFolderUrl: clean(record.employeeFolderUrl), followUpIssues: record.followUpIssues === true,
+        followUpNotes: clean(record.followUpNotes), followUpUntil: clean(record.followUpUntil),
         changes: Array.isArray(record.changes) ? record.changes : [], tasks: record.tasks || {},
         createdAt: record.createdAt || null, createdBy: clean(record.createdBy),
       })));
@@ -765,22 +767,74 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   });
 
   router.put('/employment-changes/:id/details', async (req, res) => {
-    const { id } = req.params; const actionDate = clean(req.body?.actionDate); const reason = clean(req.body?.reason);
+    const { id } = req.params;
+    const values = {
+      effectiveDate: clean(req.body?.effectiveDate), reason: clean(req.body?.reason), employeeFolderUrl: clean(req.body?.employeeFolderUrl),
+      payrollApplicable: req.body?.payrollApplicable === true, payrollActionDate: clean(req.body?.payrollActionDate),
+      insuranceApplicable: req.body?.insuranceApplicable === true, insuranceActionDate: clean(req.body?.insuranceActionDate),
+      retirementApplicable: req.body?.retirementApplicable === true, retirementActionDate: clean(req.body?.retirementActionDate),
+      followUpIssues: req.body?.followUpIssues === true, followUpNotes: clean(req.body?.followUpNotes), followUpUntil: clean(req.body?.followUpUntil),
+    };
     if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid employment change.' });
-    if (!actionDate || !validDate(actionDate)) return res.status(400).json({ error: 'HR Action Date is required.' });
-    if (!reason) return res.status(400).json({ error: 'Reason / Follow-up Notes are required.' });
+    if (!values.effectiveDate || !validDate(values.effectiveDate)) return res.status(400).json({ error: 'Change Effective Date is required.' });
+    if (!values.reason) return res.status(400).json({ error: 'Change Reason / Notes are required.' });
+    if (!values.employeeFolderUrl || !/^https:\/\//i.test(values.employeeFolderUrl)) return res.status(400).json({ error: 'A secure Employee Folder https:// link is required.' });
+    if (values.payrollApplicable && (!values.payrollActionDate || !validDate(values.payrollActionDate))) return res.status(400).json({ error: 'New Payroll Change Date is required when applicable.' });
+    if (values.insuranceApplicable && (!values.insuranceActionDate || !validDate(values.insuranceActionDate))) return res.status(400).json({ error: 'Insurance Change Date is required when applicable.' });
+    if (values.retirementApplicable && (!values.retirementActionDate || !validDate(values.retirementActionDate))) return res.status(400).json({ error: '401(k) Change Date is required when applicable.' });
+    if (values.followUpIssues && (!values.followUpUntil || !validDate(values.followUpUntil) || !values.followUpNotes)) return res.status(400).json({ error: 'Follow-up Until and Follow-up Notes are required when follow-up issues exist.' });
     const client = createClient();
     try {
       await client.connect(); const updatedAt = new Date(); const updatedBy = clean(req.adminSession?.email).toLowerCase();
-      const result = await client.db(databaseName).collection('employee_hr_employment_change').updateOne(
-        { _id: new ObjectId(id) }, { $set: { effectiveDate: actionDate, reason, updatedAt, updatedBy } },
-      );
+      const collection = client.db(databaseName).collection('employee_hr_employment_change'); const existing = await collection.findOne({ _id: new ObjectId(id) });
+      if (!existing) return res.status(404).json({ error: 'Employment change not found.' });
+      const set = {
+        effectiveDate: values.effectiveDate, reason: values.reason, employeeFolderUrl: values.employeeFolderUrl,
+        followUpIssues: values.followUpIssues, followUpNotes: values.followUpIssues ? values.followUpNotes : '', followUpUntil: values.followUpIssues ? values.followUpUntil : '',
+        'tasks.file.required': true,
+        'tasks.payroll.required': values.payrollApplicable, 'tasks.payroll.applicable': values.payrollApplicable, 'tasks.payroll.actionDate': values.payrollApplicable ? values.payrollActionDate : '',
+        'tasks.insurance.required': values.insuranceApplicable, 'tasks.insurance.applicable': values.insuranceApplicable, 'tasks.insurance.actionDate': values.insuranceApplicable ? values.insuranceActionDate : '',
+        'tasks.retirement.required': values.retirementApplicable, 'tasks.retirement.applicable': values.retirementApplicable, 'tasks.retirement.actionDate': values.retirementApplicable ? values.retirementActionDate : '',
+        'tasks.followUp.required': values.followUpIssues, updatedAt, updatedBy,
+      };
+      const unset = {};
+      const reset = (task, fields) => fields.forEach(field => { unset[`tasks.${task}.${field}`] = ''; });
+      if (clean(existing.employeeFolderUrl) !== values.employeeFolderUrl) reset('file', ['checkedAt', 'checkedBy', 'finalReviewedAt', 'finalReviewedBy']);
+      if (existing.tasks?.payroll?.applicable !== values.payrollApplicable || clean(existing.tasks?.payroll?.actionDate) !== values.payrollActionDate) reset('payroll', ['checkedAt', 'checkedBy', 'finalReviewedAt', 'finalReviewedBy', 'completedAt', 'completedBy']);
+      if (existing.tasks?.insurance?.applicable !== values.insuranceApplicable || clean(existing.tasks?.insurance?.actionDate) !== values.insuranceActionDate) reset('insurance', ['checkedAt', 'checkedBy', 'completedAt', 'completedBy']);
+      if (existing.tasks?.retirement?.applicable !== values.retirementApplicable || clean(existing.tasks?.retirement?.actionDate) !== values.retirementActionDate) reset('retirement', ['checkedAt', 'checkedBy', 'completedAt', 'completedBy']);
+      if (existing.followUpIssues !== values.followUpIssues || clean(existing.followUpUntil) !== values.followUpUntil || clean(existing.followUpNotes) !== values.followUpNotes) reset('followUp', ['checkedAt', 'checkedBy', 'finalReviewedAt', 'finalReviewedBy']);
+      const update = { $set: set }; if (Object.keys(unset).length) update.$unset = unset;
+      const result = await collection.updateOne({ _id: existing._id }, update);
       if (!result.matchedCount) return res.status(404).json({ error: 'Employment change not found.' });
-      return res.json({ actionDate, reason, updatedAt, updatedBy });
+      return res.json({ ...values, updatedAt, updatedBy });
     } catch (error) {
       console.error('Unable to update employment change details:', error);
       return res.status(500).json({ error: 'Employment Change details could not be saved.' });
     } finally { await client.close(); }
+  });
+
+  router.put('/employment-changes/:id/checks', async (req, res) => {
+    const { id } = req.params; const action = clean(req.body?.action).toLowerCase();
+    const actions = {
+      'file-check': ['file', 'checkedAt', 'checkedBy'], 'file-final': ['file', 'finalReviewedAt', 'finalReviewedBy'],
+      'payroll-check': ['payroll', 'checkedAt', 'checkedBy'], 'payroll-final': ['payroll', 'finalReviewedAt', 'finalReviewedBy'],
+      'followup-check': ['followUp', 'checkedAt', 'checkedBy'], 'followup-final': ['followUp', 'finalReviewedAt', 'finalReviewedBy'],
+      'insurance-check': ['insurance', 'checkedAt', 'checkedBy'], 'retirement-check': ['retirement', 'checkedAt', 'checkedBy'],
+    };
+    if (!ObjectId.isValid(id) || !actions[action]) return res.status(400).json({ error: 'Invalid Employment Change action.' });
+    const [task, dateField, byField] = actions[action]; const reviewer = clean(req.adminSession?.email).toLowerCase(); const finalAction = action.endsWith('-final');
+    if (finalAction && reviewer !== finalReviewerEmail) return res.status(403).json({ error: 'Only the upper-level manager can perform final review.' });
+    const client = createClient();
+    try {
+      await client.connect(); const collection = client.db(databaseName).collection('employee_hr_employment_change'); const record = await collection.findOne({ _id: new ObjectId(id) });
+      if (!record) return res.status(404).json({ error: 'Employment change not found.' });
+      if (!record.effectiveDate || !record.employeeFolderUrl) return res.status(400).json({ error: 'Complete Employment Change Details first.' });
+      if (!record.tasks?.[task]?.required) return res.status(400).json({ error: 'This task is not applicable.' });
+      if (finalAction && !record.tasks?.[task]?.checkedAt) return res.status(400).json({ error: 'Admin Check must be completed before final review.' });
+      const now = new Date(); await collection.updateOne({ _id: record._id }, { $set: { [`tasks.${task}.${dateField}`]: now, [`tasks.${task}.${byField}`]: reviewer, updatedAt: now, updatedBy: reviewer } });
+      return res.json({ completedAt: now, completedBy: reviewer });
+    } catch (error) { console.error('Unable to complete Employment Change check:', error); return res.status(500).json({ error: 'The Employment Change action could not be completed.' }); } finally { await client.close(); }
   });
 
   return router;
