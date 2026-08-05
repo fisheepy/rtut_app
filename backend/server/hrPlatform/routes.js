@@ -59,6 +59,20 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     await migrations.updateOne({ id: migrationId }, { $set: { status: 'complete', completedAt: new Date(), selectedSnapshotUsageCount: selected?.count || 0, restoredFieldCount: restoredFields.length } });
   }
 
+  // Run the authorized one-time repair at application startup so it does not
+  // depend on an administrator having an active browser session.
+  void (async () => {
+    const client = createClient();
+    try {
+      await client.connect();
+      await restoreNewHireCatalogFromSnapshots(client.db(databaseName));
+    } catch (error) {
+      console.error('Unable to restore the New Hire File Tracker catalog:', error);
+    } finally {
+      await client.close();
+    }
+  })();
+
   router.use(requireHrToolsSession);
 
   router.get('/new-hires', async (_req, res) => {
