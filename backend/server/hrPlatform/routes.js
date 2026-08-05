@@ -611,7 +611,6 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const existing = await collection.findOne({ employeeId }) || {};
       const unset = {};
       if (clean(existing.finalPayrollDate) !== values.finalPayrollDate) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
-      if (existing.pendingIssues !== values.pendingIssues || clean(existing.payrollFollowThroughUntil) !== values.payrollFollowThroughUntil) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
       if (existing.pendingIssues !== values.pendingIssues || clean(existing.pendingIssuesNotes) !== values.pendingIssuesNotes || clean(existing.payrollFollowThroughUntil) !== values.payrollFollowThroughUntil) Object.assign(unset, { followUpCheckedAt: '', followUpCheckedBy: '', followUpFinalReviewedAt: '', followUpFinalReviewedBy: '' });
       if (clean(existing.insuranceParticipation) !== values.insuranceParticipation || clean(existing.insuranceEndingDate) !== values.insuranceEndingDate) Object.assign(unset, { insuranceCobraCheckedAt: '', insuranceCobraCheckedBy: '' });
       if (clean(existing.retirementParticipation) !== values.retirementParticipation || clean(existing.retirementEndingDate) !== values.retirementEndingDate) Object.assign(unset, { retirementCheckedAt: '', retirementCheckedBy: '' });
