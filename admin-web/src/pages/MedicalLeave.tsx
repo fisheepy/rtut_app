@@ -64,10 +64,8 @@ type LeaveEmployee = {
   insuranceEndDate: string;
   caseLogs: CaseLog[];
   medicalFileTracker: Tracker;
-  payrollCheckedAt: string | null;
-  payrollCheckedBy: string;
-  payrollFinalReviewedAt: string | null;
-  payrollFinalReviewedBy: string;
+  closeRequestedAt: string | null;
+  closeRequestedBy: string;
 };
 type Details = {
   leaveStartedAt: string;
@@ -100,7 +98,7 @@ export default function MedicalLeave() {
   const [department, setDepartment] = useState("");
   const [location, setLocation] = useState("");
   const [appStatus, setAppStatus] = useState("");
-  const [payrollStatus, setPayrollStatus] = useState("");
+  const [closeStatus, setCloseStatus] = useState("");
   const [leaveFrom, setLeaveFrom] = useState("");
   const [leaveTo, setLeaveTo] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -172,14 +170,8 @@ export default function MedicalLeave() {
         const start = dateInput(employee.leaveStartedAt);
         if (leaveFrom && start < leaveFrom) return false;
         if (leaveTo && start > leaveTo) return false;
-        if (payrollStatus === "needed" && employee.payrollFinalReviewedAt)
-          return false;
-        if (
-          payrollStatus === "admin" &&
-          (!employee.payrollCheckedAt || employee.payrollFinalReviewedAt)
-        )
-          return false;
-        if (payrollStatus === "finished" && !employee.payrollFinalReviewedAt)
+        if (closeStatus === "needed" && employee.closeRequestedAt) return false;
+        if (closeStatus === "requested" && !employee.closeRequestedAt)
           return false;
         return true;
       }),
@@ -189,7 +181,7 @@ export default function MedicalLeave() {
       department,
       location,
       appStatus,
-      payrollStatus,
+      closeStatus,
       leaveFrom,
       leaveTo,
     ],
@@ -262,38 +254,26 @@ export default function MedicalLeave() {
       );
     }
   }
-  async function payrollReview(
+  async function closeCase(
     employee: LeaveEmployee,
-    action: "admin-check" | "final-review",
+    action: "request" | "approve",
   ) {
-    const label =
-      action === "admin-check" ? "Payroll Admin Check" : "Payroll Final Review";
-    if (!window.confirm(`Confirm ${label} for ${employee.name}?`)) return;
-    try {
-      await api.put(`/hr-platform/leaves/${employee.id}/payroll-review`, {
-        action,
-      });
-      await load();
-    } catch (requestError: any) {
-      setError(
-        requestError.response?.data?.error || `${label} could not be saved.`,
-      );
-    }
-  }
-  async function closeCase(employee: LeaveEmployee) {
+    const approval = action === "approve";
     if (
       !window.confirm(
-        `Close the Medical Leave case for ${employee.name}? Closed cases remain available in the history report.`,
+        approval
+          ? `Give final approval to close the Medical Leave case for ${employee.name}? The case will remain available in history reports.`
+          : `Submit a close request for ${employee.name}? This confirms the administrator checked the return-to-work or termination requirements.`,
       )
     )
       return;
     try {
-      await api.put(`/hr-platform/leaves/${employee.id}/close`);
+      await api.put(`/hr-platform/leaves/${employee.id}/close`, { action });
       await load();
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.error ||
-          "The Medical Leave case could not be closed.",
+          `The Medical Leave close ${approval ? "approval" : "request"} could not be saved.`,
       );
     }
   }
@@ -516,15 +496,11 @@ export default function MedicalLeave() {
               displayOptions={["Leave", "Active"]}
             />
             <SelectFilter
-              label="Payroll Review Status"
-              value={payrollStatus}
-              setValue={setPayrollStatus}
-              options={["needed", "admin", "finished"]}
-              displayOptions={[
-                "Action Needed",
-                "Admin Checked",
-                "Final Reviewed",
-              ]}
+              label="Case Close Status"
+              value={closeStatus}
+              setValue={setCloseStatus}
+              options={["needed", "requested"]}
+              displayOptions={["Close Request Needed", "Final Approval Needed"]}
             />
             <DateFilter
               label="Leave Started From"
@@ -542,7 +518,7 @@ export default function MedicalLeave() {
                 setDepartment("");
                 setLocation("");
                 setAppStatus("");
-                setPayrollStatus("");
+                setCloseStatus("");
                 setLeaveFrom("");
                 setLeaveTo("");
                 setQuery("");
@@ -559,8 +535,7 @@ export default function MedicalLeave() {
             Open Leave Cases
           </h2>
           <p className="text-sm text-violet-700">
-            Click a date to edit case details. STD Approved Ending Date may
-            remain blank until known.
+            Click a date to edit case details. Both STD Approved dates are optional.
           </p>
         </div>
         <div className="max-h-[650px] overflow-auto">
@@ -586,10 +561,9 @@ export default function MedicalLeave() {
                   "STD Approved Starting Date",
                   "STD Approved Ending Date",
                   "First Payroll Date After Leave Ended",
-                  "Payroll Admin Check",
-                  "Payroll Final Review",
                   "Case Log",
-                  "Close Case",
+                  "Close Case Request",
+                  "Case Close Final Approval",
                 ].map((label, index) => (
                   <th
                     className={`whitespace-nowrap px-4 py-3 ${index === 0 ? "sticky left-0 z-30 bg-slate-100" : ""}`}
@@ -715,7 +689,6 @@ export default function MedicalLeave() {
                   <ClickCell
                     value={dateDisplay(employee.payrollStartDate)}
                     onClick={() => openDetails(employee)}
-                    required={!employee.payrollStartDate}
                   />
                   <ClickCell
                     value={dateDisplay(employee.payrollEndDate)}
@@ -726,54 +699,6 @@ export default function MedicalLeave() {
                     onClick={() => openDetails(employee)}
                   />
                   <td className="px-4 py-3">
-                    {employee.payrollCheckedAt ? (
-                      <StatusPill label="Admin Checked" />
-                    ) : (
-                      <ReviewButton
-                        label="Payroll Admin Check"
-                        onClick={() => payrollReview(employee, "admin-check")}
-                        disabled={!employee.payrollStartDate}
-                      />
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {employee.payrollFinalReviewedAt ? (
-                      <StatusPill label="Final Reviewed" />
-                    ) : userEmail.toLowerCase() ===
-                      "myu@royaltrailersales.com" ? (
-                      <div className="space-y-1">
-                        <ReviewButton
-                          label="Payroll Final Review"
-                          onClick={() => payrollReview(employee, "final-review")}
-                          disabled={
-                            !employee.payrollCheckedAt ||
-                            !employee.payrollEndDate
-                          }
-                          title={
-                            !employee.payrollCheckedAt
-                              ? "Complete Payroll Admin Check first."
-                              : !employee.payrollEndDate
-                                ? "Enter the STD Approved Ending Date first."
-                                : "Complete Payroll Final Review."
-                          }
-                        />
-                        {!employee.payrollCheckedAt ? (
-                          <p className="max-w-40 text-[11px] font-semibold text-amber-700">
-                            Payroll Admin Check required first
-                          </p>
-                        ) : !employee.payrollEndDate ? (
-                          <p className="max-w-40 text-[11px] font-semibold text-amber-700">
-                            STD Approved Ending Date required first
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="text-xs font-bold text-violet-700">
-                        Upper-Level Manager Review Needed
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
                     <button
                       className="inline-flex items-center gap-1 rounded-lg border border-violet-300 px-3 py-2 text-xs font-bold text-violet-800"
                       onClick={() => setLogging(employee)}
@@ -783,12 +708,39 @@ export default function MedicalLeave() {
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      className="rounded-lg border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700"
-                      onClick={() => closeCase(employee)}
-                    >
-                      Close Case
-                    </button>
+                    {employee.closeRequestedAt ? (
+                      <div className="space-y-1">
+                        <StatusPill label="Close Requested" />
+                        <p className="text-[11px] text-slate-500">
+                          {employee.closeRequestedBy || "Admin"}
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        className="rounded-lg border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700"
+                        onClick={() => closeCase(employee, "request")}
+                      >
+                        Admin Check & Request Close
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {userEmail.toLowerCase() === "myu@royaltrailersales.com" ? (
+                      <ReviewButton
+                        label="Final Approve & Close"
+                        onClick={() => closeCase(employee, "approve")}
+                        disabled={!employee.closeRequestedAt}
+                        title={
+                          employee.closeRequestedAt
+                            ? "Give final approval and close this case."
+                            : "An admin close request is required first."
+                        }
+                      />
+                    ) : (
+                      <span className="text-xs font-bold text-violet-700">
+                        Myra Final Approval Only
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -796,7 +748,7 @@ export default function MedicalLeave() {
                 <tr>
                   <td
                     className="px-6 py-14 text-center text-slate-500"
-                    colSpan={23}
+                    colSpan={21}
                   >
                     {loading
                       ? "Loading leave cases..."
@@ -902,7 +854,7 @@ function DetailsModal({
             onChange={input("actualReturnDate")}
           />
         </Field>
-        <Field label="STD Approved Starting Date *">
+        <Field label="STD Approved Starting Date (optional)">
           <input
             type="date"
             value={value.payrollStartDate}
