@@ -972,6 +972,67 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
+  const employmentTrackerCollection = 'hr_employment_change_file_tracker_fields';
+  const defaultEmploymentTrackerFields = [
+    { id: 'employeeFolderUpdated', label: 'Employee Folder Updated', options: ['Yes', 'No'], order: 0, active: true },
+  ];
+  async function ensureEmploymentTrackerCatalog(db) {
+    const collection = db.collection(employmentTrackerCollection);
+    if (await collection.countDocuments({}) === 0) await collection.insertMany(defaultEmploymentTrackerFields);
+    return collection;
+  }
+  async function getEmploymentTrackerCatalog(db, includeInactive = false) {
+    const collection = await ensureEmploymentTrackerCatalog(db);
+    const fields = await collection.find({ deleted: { $ne: true } }).sort({ order: 1, label: 1 }).toArray();
+    return fields.map(({ _id, ...field }) => field).filter(field => includeInactive || field.active);
+  }
+
+  router.get('/employment-change-file-tracker-fields', async (req, res) => {
+    const client = createClient();
+    try { await client.connect(); return res.json({ fields: await getEmploymentTrackerCatalog(client.db(databaseName), req.query.includeInactive === 'true') }); }
+    catch (error) { console.error('Unable to load Employment Change File Tracker fields:', error); return res.status(500).json({ error: 'Employment Change File Tracker settings could not be loaded.' }); }
+    finally { await client.close(); }
+  });
+  router.post('/employment-change-file-tracker-fields', async (req, res) => {
+    const client = createClient();
+    try {
+      const result = sanitizeTrackerCatalogField({ ...req.body, id: crypto.randomUUID() }); if (result.error) return res.status(400).json({ error: result.error });
+      await client.connect(); const collection = await ensureEmploymentTrackerCatalog(client.db(databaseName)); result.field.order = await collection.countDocuments({});
+      await collection.insertOne({ ...result.field, createdAt: new Date(), createdBy: req.adminSession?.email || null }); return res.status(201).json({ field: result.field });
+    } catch (error) { console.error('Unable to add Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be added.' }); }
+    finally { await client.close(); }
+  });
+  router.put('/employment-change-file-tracker-fields/:fieldId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect(); const collection = await ensureEmploymentTrackerCatalog(client.db(databaseName)); const existing = await collection.findOne({ id: req.params.fieldId });
+      if (!existing) return res.status(404).json({ error: 'Checklist item not found.' }); const result = sanitizeTrackerCatalogField(req.body, existing); if (result.error) return res.status(400).json({ error: result.error });
+      await collection.updateOne({ id: existing.id }, { $set: { ...result.field, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } }); return res.json({ field: result.field });
+    } catch (error) { console.error('Unable to update Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be updated.' }); }
+    finally { await client.close(); }
+  });
+  router.delete('/employment-change-file-tracker-fields/:fieldId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect(); const collection = await ensureEmploymentTrackerCatalog(client.db(databaseName)); const existing = await collection.findOne({ id: req.params.fieldId, deleted: { $ne: true } });
+      if (!existing) return res.status(404).json({ error: 'Checklist item not found.' }); await collection.updateOne({ id: existing.id }, { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } }); return res.json({ success: true });
+    } catch (error) { console.error('Unable to delete Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be deleted.' }); }
+    finally { await client.close(); }
+  });
+  router.put('/employment-changes/:id/file-tracker', async (req, res) => {
+    const { id } = req.params; if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid employment change.' });
+    const action = clean(req.body?.action || 'save').toLowerCase(); const client = createClient();
+    try {
+      await client.connect(); const db = client.db(databaseName); const collection = db.collection('employee_hr_employment_change'); const record = await collection.findOne({ _id: new ObjectId(id) });
+      if (!record) return res.status(404).json({ error: 'Employment change not found.' }); if (record.tasks?.file?.finalReviewedAt) return res.status(409).json({ error: 'This File Tracker has received final review and is locked.' });
+      const catalog = record.tasks?.file?.tracker?.fieldsSnapshot || await getEmploymentTrackerCatalog(db); const tracker = sanitizeFileTracker(req.body?.tracker || {}, catalog); const reviewer = clean(req.adminSession?.email).toLowerCase();
+      if (action === 'check' && !fileTrackerComplete(tracker, catalog)) return res.status(400).json({ error: 'Complete every Employment Change File Tracker item before File Check.' });
+      const now = new Date(); const fileTask = { ...(record.tasks?.file || {}), required: true, tracker: { ...tracker, fieldsSnapshot: catalog, updatedAt: now, updatedBy: reviewer }, checkedAt: action === 'check' ? now : null, checkedBy: action === 'check' ? reviewer : '', finalReviewedAt: null, finalReviewedBy: '' };
+      await collection.updateOne({ _id: record._id }, { $set: { 'tasks.file': fileTask, updatedAt: now, updatedBy: reviewer } }); return res.json({ file: fileTask });
+    } catch (error) { console.error('Unable to save Employment Change File Tracker:', error); return res.status(500).json({ error: 'The Employment Change File Tracker could not be saved.' }); }
+    finally { await client.close(); }
+  });
+
   router.put('/employment-changes/:id/details', async (req, res) => {
     const { id } = req.params;
     const values = {
