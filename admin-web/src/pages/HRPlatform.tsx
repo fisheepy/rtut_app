@@ -7,7 +7,7 @@ const workflows = [
   { title: 'New Hire', description: 'Create and track new employee onboarding records.', icon: UserPlus, tone: 'from-emerald-600 to-teal-500', to: '/hr-platform/new-hire' },
   { title: 'Termination', description: 'Document employee separations and required follow-up.', icon: UserMinus, tone: 'from-rose-600 to-orange-500', to: '/hr-platform/termination' },
   { title: 'Employment Change', description: "Record changes to an employee's role, department, location, supervisor, pay, or status.", icon: Repeat2, tone: 'from-blue-600 to-cyan-500', to: '/hr-platform/employment-change' },
-  { title: 'FMLA / ADA / Medical Leave', description: 'Manage leave requests, important dates, documentation, and case status.', icon: HeartPulse, tone: 'from-violet-600 to-fuchsia-500' },
+  { title: 'FMLA / ADA / Medical Leave', description: 'View employees whose Company App status is Leave and manage protected or medical leave workflows.', icon: HeartPulse, tone: 'from-violet-600 to-fuchsia-500', to: '/hr-platform/medical-leave' },
 ]
 
 export default function HRPlatform() {

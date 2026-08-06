@@ -905,6 +905,53 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to create termination task report:', error); return res.status(500).json({ error: 'The termination task report could not be created.' }); } finally { await client.close(); }
   });
 
+  router.get('/leaves', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employees = await db.collection('employees').find({
+        'Position Status': /^leave$/i,
+        $or: [
+          { 'Termination Date': { $exists: false } },
+          { 'Termination Date': '' },
+          { 'Termination Date': null },
+        ],
+      }).toArray();
+      const employeeIds = employees.map(employee => String(employee._id));
+      const leaveRecords = employeeIds.length ? await db.collection('employee_hr_leave').find({ employeeId: { $in: employeeIds }, active: true }).toArray() : [];
+      const existingIds = new Set(leaveRecords.map(record => clean(record.employeeId)));
+      const missingIds = employeeIds.filter(employeeId => !existingIds.has(employeeId));
+      if (missingIds.length) {
+        const now = new Date();
+        await db.collection('employee_hr_leave').bulkWrite(missingIds.map(employeeId => ({
+          updateOne: {
+            filter: { employeeId, active: true },
+            update: { $setOnInsert: { employeeId, active: true, leaveStartedAt: now, createdAt: now, createdBy: 'system-status-sync' } },
+            upsert: true,
+          },
+        })));
+        missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, leaveStartedAt: now }));
+      }
+      const byEmployeeId = new Map(leaveRecords.map(record => [clean(record.employeeId), record]));
+      return res.json(employees.map(employee => {
+        const record = byEmployeeId.get(String(employee._id)) || {};
+        return {
+          id: String(employee._id), leaveRecordId: record._id ? String(record._id) : '',
+          name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '),
+          email: clean(employee.Email), phone: clean(employee.Phone), status: clean(employee['Position Status']),
+          hireDate: clean(employee['Hire Date'] || employee['First Day']),
+          department: clean(employee['Home Department'] || employee.Department), jobTitle: clean(employee['Job Title']),
+          location: clean(employee.Location), supervisor: [clean(employee['Supervisor First Name']), clean(employee['Supervisor Last Name'])].filter(Boolean).join(' '),
+          leaveStartedAt: record.leaveStartedAt || record.createdAt || null,
+        };
+      }).sort((left, right) => left.name.localeCompare(right.name)));
+    } catch (error) {
+      console.error('Unable to load Leave records:', error);
+      return res.status(500).json({ error: 'FMLA / ADA / Medical Leave records could not be loaded.' });
+    } finally { await client.close(); }
+  });
+
   router.get('/employment-changes', async (_req, res) => {
     const client = createClient();
     try {
@@ -1140,4 +1187,3 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
 }
 
 module.exports = { createHrPlatformRouter };
-

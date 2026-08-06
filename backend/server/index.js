@@ -748,7 +748,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         const collection = db.collection('employees');
         const { _id, _employmentChange = {}, Name, Supervisor, ...submittedEmployee } = updatedEmployee;
         const allowedFields = new Set([
-            'First Name', 'Last Name', 'Hire Date', 'Home Department', 'Supervisor First Name',
+            'First Name', 'Last Name', 'Hire Date', 'Position Status', 'Home Department', 'Supervisor First Name',
             'Supervisor Last Name', 'Job Title', 'Location', 'Email', 'Phone',
             'EEOC Establishment', 'Worker Category', 'Pay Category',
         ]);
@@ -758,6 +758,9 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         const existing = await collection.findOne({ _id: new ObjectId(employeeId) });
         if (!existing) return { found: false };
         const employeeUpdate = Object.fromEntries(selectedFields.map(field => [field, submittedEmployee[field] == null ? '' : String(submittedEmployee[field]).trim()]));
+        if (selectedFields.includes('Position Status') && !/^(active|leave)$/i.test(employeeUpdate['Position Status'])) {
+            return { found: true, error: 'Status can only be changed to Active or Leave here. Use Terminate Employee for employee separations.' };
+        }
         const changes = selectedFields
             .filter(field => String(existing[field] || '').trim() !== String(employeeUpdate[field] || '').trim())
             .map(field => ({ field, from: existing[field] || '', to: employeeUpdate[field] || '' }));
@@ -769,6 +772,23 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
             { _id: new ObjectId(employeeId) },
             { $set: employeeUpdate }
         );
+        const statusChange = changes.find(change => change.field === 'Position Status');
+        if (statusChange && /^leave$/i.test(statusChange.to)) {
+            await db.collection('employee_hr_leave').updateOne(
+                { employeeId, active: true },
+                { $setOnInsert: {
+                    employeeId, active: true, leaveStartedAt: new Date(),
+                    createdAt: new Date(), createdBy: adminSession?.email || '',
+                    employeeSnapshot: { ...existing, ...employeeUpdate },
+                } },
+                { upsert: true },
+            );
+        } else if (statusChange && /^active$/i.test(statusChange.to)) {
+            await db.collection('employee_hr_leave').updateMany(
+                { employeeId, active: true },
+                { $set: { active: false, returnedAt: new Date(), returnedBy: adminSession?.email || '' } },
+            );
+        }
         await db.collection('employee_hr_employment_change').insertOne({
                 employeeId,
                 employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),

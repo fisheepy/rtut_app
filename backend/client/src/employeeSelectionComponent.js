@@ -66,7 +66,7 @@ const employeeDateInputValue = (value) => {
 };
 
 const editableEmployeeFields = [
-    'First Name', 'Last Name', 'Hire Date', 'Home Department', 'Supervisor First Name',
+    'First Name', 'Last Name', 'Hire Date', 'Position Status', 'Home Department', 'Supervisor First Name',
     'Supervisor Last Name', 'Job Title', 'Location', 'Email', 'Phone',
     'EEOC Establishment', 'Worker Category', 'Pay Category',
 ];
@@ -592,6 +592,21 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                     InputLabelProps={{ shrink: true }}
                                 />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Status"
+                                    name="Position Status"
+                                    value={selectedEmployee['Position Status'] || 'Active'}
+                                    onChange={handleInputChange}
+                                    helperText="Leave keeps the employee active in Company App and sends them to the Leave workflow. Use Terminate Employee for separations."
+                                    SelectProps={{ native: true }}
+                                >
+                                    <option value="Active">Active</option>
+                                    <option value="Leave">Leave</option>
+                                </TextField>
                             </Grid>
                             <Grid item xs={6}>
                                 <TextField

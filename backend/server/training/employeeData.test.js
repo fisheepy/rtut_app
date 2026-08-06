@@ -70,3 +70,17 @@ test('shows employees with a termination date as terminated', () => {
   assert.equal(employee.training.orientation.status, 'Unassigned');
   assert.equal(employee.training.monthly.status, 'Unassigned');
 });
+
+test('keeps an employee on Leave in the active Training Tools roster', () => {
+  const employee = normalizeEmployee({
+    _id: 'employee-leave',
+    'First Name': 'Taylor',
+    'Last Name': 'Jordan',
+    'Position Status': 'Leave',
+    'Account Active': 'Active',
+    'Termination Date': '',
+  });
+
+  assert.equal(employee.employmentStatus, 'Active');
+  assert.equal(employee.terminationDay, null);
+});
