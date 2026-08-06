@@ -909,9 +909,20 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const records = await client.db(databaseName).collection('employee_hr_employment_change')
+      const db = client.db(databaseName);
+      const records = await db.collection('employee_hr_employment_change')
         .find({}).sort({ effectiveDate: 1, createdAt: 1 }).toArray();
-      return res.json(records.map(record => ({
+      // Terminated employees move to the Termination workspace. Keep their
+      // Employment Change records in the database so historical reports remain
+      // complete, but do not return them to the active daily-work page.
+      const terminatedEmployees = await db.collection('employees').find({
+        $or: [
+          { 'Position Status': /^terminated$/i },
+          { 'Termination Date': { $exists: true, $nin: ['', null] } },
+        ],
+      }, { projection: { _id: 1 } }).toArray();
+      const terminatedEmployeeIds = new Set(terminatedEmployees.map(employee => String(employee._id)));
+      return res.json(records.filter(record => !terminatedEmployeeIds.has(clean(record.employeeId))).map(record => ({
         id: String(record._id), employeeId: clean(record.employeeId), employeeName: clean(record.employeeName),
         employeeEmail: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), reason: clean(record.reason),
         employeeFolderUrl: clean(record.employeeFolderUrl), followUpIssues: record.followUpIssues === true,
@@ -1129,3 +1140,4 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
 }
 
 module.exports = { createHrPlatformRouter };
+
