@@ -7,6 +7,7 @@ import {
   Filter,
   HeartPulse,
   ListPlus,
+  Lock,
   Plus,
   RefreshCw,
   Search,
@@ -29,6 +30,8 @@ type Tracker = {
   fieldsSnapshot?: TrackerField[];
   checkedAt?: string | null;
   checkedBy?: string;
+  finalLockedAt?: string | null;
+  finalLockedBy?: string;
 };
 type CaseLog = {
   id: string;
@@ -240,11 +243,13 @@ export default function MedicalLeave() {
     );
     setModalError("");
   }
-  async function saveTracker(action: "save" | "check") {
+  async function saveTracker(action: "save" | "check" | "lock") {
     if (!tracking) return;
     if (
-      action === "check" &&
-      !window.confirm(`Confirm Medical File Check for ${tracking.name}?`)
+      action !== "save" &&
+      !window.confirm(
+        `${action === "lock" ? "Final review and lock" : "Confirm Medical File Check for"} ${tracking.name}?`,
+      )
     )
       return;
     try {
@@ -357,7 +362,7 @@ export default function MedicalLeave() {
   async function saveManager() {
     if (
       !window.confirm(
-        "Review complete. Save Medical File Check changes? These changes apply only to future Medical Leave cases.",
+        "Save Medical File Check changes? They apply to future cases and current trackers that have not been finally locked.",
       )
     )
       return;
@@ -579,6 +584,7 @@ export default function MedicalLeave() {
                   "Return to Work",
                   "Medical Folder",
                   "Medical File Check",
+                  "Medical File Final Review",
                   "Insurance Status",
                   "Insurance End Date",
                   "COBRA Start Date",
@@ -673,6 +679,25 @@ export default function MedicalLeave() {
                     </button>
                   </td>
                   <td className="px-4 py-3">
+                    {employee.medicalFileTracker?.finalLockedAt ? (
+                      <StatusPill label="Final Locked" />
+                    ) : userEmail.toLowerCase() ===
+                      "myu@royaltrailersales.com" ? (
+                      <button
+                        className="inline-flex items-center gap-1 rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                        disabled={!employee.medicalFileTracker?.checkedAt}
+                        onClick={() => openTracker(employee)}
+                      >
+                        <Lock className="h-3.5 w-3.5" />
+                        Final Review
+                      </button>
+                    ) : (
+                      <span className="text-xs font-bold text-violet-700">
+                        Upper-Level Manager Review Needed
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
                     <button
                       className={`rounded-lg px-3 py-2 text-xs font-bold ${employee.insuranceStatus === "cobra" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"}`}
                       onClick={() => openDetails(employee)}
@@ -765,7 +790,7 @@ export default function MedicalLeave() {
                 <tr>
                   <td
                     className="px-6 py-14 text-center text-slate-500"
-                    colSpan={22}
+                    colSpan={23}
                   >
                     {loading
                       ? "Loading leave cases..."
@@ -795,6 +820,7 @@ export default function MedicalLeave() {
           fallback={fields}
           error={modalError}
           save={saveTracker}
+          manager={userEmail.toLowerCase() === "myu@royaltrailersales.com"}
           close={() => setTracking(null)}
         />
       )}
@@ -949,6 +975,7 @@ function TrackerModal({
   fallback,
   error,
   save,
+  manager,
   close,
 }: {
   employee: LeaveEmployee;
@@ -956,13 +983,24 @@ function TrackerModal({
   setTracker: React.Dispatch<React.SetStateAction<Tracker>>;
   fallback: TrackerField[];
   error: string;
-  save: (action: "save" | "check") => void;
+  save: (action: "save" | "check" | "lock") => void;
+  manager: boolean;
   close: () => void;
 }) {
   const items = tracker.fieldsSnapshot || fallback;
+  const locked = Boolean(tracker.finalLockedAt);
   return (
     <Modal title="Medical File Check" subtitle={employee.name} close={close}>
       <div className="space-y-4 p-6">
+        {locked ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">
+            Finally locked by {tracker.finalLockedBy || "the upper-level manager"}. This tracker is read-only.
+          </div>
+        ) : tracker.checkedAt ? (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-800">
+            Admin checked — awaiting final review. Admins may still revise it; saving changes will require confirmation again.
+          </div>
+        ) : null}
         {error && (
           <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
             {error}
@@ -971,6 +1009,7 @@ function TrackerModal({
         {items.map((field) => (
           <Field label={field.label} key={field.id}>
             <select
+              disabled={locked}
               value={tracker.responses?.[field.id] || ""}
               onChange={(event) =>
                 setTracker((current) => ({
@@ -991,6 +1030,7 @@ function TrackerModal({
         ))}
         <Field label="Comments">
           <textarea
+            disabled={locked}
             value={tracker.comments || ""}
             onChange={(event) =>
               setTracker((current) => ({
@@ -1008,18 +1048,31 @@ function TrackerModal({
         >
           Cancel
         </button>
-        <button
-          className="rounded-lg border border-violet-300 px-4 py-2 font-bold text-violet-700"
-          onClick={() => save("save")}
-        >
-          Save Draft
-        </button>
-        <button
-          className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white"
-          onClick={() => save("check")}
-        >
-          Confirm File Check
-        </button>
+        {!locked ? (
+          <>
+            <button
+              className="rounded-lg border border-violet-300 px-4 py-2 font-bold text-violet-700"
+              onClick={() => save("save")}
+            >
+              Save Draft
+            </button>
+            <button
+              className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white"
+              onClick={() => save("check")}
+            >
+              Confirm File Check
+            </button>
+            {manager && tracker.checkedAt ? (
+              <button
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 font-bold text-white"
+                onClick={() => save("lock")}
+              >
+                <Lock className="h-4 w-4" />
+                Final Review & Lock
+              </button>
+            ) : null}
+          </>
+        ) : null}
       </div>
     </Modal>
   );
@@ -1153,7 +1206,7 @@ function Manager({
   return (
     <Modal
       title="Medical File Check Manager"
-      subtitle="Independent from New Hire, Termination, and Employment Change. Changes apply only to future leave cases."
+      subtitle="Independent from the other platforms. Changes apply to future cases and current trackers that are not finally locked."
       close={close}
     >
       <div className="space-y-3 p-6">

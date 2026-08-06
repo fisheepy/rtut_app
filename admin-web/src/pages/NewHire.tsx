@@ -1230,8 +1230,7 @@ export default function NewHire() {
               <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
                 <div className="font-semibold">Confirmed for final review</div>
                 <p className="mt-1">
-                  Waiting for the upper-level manager to review and lock this
-                  record.
+                  Waiting for the upper-level manager to review and lock this record. Admins may still revise it; saving changes will require confirmation again.
                 </p>
               </div>
             ) : null}
@@ -1246,7 +1245,7 @@ export default function NewHire() {
                   </span>
                   <select
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
-                    disabled={trackerLocked || trackerSubmitted}
+                    disabled={trackerLocked}
                     onChange={(event) => {
                       const nextValue = event.target.value;
                       setTracker((current) => ({
@@ -1276,7 +1275,7 @@ export default function NewHire() {
                   ) ? (
                     <input
                       className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100"
-                      disabled={trackerLocked || trackerSubmitted}
+                      disabled={trackerLocked}
                       onChange={(event) =>
                         setTracker((current) => ({
                           ...current,
@@ -1313,7 +1312,7 @@ export default function NewHire() {
                 </span>
               ) : null}
             </label>
-            {!trackerLocked && !trackerSubmitted ? (
+            {!trackerLocked ? (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <h3 className="font-semibold text-amber-950">
                   Confirm for Final Review
@@ -1364,7 +1363,7 @@ export default function NewHire() {
               >
                 Close
               </button>
-              {!trackerLocked && !trackerSubmitted ? (
+              {!trackerLocked ? (
                 <>
                   <button
                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"

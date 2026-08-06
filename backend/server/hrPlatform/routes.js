@@ -523,7 +523,6 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: finalReviewerEmail } });
         return res.json({ fileTracker });
       }
-      if (existing?.fileTracker?.submittedAt) return res.status(409).json({ error: 'This File Tracker has already been confirmed for final review.' });
       const catalog = existing?.fileTracker?.fieldsSnapshot || await getTrackerCatalog(db);
       const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
       const commentFields = commentAudit(existing?.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
@@ -838,7 +837,6 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: finalReviewerEmail } }, { upsert: true });
         return res.json({ fileTracker });
       }
-      if (existing.fileTracker?.submittedAt) return res.status(409).json({ error: 'This tracker has been confirmed and is awaiting final lock.' });
       const catalog = existing.fileTracker?.fieldsSnapshot || await getTerminationTrackerCatalog(db);
       const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
       const commentFields = commentAudit(existing.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
@@ -955,12 +953,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       // Manager changes apply to every currently open case. Preserve responses
       // for unchanged item IDs while adding, renaming, or removing catalog items.
       const catalogFingerprint = JSON.stringify(medicalCatalog.map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active })));
-      const recordsNeedingCatalogSync = leaveRecords.filter(record => !record.medicalFileTracker?.checkedAt && JSON.stringify((record.medicalFileTracker?.fieldsSnapshot || []).map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active }))) !== catalogFingerprint);
+      const recordsNeedingCatalogSync = leaveRecords.filter(record => !record.medicalFileTracker?.finalLockedAt && JSON.stringify((record.medicalFileTracker?.fieldsSnapshot || []).map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active }))) !== catalogFingerprint);
       if (recordsNeedingCatalogSync.length) {
         await db.collection('employee_hr_leave').bulkWrite(recordsNeedingCatalogSync.map(record => {
           const existingTracker = record.medicalFileTracker || {}; const responses = {};
           medicalCatalog.forEach(field => { responses[field.id] = field.options.includes(clean(existingTracker.responses?.[field.id])) ? clean(existingTracker.responses?.[field.id]) : ''; });
-          record.medicalFileTracker = { ...existingTracker, fieldsSnapshot: medicalCatalog, responses, checkedAt: null, checkedBy: '' };
+          record.medicalFileTracker = { ...existingTracker, fieldsSnapshot: medicalCatalog, responses, checkedAt: null, checkedBy: '', finalLockedAt: null, finalLockedBy: '' };
           return { updateOne: { filter: { _id: record._id }, update: { $set: { medicalFileTracker: record.medicalFileTracker } } } };
         }));
       }
@@ -1081,9 +1079,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect(); const db = client.db(databaseName); const collection = db.collection('employee_hr_leave'); const record = await collection.findOne({ employeeId, active: true });
       if (!record) return res.status(404).json({ error: 'Open leave case not found.' });
+      if (record.medicalFileTracker?.finalLockedAt) return res.status(409).json({ error: 'This Medical File Tracker is finally locked and cannot be modified.' });
       const catalog = record.medicalFileTracker?.fieldsSnapshot || await getMedicalTrackerCatalog(db); const tracker = sanitizeFileTracker(req.body?.tracker || {}, catalog);
-      if (action === 'check' && !fileTrackerComplete(tracker, catalog)) return res.status(400).json({ error: 'Complete every Medical File Check item before confirming.' });
-      const now = new Date(); const reviewer = clean(req.adminSession?.email).toLowerCase(); const saved = { ...tracker, fieldsSnapshot: catalog, updatedAt: now, updatedBy: reviewer, checkedAt: action === 'check' ? now : null, checkedBy: action === 'check' ? reviewer : '' };
+      if (['check', 'lock'].includes(action) && !fileTrackerComplete(tracker, catalog)) return res.status(400).json({ error: 'Complete every Medical File Check item before confirming.' });
+      const now = new Date(); const reviewer = clean(req.adminSession?.email).toLowerCase();
+      if (action === 'lock' && reviewer !== finalReviewerEmail) return res.status(403).json({ error: 'Only the upper-level manager can perform the final Medical File Tracker lock.' });
+      const checked = ['check', 'lock'].includes(action);
+      const saved = { ...tracker, fieldsSnapshot: catalog, updatedAt: now, updatedBy: reviewer, checkedAt: checked ? (record.medicalFileTracker?.checkedAt || now) : null, checkedBy: checked ? (clean(record.medicalFileTracker?.checkedBy) || reviewer) : '', finalLockedAt: action === 'lock' ? now : null, finalLockedBy: action === 'lock' ? reviewer : '' };
       await collection.updateOne({ _id: record._id }, { $set: { medicalFileTracker: saved, updatedAt: now, updatedBy: reviewer } }); return res.json({ medicalFileTracker: saved });
     } catch (error) { console.error('Unable to save Medical File Check:', error); return res.status(500).json({ error: 'The Medical File Check could not be saved.' }); }
     finally { await client.close(); }
@@ -1159,9 +1161,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       sheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Company App Status', key: 'status', width: 22 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Leave Start Date', key: 'start', width: 18 }, { header: 'Anticipated Return Date', key: 'anticipated', width: 24 }, { header: 'Actual Return to Work Date', key: 'actual', width: 26 }, { header: 'STD Approved Starting Date', key: 'payrollStart', width: 26 }, { header: 'STD Approved Ending Date', key: 'payrollEnd', width: 25 }, { header: 'First Payroll After Leave Date', key: 'firstPayrollAfterLeave', width: 28 }, { header: 'Insurance Status', key: 'insurance', width: 24 }, { header: 'Insurance End Date', key: 'insuranceEnd', width: 22 }, { header: 'COBRA Start Date', key: 'cobraStart', width: 20 }, { header: 'Closed At', key: 'closedAt', width: 22 }, { header: 'Closed By', key: 'closedBy', width: 30 }];
       records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; sheet.addRow({ employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), status: clean(employee['Position Status']), caseStatus: record.active === true ? 'Open' : 'Closed', start: record.leaveStartedAt || '', anticipated: clean(record.anticipatedReturnDate), actual: clean(record.actualReturnDate), payrollStart: clean(record.payrollStartDate), payrollEnd: clean(record.payrollEndDate), firstPayrollAfterLeave: clean(record.firstPayrollAfterLeaveDate), insurance: clean(record.insuranceStatus), insuranceEnd: clean(record.insuranceEndDate), cobraStart: clean(record.cobraStartDate), closedAt: record.closedAt || '', closedBy: clean(record.closedBy) }); });
       const trackerSheet = workbook.addWorksheet('Medical File Tracker History');
-      trackerSheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Leave Start Date', key: 'start', width: 20 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Checklist Item', key: 'item', width: 38 }, { header: 'Response', key: 'response', width: 22 }, { header: 'Comments', key: 'comments', width: 48 }, { header: 'File Check Status', key: 'trackerStatus', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Checked At', key: 'checkedAt', width: 22 }];
+      trackerSheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Leave Start Date', key: 'start', width: 20 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Checklist Item', key: 'item', width: 38 }, { header: 'Response', key: 'response', width: 22 }, { header: 'Comments', key: 'comments', width: 48 }, { header: 'File Check Status', key: 'trackerStatus', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Checked At', key: 'checkedAt', width: 22 }, { header: 'Final Locked By', key: 'finalBy', width: 30 }, { header: 'Final Locked At', key: 'finalAt', width: 22 }];
       const currentMedicalCatalog = await getMedicalTrackerCatalog(db, true);
-      records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; const tracker = record.medicalFileTracker || {}; const fields = tracker.fieldsSnapshot?.length ? tracker.fieldsSnapshot : currentMedicalCatalog; const base = { employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), start: record.leaveStartedAt || '', caseStatus: record.active === true ? 'Open' : 'Closed', comments: clean(tracker.comments), trackerStatus: tracker.checkedAt ? 'File Checked' : 'In Progress', checkedBy: clean(tracker.checkedBy), checkedAt: tracker.checkedAt || '' }; if (fields.length) fields.forEach(field => trackerSheet.addRow({ ...base, item: clean(field.label), response: clean(tracker.responses?.[field.id]) || 'Not Completed' })); else trackerSheet.addRow({ ...base, item: 'No checklist items', response: 'Not Completed' }); });
+      records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; const tracker = record.medicalFileTracker || {}; const fields = tracker.fieldsSnapshot?.length ? tracker.fieldsSnapshot : currentMedicalCatalog; const base = { employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), start: record.leaveStartedAt || '', caseStatus: record.active === true ? 'Open' : 'Closed', comments: clean(tracker.comments), trackerStatus: tracker.finalLockedAt ? 'Final Locked' : tracker.checkedAt ? 'Admin Checked - Final Review Needed' : 'In Progress', checkedBy: clean(tracker.checkedBy), checkedAt: tracker.checkedAt || '', finalBy: clean(tracker.finalLockedBy), finalAt: tracker.finalLockedAt || '' }; if (fields.length) fields.forEach(field => trackerSheet.addRow({ ...base, item: clean(field.label), response: clean(tracker.responses?.[field.id]) || 'Not Completed' })); else trackerSheet.addRow({ ...base, item: 'No checklist items', response: 'Not Completed' }); });
       styleReportSheet(sheet); styleReportSheet(trackerSheet); return await sendWorkbook(res, workbook, `Medical_Leave_Current_and_History_${new Date().toISOString().slice(0,10)}.xlsx`);
     } catch (error) { console.error('Unable to create Medical Leave history report:', error); return res.status(500).json({ error: 'Medical Leave history report could not be created.' }); } finally { await client.close(); }
   });

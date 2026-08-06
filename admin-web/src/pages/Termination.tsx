@@ -1,174 +1,1674 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Download, ExternalLink, Filter, FolderOpen, Lock, RefreshCw, Save, Search, Settings, UserMinus, X } from 'lucide-react'
-import { api } from '../shared/api'
-import { ConfirmActionModal, isAuthenticationError, RequiredFieldsNote, SessionExpired, TaskStatus } from '../shared/hrPlatformUi'
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  Filter,
+  FolderOpen,
+  Lock,
+  RefreshCw,
+  Save,
+  Search,
+  Settings,
+  UserMinus,
+  X,
+} from "lucide-react";
+import { api } from "../shared/api";
+import {
+  ConfirmActionModal,
+  isAuthenticationError,
+  RequiredFieldsNote,
+  SessionExpired,
+  TaskStatus,
+} from "../shared/hrPlatformUi";
 
 type Employee = {
-  id: string; name: string; email: string; phone: string; hireDate: string; terminationDate: string;
-  homeDepartment: string; jobTitle: string; location: string; supervisor: string; payCategory: string;
-  employeeFolderUrl: string; fileTracker: any;
-  finalPayrollDate: string; pendingIssues: boolean; pendingIssuesNotes: string; payrollFollowThroughUntil: string;
-  insuranceParticipation: string; insuranceEndingDate: string; retirementParticipation: string; retirementEndingDate: string;
-  payrollCheckedAt: string | null; payrollCheckedBy: string; payrollFinalReviewedAt: string | null; payrollFinalReviewedBy: string;
-  followUpCheckedAt: string | null; followUpCheckedBy: string; followUpFinalReviewedAt: string | null; followUpFinalReviewedBy: string;
-  insuranceCobraCheckedAt: string | null; insuranceCobraCheckedBy: string; retirementCheckedAt: string | null; retirementCheckedBy: string;
-}
-type EditRecord = Pick<Employee, 'employeeFolderUrl' | 'finalPayrollDate' | 'pendingIssues' | 'pendingIssuesNotes' | 'payrollFollowThroughUntil' | 'insuranceParticipation' | 'insuranceEndingDate' | 'retirementParticipation' | 'retirementEndingDate'>
-type TrackerField = { id: string; label: string; options: string[] }
-const emptyRecord: EditRecord = { employeeFolderUrl: '', finalPayrollDate: '', pendingIssues: false, pendingIssuesNotes: '', payrollFollowThroughUntil: '', insuranceParticipation: '', insuranceEndingDate: '', retirementParticipation: '', retirementEndingDate: '' }
-const dateDisplay = (value: string) => value?.match(/^\d{4}-\d{2}-\d{2}/) ? `${value.slice(5, 7)}/${value.slice(8, 10)}/${value.slice(0, 4)}` : value || '--'
-const isCurrentMonth = (value?: string | null) => { if (!value) return false; const date = new Date(value); const now = new Date(); return !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() }
-const employeeDate = (employee: Employee) => employee.terminationDate || '9999-12-31'
-const statusPill = (done: boolean, label = done ? 'Complete' : 'Action Needed') => <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${done ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{label}</span>
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  hireDate: string;
+  terminationDate: string;
+  homeDepartment: string;
+  jobTitle: string;
+  location: string;
+  supervisor: string;
+  payCategory: string;
+  employeeFolderUrl: string;
+  fileTracker: any;
+  finalPayrollDate: string;
+  pendingIssues: boolean;
+  pendingIssuesNotes: string;
+  payrollFollowThroughUntil: string;
+  insuranceParticipation: string;
+  insuranceEndingDate: string;
+  retirementParticipation: string;
+  retirementEndingDate: string;
+  payrollCheckedAt: string | null;
+  payrollCheckedBy: string;
+  payrollFinalReviewedAt: string | null;
+  payrollFinalReviewedBy: string;
+  followUpCheckedAt: string | null;
+  followUpCheckedBy: string;
+  followUpFinalReviewedAt: string | null;
+  followUpFinalReviewedBy: string;
+  insuranceCobraCheckedAt: string | null;
+  insuranceCobraCheckedBy: string;
+  retirementCheckedAt: string | null;
+  retirementCheckedBy: string;
+};
+type EditRecord = Pick<
+  Employee,
+  | "employeeFolderUrl"
+  | "finalPayrollDate"
+  | "pendingIssues"
+  | "pendingIssuesNotes"
+  | "payrollFollowThroughUntil"
+  | "insuranceParticipation"
+  | "insuranceEndingDate"
+  | "retirementParticipation"
+  | "retirementEndingDate"
+>;
+type TrackerField = { id: string; label: string; options: string[] };
+const emptyRecord: EditRecord = {
+  employeeFolderUrl: "",
+  finalPayrollDate: "",
+  pendingIssues: false,
+  pendingIssuesNotes: "",
+  payrollFollowThroughUntil: "",
+  insuranceParticipation: "",
+  insuranceEndingDate: "",
+  retirementParticipation: "",
+  retirementEndingDate: "",
+};
+const dateDisplay = (value: string) =>
+  value?.match(/^\d{4}-\d{2}-\d{2}/)
+    ? `${value.slice(5, 7)}/${value.slice(8, 10)}/${value.slice(0, 4)}`
+    : value || "--";
+const isCurrentMonth = (value?: string | null) => {
+  if (!value) return false;
+  const date = new Date(value);
+  const now = new Date();
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
+  );
+};
+const employeeDate = (employee: Employee) =>
+  employee.terminationDate || "9999-12-31";
+const statusPill = (
+  done: boolean,
+  label = done ? "Complete" : "Action Needed",
+) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${done ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+  >
+    {label}
+  </span>
+);
 
 export default function Termination() {
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [query, setQuery] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [departmentFilter, setDepartmentFilter] = useState('')
-  const [locationFilter, setLocationFilter] = useState('')
-  const [payrollFilter, setPayrollFilter] = useState('')
-  const [showTrackerManager, setShowTrackerManager] = useState(false)
-  const [catalogDrafts, setCatalogDrafts] = useState<TrackerField[]>([])
-  const [newChecklistName, setNewChecklistName] = useState('')
-  const [newChecklistOptions, setNewChecklistOptions] = useState('Yes, No')
-  const [confirmAction, setConfirmAction] = useState<{ employee: Employee; action: string; label: string } | null>(null)
-  const [editing, setEditing] = useState<Employee | null>(null)
-  const [record, setRecord] = useState<EditRecord>(emptyRecord)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState('')
-  const [currentUserEmail, setCurrentUserEmail] = useState('')
-  const [catalog, setCatalog] = useState<TrackerField[]>([])
-  const [tracking, setTracking] = useState<Employee | null>(null)
-  const [tracker, setTracker] = useState<any>({ responses: {}, comments: '', confirmationDate: '' })
-  const [trackerError, setTrackerError] = useState('')
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [payrollFilter, setPayrollFilter] = useState("");
+  const [showTrackerManager, setShowTrackerManager] = useState(false);
+  const [catalogDrafts, setCatalogDrafts] = useState<TrackerField[]>([]);
+  const [newChecklistName, setNewChecklistName] = useState("");
+  const [newChecklistOptions, setNewChecklistOptions] = useState("Yes, No");
+  const [confirmAction, setConfirmAction] = useState<{
+    employee: Employee;
+    action: string;
+    label: string;
+  } | null>(null);
+  const [editing, setEditing] = useState<Employee | null>(null);
+  const [record, setRecord] = useState<EditRecord>(emptyRecord);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [catalog, setCatalog] = useState<TrackerField[]>([]);
+  const [tracking, setTracking] = useState<Employee | null>(null);
+  const [tracker, setTracker] = useState<any>({
+    responses: {},
+    comments: "",
+    confirmationDate: "",
+  });
+  const [trackerError, setTrackerError] = useState("");
 
   async function load() {
-    setLoading(true); setError('')
+    setLoading(true);
+    setError("");
     try {
-      const [records, auth, fields] = await Promise.all([api.get('/hr-platform/terminations'), api.get('/hr-tools-auth/me'), api.get('/hr-platform/termination-file-tracker-fields')])
-      setEmployees(records.data || []); setCurrentUserEmail(auth.data.email || ''); setCatalog(fields.data.fields || [])
-    } catch (requestError: any) { setError(requestError.response?.data?.error || 'Termination records could not be loaded.') }
-    finally { setLoading(false) }
+      const [records, auth, fields] = await Promise.all([
+        api.get("/hr-platform/terminations"),
+        api.get("/hr-tools-auth/me"),
+        api.get("/hr-platform/termination-file-tracker-fields"),
+      ]);
+      setEmployees(records.data || []);
+      setCurrentUserEmail(auth.data.email || "");
+      setCatalog(fields.data.fields || []);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "Termination records could not be loaded.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load();
+  }, []);
 
-  const filtered = useMemo(() => employees.filter(employee => {
-    const needle = query.trim().toLowerCase()
-    if (needle && !Object.values(employee).some(value => String(value || '').toLowerCase().includes(needle))) return false
-    if (dateFrom && employee.terminationDate.slice(0, 10) < dateFrom) return false
-    if (dateTo && employee.terminationDate.slice(0, 10) > dateTo) return false
-    if (departmentFilter && employee.homeDepartment !== departmentFilter) return false
-    if (locationFilter && employee.location !== locationFilter) return false
-    if (payrollFilter === 'unfinished' && employee.payrollFinalReviewedAt) return false
-    if (payrollFilter === 'completed' && !employee.payrollFinalReviewedAt) return false
-    return true
-  }), [employees, query, dateFrom, dateTo, departmentFilter, locationFilter, payrollFilter])
-  const rangeActive = Boolean(dateFrom || dateTo)
-  const payroll = [...filtered].filter(employee => rangeActive || !employee.payrollFinalReviewedAt || (employee.pendingIssues && !employee.followUpFinalReviewedAt) || !employee.fileTracker?.finalLockedAt || isCurrentMonth(employee.payrollFinalReviewedAt) || (employee.pendingIssues && isCurrentMonth(employee.followUpFinalReviewedAt))).sort((a, b) => employeeDate(a).localeCompare(employeeDate(b)) || a.name.localeCompare(b.name))
-  const insurance = [...filtered].filter(employee => employee.insuranceParticipation === 'participated' && (rangeActive || !employee.insuranceCobraCheckedAt)).sort((a, b) => (a.insuranceEndingDate || '9999-12-31').localeCompare(b.insuranceEndingDate || '9999-12-31') || a.name.localeCompare(b.name))
-  const retirement = [...filtered].filter(employee => employee.retirementParticipation === 'participated' && (rangeActive || !employee.retirementCheckedAt)).sort((a, b) => (a.retirementEndingDate || '9999-12-31').localeCompare(b.retirementEndingDate || '9999-12-31') || a.name.localeCompare(b.name))
-  const monthlyActions = employees.flatMap(employee => [
-    !employee.payrollFinalReviewedAt && employee.finalPayrollDate && isCurrentMonth(employee.finalPayrollDate) ? { employee, type: 'Final Payroll', date: employee.finalPayrollDate } : null,
-    employee.pendingIssues && !employee.followUpFinalReviewedAt && employee.payrollFollowThroughUntil ? { employee, type: 'Payroll Follow-up', date: employee.payrollFollowThroughUntil } : null,
-    employee.insuranceParticipation === 'participated' && !employee.insuranceCobraCheckedAt && employee.insuranceEndingDate && isCurrentMonth(employee.insuranceEndingDate) ? { employee, type: 'Insurance & COBRA', date: employee.insuranceEndingDate } : null,
-    employee.retirementParticipation === 'participated' && !employee.retirementCheckedAt && employee.retirementEndingDate && isCurrentMonth(employee.retirementEndingDate) ? { employee, type: '401(k)', date: employee.retirementEndingDate } : null,
-  ].filter(Boolean) as { employee: Employee; type: string; date: string }[]).sort((a, b) => a.date.localeCompare(b.date))
+  const filtered = useMemo(
+    () =>
+      employees.filter((employee) => {
+        const needle = query.trim().toLowerCase();
+        if (
+          needle &&
+          !Object.values(employee).some((value) =>
+            String(value || "")
+              .toLowerCase()
+              .includes(needle),
+          )
+        )
+          return false;
+        if (dateFrom && employee.terminationDate.slice(0, 10) < dateFrom)
+          return false;
+        if (dateTo && employee.terminationDate.slice(0, 10) > dateTo)
+          return false;
+        if (departmentFilter && employee.homeDepartment !== departmentFilter)
+          return false;
+        if (locationFilter && employee.location !== locationFilter)
+          return false;
+        if (payrollFilter === "unfinished" && employee.payrollFinalReviewedAt)
+          return false;
+        if (payrollFilter === "completed" && !employee.payrollFinalReviewedAt)
+          return false;
+        return true;
+      }),
+    [
+      employees,
+      query,
+      dateFrom,
+      dateTo,
+      departmentFilter,
+      locationFilter,
+      payrollFilter,
+    ],
+  );
+  const rangeActive = Boolean(dateFrom || dateTo);
+  const payroll = [...filtered]
+    .filter(
+      (employee) =>
+        rangeActive ||
+        !employee.payrollFinalReviewedAt ||
+        (employee.pendingIssues && !employee.followUpFinalReviewedAt) ||
+        !employee.fileTracker?.finalLockedAt ||
+        isCurrentMonth(employee.payrollFinalReviewedAt) ||
+        (employee.pendingIssues &&
+          isCurrentMonth(employee.followUpFinalReviewedAt)),
+    )
+    .sort(
+      (a, b) =>
+        employeeDate(a).localeCompare(employeeDate(b)) ||
+        a.name.localeCompare(b.name),
+    );
+  const insurance = [...filtered]
+    .filter(
+      (employee) =>
+        employee.insuranceParticipation === "participated" &&
+        (rangeActive || !employee.insuranceCobraCheckedAt),
+    )
+    .sort(
+      (a, b) =>
+        (a.insuranceEndingDate || "9999-12-31").localeCompare(
+          b.insuranceEndingDate || "9999-12-31",
+        ) || a.name.localeCompare(b.name),
+    );
+  const retirement = [...filtered]
+    .filter(
+      (employee) =>
+        employee.retirementParticipation === "participated" &&
+        (rangeActive || !employee.retirementCheckedAt),
+    )
+    .sort(
+      (a, b) =>
+        (a.retirementEndingDate || "9999-12-31").localeCompare(
+          b.retirementEndingDate || "9999-12-31",
+        ) || a.name.localeCompare(b.name),
+    );
+  const monthlyActions = employees
+    .flatMap(
+      (employee) =>
+        [
+          !employee.payrollFinalReviewedAt &&
+          employee.finalPayrollDate &&
+          isCurrentMonth(employee.finalPayrollDate)
+            ? {
+                employee,
+                type: "Final Payroll",
+                date: employee.finalPayrollDate,
+              }
+            : null,
+          employee.pendingIssues &&
+          !employee.followUpFinalReviewedAt &&
+          employee.payrollFollowThroughUntil
+            ? {
+                employee,
+                type: "Payroll Follow-up",
+                date: employee.payrollFollowThroughUntil,
+              }
+            : null,
+          employee.insuranceParticipation === "participated" &&
+          !employee.insuranceCobraCheckedAt &&
+          employee.insuranceEndingDate &&
+          isCurrentMonth(employee.insuranceEndingDate)
+            ? {
+                employee,
+                type: "Insurance & COBRA",
+                date: employee.insuranceEndingDate,
+              }
+            : null,
+          employee.retirementParticipation === "participated" &&
+          !employee.retirementCheckedAt &&
+          employee.retirementEndingDate &&
+          isCurrentMonth(employee.retirementEndingDate)
+            ? { employee, type: "401(k)", date: employee.retirementEndingDate }
+            : null,
+        ].filter(Boolean) as {
+          employee: Employee;
+          type: string;
+          date: string;
+        }[],
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   function openEdit(employee: Employee) {
-    setEditing(employee); setRecord({ employeeFolderUrl: employee.employeeFolderUrl, finalPayrollDate: employee.finalPayrollDate, pendingIssues: employee.pendingIssues, pendingIssuesNotes: employee.pendingIssuesNotes, payrollFollowThroughUntil: employee.payrollFollowThroughUntil, insuranceParticipation: employee.insuranceParticipation, insuranceEndingDate: employee.insuranceEndingDate, retirementParticipation: employee.retirementParticipation, retirementEndingDate: employee.retirementEndingDate }); setSaveError('')
+    setEditing(employee);
+    setRecord({
+      employeeFolderUrl: employee.employeeFolderUrl,
+      finalPayrollDate: employee.finalPayrollDate,
+      pendingIssues: employee.pendingIssues,
+      pendingIssuesNotes: employee.pendingIssuesNotes,
+      payrollFollowThroughUntil: employee.payrollFollowThroughUntil,
+      insuranceParticipation: employee.insuranceParticipation,
+      insuranceEndingDate: employee.insuranceEndingDate,
+      retirementParticipation: employee.retirementParticipation,
+      retirementEndingDate: employee.retirementEndingDate,
+    });
+    setSaveError("");
   }
-  function openTracker(employee: Employee) { const value = employee.fileTracker || {}; setTracking(employee); setTracker({ responses: value.responses || {}, comments: value.comments || '', confirmationDate: value.confirmationDate || '' }); setTrackerError('') }
-  async function saveTracker(action: 'save' | 'submit' | 'lock') { if (!tracking) return; if (action !== 'save' && !window.confirm(`${action === 'lock' ? 'Lock' : 'Confirm'} the Termination File Tracker for ${tracking.name}?`)) return; try { await api.put(`/hr-platform/terminations/${tracking.id}/file-tracker`, { action, fileTracker: tracker, confirmationDate: tracker.confirmationDate }); setTracking(null); await load() } catch (e: any) { setTrackerError(e.response?.data?.error || 'The tracker could not be saved.') } }
-  function openChecklistManager() { setCatalogDrafts(catalog.map(field => ({ ...field, options: [...field.options] }))); setShowTrackerManager(true) }
-  function stageDeleteChecklistField(field: TrackerField) { setCatalogDrafts(current => current.filter(item => item.id !== field.id)) }
-  function stageAddChecklistField() { const options = newChecklistOptions.split(',').map(value => value.trim()).filter(Boolean); if (!newChecklistName.trim() || options.length < 2) return; setCatalogDrafts(current => [...current, { id: `new-${Date.now()}`, label: newChecklistName.trim(), options }]); setNewChecklistName(''); setNewChecklistOptions('Yes, No') }
-  async function confirmAndSaveChecklist() { if (!window.confirm('Review complete. Save all Termination File Tracker changes? Changes apply only to future termination trackers and will not change New Hire trackers.')) return; const removed = catalog.filter(field => !catalogDrafts.some(draft => draft.id === field.id)); await Promise.all(removed.map(field => api.delete(`/hr-platform/termination-file-tracker-fields/${field.id}`))); for (const field of catalogDrafts) { if (field.id.startsWith('new-')) await api.post('/hr-platform/termination-file-tracker-fields', { label: field.label, options: field.options }); else await api.put(`/hr-platform/termination-file-tracker-fields/${field.id}`, field) } setShowTrackerManager(false); await load() }
-  async function downloadReport(path: string, fileName: string) { const response = await api.get(path, { responseType: 'blob' }); const url = URL.createObjectURL(response.data); const link = document.createElement('a'); link.href = url; link.download = fileName; link.click(); URL.revokeObjectURL(url) }
+  function openTracker(employee: Employee) {
+    const value = employee.fileTracker || {};
+    setTracking(employee);
+    setTracker({
+      responses: value.responses || {},
+      comments: value.comments || "",
+      confirmationDate: value.confirmationDate || "",
+    });
+    setTrackerError("");
+  }
+  async function saveTracker(action: "save" | "submit" | "lock") {
+    if (!tracking) return;
+    if (
+      action !== "save" &&
+      !window.confirm(
+        `${action === "lock" ? "Lock" : "Confirm"} the Termination File Tracker for ${tracking.name}?`,
+      )
+    )
+      return;
+    try {
+      await api.put(`/hr-platform/terminations/${tracking.id}/file-tracker`, {
+        action,
+        fileTracker: tracker,
+        confirmationDate: tracker.confirmationDate,
+      });
+      setTracking(null);
+      await load();
+    } catch (e: any) {
+      setTrackerError(
+        e.response?.data?.error || "The tracker could not be saved.",
+      );
+    }
+  }
+  function openChecklistManager() {
+    setCatalogDrafts(
+      catalog.map((field) => ({ ...field, options: [...field.options] })),
+    );
+    setShowTrackerManager(true);
+  }
+  function stageDeleteChecklistField(field: TrackerField) {
+    setCatalogDrafts((current) =>
+      current.filter((item) => item.id !== field.id),
+    );
+  }
+  function stageAddChecklistField() {
+    const options = newChecklistOptions
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (!newChecklistName.trim() || options.length < 2) return;
+    setCatalogDrafts((current) => [
+      ...current,
+      { id: `new-${Date.now()}`, label: newChecklistName.trim(), options },
+    ]);
+    setNewChecklistName("");
+    setNewChecklistOptions("Yes, No");
+  }
+  async function confirmAndSaveChecklist() {
+    if (
+      !window.confirm(
+        "Save all Termination File Tracker changes? They apply to future records and current trackers that are not finally locked. The other platforms will not change.",
+      )
+    )
+      return;
+    const removed = catalog.filter(
+      (field) => !catalogDrafts.some((draft) => draft.id === field.id),
+    );
+    await Promise.all(
+      removed.map((field) =>
+        api.delete(`/hr-platform/termination-file-tracker-fields/${field.id}`),
+      ),
+    );
+    for (const field of catalogDrafts) {
+      if (field.id.startsWith("new-"))
+        await api.post("/hr-platform/termination-file-tracker-fields", {
+          label: field.label,
+          options: field.options,
+        });
+      else
+        await api.put(
+          `/hr-platform/termination-file-tracker-fields/${field.id}`,
+          field,
+        );
+    }
+    setShowTrackerManager(false);
+    await load();
+  }
+  async function downloadReport(path: string, fileName: string) {
+    const response = await api.get(path, { responseType: "blob" });
+    const url = URL.createObjectURL(response.data);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
   async function save() {
-    if (!editing) return
-    setSaving(true); setSaveError('')
-    try { await api.put(`/hr-platform/terminations/${editing.id}`, record); setEditing(null); await load() }
-    catch (requestError: any) { setSaveError(requestError.response?.data?.error || 'Termination details could not be saved.') }
-    finally { setSaving(false) }
+    if (!editing) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await api.put(`/hr-platform/terminations/${editing.id}`, record);
+      setEditing(null);
+      await load();
+    } catch (requestError: any) {
+      setSaveError(
+        requestError.response?.data?.error ||
+          "Termination details could not be saved.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
-  async function check(employee: Employee, action: string, label: string, confirmed = false) {
-    if (!confirmed && !window.confirm(`Confirm ${label} for ${employee.name}? This action will be recorded under your account.`)) return
-    try { await api.put(`/hr-platform/terminations/${employee.id}/checks`, { action }); await load() }
-    catch (requestError: any) { setError(requestError.response?.data?.error || `${label} could not be completed.`) }
+  async function check(
+    employee: Employee,
+    action: string,
+    label: string,
+    confirmed = false,
+  ) {
+    if (
+      !confirmed &&
+      !window.confirm(
+        `Confirm ${label} for ${employee.name}? This action will be recorded under your account.`,
+      )
+    )
+      return;
+    try {
+      await api.put(`/hr-platform/terminations/${employee.id}/checks`, {
+        action,
+      });
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          `${label} could not be completed.`,
+      );
+    }
   }
-  function requestCheck(employee: Employee, action: string, label: string) { setConfirmAction({ employee, action, label }) }
-  const manager = currentUserEmail.toLowerCase() === 'myu@royaltrailersales.com'
+  function requestCheck(employee: Employee, action: string, label: string) {
+    setConfirmAction({ employee, action, label });
+  }
+  const manager =
+    currentUserEmail.toLowerCase() === "myu@royaltrailersales.com";
 
-  if (!loading && isAuthenticationError(error)) return <SessionExpired />
+  if (!loading && isAuthenticationError(error)) return <SessionExpired />;
 
-  return <div className="space-y-7 pb-12">
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-rose-950 to-orange-900 px-6 py-8 text-white shadow-2xl ring-1 ring-white/10">
-      <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-orange-400/10 blur-3xl" />
-      <Link className="inline-flex items-center gap-2 text-sm font-semibold text-rose-100 hover:text-white" to="/hr-platform"><ArrowLeft className="h-4 w-4" />Back to HR Platform</Link>
-      <div className="mt-5 flex flex-wrap items-end justify-between gap-4"><div><div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider"><UserMinus className="h-4 w-4" />Employee Separation</div><h1 className="mt-3 text-4xl font-semibold">Termination</h1><p className="mt-2 max-w-2xl text-sm text-rose-100">Employees terminated in Company App appear here automatically for payroll, Insurance & COBRA, and 401(k) follow-up.</p></div><div className="flex max-w-3xl flex-wrap justify-end gap-2"><button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold" onClick={openChecklistManager}><Settings className="h-4 w-4" />Termination File Tracker Manager</button><button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold" onClick={() => downloadReport('/hr-platform/terminations/reports/file-tracker.xlsx', 'Termination_File_Trackers.xlsx')}><Download className="h-4 w-4" />File Tracker Status Report</button><button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold" onClick={() => downloadReport('/hr-platform/terminations/reports/tasks.xlsx', 'Termination_All_Tasks.xlsx')}><Download className="h-4 w-4" />All Task Report</button><button className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-rose-900 shadow" onClick={load}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh from Company App</button></div></div>
+  return (
+    <div className="space-y-7 pb-12">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-rose-950 to-orange-900 px-6 py-8 text-white shadow-2xl ring-1 ring-white/10">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-orange-400/10 blur-3xl" />
+        <Link
+          className="inline-flex items-center gap-2 text-sm font-semibold text-rose-100 hover:text-white"
+          to="/hr-platform"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to HR Platform
+        </Link>
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+              <UserMinus className="h-4 w-4" />
+              Employee Separation
+            </div>
+            <h1 className="mt-3 text-4xl font-semibold">Termination</h1>
+            <p className="mt-2 max-w-2xl text-sm text-rose-100">
+              Employees terminated in Company App appear here automatically for
+              payroll, Insurance & COBRA, and 401(k) follow-up.
+            </p>
+          </div>
+          <div className="flex max-w-3xl flex-wrap justify-end gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold"
+              onClick={openChecklistManager}
+            >
+              <Settings className="h-4 w-4" />
+              Termination File Tracker Manager
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold"
+              onClick={() =>
+                downloadReport(
+                  "/hr-platform/terminations/reports/file-tracker.xlsx",
+                  "Termination_File_Trackers.xlsx",
+                )
+              }
+            >
+              <Download className="h-4 w-4" />
+              File Tracker Status Report
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold"
+              onClick={() =>
+                downloadReport(
+                  "/hr-platform/terminations/reports/tasks.xlsx",
+                  "Termination_All_Tasks.xlsx",
+                )
+              }
+            >
+              <Download className="h-4 w-4" />
+              All Task Report
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2.5 text-sm font-semibold text-rose-900 shadow"
+              onClick={load}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh from Company App
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+          {error}
+        </div>
+      )}
+      <section className="overflow-hidden rounded-3xl border border-rose-100 bg-white shadow-lg shadow-rose-950/5">
+        <div className="border-b border-rose-200 bg-gradient-to-r from-rose-50 via-orange-50 to-white px-5 py-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="mb-2 inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-800">
+                Priority View
+              </div>
+              <h2 className="text-xl font-semibold text-rose-950">
+                This Month&apos;s Actions & Outstanding Follow-ups
+              </h2>
+              <p className="mt-1 text-sm text-rose-700">
+                This month&apos;s payroll and benefit actions, plus unfinished
+                payroll follow-ups that remain visible until final review.
+              </p>
+            </div>
+            <span className="rounded-full border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-800">
+              {monthlyActions.length} Pending
+            </span>
+          </div>
+        </div>
+        <div className="max-h-80 overflow-auto">
+          <table className="min-w-full text-sm">
+            <thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-5 py-3">Action Date</th>
+                <th className="px-5 py-3">Employee</th>
+                <th className="px-5 py-3">Action Type</th>
+                <th className="px-5 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {monthlyActions.length ? (
+                monthlyActions.map((item) => (
+                  <tr key={`${item.employee.id}-${item.type}`}>
+                    <td className="px-5 py-3 font-semibold">
+                      {dateDisplay(item.date)}
+                    </td>
+                    <td className="px-5 py-3">{item.employee.name}</td>
+                    <td className="px-5 py-3">{item.type}</td>
+                    <td className="px-5 py-3">
+                      <TaskStatus date={item.date} />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    className="px-5 py-8 text-center text-slate-500"
+                    colSpan={4}
+                  >
+                    No pending actions scheduled this month.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-3">
+          <label className="relative min-w-64 flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <input
+              className="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm"
+              placeholder="Search name, email, department, title, location..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <button
+            className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold ${showFilters || departmentFilter || locationFilter || payrollFilter || dateFrom || dateTo ? "border-rose-200 bg-rose-50 text-rose-800" : "border-slate-300"}`}
+            onClick={() => setShowFilters((value) => !value)}
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+          </button>
+          <span className="self-center text-sm font-semibold text-slate-500">
+            {filtered.length} employees
+          </span>
+        </div>
+        {showFilters && (
+          <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-5">
+            <label className="text-xs font-bold text-slate-600">
+              Department
+              <select
+                className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm"
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+              >
+                <option value="">All Departments</option>
+                {[
+                  ...new Set(
+                    employees.map((e) => e.homeDepartment).filter(Boolean),
+                  ),
+                ]
+                  .sort()
+                  .map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+              </select>
+            </label>
+            <label className="text-xs font-bold text-slate-600">
+              Location
+              <select
+                className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+              >
+                <option value="">All Locations</option>
+                {[...new Set(employees.map((e) => e.location).filter(Boolean))]
+                  .sort()
+                  .map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+              </select>
+            </label>
+            <label className="text-xs font-bold text-slate-600">
+              Payroll Status
+              <select
+                className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm"
+                value={payrollFilter}
+                onChange={(e) => setPayrollFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="unfinished">Unfinished</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+            <label className="text-xs font-bold text-slate-600">
+              Termination Date From
+              <input
+                className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm"
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            </label>
+            <label className="text-xs font-bold text-slate-600">
+              Termination Date To
+              <input
+                className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm"
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </label>
+            <button
+              className="text-left text-sm font-semibold text-rose-700"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+                setQuery("");
+                setDepartmentFilter("");
+                setLocationFilter("");
+                setPayrollFilter("");
+              }}
+            >
+              Reset all filters
+            </button>
+          </div>
+        )}
+      </section>
+
+      <StatusSection
+        title="Termination & Payroll Status"
+        description={
+          rangeActive
+            ? "Showing all employees in the selected termination date range."
+            : "Unfinished items remain visible; completed terminations remain visible during the current month."
+        }
+        tone="blue"
+        count={payroll.length}
+      >
+        <table className="min-w-[2100px] text-sm">
+          <TableHead
+            labels={[
+              "Name",
+              "Termination Date",
+              "Department",
+              "Job Title",
+              "Location",
+              "Supervisor",
+              "Employee Folder *",
+              "Final Payroll Date *",
+              "Follow-up Issues",
+              "Follow Through",
+              "File Tracker / Admin Check",
+              "File Final Review",
+              "Final Pay Check",
+              "Final Pay Review",
+              "Follow-up Issues Check",
+              "Final Follow-up Review",
+            ]}
+          />
+          <tbody className="divide-y divide-slate-100">
+            {payroll.map((employee) => {
+              const attention =
+                !employee.payrollFinalReviewedAt ||
+                (employee.pendingIssues && !employee.followUpFinalReviewedAt);
+              return (
+                <tr
+                  className={
+                    attention ? "bg-red-100 ring-2 ring-inset ring-red-300" : ""
+                  }
+                  key={employee.id}
+                >
+                  <StickyName employee={employee} />
+                  <Cell>{dateDisplay(employee.terminationDate)}</Cell>
+                  <Cell>{employee.homeDepartment || "--"}</Cell>
+                  <Cell>{employee.jobTitle || "--"}</Cell>
+                  <Cell>{employee.location || "--"}</Cell>
+                  <Cell>{employee.supervisor || "--"}</Cell>
+                  <EditableCell onClick={() => openEdit(employee)}>
+                    {employee.employeeFolderUrl ? (
+                      <span className="inline-flex items-center gap-2">
+                        <a
+                          className="font-bold text-blue-700"
+                          href={employee.employeeFolderUrl}
+                          onClick={(e) => e.stopPropagation()}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Open <ExternalLink className="inline h-3.5 w-3.5" />
+                        </a>
+                        <span className="text-xs font-bold text-rose-700">
+                          Edit
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="font-bold text-red-700">
+                        Required - click to add
+                      </span>
+                    )}
+                  </EditableCell>
+                  <EditableCell onClick={() => openEdit(employee)}>
+                    {employee.finalPayrollDate ? (
+                      dateDisplay(employee.finalPayrollDate)
+                    ) : (
+                      <span className="font-bold text-red-700">
+                        Required - click to add
+                      </span>
+                    )}
+                  </EditableCell>
+                  <EditableCell onClick={() => openEdit(employee)}>
+                    {employee.pendingIssues ? (
+                      <span className="font-bold text-red-700">
+                        {employee.pendingIssuesNotes}
+                      </span>
+                    ) : (
+                      "None - click to edit"
+                    )}
+                  </EditableCell>
+                  <EditableCell onClick={() => openEdit(employee)}>
+                    {dateDisplay(employee.payrollFollowThroughUntil)}
+                  </EditableCell>
+                  <Cell>
+                    {employee.fileTracker?.submittedAt ? (
+                      <div>
+                        {statusPill(true, "Admin Checked")}
+                        <button
+                          className="ml-2 text-xs font-bold text-blue-700"
+                          onClick={() => openTracker(employee)}
+                        >
+                          View
+                        </button>
+                      </div>
+                    ) : (
+                      <ActionButton
+                        label="Edit & Admin Check"
+                        onClick={() => openTracker(employee)}
+                      />
+                    )}
+                  </Cell>
+                  <Cell>
+                    {employee.fileTracker?.finalLockedAt ? (
+                      statusPill(true, "File Final Reviewed")
+                    ) : manager && employee.fileTracker?.submittedAt ? (
+                      <ActionButton
+                        label="File Final Review"
+                        onClick={() => openTracker(employee)}
+                      />
+                    ) : (
+                      <span className="text-xs font-semibold text-slate-500">
+                        {employee.fileTracker?.submittedAt
+                          ? "Upper-Level Manager Review Needed"
+                          : "Admin check first"}
+                      </span>
+                    )}
+                  </Cell>
+                  <Cell>
+                    {employee.payrollCheckedAt ? (
+                      statusPill(true)
+                    ) : (
+                      <ActionButton
+                        label="Final Pay Check"
+                        onClick={() =>
+                          requestCheck(
+                            employee,
+                            "payroll-check",
+                            "Final Pay Check",
+                          )
+                        }
+                        disabled={
+                          !employee.finalPayrollDate ||
+                          !employee.employeeFolderUrl
+                        }
+                      />
+                    )}
+                  </Cell>
+                  <Cell>
+                    {employee.payrollFinalReviewedAt ? (
+                      statusPill(true, "Final Reviewed")
+                    ) : manager ? (
+                      <ActionButton
+                        label="Final Pay Review"
+                        onClick={() =>
+                          requestCheck(
+                            employee,
+                            "payroll-final-review",
+                            "Final Pay Review",
+                          )
+                        }
+                        disabled={!employee.payrollCheckedAt}
+                      />
+                    ) : (
+                      <span className="text-xs font-bold text-blue-700">
+                        Upper-Level Manager Review Needed
+                      </span>
+                    )}
+                  </Cell>
+                  <Cell>
+                    {!employee.pendingIssues ? (
+                      "--"
+                    ) : employee.followUpCheckedAt ? (
+                      statusPill(true, "Checked")
+                    ) : (
+                      <ActionButton
+                        label="Follow-up Check"
+                        onClick={() =>
+                          requestCheck(
+                            employee,
+                            "follow-up-check",
+                            "Follow-up Issues Check",
+                          )
+                        }
+                        disabled={!employee.payrollFinalReviewedAt}
+                      />
+                    )}
+                  </Cell>
+                  <Cell>
+                    {!employee.pendingIssues ? (
+                      "--"
+                    ) : employee.followUpFinalReviewedAt ? (
+                      statusPill(true, "Final Reviewed")
+                    ) : manager ? (
+                      <ActionButton
+                        label="Final Follow-up Review"
+                        onClick={() =>
+                          requestCheck(
+                            employee,
+                            "follow-up-final-review",
+                            "Final Follow-up Issues Review",
+                          )
+                        }
+                        disabled={!employee.followUpCheckedAt}
+                      />
+                    ) : (
+                      <span className="text-xs font-bold text-blue-700">
+                        Upper-Level Manager Review Needed
+                      </span>
+                    )}
+                  </Cell>
+                </tr>
+              );
+            })}
+            {!payroll.length && <EmptyRow columns={16} />}
+          </tbody>
+        </table>
+      </StatusSection>
+
+      <StatusSection
+        title="Insurance & COBRA Status"
+        description="Unfinished actions remain until completed and are sorted by Insurance Ending Date."
+        tone="emerald"
+        count={insurance.length}
+      >
+        <SimpleStatusTable
+          employees={insurance}
+          type="insurance"
+          openEdit={openEdit}
+          check={requestCheck}
+        />
+      </StatusSection>
+      <StatusSection
+        title="401(k) Status"
+        description="Unfinished actions remain until completed and are sorted by 401(k) Ending Date."
+        tone="violet"
+        count={retirement.length}
+      >
+        <SimpleStatusTable
+          employees={retirement}
+          type="retirement"
+          openEdit={openEdit}
+          check={requestCheck}
+        />
+      </StatusSection>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold">Termination Details</h2>
+                <p className="text-sm text-slate-500">
+                  {editing.name} · Terminated{" "}
+                  {dateDisplay(editing.terminationDate)}
+                </p>
+              </div>
+              <button onClick={() => setEditing(null)}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid gap-5 p-6 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <RequiredFieldsNote />
+              </div>
+              <Field label="Final Payroll Date *">
+                <input
+                  className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                  type="date"
+                  value={record.finalPayrollDate}
+                  onChange={(event) =>
+                    setRecord({
+                      ...record,
+                      finalPayrollDate: event.target.value,
+                    })
+                  }
+                />
+              </Field>
+              <Field label="Employee Folder Link">
+                <input
+                  className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                  placeholder="https://..."
+                  type="url"
+                  value={record.employeeFolderUrl}
+                  onChange={(event) =>
+                    setRecord({
+                      ...record,
+                      employeeFolderUrl: event.target.value,
+                    })
+                  }
+                />
+              </Field>
+              <label className="flex items-center gap-3 self-end rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold">
+                <input
+                  checked={record.pendingIssues}
+                  onChange={(event) =>
+                    setRecord({
+                      ...record,
+                      pendingIssues: event.target.checked,
+                    })
+                  }
+                  type="checkbox"
+                />
+                Pending payroll issues
+              </label>
+              {record.pendingIssues && (
+                <>
+                  <Field label="Payroll Follow-through Until *">
+                    <input
+                      className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                      type="date"
+                      value={record.payrollFollowThroughUntil}
+                      onChange={(event) =>
+                        setRecord({
+                          ...record,
+                          payrollFollowThroughUntil: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Pending Issues Notes *">
+                    <textarea
+                      className="mt-1 block min-h-20 w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                      value={record.pendingIssuesNotes}
+                      onChange={(event) =>
+                        setRecord({
+                          ...record,
+                          pendingIssuesNotes: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                </>
+              )}
+              <Field label="Insurance Participation *">
+                <select
+                  className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                  value={record.insuranceParticipation}
+                  onChange={(event) =>
+                    setRecord({
+                      ...record,
+                      insuranceParticipation: event.target.value,
+                      insuranceEndingDate:
+                        event.target.value === "not-participated"
+                          ? ""
+                          : record.insuranceEndingDate,
+                    })
+                  }
+                >
+                  <option value="">Select...</option>
+                  <option value="participated">Participated</option>
+                  <option value="not-participated">Not Participated</option>
+                </select>
+              </Field>
+              {record.insuranceParticipation === "participated" && (
+                <Field label="Insurance Ending Date *">
+                  <input
+                    className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                    type="date"
+                    value={record.insuranceEndingDate}
+                    onChange={(event) =>
+                      setRecord({
+                        ...record,
+                        insuranceEndingDate: event.target.value,
+                      })
+                    }
+                  />
+                </Field>
+              )}
+              <Field label="401(k) Participation *">
+                <select
+                  className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                  value={record.retirementParticipation}
+                  onChange={(event) =>
+                    setRecord({
+                      ...record,
+                      retirementParticipation: event.target.value,
+                      retirementEndingDate:
+                        event.target.value === "not-participated"
+                          ? ""
+                          : record.retirementEndingDate,
+                    })
+                  }
+                >
+                  <option value="">Select...</option>
+                  <option value="participated">Participated</option>
+                  <option value="not-participated">Not Participated</option>
+                </select>
+              </Field>
+              {record.retirementParticipation === "participated" && (
+                <Field label="401(k) Ending Date *">
+                  <input
+                    className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
+                    type="date"
+                    value={record.retirementEndingDate}
+                    onChange={(event) =>
+                      setRecord({
+                        ...record,
+                        retirementEndingDate: event.target.value,
+                      })
+                    }
+                  />
+                </Field>
+              )}
+              {saveError && (
+                <div className="sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+                  {saveError}
+                </div>
+              )}
+            </div>
+            <div className="sticky bottom-0 flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+              <button
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
+                onClick={() => setEditing(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                disabled={saving}
+                onClick={save}
+              >
+                <Save className="h-4 w-4" />
+                {saving ? "Saving..." : "Save Details"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {tracking && (
+        <TrackerModal
+          employee={tracking}
+          catalog={tracking.fileTracker?.fieldsSnapshot || catalog}
+          tracker={tracker}
+          setTracker={setTracker}
+          error={trackerError}
+          manager={manager}
+          close={() => setTracking(null)}
+          save={saveTracker}
+        />
+      )}
+      {showTrackerManager && (
+        <ChecklistManager
+          fields={catalogDrafts}
+          setFields={setCatalogDrafts}
+          newName={newChecklistName}
+          setNewName={setNewChecklistName}
+          newOptions={newChecklistOptions}
+          setNewOptions={setNewChecklistOptions}
+          close={() => setShowTrackerManager(false)}
+          deleteField={stageDeleteChecklistField}
+          addField={stageAddChecklistField}
+          confirmSave={confirmAndSaveChecklist}
+        />
+      )}
+      {confirmAction && (
+        <ConfirmActionModal
+          action={confirmAction.label}
+          employee={confirmAction.employee.name}
+          final={confirmAction.action.includes("final")}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={async () => {
+            const item = confirmAction;
+            setConfirmAction(null);
+            await check(item.employee, item.action, item.label, true);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatusSection({
+  title,
+  description,
+  tone,
+  count,
+  children,
+}: {
+  title: string;
+  description: string;
+  tone: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  const colors: Record<string, string> = {
+    blue: "border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-white text-blue-950",
+    emerald:
+      "border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-white text-emerald-950",
+    violet:
+      "border-violet-200 bg-gradient-to-r from-violet-50 via-purple-50 to-white text-violet-950",
+  };
+  return (
+    <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-950/5">
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 border-b px-6 py-5 ${colors[tone]}`}
+      >
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">{title}</h2>
+          <p className="mt-1.5 text-sm leading-5 opacity-75">{description}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-xs font-semibold uppercase tracking-wider opacity-50 sm:inline">
+            Scroll table horizontally
+          </span>
+          <span className="rounded-full border border-white bg-white/90 px-3.5 py-1.5 text-sm font-bold shadow-sm">
+            {count} employees
+          </span>
+        </div>
+      </div>
+      <div className="max-h-[560px] overflow-auto scrollbar-thin">
+        {children}
+      </div>
     </section>
-
-    {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">{error}</div>}
-    <section className="overflow-hidden rounded-3xl border border-rose-100 bg-white shadow-lg shadow-rose-950/5">
-      <div className="border-b border-rose-200 bg-gradient-to-r from-rose-50 via-orange-50 to-white px-5 py-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="mb-2 inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-rose-800">Priority View</div><h2 className="text-xl font-semibold text-rose-950">This Month&apos;s Actions & Outstanding Follow-ups</h2><p className="mt-1 text-sm text-rose-700">This month&apos;s payroll and benefit actions, plus unfinished payroll follow-ups that remain visible until final review.</p></div><span className="rounded-full border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-800">{monthlyActions.length} Pending</span></div></div>
-      <div className="max-h-80 overflow-auto"><table className="min-w-full text-sm"><thead className="sticky top-0 bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Action Date</th><th className="px-5 py-3">Employee</th><th className="px-5 py-3">Action Type</th><th className="px-5 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{monthlyActions.length ? monthlyActions.map(item => <tr key={`${item.employee.id}-${item.type}`}><td className="px-5 py-3 font-semibold">{dateDisplay(item.date)}</td><td className="px-5 py-3">{item.employee.name}</td><td className="px-5 py-3">{item.type}</td><td className="px-5 py-3"><TaskStatus date={item.date} /></td></tr>) : <tr><td className="px-5 py-8 text-center text-slate-500" colSpan={4}>No pending actions scheduled this month.</td></tr>}</tbody></table></div>
-    </section>
-
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap gap-3"><label className="relative min-w-64 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input className="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3 text-sm" placeholder="Search name, email, department, title, location..." value={query} onChange={event => setQuery(event.target.value)} /></label><button className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold ${showFilters || departmentFilter || locationFilter || payrollFilter || dateFrom || dateTo ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-slate-300'}`} onClick={() => setShowFilters(value => !value)}><Filter className="h-4 w-4" />Filters</button><span className="self-center text-sm font-semibold text-slate-500">{filtered.length} employees</span></div>{showFilters && <div className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-5"><label className="text-xs font-bold text-slate-600">Department<select className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm" value={departmentFilter} onChange={e => setDepartmentFilter(e.target.value)}><option value="">All Departments</option>{[...new Set(employees.map(e => e.homeDepartment).filter(Boolean))].sort().map(value => <option key={value}>{value}</option>)}</select></label><label className="text-xs font-bold text-slate-600">Location<select className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm" value={locationFilter} onChange={e => setLocationFilter(e.target.value)}><option value="">All Locations</option>{[...new Set(employees.map(e => e.location).filter(Boolean))].sort().map(value => <option key={value}>{value}</option>)}</select></label><label className="text-xs font-bold text-slate-600">Payroll Status<select className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm" value={payrollFilter} onChange={e => setPayrollFilter(e.target.value)}><option value="">All Statuses</option><option value="unfinished">Unfinished</option><option value="completed">Completed</option></select></label><label className="text-xs font-bold text-slate-600">Termination Date From<input className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm" type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} /></label><label className="text-xs font-bold text-slate-600">Termination Date To<input className="mt-1 block w-full rounded-lg border border-slate-300 p-2 text-sm" type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} /></label><button className="text-left text-sm font-semibold text-rose-700" onClick={() => { setDateFrom(''); setDateTo(''); setQuery(''); setDepartmentFilter(''); setLocationFilter(''); setPayrollFilter('') }}>Reset all filters</button></div>}</section>
-
-    <StatusSection title="Termination & Payroll Status" description={rangeActive ? 'Showing all employees in the selected termination date range.' : 'Unfinished items remain visible; completed terminations remain visible during the current month.'} tone="blue" count={payroll.length}>
-      <table className="min-w-[2100px] text-sm"><TableHead labels={['Name','Termination Date','Department','Job Title','Location','Supervisor','Employee Folder *','Final Payroll Date *','Follow-up Issues','Follow Through','File Tracker / Admin Check','File Final Review','Final Pay Check','Final Pay Review','Follow-up Issues Check','Final Follow-up Review']} /><tbody className="divide-y divide-slate-100">{payroll.map(employee => { const attention = !employee.payrollFinalReviewedAt || (employee.pendingIssues && !employee.followUpFinalReviewedAt); return <tr className={attention ? 'bg-red-100 ring-2 ring-inset ring-red-300' : ''} key={employee.id}><StickyName employee={employee} /><Cell>{dateDisplay(employee.terminationDate)}</Cell><Cell>{employee.homeDepartment || '--'}</Cell><Cell>{employee.jobTitle || '--'}</Cell><Cell>{employee.location || '--'}</Cell><Cell>{employee.supervisor || '--'}</Cell><EditableCell onClick={() => openEdit(employee)}>{employee.employeeFolderUrl ? <span className="inline-flex items-center gap-2"><a className="font-bold text-blue-700" href={employee.employeeFolderUrl} onClick={e => e.stopPropagation()} rel="noreferrer" target="_blank">Open <ExternalLink className="inline h-3.5 w-3.5" /></a><span className="text-xs font-bold text-rose-700">Edit</span></span> : <span className="font-bold text-red-700">Required - click to add</span>}</EditableCell><EditableCell onClick={() => openEdit(employee)}>{employee.finalPayrollDate ? dateDisplay(employee.finalPayrollDate) : <span className="font-bold text-red-700">Required - click to add</span>}</EditableCell><EditableCell onClick={() => openEdit(employee)}>{employee.pendingIssues ? <span className="font-bold text-red-700">{employee.pendingIssuesNotes}</span> : 'None - click to edit'}</EditableCell><EditableCell onClick={() => openEdit(employee)}>{dateDisplay(employee.payrollFollowThroughUntil)}</EditableCell><Cell>{employee.fileTracker?.submittedAt ? <div>{statusPill(true, 'Admin Checked')}<button className="ml-2 text-xs font-bold text-blue-700" onClick={() => openTracker(employee)}>View</button></div> : <ActionButton label="Edit & Admin Check" onClick={() => openTracker(employee)} />}</Cell><Cell>{employee.fileTracker?.finalLockedAt ? statusPill(true, 'File Final Reviewed') : manager && employee.fileTracker?.submittedAt ? <ActionButton label="File Final Review" onClick={() => openTracker(employee)} /> : <span className="text-xs font-semibold text-slate-500">{employee.fileTracker?.submittedAt ? 'Upper-Level Manager Review Needed' : 'Admin check first'}</span>}</Cell><Cell>{employee.payrollCheckedAt ? statusPill(true) : <ActionButton label="Final Pay Check" onClick={() => requestCheck(employee, 'payroll-check', 'Final Pay Check')} disabled={!employee.finalPayrollDate || !employee.employeeFolderUrl} />}</Cell><Cell>{employee.payrollFinalReviewedAt ? statusPill(true, 'Final Reviewed') : manager ? <ActionButton label="Final Pay Review" onClick={() => requestCheck(employee, 'payroll-final-review', 'Final Pay Review')} disabled={!employee.payrollCheckedAt} /> : <span className="text-xs font-bold text-blue-700">Upper-Level Manager Review Needed</span>}</Cell><Cell>{!employee.pendingIssues ? '--' : employee.followUpCheckedAt ? statusPill(true, 'Checked') : <ActionButton label="Follow-up Check" onClick={() => requestCheck(employee, 'follow-up-check', 'Follow-up Issues Check')} disabled={!employee.payrollFinalReviewedAt} />}</Cell><Cell>{!employee.pendingIssues ? '--' : employee.followUpFinalReviewedAt ? statusPill(true, 'Final Reviewed') : manager ? <ActionButton label="Final Follow-up Review" onClick={() => requestCheck(employee, 'follow-up-final-review', 'Final Follow-up Issues Review')} disabled={!employee.followUpCheckedAt} /> : <span className="text-xs font-bold text-blue-700">Upper-Level Manager Review Needed</span>}</Cell></tr>})}{!payroll.length && <EmptyRow columns={16} />}</tbody></table>
-    </StatusSection>
-
-    <StatusSection title="Insurance & COBRA Status" description="Unfinished actions remain until completed and are sorted by Insurance Ending Date." tone="emerald" count={insurance.length}><SimpleStatusTable employees={insurance} type="insurance" openEdit={openEdit} check={requestCheck} /></StatusSection>
-    <StatusSection title="401(k) Status" description="Unfinished actions remain until completed and are sorted by 401(k) Ending Date." tone="violet" count={retirement.length}><SimpleStatusTable employees={retirement} type="retirement" openEdit={openEdit} check={requestCheck} /></StatusSection>
-
-    {editing && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4"><div className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4"><div><h2 className="text-xl font-semibold">Termination Details</h2><p className="text-sm text-slate-500">{editing.name} · Terminated {dateDisplay(editing.terminationDate)}</p></div><button onClick={() => setEditing(null)}><X className="h-5 w-5" /></button></div><div className="grid gap-5 p-6 sm:grid-cols-2"><div className="sm:col-span-2"><RequiredFieldsNote /></div>
-      <Field label="Final Payroll Date *"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={record.finalPayrollDate} onChange={event => setRecord({ ...record, finalPayrollDate: event.target.value })} /></Field>
-      <Field label="Employee Folder Link"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" placeholder="https://..." type="url" value={record.employeeFolderUrl} onChange={event => setRecord({ ...record, employeeFolderUrl: event.target.value })} /></Field>
-      <label className="flex items-center gap-3 self-end rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold"><input checked={record.pendingIssues} onChange={event => setRecord({ ...record, pendingIssues: event.target.checked })} type="checkbox" />Pending payroll issues</label>
-      {record.pendingIssues && <><Field label="Payroll Follow-through Until *"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={record.payrollFollowThroughUntil} onChange={event => setRecord({ ...record, payrollFollowThroughUntil: event.target.value })} /></Field><Field label="Pending Issues Notes *"><textarea className="mt-1 block min-h-20 w-full rounded-lg border border-slate-300 p-2.5 font-normal" value={record.pendingIssuesNotes} onChange={event => setRecord({ ...record, pendingIssuesNotes: event.target.value })} /></Field></>}
-      <Field label="Insurance Participation *"><select className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" value={record.insuranceParticipation} onChange={event => setRecord({ ...record, insuranceParticipation: event.target.value, insuranceEndingDate: event.target.value === 'not-participated' ? '' : record.insuranceEndingDate })}><option value="">Select...</option><option value="participated">Participated</option><option value="not-participated">Not Participated</option></select></Field>
-      {record.insuranceParticipation === 'participated' && <Field label="Insurance Ending Date *"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={record.insuranceEndingDate} onChange={event => setRecord({ ...record, insuranceEndingDate: event.target.value })} /></Field>}
-      <Field label="401(k) Participation *"><select className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" value={record.retirementParticipation} onChange={event => setRecord({ ...record, retirementParticipation: event.target.value, retirementEndingDate: event.target.value === 'not-participated' ? '' : record.retirementEndingDate })}><option value="">Select...</option><option value="participated">Participated</option><option value="not-participated">Not Participated</option></select></Field>
-      {record.retirementParticipation === 'participated' && <Field label="401(k) Ending Date *"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={record.retirementEndingDate} onChange={event => setRecord({ ...record, retirementEndingDate: event.target.value })} /></Field>}
-      {saveError && <div className="sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{saveError}</div>}
-    </div><div className="sticky bottom-0 flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4"><button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" onClick={() => setEditing(null)}>Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" disabled={saving} onClick={save}><Save className="h-4 w-4" />{saving ? 'Saving...' : 'Save Details'}</button></div></div></div>}
-    {tracking && <TrackerModal employee={tracking} catalog={tracking.fileTracker?.fieldsSnapshot || catalog} tracker={tracker} setTracker={setTracker} error={trackerError} manager={manager} close={() => setTracking(null)} save={saveTracker} />}
-    {showTrackerManager && <ChecklistManager fields={catalogDrafts} setFields={setCatalogDrafts} newName={newChecklistName} setNewName={setNewChecklistName} newOptions={newChecklistOptions} setNewOptions={setNewChecklistOptions} close={() => setShowTrackerManager(false)} deleteField={stageDeleteChecklistField} addField={stageAddChecklistField} confirmSave={confirmAndSaveChecklist} />}
-    {confirmAction && <ConfirmActionModal action={confirmAction.label} employee={confirmAction.employee.name} final={confirmAction.action.includes('final')} onCancel={() => setConfirmAction(null)} onConfirm={async () => { const item = confirmAction; setConfirmAction(null); await check(item.employee, item.action, item.label, true) }} />}
-  </div>
+  );
+}
+function TableHead({ labels }: { labels: string[] }) {
+  return (
+    <thead className="sticky top-0 z-20 bg-slate-100/95 text-left text-[11px] uppercase tracking-[0.08em] text-slate-600 shadow-sm backdrop-blur">
+      <tr>
+        {labels.map((label, index) => (
+          <th
+            className={`whitespace-nowrap border-b border-slate-200 px-4 py-3.5 font-extrabold ${index === 0 ? "sticky left-0 z-30 bg-slate-100" : ""}`}
+            key={label}
+          >
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+function Cell({ children }: { children: React.ReactNode }) {
+  return (
+    <td className="max-w-64 whitespace-nowrap border-b border-slate-100 px-4 py-3.5 align-middle text-slate-700">
+      {children}
+    </td>
+  );
+}
+function EditableCell({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <td
+      className="group/edit max-w-64 cursor-pointer whitespace-nowrap border-b border-slate-100 px-4 py-3.5 align-middle underline-offset-2 transition hover:bg-blue-50 hover:text-blue-900"
+      onClick={onClick}
+    >
+      {children}
+      <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-blue-500 opacity-0 transition group-hover/edit:opacity-100">
+        Edit
+      </span>
+    </td>
+  );
+}
+function StickyName({ employee }: { employee: Employee }) {
+  return (
+    <td className="sticky left-0 z-10 min-w-52 border-b border-r-4 border-slate-200 bg-white px-4 py-3.5 align-middle font-bold text-slate-950 shadow-[5px_0_10px_-8px_rgba(15,23,42,0.35)]">
+      <div>{employee.name}</div>
+      <div className="mt-1 truncate text-xs font-normal text-slate-500">
+        {employee.email}
+      </div>
+    </td>
+  );
+}
+function ActionButton({
+  label,
+  onClick,
+  disabled = false,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 hover:shadow disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+function EmptyRow({ columns }: { columns: number }) {
+  return (
+    <tr>
+      <td className="px-5 py-10 text-center text-slate-500" colSpan={columns}>
+        No employees match this view.
+      </td>
+    </tr>
+  );
+}
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="text-sm font-bold text-slate-700">
+      {label}
+      {children}
+    </label>
+  );
+}
+function SimpleStatusTable({
+  employees,
+  type,
+  openEdit,
+  check,
+}: {
+  employees: Employee[];
+  type: "insurance" | "retirement";
+  openEdit: (employee: Employee) => void;
+  check: (employee: Employee, action: string, label: string) => void;
+}) {
+  const insurance = type === "insurance";
+  return (
+    <table className="min-w-full text-sm">
+      <TableHead
+        labels={[
+          "Employee",
+          "Participation",
+          "Ending Date",
+          "Status",
+          "Checked By",
+          "Action",
+        ]}
+      />
+      <tbody>
+        {employees.map((employee) => {
+          const participation = insurance
+            ? employee.insuranceParticipation
+            : employee.retirementParticipation;
+          const endingDate = insurance
+            ? employee.insuranceEndingDate
+            : employee.retirementEndingDate;
+          const checkedAt = insurance
+            ? employee.insuranceCobraCheckedAt
+            : employee.retirementCheckedAt;
+          const checkedBy = insurance
+            ? employee.insuranceCobraCheckedBy
+            : employee.retirementCheckedBy;
+          return (
+            <tr
+              className="group bg-white transition hover:bg-slate-50"
+              key={employee.id}
+            >
+              <StickyName employee={employee} />
+              <Cell>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${participation === "participated" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}
+                >
+                  {participation === "participated"
+                    ? "Participated"
+                    : participation === "not-participated"
+                      ? "Not Participated"
+                      : "Not Set"}
+                </span>
+              </Cell>
+              <Cell>
+                <span className="font-semibold text-slate-900">
+                  {dateDisplay(endingDate)}
+                </span>
+              </Cell>
+              <Cell>
+                {statusPill(
+                  Boolean(checkedAt),
+                  checkedAt ? "Complete" : "Action Needed",
+                )}
+              </Cell>
+              <Cell>
+                <span className="text-xs text-slate-600">
+                  {checkedBy || "--"}
+                </span>
+              </Cell>
+              <Cell>
+                {checkedAt ? (
+                  statusPill(true, "Action Taken")
+                ) : participation ? (
+                  <button
+                    className="rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow"
+                    onClick={() =>
+                      check(
+                        employee,
+                        insurance
+                          ? "insurance-cobra-check"
+                          : "retirement-check",
+                        insurance
+                          ? "Insurance & COBRA Action"
+                          : "401(k) Action",
+                      )
+                    }
+                  >
+                    Confirm Action Taken
+                  </button>
+                ) : (
+                  <ActionButton
+                    label="Set Details"
+                    onClick={() => openEdit(employee)}
+                  />
+                )}
+              </Cell>
+            </tr>
+          );
+        })}
+        {!employees.length && <EmptyRow columns={6} />}
+      </tbody>
+    </table>
+  );
 }
 
-function StatusSection({ title, description, tone, count, children }: { title: string; description: string; tone: string; count: number; children: React.ReactNode }) { const colors: Record<string, string> = { blue: 'border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-white text-blue-950', emerald: 'border-emerald-200 bg-gradient-to-r from-emerald-50 via-teal-50 to-white text-emerald-950', violet: 'border-violet-200 bg-gradient-to-r from-violet-50 via-purple-50 to-white text-violet-950' }; return <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-950/5"><div className={`flex flex-wrap items-center justify-between gap-3 border-b px-6 py-5 ${colors[tone]}`}><div><h2 className="text-xl font-bold tracking-tight">{title}</h2><p className="mt-1.5 text-sm leading-5 opacity-75">{description}</p></div><div className="flex items-center gap-3"><span className="hidden text-xs font-semibold uppercase tracking-wider opacity-50 sm:inline">Scroll table horizontally</span><span className="rounded-full border border-white bg-white/90 px-3.5 py-1.5 text-sm font-bold shadow-sm">{count} employees</span></div></div><div className="max-h-[560px] overflow-auto scrollbar-thin">{children}</div></section> }
-function TableHead({ labels }: { labels: string[] }) { return <thead className="sticky top-0 z-20 bg-slate-100/95 text-left text-[11px] uppercase tracking-[0.08em] text-slate-600 shadow-sm backdrop-blur"><tr>{labels.map((label, index) => <th className={`whitespace-nowrap border-b border-slate-200 px-4 py-3.5 font-extrabold ${index === 0 ? 'sticky left-0 z-30 bg-slate-100' : ''}`} key={label}>{label}</th>)}</tr></thead> }
-function Cell({ children }: { children: React.ReactNode }) { return <td className="max-w-64 whitespace-nowrap border-b border-slate-100 px-4 py-3.5 align-middle text-slate-700">{children}</td> }
-function EditableCell({ children, onClick }: { children: React.ReactNode; onClick: () => void }) { return <td className="group/edit max-w-64 cursor-pointer whitespace-nowrap border-b border-slate-100 px-4 py-3.5 align-middle underline-offset-2 transition hover:bg-blue-50 hover:text-blue-900" onClick={onClick}>{children}<span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-blue-500 opacity-0 transition group-hover/edit:opacity-100">Edit</span></td> }
-function StickyName({ employee }: { employee: Employee }) { return <td className="sticky left-0 z-10 min-w-52 border-b border-r-4 border-slate-200 bg-white px-4 py-3.5 align-middle font-bold text-slate-950 shadow-[5px_0_10px_-8px_rgba(15,23,42,0.35)]"><div>{employee.name}</div><div className="mt-1 truncate text-xs font-normal text-slate-500">{employee.email}</div></td> }
-function ActionButton({ label, onClick, disabled = false }: { label: string; onClick: () => void; disabled?: boolean }) { return <button className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800 hover:shadow disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0" disabled={disabled} onClick={onClick}>{label}</button> }
-function EmptyRow({ columns }: { columns: number }) { return <tr><td className="px-5 py-10 text-center text-slate-500" colSpan={columns}>No employees match this view.</td></tr> }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="text-sm font-bold text-slate-700">{label}{children}</label> }
-function SimpleStatusTable({ employees, type, openEdit, check }: { employees: Employee[]; type: 'insurance' | 'retirement'; openEdit: (employee: Employee) => void; check: (employee: Employee, action: string, label: string) => void }) { const insurance = type === 'insurance'; return <table className="min-w-full text-sm"><TableHead labels={['Employee','Participation','Ending Date','Status','Checked By','Action']} /><tbody>{employees.map(employee => { const participation = insurance ? employee.insuranceParticipation : employee.retirementParticipation; const endingDate = insurance ? employee.insuranceEndingDate : employee.retirementEndingDate; const checkedAt = insurance ? employee.insuranceCobraCheckedAt : employee.retirementCheckedAt; const checkedBy = insurance ? employee.insuranceCobraCheckedBy : employee.retirementCheckedBy; return <tr className="group bg-white transition hover:bg-slate-50" key={employee.id}><StickyName employee={employee} /><Cell><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${participation === 'participated' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{participation === 'participated' ? 'Participated' : participation === 'not-participated' ? 'Not Participated' : 'Not Set'}</span></Cell><Cell><span className="font-semibold text-slate-900">{dateDisplay(endingDate)}</span></Cell><Cell>{statusPill(Boolean(checkedAt), checkedAt ? 'Complete' : 'Action Needed')}</Cell><Cell><span className="text-xs text-slate-600">{checkedBy || '--'}</span></Cell><Cell>{checkedAt ? statusPill(true, 'Action Taken') : participation ? <button className="rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow" onClick={() => check(employee, insurance ? 'insurance-cobra-check' : 'retirement-check', insurance ? 'Insurance & COBRA Action' : '401(k) Action')}>Confirm Action Taken</button> : <ActionButton label="Set Details" onClick={() => openEdit(employee)} />}</Cell></tr> })}{!employees.length && <EmptyRow columns={6} />}</tbody></table> }
-
-function TrackerModal({ employee, catalog, tracker, setTracker, error, manager, close, save }: { employee: Employee; catalog: TrackerField[]; tracker: any; setTracker: (value: any) => void; error: string; manager: boolean; close: () => void; save: (action: 'save' | 'submit' | 'lock') => void }) {
-  const locked = Boolean(employee.fileTracker?.finalLockedAt)
-  const submitted = Boolean(employee.fileTracker?.submittedAt)
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"><div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4"><div><h2 className="flex items-center gap-2 text-xl font-semibold"><FolderOpen className="h-5 w-5 text-rose-700" />Termination File Tracker</h2><p className="text-sm text-slate-500">{employee.name}</p></div><button onClick={close}><X className="h-5 w-5" /></button></div><div className="space-y-5 p-6">
-    <div className={`rounded-xl border p-4 text-sm font-semibold ${locked ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : submitted ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{locked ? 'Final locked ??this record is read-only.' : submitted ? 'Administrator confirmed ??awaiting upper-level manager lock.' : 'Complete the checklist, save progress, then confirm for final review.'}</div>
-    <div className="grid gap-4 sm:grid-cols-2">{catalog.map(field => <Field label={field.label} key={field.id}><select className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal disabled:bg-slate-100" disabled={locked || submitted} value={tracker.responses?.[field.id] || ''} onChange={e => setTracker({ ...tracker, responses: { ...tracker.responses, [field.id]: e.target.value } })}><option value="">Select...</option>{field.options.map(option => <option key={option}>{option}</option>)}</select></Field>)}</div>
-    <Field label="Administrator Comments"><textarea className="mt-1 block min-h-24 w-full rounded-lg border border-slate-300 p-2.5 font-normal disabled:bg-slate-100" disabled={locked || submitted} value={tracker.comments || ''} onChange={e => setTracker({ ...tracker, comments: e.target.value })} /></Field>
-    <Field label="Confirmation Date"><input className="mt-1 block w-full max-w-xs rounded-lg border border-slate-300 p-2.5 font-normal disabled:bg-slate-100" disabled={locked || submitted} type="date" value={tracker.confirmationDate || ''} onChange={e => setTracker({ ...tracker, confirmationDate: e.target.value })} /></Field>
-    {error && <div className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</div>}
-  </div><div className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t bg-white px-6 py-4"><div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500"><Settings className="h-4 w-4" />Checklist items follow the Termination File Tracker Manager.</div><div className="flex gap-2"><button className="rounded-lg border px-4 py-2 text-sm font-semibold" onClick={close}>Close</button>{!locked && !submitted && <><button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" onClick={() => save('save')}>Save Progress</button><button className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white" onClick={() => save('submit')}>Confirm Tracker</button></>}{submitted && manager && !locked && <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" onClick={() => save('lock')}><Lock className="h-4 w-4" />Final Lock</button>}</div></div></div></div>
+function TrackerModal({
+  employee,
+  catalog,
+  tracker,
+  setTracker,
+  error,
+  manager,
+  close,
+  save,
+}: {
+  employee: Employee;
+  catalog: TrackerField[];
+  tracker: any;
+  setTracker: (value: any) => void;
+  error: string;
+  manager: boolean;
+  close: () => void;
+  save: (action: "save" | "submit" | "lock") => void;
+}) {
+  const locked = Boolean(employee.fileTracker?.finalLockedAt);
+  const submitted = Boolean(employee.fileTracker?.submittedAt);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+          <div>
+            <h2 className="flex items-center gap-2 text-xl font-semibold">
+              <FolderOpen className="h-5 w-5 text-rose-700" />
+              Termination File Tracker
+            </h2>
+            <p className="text-sm text-slate-500">{employee.name}</p>
+          </div>
+          <button onClick={close}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="space-y-5 p-6">
+          <div
+            className={`rounded-xl border p-4 text-sm font-semibold ${locked ? "border-emerald-200 bg-emerald-50 text-emerald-800" : submitted ? "border-blue-200 bg-blue-50 text-blue-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}
+          >
+            {locked
+              ? "Final locked ??this record is read-only."
+              : submitted
+                ? "Administrator confirmed — awaiting upper-level manager lock. Admins may still revise it; saving changes requires confirmation again."
+                : "Complete the checklist, save progress, then confirm for final review."}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {catalog.map((field) => (
+              <Field label={field.label} key={field.id}>
+                <select
+                  className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal disabled:bg-slate-100"
+                  disabled={locked}
+                  value={tracker.responses?.[field.id] || ""}
+                  onChange={(e) =>
+                    setTracker({
+                      ...tracker,
+                      responses: {
+                        ...tracker.responses,
+                        [field.id]: e.target.value,
+                      },
+                    })
+                  }
+                >
+                  <option value="">Select...</option>
+                  {field.options.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </Field>
+            ))}
+          </div>
+          <Field label="Administrator Comments">
+            <textarea
+              className="mt-1 block min-h-24 w-full rounded-lg border border-slate-300 p-2.5 font-normal disabled:bg-slate-100"
+              disabled={locked}
+              value={tracker.comments || ""}
+              onChange={(e) =>
+                setTracker({ ...tracker, comments: e.target.value })
+              }
+            />
+          </Field>
+          <Field label="Confirmation Date">
+            <input
+              className="mt-1 block w-full max-w-xs rounded-lg border border-slate-300 p-2.5 font-normal disabled:bg-slate-100"
+              disabled={locked}
+              type="date"
+              value={tracker.confirmationDate || ""}
+              onChange={(e) =>
+                setTracker({ ...tracker, confirmationDate: e.target.value })
+              }
+            />
+          </Field>
+          {error && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+        <div className="sticky bottom-0 flex flex-wrap justify-between gap-3 border-t bg-white px-6 py-4">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <Settings className="h-4 w-4" />
+            Checklist items follow the Termination File Tracker Manager.
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="rounded-lg border px-4 py-2 text-sm font-semibold"
+              onClick={close}
+            >
+              Close
+            </button>
+            {!locked && (
+              <>
+                <button
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
+                  onClick={() => save("save")}
+                >
+                  Save Progress
+                </button>
+                <button
+                  className="rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white"
+                  onClick={() => save("submit")}
+                >
+                  Confirm Tracker
+                </button>
+              </>
+            )}
+            {submitted && manager && !locked && (
+              <button
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => save("lock")}
+              >
+                <Lock className="h-4 w-4" />
+                Final Lock
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function ChecklistManager({ fields, setFields, newName, setNewName, newOptions, setNewOptions, close, deleteField, addField, confirmSave }: { fields: TrackerField[]; setFields: (fields: TrackerField[]) => void; newName: string; setNewName: (value: string) => void; newOptions: string; setNewOptions: (value: string) => void; close: () => void; deleteField: (field: TrackerField) => void; addField: () => void; confirmSave: () => void }) {
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"><div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4"><div><h2 className="text-xl font-semibold">Termination File Tracker Manager</h2><p className="text-sm text-slate-500">Stage all changes, then use Review Changes & Save. Existing assigned or locked trackers keep their original checklist.</p></div><button onClick={close}><X className="h-5 w-5" /></button></div><div className="space-y-3 p-6">{fields.map((field, index) => <div className="grid gap-2 rounded-xl border border-slate-200 p-3 md:grid-cols-[1fr_1.5fr_auto]" key={field.id}><input className="rounded-lg border border-slate-300 px-3 py-2 text-sm" value={field.label} onChange={e => setFields(fields.map((item, itemIndex) => itemIndex === index ? { ...item, label: e.target.value } : item))} /><input className="rounded-lg border border-slate-300 px-3 py-2 text-sm" value={field.options.join(', ')} onChange={e => setFields(fields.map((item, itemIndex) => itemIndex === index ? { ...item, options: e.target.value.split(',').map(value => value.trim()).filter(Boolean) } : item))} /><button className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700" onClick={() => deleteField(field)}>Remove</button></div>)}<div className="mt-5 grid gap-2 rounded-xl border-2 border-dashed border-rose-200 bg-rose-50/40 p-4 md:grid-cols-[1fr_1.5fr_auto]"><input className="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="New checklist item" value={newName} onChange={e => setNewName(e.target.value)} /><input className="rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Options separated by commas" value={newOptions} onChange={e => setNewOptions(e.target.value)} /><button className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-700" onClick={addField}>Stage Item</button></div></div><div className="sticky bottom-0 flex justify-end gap-3 border-t bg-white px-6 py-4"><button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold" onClick={close}>Cancel</button><button className="rounded-lg bg-rose-700 px-5 py-2 text-sm font-bold text-white" onClick={confirmSave}>Review Changes & Save</button></div></div></div>
+function ChecklistManager({
+  fields,
+  setFields,
+  newName,
+  setNewName,
+  newOptions,
+  setNewOptions,
+  close,
+  deleteField,
+  addField,
+  confirmSave,
+}: {
+  fields: TrackerField[];
+  setFields: (fields: TrackerField[]) => void;
+  newName: string;
+  setNewName: (value: string) => void;
+  newOptions: string;
+  setNewOptions: (value: string) => void;
+  close: () => void;
+  deleteField: (field: TrackerField) => void;
+  addField: () => void;
+  confirmSave: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+      <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+          <div>
+            <h2 className="text-xl font-semibold">
+              Termination File Tracker Manager
+            </h2>
+            <p className="text-sm text-slate-500">
+              Stage all changes, then use Review Changes & Save. Existing
+              current trackers update until final lock; locked history keeps its original checklist.
+            </p>
+          </div>
+          <button onClick={close}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="space-y-3 p-6">
+          {fields.map((field, index) => (
+            <div
+              className="grid gap-2 rounded-xl border border-slate-200 p-3 md:grid-cols-[1fr_1.5fr_auto]"
+              key={field.id}
+            >
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                value={field.label}
+                onChange={(e) =>
+                  setFields(
+                    fields.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, label: e.target.value }
+                        : item,
+                    ),
+                  )
+                }
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                value={field.options.join(", ")}
+                onChange={(e) =>
+                  setFields(
+                    fields.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? {
+                            ...item,
+                            options: e.target.value
+                              .split(",")
+                              .map((value) => value.trim())
+                              .filter(Boolean),
+                          }
+                        : item,
+                    ),
+                  )
+                }
+              />
+              <button
+                className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-700"
+                onClick={() => deleteField(field)}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <div className="mt-5 grid gap-2 rounded-xl border-2 border-dashed border-rose-200 bg-rose-50/40 p-4 md:grid-cols-[1fr_1.5fr_auto]">
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="New checklist item"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Options separated by commas"
+              value={newOptions}
+              onChange={(e) => setNewOptions(e.target.value)}
+            />
+            <button
+              className="rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-700"
+              onClick={addField}
+            >
+              Stage Item
+            </button>
+          </div>
+        </div>
+        <div className="sticky bottom-0 flex justify-end gap-3 border-t bg-white px-6 py-4">
+          <button
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
+            onClick={close}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-rose-700 px-5 py-2 text-sm font-bold text-white"
+            onClick={confirmSave}
+          >
+            Review Changes & Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
-

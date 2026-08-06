@@ -1,81 +1,1619 @@
-import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Download, ExternalLink, Filter, Plus, RefreshCw, Repeat2, Settings, Trash2, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { api } from '../shared/api'
-import { ConfirmActionModal, isAuthenticationError, RequiredFieldsNote, SessionExpired, TaskStatus } from '../shared/hrPlatformUi'
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  Filter,
+  Plus,
+  RefreshCw,
+  Repeat2,
+  Settings,
+  Trash2,
+  X,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { api } from "../shared/api";
+import {
+  ConfirmActionModal,
+  isAuthenticationError,
+  RequiredFieldsNote,
+  SessionExpired,
+  TaskStatus,
+} from "../shared/hrPlatformUi";
 
-type TrackerField = { id: string; label: string; options: string[]; order?: number; active?: boolean }
-type Tracker = { fieldsSnapshot?: TrackerField[]; responses?: Record<string,string>; comments?: string }
-type Task = { required?: boolean; applicable?: boolean | null; actionDate?: string; checkedAt?: string | null; checkedBy?: string; finalReviewedAt?: string | null; finalReviewedBy?: string; completedAt?: string | null; completedBy?: string; tracker?: Tracker }
-type RecordItem = { id: string; employeeId: string; employeeName: string; employeeEmail: string; effectiveDate: string; reason: string; employeeFolderUrl: string; followUpIssues: boolean; followUpNotes: string; followUpUntil: string; changes: { field: string; from: string; to: string }[]; tasks: { file?: Task; payroll?: Task; insurance?: Task; retirement?: Task; followUp?: Task } }
-type Details = { effectiveDate: string; reason: string; employeeFolderUrl: string; payrollApplicable: string; payrollActionDate: string; insuranceApplicable: string; insuranceActionDate: string; retirementApplicable: string; retirementActionDate: string; followUpIssues: boolean; followUpNotes: string; followUpUntil: string }
-const emptyDetails: Details = { effectiveDate: '', reason: '', employeeFolderUrl: '', payrollApplicable: 'not-applicable', payrollActionDate: '', insuranceApplicable: 'not-applicable', insuranceActionDate: '', retirementApplicable: 'not-applicable', retirementActionDate: '', followUpIssues: false, followUpNotes: '', followUpUntil: '' }
-const dateDisplay = (value = '') => value ? new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US') : '--'
-const currentMonth = (value = '') => { if (!value) return false; const date = new Date(`${value.slice(0, 10)}T00:00:00`); const now = new Date(); return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() }
-const done = (task?: Task) => Boolean(task?.finalReviewedAt || task?.checkedAt || task?.completedAt)
-const finalDone = (task?: Task) => Boolean(task?.finalReviewedAt || task?.completedAt)
+type TrackerField = {
+  id: string;
+  label: string;
+  options: string[];
+  order?: number;
+  active?: boolean;
+};
+type Tracker = {
+  fieldsSnapshot?: TrackerField[];
+  responses?: Record<string, string>;
+  comments?: string;
+};
+type Task = {
+  required?: boolean;
+  applicable?: boolean | null;
+  actionDate?: string;
+  checkedAt?: string | null;
+  checkedBy?: string;
+  finalReviewedAt?: string | null;
+  finalReviewedBy?: string;
+  completedAt?: string | null;
+  completedBy?: string;
+  tracker?: Tracker;
+};
+type RecordItem = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeEmail: string;
+  effectiveDate: string;
+  reason: string;
+  employeeFolderUrl: string;
+  followUpIssues: boolean;
+  followUpNotes: string;
+  followUpUntil: string;
+  changes: { field: string; from: string; to: string }[];
+  tasks: {
+    file?: Task;
+    payroll?: Task;
+    insurance?: Task;
+    retirement?: Task;
+    followUp?: Task;
+  };
+};
+type Details = {
+  effectiveDate: string;
+  reason: string;
+  employeeFolderUrl: string;
+  payrollApplicable: string;
+  payrollActionDate: string;
+  insuranceApplicable: string;
+  insuranceActionDate: string;
+  retirementApplicable: string;
+  retirementActionDate: string;
+  followUpIssues: boolean;
+  followUpNotes: string;
+  followUpUntil: string;
+};
+const emptyDetails: Details = {
+  effectiveDate: "",
+  reason: "",
+  employeeFolderUrl: "",
+  payrollApplicable: "not-applicable",
+  payrollActionDate: "",
+  insuranceApplicable: "not-applicable",
+  insuranceActionDate: "",
+  retirementApplicable: "not-applicable",
+  retirementActionDate: "",
+  followUpIssues: false,
+  followUpNotes: "",
+  followUpUntil: "",
+};
+const dateDisplay = (value = "") =>
+  value
+    ? new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString("en-US")
+    : "--";
+const currentMonth = (value = "") => {
+  if (!value) return false;
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth()
+  );
+};
+const done = (task?: Task) =>
+  Boolean(task?.finalReviewedAt || task?.checkedAt || task?.completedAt);
+const finalDone = (task?: Task) =>
+  Boolean(task?.finalReviewedAt || task?.completedAt);
 
 export default function EmploymentChange() {
-  const [records, setRecords] = useState<RecordItem[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [query, setQuery] = useState(''); const [userEmail, setUserEmail] = useState('')
-  const [showFilters, setShowFilters] = useState(false); const [employeeFilter, setEmployeeFilter] = useState(''); const [dateFrom, setDateFrom] = useState(''); const [dateTo, setDateTo] = useState(''); const [changeTypeFilter, setChangeTypeFilter] = useState(''); const [taskStatusFilter, setTaskStatusFilter] = useState('')
-  const [editing, setEditing] = useState<RecordItem | null>(null); const [details, setDetails] = useState<Details>(emptyDetails); const [saveError, setSaveError] = useState(''); const [saving, setSaving] = useState(false)
-  const [trackerFields, setTrackerFields] = useState<TrackerField[]>([]); const [trackerDrafts, setTrackerDrafts] = useState<TrackerField[]>([]); const [showTrackerManager, setShowTrackerManager] = useState(false)
-  const [newTrackerLabel, setNewTrackerLabel] = useState(''); const [newTrackerOptions, setNewTrackerOptions] = useState('Yes, No')
-  const [tracking, setTracking] = useState<RecordItem | null>(null); const [tracker, setTracker] = useState<Tracker>({ responses: {}, comments: '' }); const [trackerError, setTrackerError] = useState('')
-  const [pendingAction, setPendingAction] = useState<{ record: RecordItem; action: string; label: string } | null>(null)
-  async function load() { setLoading(true); setError(''); try { const [items, auth, fields] = await Promise.all([api.get('/hr-platform/employment-changes'), api.get('/hr-tools-auth/me'), api.get('/hr-platform/employment-change-file-tracker-fields')]); setRecords(items.data || []); setUserEmail(auth.data.email || ''); setTrackerFields(fields.data.fields || []) } catch (requestError: any) { setError(requestError.response?.data?.error || 'Employment Change records could not be loaded.') } finally { setLoading(false) } }
-  useEffect(() => { load() }, [])
-  const manager = userEmail.toLowerCase() === 'myu@royaltrailersales.com'
-  const visible = useMemo(() => records.filter(record => { if (employeeFilter && record.employeeId !== employeeFilter) return false; if (changeTypeFilter && !record.changes.some(change => change.field === changeTypeFilter)) return false; if (!`${record.employeeName} ${record.employeeEmail} ${record.reason}`.toLowerCase().includes(query.trim().toLowerCase())) return false; if (dateFrom && record.effectiveDate < dateFrom) return false; if (dateTo && record.effectiveDate > dateTo) return false; const allComplete = finalDone(record.tasks?.file) && (!record.tasks?.payroll?.applicable || finalDone(record.tasks.payroll)) && (!record.followUpIssues || finalDone(record.tasks?.followUp)) && (!record.tasks?.insurance?.applicable || done(record.tasks.insurance)) && (!record.tasks?.retirement?.applicable || done(record.tasks.retirement)); if (taskStatusFilter === 'unfinished' && allComplete) return false; if (taskStatusFilter === 'completed' && !allComplete) return false; return true }), [records, query, employeeFilter, dateFrom, dateTo, changeTypeFilter, taskStatusFilter])
-  const filterActive = Boolean(employeeFilter || dateFrom || dateTo || changeTypeFilter || taskStatusFilter)
-  const changeTypeOptions = useMemo(() => [...new Set(records.flatMap(record => record.changes.map(change => change.field)).filter(Boolean))].sort(), [records])
-  const employeeOptions = useMemo(() => [...new Map(records.map(record => [record.employeeId, record.employeeName])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [records])
-  const payrollComplete = (record: RecordItem) => finalDone(record.tasks?.file) && (!record.tasks?.payroll?.applicable || finalDone(record.tasks.payroll)) && (!record.followUpIssues || finalDone(record.tasks?.followUp))
-  const payrollRows = visible.filter(record => filterActive || !payrollComplete(record) || currentMonth(record.tasks?.file?.finalReviewedAt || '') || currentMonth(record.tasks?.payroll?.finalReviewedAt || record.tasks?.payroll?.completedAt || '') || currentMonth(record.tasks?.followUp?.finalReviewedAt || record.tasks?.followUp?.completedAt || '')).sort((a, b) => (a.effectiveDate || '9999').localeCompare(b.effectiveDate || '9999') || a.employeeName.localeCompare(b.employeeName))
-  const insuranceRows = visible.filter(record => record.tasks?.insurance?.applicable === true && (filterActive || !done(record.tasks.insurance))).sort((a, b) => (a.tasks.insurance?.actionDate || '9999').localeCompare(b.tasks.insurance?.actionDate || '9999'))
-  const retirementRows = visible.filter(record => record.tasks?.retirement?.applicable === true && (filterActive || !done(record.tasks.retirement))).sort((a, b) => (a.tasks.retirement?.actionDate || '9999').localeCompare(b.tasks.retirement?.actionDate || '9999'))
-  const calendar = records.flatMap(record => [
-    record.tasks?.payroll?.applicable && !finalDone(record.tasks.payroll) && currentMonth(record.tasks.payroll.actionDate) ? { record, label: 'Payroll Change', date: record.tasks.payroll.actionDate || '' } : null,
-    record.followUpIssues && !finalDone(record.tasks?.followUp) && record.followUpUntil ? { record, label: 'Follow-up Issues', date: record.followUpUntil } : null,
-    record.tasks?.insurance?.applicable && !done(record.tasks.insurance) && currentMonth(record.tasks.insurance.actionDate) ? { record, label: 'Insurance Change', date: record.tasks.insurance.actionDate || '' } : null,
-    record.tasks?.retirement?.applicable && !done(record.tasks.retirement) && currentMonth(record.tasks.retirement.actionDate) ? { record, label: '401(k) Change', date: record.tasks.retirement.actionDate || '' } : null,
-  ].filter(Boolean) as { record: RecordItem; label: string; date: string }[]).sort((a, b) => a.date.localeCompare(b.date))
-  function openDetails(record: RecordItem) { setEditing(record); setSaveError(''); setDetails({ effectiveDate: record.effectiveDate || '', reason: record.reason || '', employeeFolderUrl: record.employeeFolderUrl || '', payrollApplicable: record.tasks?.payroll?.applicable ? 'applicable' : 'not-applicable', payrollActionDate: record.tasks?.payroll?.actionDate || '', insuranceApplicable: record.tasks?.insurance?.applicable ? 'applicable' : 'not-applicable', insuranceActionDate: record.tasks?.insurance?.actionDate || '', retirementApplicable: record.tasks?.retirement?.applicable ? 'applicable' : 'not-applicable', retirementActionDate: record.tasks?.retirement?.actionDate || '', followUpIssues: record.followUpIssues, followUpNotes: record.followUpNotes || '', followUpUntil: record.followUpUntil || '' }) }
-  async function saveDetails() { if (!editing) return; setSaving(true); setSaveError(''); try { await api.put(`/hr-platform/employment-changes/${editing.id}/details`, { ...details, payrollApplicable: details.payrollApplicable === 'applicable', insuranceApplicable: details.insuranceApplicable === 'applicable', retirementApplicable: details.retirementApplicable === 'applicable' }); setEditing(null); await load() } catch (requestError: any) { setSaveError(requestError.response?.data?.error || 'Employment Change details could not be saved.') } finally { setSaving(false) } }
-  function check(record: RecordItem, action: string, label: string) { setPendingAction({ record, action, label }) }
-  async function confirmCheck() { if (!pendingAction) return; const item = pendingAction; setPendingAction(null); try { await api.put(`/hr-platform/employment-changes/${item.record.id}/checks`, { action: item.action }); await load() } catch (requestError: any) { setError(requestError.response?.data?.error || 'The action could not be completed.') } }
-  function openTracker(record: RecordItem) { const existing = record.tasks?.file?.tracker || {}; setTracking(record); setTrackerError(''); setTracker({ responses: { ...(existing.responses || {}) }, comments: existing.comments || '', fieldsSnapshot: existing.fieldsSnapshot || trackerFields }) }
-  async function saveTracker(action: 'save'|'check') { if (!tracking) return; if (action === 'check' && !window.confirm(`Confirm File Check for ${tracking.employeeName}?`)) return; try { await api.put(`/hr-platform/employment-changes/${tracking.id}/file-tracker`, { action, tracker }); setTracking(null); await load() } catch (requestError: any) { setTrackerError(requestError.response?.data?.error || 'The File Tracker could not be saved.') } }
-  function openTrackerManager() { setTrackerDrafts(trackerFields.map(field => ({ ...field, options: [...field.options] }))); setShowTrackerManager(true) }
-  function addTrackerField() { const options = newTrackerOptions.split(',').map(value => value.trim()).filter(Boolean); if (!newTrackerLabel.trim() || options.length < 2) return; setTrackerDrafts(current => [...current, { id: `new-${Date.now()}`, label: newTrackerLabel.trim(), options, active: true }]); setNewTrackerLabel(''); setNewTrackerOptions('Yes, No') }
-  async function saveTrackerManager() { if (!window.confirm('Review complete. Save Employment Change File Tracker changes? These changes apply only to future Employment Change records.')) return; try { const removed = trackerFields.filter(field => !trackerDrafts.some(draft => draft.id === field.id)); await Promise.all(removed.map(field => api.delete(`/hr-platform/employment-change-file-tracker-fields/${field.id}`))); for (const field of trackerDrafts) { if (field.id.startsWith('new-')) await api.post('/hr-platform/employment-change-file-tracker-fields', { label: field.label, options: field.options }); else await api.put(`/hr-platform/employment-change-file-tracker-fields/${field.id}`, field) } setShowTrackerManager(false); await load() } catch (requestError: any) { setError(requestError.response?.data?.error || 'The File Tracker Manager could not be saved.') } }
-  async function downloadReport() { try { const response = await api.get('/hr-platform/employment-changes/reports/tasks.xlsx', { responseType: 'blob' }); const url = URL.createObjectURL(response.data); const link = document.createElement('a'); link.href = url; link.download = 'Employment_Change_All_Tasks.xlsx'; link.click(); URL.revokeObjectURL(url) } catch (requestError: any) { setError(requestError.response?.data?.error || 'The Employment Change report could not be downloaded.') } }
-  async function downloadFileCheckReport() { try { const response = await api.get('/hr-platform/employment-changes/reports/file-check.xlsx', { responseType: 'blob' }); const url = URL.createObjectURL(response.data); const link = document.createElement('a'); link.href = url; link.download = 'Employment_Change_File_Check_Status.xlsx'; link.click(); URL.revokeObjectURL(url) } catch (requestError: any) { setError(requestError.response?.data?.error || 'The File Check report could not be downloaded.') } }
-  const pill = (complete: boolean, completeLabel = 'Complete') => <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${complete ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{complete ? completeLabel : 'Action Needed'}</span>
-  if (!loading && isAuthenticationError(error)) return <SessionExpired />
-  return <div className="space-y-7 pb-12">
-    <section className="rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-cyan-800 px-7 py-8 text-white shadow-2xl"><Link className="inline-flex items-center gap-2 text-sm font-semibold text-blue-100" to="/hr-platform"><ArrowLeft className="h-4 w-4" />Back to HR Platform</Link><div className="mt-6 flex flex-wrap items-end justify-between gap-4"><div><div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider"><Repeat2 className="h-4 w-4" />Employee Lifecycle</div><h1 className="mt-3 text-4xl font-semibold">Employment Change</h1><p className="mt-2 text-sm text-blue-100">Manage employee changes, payroll, benefits, file review, and follow-up actions.</p></div><div className="flex flex-wrap gap-2"><button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold" onClick={openTrackerManager}><Settings className="h-4 w-4" />Employment Change File Tracker Manager</button><button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold" onClick={downloadFileCheckReport}><Download className="h-4 w-4" />File Tracker Status Report</button><button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold" onClick={downloadReport}><Download className="h-4 w-4" />All Task Report</button><button className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-blue-950" onClick={load}><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh from Company App</button></div></div></section>
-    {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">{error}</div>}
-    <section className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-lg"><SectionHead title="This Month's Actions & Outstanding Follow-ups" description="Current-month employment actions, plus unfinished follow-up issues that remain until final review." count={calendar.length} tone="blue" /><div className="max-h-80 overflow-auto"><table className="min-w-full text-sm"><Head labels={['Action Date','Employee','Task','Status']} /><tbody>{calendar.map(item => <tr className="border-t" key={`${item.record.id}-${item.label}`}><Cell>{dateDisplay(item.date)}</Cell><Cell>{item.record.employeeName}</Cell><Cell>{item.label}</Cell><Cell><TaskStatus date={item.date} /></Cell></tr>)}{!calendar.length && <Empty columns={4} />}</tbody></table></div></section>
-    <section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><input className="min-w-72 rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Search employee..." value={query} onChange={event => setQuery(event.target.value)} /><div className="flex items-center gap-2"><span className="text-sm font-bold text-slate-600">{visible.length} records</span><button className="inline-flex items-center gap-2 rounded-lg border border-blue-300 px-3 py-2 text-sm font-bold text-blue-700" onClick={() => setShowFilters(value => !value)}><Filter className="h-4 w-4" />Filters</button></div></div>{showFilters && <div className="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-2 lg:grid-cols-6"><Field label="Employee Name"><select value={employeeFilter} onChange={event => setEmployeeFilter(event.target.value)}><option value="">All Employees</option>{employeeOptions.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></Field><Field label="Change Effective Date From"><input type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} /></Field><Field label="Change Effective Date To"><input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} /></Field><Field label="Change Type"><select value={changeTypeFilter} onChange={event => setChangeTypeFilter(event.target.value)}><option value="">All Change Types</option>{changeTypeOptions.map(value => <option key={value}>{value}</option>)}</select></Field><Field label="Overall Task Status"><select value={taskStatusFilter} onChange={event => setTaskStatusFilter(event.target.value)}><option value="">All Statuses</option><option value="unfinished">Unfinished</option><option value="completed">Completed</option></select></Field><div className="flex items-end"><button className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-bold" onClick={() => { setEmployeeFilter(''); setDateFrom(''); setDateTo(''); setChangeTypeFilter(''); setTaskStatusFilter(''); setQuery('') }}>Reset Filters</button></div><div className="flex items-end text-sm text-slate-600">{filterActive ? employeeFilter && !dateFrom && !dateTo ? 'Showing all recorded changes and task statuses for this employee.' : 'Showing every applicable task status matching these filters.' : 'Default current and unfinished task view.'}</div></div>}</section>
-    <section className="overflow-hidden rounded-3xl border border-amber-200 bg-white shadow-lg"><SectionHead title="Employment Change & Payroll" description="Unfinished records remain visible; completed records remain through the current month. Earliest Change Effective Date appears first." count={payrollRows.length} tone="amber" /><div className="overflow-auto"><table className="min-w-[1850px] text-sm"><Head labels={['Employee','Change Effective Date','Changes','Employee Folder','File Check','File Final Review',"New Payroll's Payroll Date",'Payroll Check','Payroll Final Review','Follow-up Issues','Follow-up Until','Follow-up Check','Follow-up Final Review']} /><tbody>{payrollRows.map(record => { const attention = !record.effectiveDate || Boolean(record.tasks?.payroll?.applicable && !finalDone(record.tasks.payroll)) || Boolean(record.followUpIssues && !finalDone(record.tasks?.followUp)); return <tr className={`border-t ${attention ? 'bg-red-100 ring-2 ring-inset ring-red-300' : ''}`} key={record.id}><Sticky record={record} /><Cell>{record.effectiveDate ? <button className="font-bold text-blue-700" onClick={() => openDetails(record)}>{dateDisplay(record.effectiveDate)}</button> : <Action label="Change Effective Date Required" onClick={() => openDetails(record)} attention />}</Cell><Cell>{record.changes.map(change => <div className="flex items-center gap-2" key={change.field}><b>{change.field}:</b><span className="text-slate-500">{change.from || '--'}</span><span className="font-bold text-blue-600">&rarr;</span><span className="font-bold text-slate-950">{change.to || '--'}</span></div>)}</Cell><Cell><div className="flex items-center gap-2">{record.employeeFolderUrl ? <a className="font-bold text-blue-700" href={record.employeeFolderUrl} target="_blank" rel="noreferrer">Open <ExternalLink className="inline h-3 w-3" /></a> : <span className="text-slate-500">Not Added</span>}<Action label="Edit" onClick={() => openDetails(record)} /></div></Cell><Cell><Action label={record.tasks?.file?.checkedAt ? 'View File Check' : 'File Check Required'} onClick={() => openTracker(record)} attention={!record.tasks?.file?.checkedAt} /></Cell><Cell>{record.tasks?.file?.finalReviewedAt ? pill(true, 'Final Reviewed') : manager ? <Action label="File Final Review" onClick={() => check(record, 'file-final', 'File Final Review')} disabled={!record.tasks?.file?.checkedAt} /> : <span className="text-xs font-bold text-blue-700">Upper-Level Manager Review Needed</span>}</Cell><Cell><button className="font-bold text-blue-700" onClick={() => openDetails(record)}>{record.tasks?.payroll?.applicable ? dateDisplay(record.tasks.payroll.actionDate) : 'Not Applicable'}</button></Cell><Cell>{!record.tasks?.payroll?.applicable ? '--' : record.tasks.payroll.checkedAt ? pill(true, 'Checked') : <Action label="Payroll Check" onClick={() => check(record, 'payroll-check', 'Payroll Check')} />}</Cell><Cell>{!record.tasks?.payroll?.applicable ? '--' : record.tasks.payroll.finalReviewedAt || record.tasks.payroll.completedAt ? pill(true, 'Final Reviewed') : manager ? <Action label="Payroll Final Review" onClick={() => check(record, 'payroll-final', 'Payroll Final Review')} disabled={!record.tasks.payroll.checkedAt} /> : <span className="text-xs font-bold text-blue-700">Upper-Level Manager Review Needed</span>}</Cell><Cell><button className="text-left font-semibold text-blue-700" onClick={() => openDetails(record)}>{record.followUpIssues ? record.followUpNotes : 'None'}</button></Cell><Cell><button className="font-bold text-blue-700" onClick={() => openDetails(record)}>{record.followUpIssues ? dateDisplay(record.followUpUntil) : '--'}</button></Cell><Cell>{!record.followUpIssues ? '--' : record.tasks?.followUp?.checkedAt || record.tasks?.followUp?.completedAt ? pill(true, 'Checked') : <Action label="Follow-up Check" onClick={() => check(record, 'followup-check', 'Follow-up Check')} />}</Cell><Cell>{!record.followUpIssues ? '--' : record.tasks?.followUp?.finalReviewedAt || record.tasks?.followUp?.completedAt ? pill(true, 'Final Reviewed') : manager ? <Action label="Follow-up Final Review" onClick={() => check(record, 'followup-final', 'Follow-up Final Review')} disabled={!record.tasks?.followUp?.checkedAt} /> : <span className="text-xs font-bold text-blue-700">Upper-Level Manager Review Needed</span>}</Cell></tr>})}{!payrollRows.length && <Empty columns={13} />}</tbody></table></div></section>
-    <StatusWindow title="Insurance Change" description="Applicable unfinished Insurance actions, sorted by earliest Insurance Change Date." records={insuranceRows} task="insurance" tone="emerald" check={check} />
-    <StatusWindow title="401(k) Change" description="Applicable unfinished 401(k) actions, sorted by earliest 401(k) Change Date." records={retirementRows} task="retirement" tone="violet" check={check} />
-    {showTrackerManager && <TrackerManager fields={trackerDrafts} setFields={setTrackerDrafts} newLabel={newTrackerLabel} setNewLabel={setNewTrackerLabel} newOptions={newTrackerOptions} setNewOptions={setNewTrackerOptions} addField={addTrackerField} save={saveTrackerManager} close={() => setShowTrackerManager(false)} />}
-    {tracking && <FileTrackerModal record={tracking} tracker={tracker} setTracker={setTracker} fallbackFields={trackerFields} error={trackerError} save={saveTracker} close={() => setTracking(null)} />}
-    {editing && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"><div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4"><div><h2 className="text-xl font-bold">Employment Change Details</h2><p className="text-sm text-slate-500">{editing.employeeName}</p></div><button aria-label="Close Employment Change details" onClick={() => setEditing(null)}><X /></button></div><div className="grid gap-4 p-6 md:grid-cols-2"><div className="md:col-span-2"><RequiredFieldsNote /></div>{saveError && <div className="md:col-span-2 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{saveError}</div>}<Field label="Change Effective Date *"><input type="date" value={details.effectiveDate} onChange={e => setDetails({...details,effectiveDate:e.target.value})} /></Field><Field label="Change Reason / Notes *"><input value={details.reason} onChange={e => setDetails({...details,reason:e.target.value})} /></Field><div className="md:col-span-2"><Field label="Employee Folder Link (Optional)"><input type="url" value={details.employeeFolderUrl} onChange={e => setDetails({...details,employeeFolderUrl:e.target.value})} /></Field></div><Applicable label="New Payroll Change" value={details.payrollApplicable} date={details.payrollActionDate} setValue={value => setDetails({...details,payrollApplicable:value,payrollActionDate:value === 'applicable' ? details.payrollActionDate : ''})} setDate={value => setDetails({...details,payrollActionDate:value})} /><Applicable label="Insurance Change" value={details.insuranceApplicable} date={details.insuranceActionDate} setValue={value => setDetails({...details,insuranceApplicable:value,insuranceActionDate:value === 'applicable' ? details.insuranceActionDate : ''})} setDate={value => setDetails({...details,insuranceActionDate:value})} /><Applicable label="401(k) Change" value={details.retirementApplicable} date={details.retirementActionDate} setValue={value => setDetails({...details,retirementApplicable:value,retirementActionDate:value === 'applicable' ? details.retirementActionDate : ''})} setDate={value => setDetails({...details,retirementActionDate:value})} /><label className="flex items-center gap-3 rounded-lg border p-3 font-bold"><input type="checkbox" checked={details.followUpIssues} onChange={e => setDetails({...details,followUpIssues:e.target.checked})} />Follow-up Issues</label>{details.followUpIssues && <><Field label="Follow-up Until *"><input type="date" value={details.followUpUntil} onChange={e => setDetails({...details,followUpUntil:e.target.value})} /></Field><div className="md:col-span-2"><Field label="Follow-up Issues / Notes *"><textarea value={details.followUpNotes} onChange={e => setDetails({...details,followUpNotes:e.target.value})} /></Field></div></>}</div><div className="flex justify-end gap-2 border-t px-6 py-4"><button className="rounded-lg border px-4 py-2 font-bold" onClick={() => setEditing(null)}>Cancel</button><button className="rounded-lg bg-blue-700 px-4 py-2 font-bold text-white disabled:opacity-50" disabled={saving} onClick={saveDetails}>{saving ? 'Saving...' : 'Confirm & Save Details'}</button></div></div></div>}
-    {pendingAction && <ConfirmActionModal action={pendingAction.label} employee={pendingAction.record.employeeName} final={pendingAction.action.includes('final')} onCancel={() => setPendingAction(null)} onConfirm={confirmCheck} />}
-  </div>
+  const [records, setRecords] = useState<RecordItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [changeTypeFilter, setChangeTypeFilter] = useState("");
+  const [taskStatusFilter, setTaskStatusFilter] = useState("");
+  const [editing, setEditing] = useState<RecordItem | null>(null);
+  const [details, setDetails] = useState<Details>(emptyDetails);
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [trackerFields, setTrackerFields] = useState<TrackerField[]>([]);
+  const [trackerDrafts, setTrackerDrafts] = useState<TrackerField[]>([]);
+  const [showTrackerManager, setShowTrackerManager] = useState(false);
+  const [newTrackerLabel, setNewTrackerLabel] = useState("");
+  const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
+  const [tracking, setTracking] = useState<RecordItem | null>(null);
+  const [tracker, setTracker] = useState<Tracker>({
+    responses: {},
+    comments: "",
+  });
+  const [trackerError, setTrackerError] = useState("");
+  const [pendingAction, setPendingAction] = useState<{
+    record: RecordItem;
+    action: string;
+    label: string;
+  } | null>(null);
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const [items, auth, fields] = await Promise.all([
+        api.get("/hr-platform/employment-changes"),
+        api.get("/hr-tools-auth/me"),
+        api.get("/hr-platform/employment-change-file-tracker-fields"),
+      ]);
+      setRecords(items.data || []);
+      setUserEmail(auth.data.email || "");
+      setTrackerFields(fields.data.fields || []);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "Employment Change records could not be loaded.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    load();
+  }, []);
+  const manager = userEmail.toLowerCase() === "myu@royaltrailersales.com";
+  const visible = useMemo(
+    () =>
+      records.filter((record) => {
+        if (employeeFilter && record.employeeId !== employeeFilter)
+          return false;
+        if (
+          changeTypeFilter &&
+          !record.changes.some((change) => change.field === changeTypeFilter)
+        )
+          return false;
+        if (
+          !`${record.employeeName} ${record.employeeEmail} ${record.reason}`
+            .toLowerCase()
+            .includes(query.trim().toLowerCase())
+        )
+          return false;
+        if (dateFrom && record.effectiveDate < dateFrom) return false;
+        if (dateTo && record.effectiveDate > dateTo) return false;
+        const allComplete =
+          finalDone(record.tasks?.file) &&
+          (!record.tasks?.payroll?.applicable ||
+            finalDone(record.tasks.payroll)) &&
+          (!record.followUpIssues || finalDone(record.tasks?.followUp)) &&
+          (!record.tasks?.insurance?.applicable ||
+            done(record.tasks.insurance)) &&
+          (!record.tasks?.retirement?.applicable ||
+            done(record.tasks.retirement));
+        if (taskStatusFilter === "unfinished" && allComplete) return false;
+        if (taskStatusFilter === "completed" && !allComplete) return false;
+        return true;
+      }),
+    [
+      records,
+      query,
+      employeeFilter,
+      dateFrom,
+      dateTo,
+      changeTypeFilter,
+      taskStatusFilter,
+    ],
+  );
+  const filterActive = Boolean(
+    employeeFilter ||
+    dateFrom ||
+    dateTo ||
+    changeTypeFilter ||
+    taskStatusFilter,
+  );
+  const changeTypeOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          records
+            .flatMap((record) => record.changes.map((change) => change.field))
+            .filter(Boolean),
+        ),
+      ].sort(),
+    [records],
+  );
+  const employeeOptions = useMemo(
+    () =>
+      [
+        ...new Map(
+          records.map((record) => [record.employeeId, record.employeeName]),
+        ).entries(),
+      ].sort((a, b) => a[1].localeCompare(b[1])),
+    [records],
+  );
+  const payrollComplete = (record: RecordItem) =>
+    finalDone(record.tasks?.file) &&
+    (!record.tasks?.payroll?.applicable || finalDone(record.tasks.payroll)) &&
+    (!record.followUpIssues || finalDone(record.tasks?.followUp));
+  const payrollRows = visible
+    .filter(
+      (record) =>
+        filterActive ||
+        !payrollComplete(record) ||
+        currentMonth(record.tasks?.file?.finalReviewedAt || "") ||
+        currentMonth(
+          record.tasks?.payroll?.finalReviewedAt ||
+            record.tasks?.payroll?.completedAt ||
+            "",
+        ) ||
+        currentMonth(
+          record.tasks?.followUp?.finalReviewedAt ||
+            record.tasks?.followUp?.completedAt ||
+            "",
+        ),
+    )
+    .sort(
+      (a, b) =>
+        (a.effectiveDate || "9999").localeCompare(b.effectiveDate || "9999") ||
+        a.employeeName.localeCompare(b.employeeName),
+    );
+  const insuranceRows = visible
+    .filter(
+      (record) =>
+        record.tasks?.insurance?.applicable === true &&
+        (filterActive || !done(record.tasks.insurance)),
+    )
+    .sort((a, b) =>
+      (a.tasks.insurance?.actionDate || "9999").localeCompare(
+        b.tasks.insurance?.actionDate || "9999",
+      ),
+    );
+  const retirementRows = visible
+    .filter(
+      (record) =>
+        record.tasks?.retirement?.applicable === true &&
+        (filterActive || !done(record.tasks.retirement)),
+    )
+    .sort((a, b) =>
+      (a.tasks.retirement?.actionDate || "9999").localeCompare(
+        b.tasks.retirement?.actionDate || "9999",
+      ),
+    );
+  const calendar = records
+    .flatMap(
+      (record) =>
+        [
+          record.tasks?.payroll?.applicable &&
+          !finalDone(record.tasks.payroll) &&
+          currentMonth(record.tasks.payroll.actionDate)
+            ? {
+                record,
+                label: "Payroll Change",
+                date: record.tasks.payroll.actionDate || "",
+              }
+            : null,
+          record.followUpIssues &&
+          !finalDone(record.tasks?.followUp) &&
+          record.followUpUntil
+            ? { record, label: "Follow-up Issues", date: record.followUpUntil }
+            : null,
+          record.tasks?.insurance?.applicable &&
+          !done(record.tasks.insurance) &&
+          currentMonth(record.tasks.insurance.actionDate)
+            ? {
+                record,
+                label: "Insurance Change",
+                date: record.tasks.insurance.actionDate || "",
+              }
+            : null,
+          record.tasks?.retirement?.applicable &&
+          !done(record.tasks.retirement) &&
+          currentMonth(record.tasks.retirement.actionDate)
+            ? {
+                record,
+                label: "401(k) Change",
+                date: record.tasks.retirement.actionDate || "",
+              }
+            : null,
+        ].filter(Boolean) as {
+          record: RecordItem;
+          label: string;
+          date: string;
+        }[],
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+  function openDetails(record: RecordItem) {
+    setEditing(record);
+    setSaveError("");
+    setDetails({
+      effectiveDate: record.effectiveDate || "",
+      reason: record.reason || "",
+      employeeFolderUrl: record.employeeFolderUrl || "",
+      payrollApplicable: record.tasks?.payroll?.applicable
+        ? "applicable"
+        : "not-applicable",
+      payrollActionDate: record.tasks?.payroll?.actionDate || "",
+      insuranceApplicable: record.tasks?.insurance?.applicable
+        ? "applicable"
+        : "not-applicable",
+      insuranceActionDate: record.tasks?.insurance?.actionDate || "",
+      retirementApplicable: record.tasks?.retirement?.applicable
+        ? "applicable"
+        : "not-applicable",
+      retirementActionDate: record.tasks?.retirement?.actionDate || "",
+      followUpIssues: record.followUpIssues,
+      followUpNotes: record.followUpNotes || "",
+      followUpUntil: record.followUpUntil || "",
+    });
+  }
+  async function saveDetails() {
+    if (!editing) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await api.put(`/hr-platform/employment-changes/${editing.id}/details`, {
+        ...details,
+        payrollApplicable: details.payrollApplicable === "applicable",
+        insuranceApplicable: details.insuranceApplicable === "applicable",
+        retirementApplicable: details.retirementApplicable === "applicable",
+      });
+      setEditing(null);
+      await load();
+    } catch (requestError: any) {
+      setSaveError(
+        requestError.response?.data?.error ||
+          "Employment Change details could not be saved.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+  function check(record: RecordItem, action: string, label: string) {
+    setPendingAction({ record, action, label });
+  }
+  async function confirmCheck() {
+    if (!pendingAction) return;
+    const item = pendingAction;
+    setPendingAction(null);
+    try {
+      await api.put(
+        `/hr-platform/employment-changes/${item.record.id}/checks`,
+        { action: item.action },
+      );
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The action could not be completed.",
+      );
+    }
+  }
+  function openTracker(record: RecordItem) {
+    const existing = record.tasks?.file?.tracker || {};
+    setTracking(record);
+    setTrackerError("");
+    setTracker({
+      responses: { ...(existing.responses || {}) },
+      comments: existing.comments || "",
+      fieldsSnapshot: existing.fieldsSnapshot || trackerFields,
+    });
+  }
+  async function saveTracker(action: "save" | "check") {
+    if (!tracking) return;
+    if (
+      action === "check" &&
+      !window.confirm(`Confirm File Check for ${tracking.employeeName}?`)
+    )
+      return;
+    try {
+      await api.put(
+        `/hr-platform/employment-changes/${tracking.id}/file-tracker`,
+        { action, tracker },
+      );
+      setTracking(null);
+      await load();
+    } catch (requestError: any) {
+      setTrackerError(
+        requestError.response?.data?.error ||
+          "The File Tracker could not be saved.",
+      );
+    }
+  }
+  function openTrackerManager() {
+    setTrackerDrafts(
+      trackerFields.map((field) => ({ ...field, options: [...field.options] })),
+    );
+    setShowTrackerManager(true);
+  }
+  function addTrackerField() {
+    const options = newTrackerOptions
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (!newTrackerLabel.trim() || options.length < 2) return;
+    setTrackerDrafts((current) => [
+      ...current,
+      {
+        id: `new-${Date.now()}`,
+        label: newTrackerLabel.trim(),
+        options,
+        active: true,
+      },
+    ]);
+    setNewTrackerLabel("");
+    setNewTrackerOptions("Yes, No");
+  }
+  async function saveTrackerManager() {
+    if (
+      !window.confirm(
+        "Save Employment Change File Tracker changes? They apply to future records and current trackers that have not received final review.",
+      )
+    )
+      return;
+    try {
+      const removed = trackerFields.filter(
+        (field) => !trackerDrafts.some((draft) => draft.id === field.id),
+      );
+      await Promise.all(
+        removed.map((field) =>
+          api.delete(
+            `/hr-platform/employment-change-file-tracker-fields/${field.id}`,
+          ),
+        ),
+      );
+      for (const field of trackerDrafts) {
+        if (field.id.startsWith("new-"))
+          await api.post("/hr-platform/employment-change-file-tracker-fields", {
+            label: field.label,
+            options: field.options,
+          });
+        else
+          await api.put(
+            `/hr-platform/employment-change-file-tracker-fields/${field.id}`,
+            field,
+          );
+      }
+      setShowTrackerManager(false);
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The File Tracker Manager could not be saved.",
+      );
+    }
+  }
+  async function downloadReport() {
+    try {
+      const response = await api.get(
+        "/hr-platform/employment-changes/reports/tasks.xlsx",
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Employment_Change_All_Tasks.xlsx";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The Employment Change report could not be downloaded.",
+      );
+    }
+  }
+  async function downloadFileCheckReport() {
+    try {
+      const response = await api.get(
+        "/hr-platform/employment-changes/reports/file-check.xlsx",
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Employment_Change_File_Check_Status.xlsx";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The File Check report could not be downloaded.",
+      );
+    }
+  }
+  const pill = (complete: boolean, completeLabel = "Complete") => (
+    <span
+      className={`rounded-full px-2.5 py-1 text-xs font-bold ${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+    >
+      {complete ? completeLabel : "Action Needed"}
+    </span>
+  );
+  if (!loading && isAuthenticationError(error)) return <SessionExpired />;
+  return (
+    <div className="space-y-7 pb-12">
+      <section className="rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-cyan-800 px-7 py-8 text-white shadow-2xl">
+        <Link
+          className="inline-flex items-center gap-2 text-sm font-semibold text-blue-100"
+          to="/hr-platform"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to HR Platform
+        </Link>
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+              <Repeat2 className="h-4 w-4" />
+              Employee Lifecycle
+            </div>
+            <h1 className="mt-3 text-4xl font-semibold">Employment Change</h1>
+            <p className="mt-2 text-sm text-blue-100">
+              Manage employee changes, payroll, benefits, file review, and
+              follow-up actions.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
+              onClick={openTrackerManager}
+            >
+              <Settings className="h-4 w-4" />
+              Employment Change File Tracker Manager
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
+              onClick={downloadFileCheckReport}
+            >
+              <Download className="h-4 w-4" />
+              File Tracker Status Report
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
+              onClick={downloadReport}
+            >
+              <Download className="h-4 w-4" />
+              All Task Report
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-bold text-blue-950"
+              onClick={load}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh from Company App
+            </button>
+          </div>
+        </div>
+      </section>
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+          {error}
+        </div>
+      )}
+      <section className="overflow-hidden rounded-3xl border border-blue-100 bg-white shadow-lg">
+        <SectionHead
+          title="This Month's Actions & Outstanding Follow-ups"
+          description="Current-month employment actions, plus unfinished follow-up issues that remain until final review."
+          count={calendar.length}
+          tone="blue"
+        />
+        <div className="max-h-80 overflow-auto">
+          <table className="min-w-full text-sm">
+            <Head labels={["Action Date", "Employee", "Task", "Status"]} />
+            <tbody>
+              {calendar.map((item) => (
+                <tr
+                  className="border-t"
+                  key={`${item.record.id}-${item.label}`}
+                >
+                  <Cell>{dateDisplay(item.date)}</Cell>
+                  <Cell>{item.record.employeeName}</Cell>
+                  <Cell>{item.label}</Cell>
+                  <Cell>
+                    <TaskStatus date={item.date} />
+                  </Cell>
+                </tr>
+              ))}
+              {!calendar.length && <Empty columns={4} />}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <input
+            className="min-w-72 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Search employee..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-slate-600">
+              {visible.length} records
+            </span>
+            <button
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-300 px-3 py-2 text-sm font-bold text-blue-700"
+              onClick={() => setShowFilters((value) => !value)}
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+            </button>
+          </div>
+        </div>
+        {showFilters && (
+          <div className="mt-4 grid gap-3 border-t pt-4 sm:grid-cols-2 lg:grid-cols-6">
+            <Field label="Employee Name">
+              <select
+                value={employeeFilter}
+                onChange={(event) => setEmployeeFilter(event.target.value)}
+              >
+                <option value="">All Employees</option>
+                {employeeOptions.map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Change Effective Date From">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+            </Field>
+            <Field label="Change Effective Date To">
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </Field>
+            <Field label="Change Type">
+              <select
+                value={changeTypeFilter}
+                onChange={(event) => setChangeTypeFilter(event.target.value)}
+              >
+                <option value="">All Change Types</option>
+                {changeTypeOptions.map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Overall Task Status">
+              <select
+                value={taskStatusFilter}
+                onChange={(event) => setTaskStatusFilter(event.target.value)}
+              >
+                <option value="">All Statuses</option>
+                <option value="unfinished">Unfinished</option>
+                <option value="completed">Completed</option>
+              </select>
+            </Field>
+            <div className="flex items-end">
+              <button
+                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-bold"
+                onClick={() => {
+                  setEmployeeFilter("");
+                  setDateFrom("");
+                  setDateTo("");
+                  setChangeTypeFilter("");
+                  setTaskStatusFilter("");
+                  setQuery("");
+                }}
+              >
+                Reset Filters
+              </button>
+            </div>
+            <div className="flex items-end text-sm text-slate-600">
+              {filterActive
+                ? employeeFilter && !dateFrom && !dateTo
+                  ? "Showing all recorded changes and task statuses for this employee."
+                  : "Showing every applicable task status matching these filters."
+                : "Default current and unfinished task view."}
+            </div>
+          </div>
+        )}
+      </section>
+      <section className="overflow-hidden rounded-3xl border border-amber-200 bg-white shadow-lg">
+        <SectionHead
+          title="Employment Change & Payroll"
+          description="Unfinished records remain visible; completed records remain through the current month. Earliest Change Effective Date appears first."
+          count={payrollRows.length}
+          tone="amber"
+        />
+        <div className="overflow-auto">
+          <table className="min-w-[1850px] text-sm">
+            <Head
+              labels={[
+                "Employee",
+                "Change Effective Date",
+                "Changes",
+                "Employee Folder",
+                "File Check",
+                "File Final Review",
+                "New Payroll's Payroll Date",
+                "Payroll Check",
+                "Payroll Final Review",
+                "Follow-up Issues",
+                "Follow-up Until",
+                "Follow-up Check",
+                "Follow-up Final Review",
+              ]}
+            />
+            <tbody>
+              {payrollRows.map((record) => {
+                const attention =
+                  !record.effectiveDate ||
+                  Boolean(
+                    record.tasks?.payroll?.applicable &&
+                    !finalDone(record.tasks.payroll),
+                  ) ||
+                  Boolean(
+                    record.followUpIssues && !finalDone(record.tasks?.followUp),
+                  );
+                return (
+                  <tr
+                    className={`border-t ${attention ? "bg-red-100 ring-2 ring-inset ring-red-300" : ""}`}
+                    key={record.id}
+                  >
+                    <Sticky record={record} />
+                    <Cell>
+                      {record.effectiveDate ? (
+                        <button
+                          className="font-bold text-blue-700"
+                          onClick={() => openDetails(record)}
+                        >
+                          {dateDisplay(record.effectiveDate)}
+                        </button>
+                      ) : (
+                        <Action
+                          label="Change Effective Date Required"
+                          onClick={() => openDetails(record)}
+                          attention
+                        />
+                      )}
+                    </Cell>
+                    <Cell>
+                      {record.changes.map((change) => (
+                        <div
+                          className="flex items-center gap-2"
+                          key={change.field}
+                        >
+                          <b>{change.field}:</b>
+                          <span className="text-slate-500">
+                            {change.from || "--"}
+                          </span>
+                          <span className="font-bold text-blue-600">
+                            &rarr;
+                          </span>
+                          <span className="font-bold text-slate-950">
+                            {change.to || "--"}
+                          </span>
+                        </div>
+                      ))}
+                    </Cell>
+                    <Cell>
+                      <div className="flex items-center gap-2">
+                        {record.employeeFolderUrl ? (
+                          <a
+                            className="font-bold text-blue-700"
+                            href={record.employeeFolderUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open <ExternalLink className="inline h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="text-slate-500">Not Added</span>
+                        )}
+                        <Action
+                          label="Edit"
+                          onClick={() => openDetails(record)}
+                        />
+                      </div>
+                    </Cell>
+                    <Cell>
+                      <Action
+                        label={
+                          record.tasks?.file?.checkedAt
+                            ? "View File Check"
+                            : "File Check Required"
+                        }
+                        onClick={() => openTracker(record)}
+                        attention={!record.tasks?.file?.checkedAt}
+                      />
+                    </Cell>
+                    <Cell>
+                      {record.tasks?.file?.finalReviewedAt ? (
+                        pill(true, "Final Reviewed")
+                      ) : manager ? (
+                        <Action
+                          label="File Final Review"
+                          onClick={() =>
+                            check(record, "file-final", "File Final Review")
+                          }
+                          disabled={!record.tasks?.file?.checkedAt}
+                        />
+                      ) : (
+                        <span className="text-xs font-bold text-blue-700">
+                          Upper-Level Manager Review Needed
+                        </span>
+                      )}
+                    </Cell>
+                    <Cell>
+                      <button
+                        className="font-bold text-blue-700"
+                        onClick={() => openDetails(record)}
+                      >
+                        {record.tasks?.payroll?.applicable
+                          ? dateDisplay(record.tasks.payroll.actionDate)
+                          : "Not Applicable"}
+                      </button>
+                    </Cell>
+                    <Cell>
+                      {!record.tasks?.payroll?.applicable ? (
+                        "--"
+                      ) : record.tasks.payroll.checkedAt ? (
+                        pill(true, "Checked")
+                      ) : (
+                        <Action
+                          label="Payroll Check"
+                          onClick={() =>
+                            check(record, "payroll-check", "Payroll Check")
+                          }
+                        />
+                      )}
+                    </Cell>
+                    <Cell>
+                      {!record.tasks?.payroll?.applicable ? (
+                        "--"
+                      ) : record.tasks.payroll.finalReviewedAt ||
+                        record.tasks.payroll.completedAt ? (
+                        pill(true, "Final Reviewed")
+                      ) : manager ? (
+                        <Action
+                          label="Payroll Final Review"
+                          onClick={() =>
+                            check(
+                              record,
+                              "payroll-final",
+                              "Payroll Final Review",
+                            )
+                          }
+                          disabled={!record.tasks.payroll.checkedAt}
+                        />
+                      ) : (
+                        <span className="text-xs font-bold text-blue-700">
+                          Upper-Level Manager Review Needed
+                        </span>
+                      )}
+                    </Cell>
+                    <Cell>
+                      <button
+                        className="text-left font-semibold text-blue-700"
+                        onClick={() => openDetails(record)}
+                      >
+                        {record.followUpIssues ? record.followUpNotes : "None"}
+                      </button>
+                    </Cell>
+                    <Cell>
+                      <button
+                        className="font-bold text-blue-700"
+                        onClick={() => openDetails(record)}
+                      >
+                        {record.followUpIssues
+                          ? dateDisplay(record.followUpUntil)
+                          : "--"}
+                      </button>
+                    </Cell>
+                    <Cell>
+                      {!record.followUpIssues ? (
+                        "--"
+                      ) : record.tasks?.followUp?.checkedAt ||
+                        record.tasks?.followUp?.completedAt ? (
+                        pill(true, "Checked")
+                      ) : (
+                        <Action
+                          label="Follow-up Check"
+                          onClick={() =>
+                            check(record, "followup-check", "Follow-up Check")
+                          }
+                        />
+                      )}
+                    </Cell>
+                    <Cell>
+                      {!record.followUpIssues ? (
+                        "--"
+                      ) : record.tasks?.followUp?.finalReviewedAt ||
+                        record.tasks?.followUp?.completedAt ? (
+                        pill(true, "Final Reviewed")
+                      ) : manager ? (
+                        <Action
+                          label="Follow-up Final Review"
+                          onClick={() =>
+                            check(
+                              record,
+                              "followup-final",
+                              "Follow-up Final Review",
+                            )
+                          }
+                          disabled={!record.tasks?.followUp?.checkedAt}
+                        />
+                      ) : (
+                        <span className="text-xs font-bold text-blue-700">
+                          Upper-Level Manager Review Needed
+                        </span>
+                      )}
+                    </Cell>
+                  </tr>
+                );
+              })}
+              {!payrollRows.length && <Empty columns={13} />}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <StatusWindow
+        title="Insurance Change"
+        description="Applicable unfinished Insurance actions, sorted by earliest Insurance Change Date."
+        records={insuranceRows}
+        task="insurance"
+        tone="emerald"
+        check={check}
+      />
+      <StatusWindow
+        title="401(k) Change"
+        description="Applicable unfinished 401(k) actions, sorted by earliest 401(k) Change Date."
+        records={retirementRows}
+        task="retirement"
+        tone="violet"
+        check={check}
+      />
+      {showTrackerManager && (
+        <TrackerManager
+          fields={trackerDrafts}
+          setFields={setTrackerDrafts}
+          newLabel={newTrackerLabel}
+          setNewLabel={setNewTrackerLabel}
+          newOptions={newTrackerOptions}
+          setNewOptions={setNewTrackerOptions}
+          addField={addTrackerField}
+          save={saveTrackerManager}
+          close={() => setShowTrackerManager(false)}
+        />
+      )}
+      {tracking && (
+        <FileTrackerModal
+          record={tracking}
+          tracker={tracker}
+          setTracker={setTracker}
+          fallbackFields={trackerFields}
+          error={trackerError}
+          save={saveTracker}
+          close={() => setTracking(null)}
+        />
+      )}
+      {editing && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+              <div>
+                <h2 className="text-xl font-bold">Employment Change Details</h2>
+                <p className="text-sm text-slate-500">{editing.employeeName}</p>
+              </div>
+              <button
+                aria-label="Close Employment Change details"
+                onClick={() => setEditing(null)}
+              >
+                <X />
+              </button>
+            </div>
+            <div className="grid gap-4 p-6 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <RequiredFieldsNote />
+              </div>
+              {saveError && (
+                <div className="md:col-span-2 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+                  {saveError}
+                </div>
+              )}
+              <Field label="Change Effective Date *">
+                <input
+                  type="date"
+                  value={details.effectiveDate}
+                  onChange={(e) =>
+                    setDetails({ ...details, effectiveDate: e.target.value })
+                  }
+                />
+              </Field>
+              <Field label="Change Reason / Notes *">
+                <input
+                  value={details.reason}
+                  onChange={(e) =>
+                    setDetails({ ...details, reason: e.target.value })
+                  }
+                />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Employee Folder Link (Optional)">
+                  <input
+                    type="url"
+                    value={details.employeeFolderUrl}
+                    onChange={(e) =>
+                      setDetails({
+                        ...details,
+                        employeeFolderUrl: e.target.value,
+                      })
+                    }
+                  />
+                </Field>
+              </div>
+              <Applicable
+                label="New Payroll Change"
+                value={details.payrollApplicable}
+                date={details.payrollActionDate}
+                setValue={(value) =>
+                  setDetails({
+                    ...details,
+                    payrollApplicable: value,
+                    payrollActionDate:
+                      value === "applicable" ? details.payrollActionDate : "",
+                  })
+                }
+                setDate={(value) =>
+                  setDetails({ ...details, payrollActionDate: value })
+                }
+              />
+              <Applicable
+                label="Insurance Change"
+                value={details.insuranceApplicable}
+                date={details.insuranceActionDate}
+                setValue={(value) =>
+                  setDetails({
+                    ...details,
+                    insuranceApplicable: value,
+                    insuranceActionDate:
+                      value === "applicable" ? details.insuranceActionDate : "",
+                  })
+                }
+                setDate={(value) =>
+                  setDetails({ ...details, insuranceActionDate: value })
+                }
+              />
+              <Applicable
+                label="401(k) Change"
+                value={details.retirementApplicable}
+                date={details.retirementActionDate}
+                setValue={(value) =>
+                  setDetails({
+                    ...details,
+                    retirementApplicable: value,
+                    retirementActionDate:
+                      value === "applicable"
+                        ? details.retirementActionDate
+                        : "",
+                  })
+                }
+                setDate={(value) =>
+                  setDetails({ ...details, retirementActionDate: value })
+                }
+              />
+              <label className="flex items-center gap-3 rounded-lg border p-3 font-bold">
+                <input
+                  type="checkbox"
+                  checked={details.followUpIssues}
+                  onChange={(e) =>
+                    setDetails({ ...details, followUpIssues: e.target.checked })
+                  }
+                />
+                Follow-up Issues
+              </label>
+              {details.followUpIssues && (
+                <>
+                  <Field label="Follow-up Until *">
+                    <input
+                      type="date"
+                      value={details.followUpUntil}
+                      onChange={(e) =>
+                        setDetails({
+                          ...details,
+                          followUpUntil: e.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <div className="md:col-span-2">
+                    <Field label="Follow-up Issues / Notes *">
+                      <textarea
+                        value={details.followUpNotes}
+                        onChange={(e) =>
+                          setDetails({
+                            ...details,
+                            followUpNotes: e.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t px-6 py-4">
+              <button
+                className="rounded-lg border px-4 py-2 font-bold"
+                onClick={() => setEditing(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-lg bg-blue-700 px-4 py-2 font-bold text-white disabled:opacity-50"
+                disabled={saving}
+                onClick={saveDetails}
+              >
+                {saving ? "Saving..." : "Confirm & Save Details"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pendingAction && (
+        <ConfirmActionModal
+          action={pendingAction.label}
+          employee={pendingAction.record.employeeName}
+          final={pendingAction.action.includes("final")}
+          onCancel={() => setPendingAction(null)}
+          onConfirm={confirmCheck}
+        />
+      )}
+    </div>
+  );
 }
 
-function TrackerManager({fields,setFields,newLabel,setNewLabel,newOptions,setNewOptions,addField,save,close}:{fields:TrackerField[];setFields:React.Dispatch<React.SetStateAction<TrackerField[]>>;newLabel:string;setNewLabel:(value:string)=>void;newOptions:string;setNewOptions:(value:string)=>void;addField:()=>void;save:()=>void;close:()=>void}) { return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"><div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b px-6 py-4"><div><h2 className="text-xl font-bold">Employment Change File Tracker Manager</h2><p className="text-sm text-slate-500">Separate from New Hire and Termination. Changes apply only to future Employment Change records.</p></div><button aria-label="Close dialog" onClick={close}><X /></button></div><div className="space-y-3 p-6">{fields.map((field,index)=><div className="grid gap-2 rounded-xl border p-3 md:grid-cols-[1fr_1fr_auto]" key={field.id}><input className="rounded-lg border p-2.5" value={field.label} onChange={e=>setFields(current=>current.map((item,itemIndex)=>itemIndex===index?{...item,label:e.target.value}:item))}/><input className="rounded-lg border p-2.5" value={field.options.join(', ')} onChange={e=>setFields(current=>current.map((item,itemIndex)=>itemIndex===index?{...item,options:e.target.value.split(',').map(value=>value.trim()).filter(Boolean)}:item))}/><button className="rounded-lg border border-red-200 p-2 text-red-700" onClick={()=>setFields(current=>current.filter(item=>item.id!==field.id))}><Trash2 className="h-4 w-4"/></button></div>)}<div className="grid gap-2 rounded-xl bg-blue-50 p-3 md:grid-cols-[1fr_1fr_auto]"><input className="rounded-lg border p-2.5" placeholder="New checklist item" value={newLabel} onChange={e=>setNewLabel(e.target.value)}/><input className="rounded-lg border p-2.5" placeholder="Yes, No" value={newOptions} onChange={e=>setNewOptions(e.target.value)}/><button className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-2 font-bold text-white" onClick={addField}><Plus className="h-4 w-4"/>Add</button></div></div><div className="flex justify-end gap-2 border-t px-6 py-4"><button className="rounded-lg border px-4 py-2 font-bold" onClick={close}>Cancel</button><button className="rounded-lg bg-blue-700 px-4 py-2 font-bold text-white" onClick={save}>Review Changes & Confirm</button></div></div></div> }
-function FileTrackerModal({record,tracker,setTracker,fallbackFields,error,save,close}:{record:RecordItem;tracker:Tracker;setTracker:React.Dispatch<React.SetStateAction<Tracker>>;fallbackFields:TrackerField[];error:string;save:(action:'save'|'check')=>void;close:()=>void}) { const fields=tracker.fieldsSnapshot||fallbackFields; return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"><div className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl"><div className="flex items-center justify-between border-b px-6 py-4"><div><h2 className="text-xl font-bold">Employment Change File Check</h2><p className="text-sm text-slate-500">{record.employeeName}</p></div><button aria-label="Close dialog" onClick={close}><X /></button></div><div className="space-y-4 p-6">{error&&<div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}{fields.map(field=><Field label={field.label} key={field.id}><select value={tracker.responses?.[field.id]||''} onChange={e=>setTracker(current=>({...current,responses:{...(current.responses||{}),[field.id]:e.target.value}}))}><option value="">Select...</option>{field.options.map(option=><option key={option}>{option}</option>)}</select></Field>)}<Field label="Comments"><textarea value={tracker.comments||''} onChange={e=>setTracker(current=>({...current,comments:e.target.value}))}/></Field></div><div className="flex justify-end gap-2 border-t px-6 py-4"><button className="rounded-lg border px-4 py-2 font-bold" onClick={close}>Cancel</button><button className="rounded-lg border border-blue-300 px-4 py-2 font-bold text-blue-700" onClick={()=>save('save')}>Save Draft</button><button className="rounded-lg bg-blue-700 px-4 py-2 font-bold text-white" onClick={()=>save('check')}>Confirm File Check</button></div></div></div> }
-function StatusWindow({ title, description, records, task, tone, check }: { title: string; description: string; records: RecordItem[]; task: 'insurance'|'retirement'; tone: 'emerald'|'violet'; check: (record: RecordItem, action: string, label: string) => void }) { const border = tone === 'violet' ? 'border-violet-200' : 'border-emerald-200'; return <section className={`overflow-hidden rounded-3xl border bg-white shadow-lg ${border}`}><SectionHead title={title} description={description} count={records.length} tone={tone} /><div className="max-h-[520px] overflow-auto"><table className="min-w-full text-sm"><Head labels={['Employee','Change Date','Status','Checked By']} /><tbody>{records.map(record => { const value=record.tasks[task] || {}; const complete=done(value); return <tr className="border-t" key={record.id}><Sticky record={record} /><Cell>{dateDisplay(value.actionDate)}</Cell><Cell>{complete ? <TaskStatus complete /> : <Action label="Confirm Action Taken" onClick={() => check(record, `${task}-check`, `${title} Action`)} />}</Cell><Cell>{value.checkedBy || value.completedBy || '--'}</Cell></tr>})}{!records.length && <Empty columns={4} />}</tbody></table></div></section> }
-function SectionHead({title,description,count,tone}:{title:string;description:string;count:number;tone:string}) { const colors:Record<string,string>={blue:'bg-blue-50 text-blue-950 border-blue-100',amber:'bg-amber-50 text-amber-950 border-amber-100',emerald:'bg-emerald-50 text-emerald-950 border-emerald-100',violet:'bg-violet-50 text-violet-950 border-violet-100'}; return <div className={`flex flex-wrap items-center justify-between gap-3 border-b px-6 py-5 ${colors[tone]}`}><div><h2 className="text-xl font-bold">{title}</h2><p className="mt-1 text-sm opacity-75">{description}</p></div><span className="rounded-full bg-white px-3 py-1.5 text-sm font-bold shadow-sm">{count}</span></div> }
-function Head({labels}:{labels:string[]}) { return <thead className="sticky top-0 z-20 bg-slate-100 text-left text-xs uppercase text-slate-600"><tr>{labels.map((label,index)=><th className={`whitespace-nowrap px-4 py-3 ${index===0?'sticky left-0 z-30 bg-slate-100':''}`} key={label}>{label}</th>)}</tr></thead> }
-function Cell({children}:{children:React.ReactNode}) { return <td className="max-w-80 whitespace-nowrap px-4 py-3 align-middle">{children}</td> }
-function Sticky({record}:{record:RecordItem}) { return <td className="sticky left-0 z-10 min-w-52 border-r-4 border-slate-200 bg-white px-4 py-3 font-bold shadow-[5px_0_10px_-8px_rgba(15,23,42,.4)]">{record.employeeName}<div className="text-xs font-normal text-slate-500">{record.employeeEmail}</div></td> }
-function Action({label,onClick,disabled=false,attention=false}:{label:string;onClick:()=>void;disabled?:boolean;attention?:boolean}) { return <button className={`rounded-lg border px-3 py-1.5 text-xs font-bold shadow-sm transition disabled:opacity-40 ${attention ? 'border-red-700 bg-red-600 text-white ring-2 ring-red-200 hover:bg-red-700' : 'border-blue-300 bg-white text-blue-700 hover:bg-blue-50'}`} disabled={disabled} onClick={onClick}>{label}</button> }
-function Empty({columns}:{columns:number}) { return <tr><td className="px-5 py-10 text-center text-slate-500" colSpan={columns}>No employees match this view.</td></tr> }
-function Field({label,children}:{label:string;children:React.ReactNode}) { return <label className="block text-sm font-bold text-slate-700">{label}<div className="mt-1 [&>*]:min-h-11 [&>*]:w-full [&>*]:rounded-lg [&>*]:border [&>*]:border-slate-300 [&>*]:p-2.5 [&>*]:font-normal">{children}</div></label> }
-function Applicable({label,value,date,setValue,setDate}:{label:string;value:string;date:string;setValue:(value:string)=>void;setDate:(value:string)=>void}) { const displayLabel = label === 'New Payroll Change' ? "New Payroll's Payroll Date" : label; return <div className="rounded-xl border p-4"><label className="text-sm font-bold">{displayLabel} *</label><select className="mt-1 w-full rounded-lg border p-2.5" value={value} onChange={e=>setValue(e.target.value)}><option value="applicable">Applicable</option><option value="not-applicable">Not Applicable</option></select>{value==='applicable'&&<input className="mt-2 w-full rounded-lg border p-2.5" type="date" value={date} onChange={e=>setDate(e.target.value)} />}</div> }
+function TrackerManager({
+  fields,
+  setFields,
+  newLabel,
+  setNewLabel,
+  newOptions,
+  setNewOptions,
+  addField,
+  save,
+  close,
+}: {
+  fields: TrackerField[];
+  setFields: React.Dispatch<React.SetStateAction<TrackerField[]>>;
+  newLabel: string;
+  setNewLabel: (value: string) => void;
+  newOptions: string;
+  setNewOptions: (value: string) => void;
+  addField: () => void;
+  save: () => void;
+  close: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <div>
+            <h2 className="text-xl font-bold">
+              Employment Change File Tracker Manager
+            </h2>
+            <p className="text-sm text-slate-500">
+              Independent from the other platforms. Changes apply to future records and current trackers that have not received final review.
+            </p>
+          </div>
+          <button aria-label="Close dialog" onClick={close}>
+            <X />
+          </button>
+        </div>
+        <div className="space-y-3 p-6">
+          {fields.map((field, index) => (
+            <div
+              className="grid gap-2 rounded-xl border p-3 md:grid-cols-[1fr_1fr_auto]"
+              key={field.id}
+            >
+              <input
+                className="rounded-lg border p-2.5"
+                value={field.label}
+                onChange={(e) =>
+                  setFields((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, label: e.target.value }
+                        : item,
+                    ),
+                  )
+                }
+              />
+              <input
+                className="rounded-lg border p-2.5"
+                value={field.options.join(", ")}
+                onChange={(e) =>
+                  setFields((current) =>
+                    current.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? {
+                            ...item,
+                            options: e.target.value
+                              .split(",")
+                              .map((value) => value.trim())
+                              .filter(Boolean),
+                          }
+                        : item,
+                    ),
+                  )
+                }
+              />
+              <button
+                className="rounded-lg border border-red-200 p-2 text-red-700"
+                onClick={() =>
+                  setFields((current) =>
+                    current.filter((item) => item.id !== field.id),
+                  )
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <div className="grid gap-2 rounded-xl bg-blue-50 p-3 md:grid-cols-[1fr_1fr_auto]">
+            <input
+              className="rounded-lg border p-2.5"
+              placeholder="New checklist item"
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+            />
+            <input
+              className="rounded-lg border p-2.5"
+              placeholder="Yes, No"
+              value={newOptions}
+              onChange={(e) => setNewOptions(e.target.value)}
+            />
+            <button
+              className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-2 font-bold text-white"
+              onClick={addField}
+            >
+              <Plus className="h-4 w-4" />
+              Add
+            </button>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t px-6 py-4">
+          <button
+            className="rounded-lg border px-4 py-2 font-bold"
+            onClick={close}
+          >
+            Cancel
+          </button>
+          <button
+            className="rounded-lg bg-blue-700 px-4 py-2 font-bold text-white"
+            onClick={save}
+          >
+            Review Changes & Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function FileTrackerModal({
+  record,
+  tracker,
+  setTracker,
+  fallbackFields,
+  error,
+  save,
+  close,
+}: {
+  record: RecordItem;
+  tracker: Tracker;
+  setTracker: React.Dispatch<React.SetStateAction<Tracker>>;
+  fallbackFields: TrackerField[];
+  error: string;
+  save: (action: "save" | "check") => void;
+  close: () => void;
+}) {
+  const fields = tracker.fieldsSnapshot || fallbackFields;
+  const locked = Boolean(record.tasks?.file?.finalReviewedAt);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <div>
+            <h2 className="text-xl font-bold">Employment Change File Check</h2>
+            <p className="text-sm text-slate-500">{record.employeeName}</p>
+          </div>
+          <button aria-label="Close dialog" onClick={close}>
+            <X />
+          </button>
+        </div>
+        <div className="space-y-4 p-6">
+          {locked ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">
+              Final review is complete. This File Tracker is permanently read-only.
+            </div>
+          ) : record.tasks?.file?.checkedAt ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-800">
+              Admin checked - awaiting final review. Admins may still revise it; saving changes will require confirmation again.
+            </div>
+          ) : null}
+          {error && (
+            <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+              {error}
+            </div>
+          )}
+          {fields.map((field) => (
+            <Field label={field.label} key={field.id}>
+              <select
+                disabled={locked}
+                value={tracker.responses?.[field.id] || ""}
+                onChange={(e) =>
+                  setTracker((current) => ({
+                    ...current,
+                    responses: {
+                      ...(current.responses || {}),
+                      [field.id]: e.target.value,
+                    },
+                  }))
+                }
+              >
+                <option value="">Select...</option>
+                {field.options.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </Field>
+          ))}
+          <Field label="Comments">
+            <textarea
+              disabled={locked}
+              value={tracker.comments || ""}
+              onChange={(e) =>
+                setTracker((current) => ({
+                  ...current,
+                  comments: e.target.value,
+                }))
+              }
+            />
+          </Field>
+        </div>
+        <div className="flex justify-end gap-2 border-t px-6 py-4">
+          <button
+            className="rounded-lg border px-4 py-2 font-bold"
+            onClick={close}
+          >
+            Cancel
+          </button>
+          {!locked ? (
+            <>
+              <button
+                className="rounded-lg border border-blue-300 px-4 py-2 font-bold text-blue-700"
+                onClick={() => save("save")}
+              >
+                Save Draft
+              </button>
+              <button
+                className="rounded-lg bg-blue-700 px-4 py-2 font-bold text-white"
+                onClick={() => save("check")}
+              >
+                Confirm File Check
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+function StatusWindow({
+  title,
+  description,
+  records,
+  task,
+  tone,
+  check,
+}: {
+  title: string;
+  description: string;
+  records: RecordItem[];
+  task: "insurance" | "retirement";
+  tone: "emerald" | "violet";
+  check: (record: RecordItem, action: string, label: string) => void;
+}) {
+  const border = tone === "violet" ? "border-violet-200" : "border-emerald-200";
+  return (
+    <section
+      className={`overflow-hidden rounded-3xl border bg-white shadow-lg ${border}`}
+    >
+      <SectionHead
+        title={title}
+        description={description}
+        count={records.length}
+        tone={tone}
+      />
+      <div className="max-h-[520px] overflow-auto">
+        <table className="min-w-full text-sm">
+          <Head labels={["Employee", "Change Date", "Status", "Checked By"]} />
+          <tbody>
+            {records.map((record) => {
+              const value = record.tasks[task] || {};
+              const complete = done(value);
+              return (
+                <tr className="border-t" key={record.id}>
+                  <Sticky record={record} />
+                  <Cell>{dateDisplay(value.actionDate)}</Cell>
+                  <Cell>
+                    {complete ? (
+                      <TaskStatus complete />
+                    ) : (
+                      <Action
+                        label="Confirm Action Taken"
+                        onClick={() =>
+                          check(record, `${task}-check`, `${title} Action`)
+                        }
+                      />
+                    )}
+                  </Cell>
+                  <Cell>{value.checkedBy || value.completedBy || "--"}</Cell>
+                </tr>
+              );
+            })}
+            {!records.length && <Empty columns={4} />}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+function SectionHead({
+  title,
+  description,
+  count,
+  tone,
+}: {
+  title: string;
+  description: string;
+  count: number;
+  tone: string;
+}) {
+  const colors: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-950 border-blue-100",
+    amber: "bg-amber-50 text-amber-950 border-amber-100",
+    emerald: "bg-emerald-50 text-emerald-950 border-emerald-100",
+    violet: "bg-violet-50 text-violet-950 border-violet-100",
+  };
+  return (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-3 border-b px-6 py-5 ${colors[tone]}`}
+    >
+      <div>
+        <h2 className="text-xl font-bold">{title}</h2>
+        <p className="mt-1 text-sm opacity-75">{description}</p>
+      </div>
+      <span className="rounded-full bg-white px-3 py-1.5 text-sm font-bold shadow-sm">
+        {count}
+      </span>
+    </div>
+  );
+}
+function Head({ labels }: { labels: string[] }) {
+  return (
+    <thead className="sticky top-0 z-20 bg-slate-100 text-left text-xs uppercase text-slate-600">
+      <tr>
+        {labels.map((label, index) => (
+          <th
+            className={`whitespace-nowrap px-4 py-3 ${index === 0 ? "sticky left-0 z-30 bg-slate-100" : ""}`}
+            key={label}
+          >
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+function Cell({ children }: { children: React.ReactNode }) {
+  return (
+    <td className="max-w-80 whitespace-nowrap px-4 py-3 align-middle">
+      {children}
+    </td>
+  );
+}
+function Sticky({ record }: { record: RecordItem }) {
+  return (
+    <td className="sticky left-0 z-10 min-w-52 border-r-4 border-slate-200 bg-white px-4 py-3 font-bold shadow-[5px_0_10px_-8px_rgba(15,23,42,.4)]">
+      {record.employeeName}
+      <div className="text-xs font-normal text-slate-500">
+        {record.employeeEmail}
+      </div>
+    </td>
+  );
+}
+function Action({
+  label,
+  onClick,
+  disabled = false,
+  attention = false,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  attention?: boolean;
+}) {
+  return (
+    <button
+      className={`rounded-lg border px-3 py-1.5 text-xs font-bold shadow-sm transition disabled:opacity-40 ${attention ? "border-red-700 bg-red-600 text-white ring-2 ring-red-200 hover:bg-red-700" : "border-blue-300 bg-white text-blue-700 hover:bg-blue-50"}`}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+function Empty({ columns }: { columns: number }) {
+  return (
+    <tr>
+      <td className="px-5 py-10 text-center text-slate-500" colSpan={columns}>
+        No employees match this view.
+      </td>
+    </tr>
+  );
+}
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block text-sm font-bold text-slate-700">
+      {label}
+      <div className="mt-1 [&>*]:min-h-11 [&>*]:w-full [&>*]:rounded-lg [&>*]:border [&>*]:border-slate-300 [&>*]:p-2.5 [&>*]:font-normal">
+        {children}
+      </div>
+    </label>
+  );
+}
+function Applicable({
+  label,
+  value,
+  date,
+  setValue,
+  setDate,
+}: {
+  label: string;
+  value: string;
+  date: string;
+  setValue: (value: string) => void;
+  setDate: (value: string) => void;
+}) {
+  const displayLabel =
+    label === "New Payroll Change" ? "New Payroll's Payroll Date" : label;
+  return (
+    <div className="rounded-xl border p-4">
+      <label className="text-sm font-bold">{displayLabel} *</label>
+      <select
+        className="mt-1 w-full rounded-lg border p-2.5"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      >
+        <option value="applicable">Applicable</option>
+        <option value="not-applicable">Not Applicable</option>
+      </select>
+      {value === "applicable" && (
+        <input
+          className="mt-2 w-full rounded-lg border p-2.5"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
