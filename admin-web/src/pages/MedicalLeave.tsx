@@ -153,7 +153,16 @@ export default function MedicalLeave() {
   const visible = useMemo(
     () =>
       employees.filter((employee) => {
-        if (!leaveFrom && !leaveTo && employee.caseStatus === "Closed")
+        const anyFilterActive = Boolean(
+          query.trim() ||
+            department ||
+            location ||
+            appStatus ||
+            closeStatus ||
+            leaveFrom ||
+            leaveTo,
+        );
+        if (!anyFilterActive && employee.caseStatus === "Closed")
           return false;
         const needle = query.trim().toLowerCase();
         if (
@@ -494,8 +503,8 @@ export default function MedicalLeave() {
               label="Company App Status"
               value={appStatus}
               setValue={setAppStatus}
-              options={["leave", "active"]}
-              displayOptions={["Leave", "Active"]}
+              options={["leave", "active", "terminated"]}
+              displayOptions={["Leave", "Active", "Terminated"]}
             />
             <SelectFilter
               label="Case Close Status"
@@ -537,7 +546,7 @@ export default function MedicalLeave() {
             Leave Cases
           </h2>
           <p className="text-sm text-violet-700">
-            Open cases appear by default. Select a Leave Started date range to include closed case history. Both STD Approved dates are optional.
+            Open cases appear by default. Using any search or filter includes matching closed case history. Both STD Approved dates are optional.
           </p>
         </div>
         <div className="max-h-[650px] overflow-auto">
