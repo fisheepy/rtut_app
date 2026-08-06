@@ -920,6 +920,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       }).toArray();
       const leaveEmployeeIds = leaveEmployees.map(employee => String(employee._id));
       const leaveRecords = await db.collection('employee_hr_leave').find({ active: true }).toArray();
+      const medicalCatalog = await getMedicalTrackerCatalog(db);
       const existingIds = new Set(leaveRecords.map(record => clean(record.employeeId)));
       const missingIds = leaveEmployeeIds.filter(employeeId => !existingIds.has(employeeId));
       if (missingIds.length) {
@@ -927,11 +928,16 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         await db.collection('employee_hr_leave').bulkWrite(missingIds.map(employeeId => ({
           updateOne: {
             filter: { employeeId, active: true },
-            update: { $setOnInsert: { employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, createdAt: now, createdBy: 'system-status-sync' } },
+            update: { $setOnInsert: { employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, createdAt: now, createdBy: 'system-status-sync', medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } } },
             upsert: true,
           },
         })));
-        missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now }));
+        missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } }));
+      }
+      const recordsWithoutSnapshot = leaveRecords.filter(record => !record.medicalFileTracker?.fieldsSnapshot?.length);
+      if (recordsWithoutSnapshot.length) {
+        await db.collection('employee_hr_leave').bulkWrite(recordsWithoutSnapshot.map(record => ({ updateOne: { filter: { _id: record._id }, update: { $set: { medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } } } } })));
+        recordsWithoutSnapshot.forEach(record => { record.medicalFileTracker = { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' }; });
       }
       // Open cases stay in this workspace after Company App returns the employee
       // to Active. Termination hides the case here but never deletes its history.
@@ -953,12 +959,100 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
           location: clean(employee.Location), supervisor: [clean(employee['Supervisor First Name']), clean(employee['Supervisor Last Name'])].filter(Boolean).join(' '),
           leaveStartedAt: record.leaveStartedAt || record.createdAt || null,
           returnedAt: record.returnedAt || null, caseStatus: record.active === true ? 'Open' : 'Closed',
+          anticipatedReturnDate: clean(record.anticipatedReturnDate), actualReturnDate: clean(record.actualReturnDate),
+          medicalFolderUrl: clean(record.medicalFolderUrl), payrollStartDate: clean(record.payrollStartDate), payrollEndDate: clean(record.payrollEndDate),
+          medicalFileTracker: record.medicalFileTracker || {},
         };
       }).sort((left, right) => left.name.localeCompare(right.name)));
     } catch (error) {
       console.error('Unable to load Leave records:', error);
       return res.status(500).json({ error: 'FMLA / ADA / Medical Leave records could not be loaded.' });
     } finally { await client.close(); }
+  });
+
+  const medicalTrackerCollection = 'hr_medical_leave_file_tracker_fields';
+  const defaultMedicalTrackerFields = [
+    { id: 'leaveDocumentation', label: 'Leave Documentation', options: ['Complete', 'Missing', 'Not Applicable'], order: 0, active: true },
+    { id: 'medicalCertification', label: 'Medical Certification', options: ['Complete', 'Missing', 'Not Applicable'], order: 1, active: true },
+    { id: 'employeeNotice', label: 'Employee Notice / Communication', options: ['Complete', 'Missing', 'Not Applicable'], order: 2, active: true },
+  ];
+  async function ensureMedicalTrackerCatalog(db) {
+    const collection = db.collection(medicalTrackerCollection);
+    if (await collection.countDocuments({}) === 0) await collection.insertMany(defaultMedicalTrackerFields);
+    return collection;
+  }
+  async function getMedicalTrackerCatalog(db, includeInactive = false) {
+    const collection = await ensureMedicalTrackerCatalog(db);
+    const fields = await collection.find({ deleted: { $ne: true } }).sort({ order: 1, label: 1 }).toArray();
+    return fields.map(({ _id, ...field }) => field).filter(field => includeInactive || field.active);
+  }
+
+  router.get('/medical-leave-file-tracker-fields', async (req, res) => {
+    const client = createClient();
+    try { await client.connect(); return res.json({ fields: await getMedicalTrackerCatalog(client.db(databaseName), req.query.includeInactive === 'true') }); }
+    catch (error) { console.error('Unable to load Medical File Check fields:', error); return res.status(500).json({ error: 'Medical File Check settings could not be loaded.' }); }
+    finally { await client.close(); }
+  });
+  router.post('/medical-leave-file-tracker-fields', async (req, res) => {
+    const client = createClient();
+    try {
+      const result = sanitizeTrackerCatalogField({ ...req.body, id: crypto.randomUUID() }); if (result.error) return res.status(400).json({ error: result.error });
+      await client.connect(); const collection = await ensureMedicalTrackerCatalog(client.db(databaseName)); result.field.order = await collection.countDocuments({});
+      await collection.insertOne({ ...result.field, createdAt: new Date(), createdBy: req.adminSession?.email || null }); return res.status(201).json({ field: result.field });
+    } catch (error) { console.error('Unable to add Medical File Check field:', error); return res.status(500).json({ error: 'The Medical File Check item could not be added.' }); }
+    finally { await client.close(); }
+  });
+  router.put('/medical-leave-file-tracker-fields/:fieldId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect(); const collection = await ensureMedicalTrackerCatalog(client.db(databaseName)); const existing = await collection.findOne({ id: req.params.fieldId });
+      if (!existing) return res.status(404).json({ error: 'Medical File Check item not found.' }); const result = sanitizeTrackerCatalogField(req.body, existing); if (result.error) return res.status(400).json({ error: result.error });
+      await collection.updateOne({ id: existing.id }, { $set: { ...result.field, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } }); return res.json({ field: result.field });
+    } catch (error) { console.error('Unable to update Medical File Check field:', error); return res.status(500).json({ error: 'The Medical File Check item could not be updated.' }); }
+    finally { await client.close(); }
+  });
+  router.delete('/medical-leave-file-tracker-fields/:fieldId', async (req, res) => {
+    const client = createClient();
+    try {
+      await client.connect(); const collection = await ensureMedicalTrackerCatalog(client.db(databaseName)); const existing = await collection.findOne({ id: req.params.fieldId, deleted: { $ne: true } });
+      if (!existing) return res.status(404).json({ error: 'Medical File Check item not found.' }); await collection.updateOne({ id: existing.id }, { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } }); return res.json({ success: true });
+    } catch (error) { console.error('Unable to delete Medical File Check field:', error); return res.status(500).json({ error: 'The Medical File Check item could not be deleted.' }); }
+    finally { await client.close(); }
+  });
+
+  router.put('/leaves/:employeeId/details', async (req, res) => {
+    const employeeId = req.params.employeeId;
+    const values = {
+      leaveStartedAt: clean(req.body?.leaveStartedAt), anticipatedReturnDate: clean(req.body?.anticipatedReturnDate), actualReturnDate: clean(req.body?.actualReturnDate),
+      medicalFolderUrl: clean(req.body?.medicalFolderUrl), payrollStartDate: clean(req.body?.payrollStartDate), payrollEndDate: clean(req.body?.payrollEndDate),
+    };
+    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    if (!values.leaveStartedAt || !validDate(values.leaveStartedAt)) return res.status(400).json({ error: 'Leave Started Date is required.' });
+    if (!values.payrollStartDate || !validDate(values.payrollStartDate)) return res.status(400).json({ error: 'Affected Payroll Starting Date is required.' });
+    if ([values.anticipatedReturnDate, values.actualReturnDate, values.payrollEndDate].some(value => !validDate(value))) return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
+    if (values.medicalFolderUrl && !/^https:\/\//i.test(values.medicalFolderUrl)) return res.status(400).json({ error: 'Employee Medical File Folder must use a secure https:// link.' });
+    if (values.payrollEndDate && values.payrollEndDate < values.payrollStartDate) return res.status(400).json({ error: 'Affected Payroll Ending Date cannot be before the Starting Date.' });
+    const client = createClient();
+    try {
+      await client.connect(); const db = client.db(databaseName); const collection = db.collection('employee_hr_leave'); const now = new Date();
+      const result = await collection.updateOne({ employeeId, active: true }, { $set: { ...values, updatedAt: now, updatedBy: clean(req.adminSession?.email).toLowerCase() } });
+      if (!result.matchedCount) return res.status(404).json({ error: 'Open leave case not found.' }); return res.json(values);
+    } catch (error) { console.error('Unable to save Medical Leave details:', error); return res.status(500).json({ error: 'Medical Leave details could not be saved.' }); }
+    finally { await client.close(); }
+  });
+
+  router.put('/leaves/:employeeId/medical-file-tracker', async (req, res) => {
+    const employeeId = req.params.employeeId; if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const action = clean(req.body?.action || 'save').toLowerCase(); const client = createClient();
+    try {
+      await client.connect(); const db = client.db(databaseName); const collection = db.collection('employee_hr_leave'); const record = await collection.findOne({ employeeId, active: true });
+      if (!record) return res.status(404).json({ error: 'Open leave case not found.' });
+      const catalog = record.medicalFileTracker?.fieldsSnapshot || await getMedicalTrackerCatalog(db); const tracker = sanitizeFileTracker(req.body?.tracker || {}, catalog);
+      if (action === 'check' && !fileTrackerComplete(tracker, catalog)) return res.status(400).json({ error: 'Complete every Medical File Check item before confirming.' });
+      const now = new Date(); const reviewer = clean(req.adminSession?.email).toLowerCase(); const saved = { ...tracker, fieldsSnapshot: catalog, updatedAt: now, updatedBy: reviewer, checkedAt: action === 'check' ? now : null, checkedBy: action === 'check' ? reviewer : '' };
+      await collection.updateOne({ _id: record._id }, { $set: { medicalFileTracker: saved, updatedAt: now, updatedBy: reviewer } }); return res.json({ medicalFileTracker: saved });
+    } catch (error) { console.error('Unable to save Medical File Check:', error); return res.status(500).json({ error: 'The Medical File Check could not be saved.' }); }
+    finally { await client.close(); }
   });
 
   router.get('/employment-changes', async (_req, res) => {
