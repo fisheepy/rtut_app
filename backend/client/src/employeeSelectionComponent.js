@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { SelectedEmployeesContext } from './selectedEmployeesContext';
 import {
@@ -31,7 +31,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import { canonicalizeEmployeeFilters } from './employeeFilterUtils';
+import { canonicalizeEmployeeFilters, cleanFilterLabel, normalizeFilterValue } from './employeeFilterUtils';
 
 const parseEmployeeDate = (value) => {
     if (!value) return null;
@@ -71,6 +71,24 @@ const editableEmployeeFields = [
     'EEOC Establishment', 'Worker Category', 'Pay Category',
 ];
 
+const editReferenceFields = [
+    { database: 'Job Title', label: 'Job Title' },
+    { database: 'Location', label: 'Location' },
+    { database: 'EEOC Establishment', label: 'EEOC' },
+    { database: 'Worker Category', label: 'Employment Category' },
+    { database: 'Pay Category', label: 'Pay Category' },
+];
+
+const employeeCanonicalMap = (values) => {
+    const map = new Map();
+    values.map(cleanFilterLabel).filter(Boolean).forEach(value => {
+        const key = normalizeFilterValue(value);
+        const current = map.get(key);
+        if (!current || (current === current.toUpperCase() && value !== value.toUpperCase())) map.set(key, value);
+    });
+    return map;
+};
+
 function EmployeeSelectionComponent() {
     const { selectedEmployees, setSelectedEmployees } = useContext(SelectedEmployeesContext);
     const tableContainerRef = useRef(null);
@@ -89,6 +107,34 @@ function EmployeeSelectionComponent() {
     const [editError, setEditError] = useState('');
     const [employeeSearch, setEmployeeSearch] = useState('');
     const [showMoreFilters, setShowMoreFilters] = useState(false);
+
+    const editReferenceMaps = useMemo(() => Object.fromEntries(editReferenceFields.map(field => [
+        field.database,
+        employeeCanonicalMap(employees.map(employee => employee[field.database])),
+    ])), [employees]);
+    const editSupervisorMap = useMemo(() => {
+        const map = new Map();
+        employees.forEach(employee => {
+            const first = cleanFilterLabel(employee['Supervisor First Name']);
+            const last = cleanFilterLabel(employee['Supervisor Last Name']);
+            if (first && last) map.set(`${normalizeFilterValue(first)}|${normalizeFilterValue(last)}`, [first, last]);
+        });
+        return map;
+    }, [employees]);
+    const newEditReferenceValues = useMemo(() => {
+        if (!selectedEmployee) return [];
+        const entries = editReferenceFields.flatMap(field => {
+            const value = cleanFilterLabel(selectedEmployee[field.database]);
+            return value && !editReferenceMaps[field.database]?.has(normalizeFilterValue(value))
+                ? [{ field: field.database, label: field.label, value }]
+                : [];
+        });
+        const first = cleanFilterLabel(selectedEmployee['Supervisor First Name']);
+        const last = cleanFilterLabel(selectedEmployee['Supervisor Last Name']);
+        if (first && last && !editSupervisorMap.has(`${normalizeFilterValue(first)}|${normalizeFilterValue(last)}`)) entries.push({ field: 'Supervisor', label: 'Supervisor', value: `${first} ${last}` });
+        return entries;
+    }, [selectedEmployee, editReferenceMaps, editSupervisorMap]);
+    const newEditFieldNames = new Set(newEditReferenceValues.map(entry => entry.field));
 
     useEffect(() => {
         applyFilters();
@@ -261,16 +307,24 @@ function EmployeeSelectionComponent() {
     };
 
     const handleSaveChanges = async () => {
-        const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(selectedEmployee?.[field] || '').trim());
-        if (!changedFields.length) return setEditError('No information has been changed.');
+        const canonicalEmployee = { ...selectedEmployee };
+        editReferenceFields.forEach(field => {
+            const value = cleanFilterLabel(canonicalEmployee[field.database]);
+            canonicalEmployee[field.database] = editReferenceMaps[field.database]?.get(normalizeFilterValue(value)) || value;
+        });
+        const supervisor = editSupervisorMap.get(`${normalizeFilterValue(canonicalEmployee['Supervisor First Name'])}|${normalizeFilterValue(canonicalEmployee['Supervisor Last Name'])}`);
+        if (supervisor) [canonicalEmployee['Supervisor First Name'], canonicalEmployee['Supervisor Last Name']] = supervisor;
+        const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(canonicalEmployee?.[field] || '').trim());
+        if (!changedFields.length) return setEditError('No information has been changed. Formatting-only differences are treated as the existing database value.');
         const review = changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} → ${selectedEmployee[field] || '(blank)'}`).join('\n');
-        if (!window.confirm(`Review the following employee changes:\n\n${review}\n\nCompany App information will be updated immediately. This change record will automatically be sent to Employment Change on HR Platform.`)) return;
+        const newValueWarning = newEditReferenceValues.length ? `\n\nNEW DATABASE INFORMATION:\n${newEditReferenceValues.map(entry => `${entry.label}: ${entry.value}`).join('\n')}\nConfirm that these values are intentionally new and correctly spelled.` : '';
+        if (!window.confirm(`Review the following employee changes:\n\n${review}${newValueWarning}\n\nCompany App information will be updated immediately. This change record will automatically be sent to Employment Change on HR Platform.`)) return;
         try {
             const updatedEmployee = { ...originalEmployee };
-            changedFields.forEach(field => { updatedEmployee[field] = selectedEmployee[field]; });
+            changedFields.forEach(field => { updatedEmployee[field] = canonicalEmployee[field]; });
             updatedEmployee._employmentChange = { ...changeDetails, changedFields };
             await axios.put(`/employees/${selectedEmployee._id}`, updatedEmployee);
-            const displayEmployee = { ...selectedEmployee, Name: [selectedEmployee['Last Name'], selectedEmployee['First Name']].filter(Boolean).join(', '), Supervisor: [selectedEmployee['Supervisor Last Name'], selectedEmployee['Supervisor First Name']].filter(Boolean).join(', ') };
+            const displayEmployee = { ...canonicalEmployee, Name: [canonicalEmployee['Last Name'], canonicalEmployee['First Name']].filter(Boolean).join(', '), Supervisor: [canonicalEmployee['Supervisor Last Name'], canonicalEmployee['Supervisor First Name']].filter(Boolean).join(', ') };
             setEmployees((prevEmployees) => prevEmployees.map((emp) => (emp._id === selectedEmployee._id ? displayEmployee : emp)));
             applyFilters();
             handleModalClose();
@@ -555,6 +609,8 @@ function EmployeeSelectionComponent() {
                                     name="Supervisor First Name"
                                     value={selectedEmployee['Supervisor First Name']}
                                     onChange={handleInputChange}
+                                    error={newEditFieldNames.has('Supervisor')}
+                                    helperText={newEditFieldNames.has('Supervisor') ? 'New information: this supervisor is not currently used in the database.' : ''}
                                 />
                             </Grid>
                             <Grid item xs={6}>
@@ -564,6 +620,8 @@ function EmployeeSelectionComponent() {
                                     name="Supervisor Last Name"
                                     value={selectedEmployee['Supervisor Last Name']}
                                     onChange={handleInputChange}
+                                    error={newEditFieldNames.has('Supervisor')}
+                                    helperText={newEditFieldNames.has('Supervisor') ? 'Confirm that this new supervisor is intentionally new and correctly spelled.' : ''}
                                 />
                             </Grid>
                             <Grid item xs={12}>
@@ -573,6 +631,8 @@ function EmployeeSelectionComponent() {
                                     name="Job Title"
                                     value={selectedEmployee['Job Title']}
                                     onChange={handleInputChange}
+                                    error={newEditFieldNames.has('Job Title')}
+                                    helperText={newEditFieldNames.has('Job Title') ? 'New information: this Job Title is not currently used in the database.' : ''}
                                 />
                             </Grid>
                             <Grid item xs={12}>
@@ -582,6 +642,8 @@ function EmployeeSelectionComponent() {
                                     name="Location"
                                     value={selectedEmployee['Location']}
                                     onChange={handleInputChange}
+                                    error={newEditFieldNames.has('Location')}
+                                    helperText={newEditFieldNames.has('Location') ? 'New information: this Location is not currently used in the database.' : ''}
                                 />
                             </Grid>
                             <Grid item xs={12}>
@@ -609,6 +671,8 @@ function EmployeeSelectionComponent() {
                                     name="EEOC Establishment"
                                     value={selectedEmployee['EEOC Establishment']}
                                     onChange={handleInputChange}
+                                    error={newEditFieldNames.has('EEOC Establishment')}
+                                    helperText={newEditFieldNames.has('EEOC Establishment') ? 'New information: this EEOC value is not currently used in the database.' : ''}
                                 />
                             </Grid>
                             <Grid item xs={12}>
@@ -618,6 +682,8 @@ function EmployeeSelectionComponent() {
                                     name="Worker Category"
                                     value={selectedEmployee['Worker Category']}
                                     onChange={handleInputChange}
+                                    error={newEditFieldNames.has('Worker Category')}
+                                    helperText={newEditFieldNames.has('Worker Category') ? 'New information: this Employment Category is not currently used in the database.' : ''}
                                 />
                             </Grid>
                             <Grid item xs={12}>
@@ -627,8 +693,11 @@ function EmployeeSelectionComponent() {
                                     name="Pay Category"
                                     value={selectedEmployee['Pay Category']}
                                     onChange={handleInputChange}
+                                    error={newEditFieldNames.has('Pay Category')}
+                                    helperText={newEditFieldNames.has('Pay Category') ? 'New information: this Pay Category is not currently used in the database.' : ''}
                                 />
                             </Grid>
+                            {newEditReferenceValues.length ? <Grid item xs={12}><Alert severity="error"><Typography fontWeight={700}>New database information detected:</Typography>{newEditReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}<Typography sx={{ mt: 1 }}>You may proceed, but the final confirmation will ask you to approve these new values.</Typography></Alert></Grid> : null}
                             <Grid item xs={12}><Typography variant="h6">HR Action Tracking</Typography><Typography variant="body2" color="text.secondary">Every employee information change is automatically transferred to Employment Change on HR Platform. Select any related payroll or benefit actions below.</Typography></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked }))} />} label="Payroll change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
