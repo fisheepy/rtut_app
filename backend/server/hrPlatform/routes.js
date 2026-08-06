@@ -26,8 +26,29 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     return collection;
   }
 
+  function trackerForCatalog(existing = {}, catalog = []) {
+    const responses = {};
+    catalog.forEach(field => {
+      const response = clean(existing.responses?.[field.id]);
+      responses[field.id] = field.options.includes(response) ? response : '';
+    });
+    return { ...existing, fieldsSnapshot: catalog, responses };
+  }
+
+  function trackerCatalogMatches(existing = {}, catalog = []) {
+    const normalized = fields => (Array.isArray(fields) ? fields : []).map(field => ({ id: clean(field.id), label: clean(field.label), options: Array.isArray(field.options) ? field.options.map(clean) : [], active: field.active !== false }));
+    return JSON.stringify(normalized(existing.fieldsSnapshot)) === JSON.stringify(normalized(catalog));
+  }
+
+  async function syncOpenNewHireTrackers(db) {
+    const catalog = await getTrackerCatalog(db);
+    const records = (await db.collection('employee_hr_platform').find({ 'fileTracker.finalLockedAt': { $in: [null, ''] } }).toArray()).filter(record => !trackerCatalogMatches(record.fileTracker, catalog));
+    if (!records.length) return;
+    await db.collection('employee_hr_platform').bulkWrite(records.map(record => ({ updateOne: { filter: { _id: record._id }, update: { $set: { fileTracker: { ...trackerForCatalog(record.fileTracker, catalog), confirmationDate: '', submittedAt: null, submittedBy: null, finalLockedAt: null, finalLockedBy: null } } } } })));
+  }
+
   async function restoreNewHireCatalogFromSnapshots(db) {
-    const migrationId = 'restore-new-hire-catalog-after-termination-separation-v1';
+    const migrationId = 'isolate-new-hire-catalog-from-termination-v2';
     const migrations = db.collection('hr_platform_migrations');
     if (await migrations.findOne({ id: migrationId })) return;
     await migrations.createIndex({ id: 1 }, { unique: true });
@@ -37,26 +58,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       if (error?.code === 11000) return;
       throw error;
     }
-    const currentRecords = await db.collection('employee_hr_platform').find({ 'fileTracker.fieldsSnapshot.0': { $exists: true } }).toArray();
-    const historicalRecords = await db.collection('employee_hr_platform_history').find({ 'fileTracker.fieldsSnapshot.0': { $exists: true } }).toArray();
-    const versions = new Map();
-    for (const record of [...currentRecords, ...historicalRecords]) {
-      const fields = record.fileTracker?.fieldsSnapshot;
-      if (!Array.isArray(fields) || !fields.length) continue;
-      const normalized = fields.map(field => ({ id: clean(field.id), label: clean(field.label), options: Array.isArray(field.options) ? field.options.map(clean).filter(Boolean) : [], order: Number(field.order || 0), active: field.active !== false }));
-      const fingerprint = JSON.stringify(normalized);
-      const existing = versions.get(fingerprint) || { fields: normalized, count: 0 };
-      existing.count += 1;
-      versions.set(fingerprint, existing);
-    }
-    const selected = [...versions.values()].sort((a, b) => b.count - a.count || b.fields.length - a.fields.length)[0];
-    const restoredFields = selected?.fields?.length ? selected.fields : DEFAULT_FILE_TRACKER_FIELDS;
     const catalog = db.collection('hr_file_tracker_fields');
-    const previous = await catalog.find({}).toArray();
-    await db.collection('hr_file_tracker_fields_history').insertOne({ migrationId, fields: previous, archivedAt: new Date(), reason: 'Archived before restoring the New Hire catalog after separating the Termination catalog' });
-    await catalog.updateMany({}, { $set: { deleted: true, deletedAt: new Date(), deletedBy: 'system-recovery' } });
-    await catalog.bulkWrite(restoredFields.map(field => ({ updateOne: { filter: { id: field.id }, update: { $set: { ...field, deleted: false, restoredAt: new Date(), restoredBy: 'system-recovery' }, $unset: { deletedAt: '', deletedBy: '' } }, upsert: true } })));
-    await migrations.updateOne({ id: migrationId }, { $set: { status: 'complete', completedAt: new Date(), selectedSnapshotUsageCount: selected?.count || 0, restoredFieldCount: restoredFields.length } });
+    const current = await catalog.find({ deleted: { $ne: true } }).toArray();
+    const terminationOnly = current.filter(field => /move\s+files?.*termination/i.test(clean(field.label)));
+    if (terminationOnly.length) {
+      await db.collection('hr_file_tracker_fields_history').insertOne({ migrationId, fields: current, archivedAt: new Date(), reason: 'Archived before removing Termination-only items from the New Hire catalog' });
+      await catalog.updateMany({ id: { $in: terminationOnly.map(field => field.id) } }, { $set: { deleted: true, deletedAt: new Date(), deletedBy: 'system-isolation-repair' } });
+      await syncOpenNewHireTrackers(db);
+    }
+    await migrations.updateOne({ id: migrationId }, { $set: { status: 'complete', completedAt: new Date(), removedTerminationOnlyFields: terminationOnly.map(field => field.label) } });
   }
 
   // Run the authorized one-time repair at application startup so it does not
@@ -81,6 +91,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       await client.connect();
       const db = client.db(databaseName);
       await restoreNewHireCatalogFromSnapshots(db);
+      await syncOpenNewHireTrackers(db);
       const employees = await db.collection('employees').find({
         $and: [
           { 'HR Platform New Hire At': { $exists: true, $ne: null } },
@@ -434,6 +445,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const collection = await ensureTrackerCatalog(db);
       result.field.order = await collection.countDocuments({});
       await collection.insertOne({ ...result.field, createdAt: new Date(), createdBy: req.adminSession?.email || null });
+      await syncOpenNewHireTrackers(db);
       return res.status(201).json({ field: result.field });
     } catch (error) {
       console.error('Unable to add File Tracker field:', error);
@@ -452,6 +464,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const result = sanitizeTrackerCatalogField(req.body, existing);
       if (result.error) return res.status(400).json({ error: result.error });
       await collection.updateOne({ id: existing.id }, { $set: { ...result.field, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } });
+      await syncOpenNewHireTrackers(db);
       return res.json({ field: result.field });
     } catch (error) {
       console.error('Unable to update File Tracker field:', error);
@@ -470,6 +483,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         { id: existing.id },
         { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } },
       );
+      await syncOpenNewHireTrackers(client.db(databaseName));
       return res.json({ success: true, fieldId: existing.id });
     } catch (error) {
       console.error('Unable to delete File Tracker field:', error);
@@ -609,6 +623,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
+      await syncOpenTerminationTrackers(db);
       const employees = await db.collection('employees').find({
         $or: [
           { 'Position Status': /^terminated$/i },
@@ -682,20 +697,16 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
-  // Termination trackers use an independent catalog. On first use, preserve the
-  // current termination setup by copying the formerly shared catalog once.
+  const DEFAULT_TERMINATION_FILE_TRACKER_FIELDS = [
+    { id: 'terminationFilesMoved', label: 'Move files and I-9 to Termination', options: ['Yes', 'No'], order: 0, active: true },
+  ];
+
+  // Termination uses its own catalog and never copies New Hire settings.
   async function ensureTerminationTrackerCatalog(db) {
     const collectionName = 'hr_termination_file_tracker_fields';
     const collection = db.collection(collectionName);
     if (await collection.countDocuments({}) === 0) {
-      const current = await getTrackerCatalog(db, true);
-      await collection.bulkWrite(current.map(field => ({
-        updateOne: {
-          filter: { id: field.id },
-          update: { $setOnInsert: { ...field, migratedAt: new Date() } },
-          upsert: true,
-        },
-      })));
+      await collection.insertMany(DEFAULT_TERMINATION_FILE_TRACKER_FIELDS);
     }
     return collection;
   }
@@ -703,6 +714,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   async function getTerminationTrackerCatalog(db, includeInactive = false) {
     await ensureTerminationTrackerCatalog(db);
     return getTrackerCatalog(db, includeInactive, 'hr_termination_file_tracker_fields');
+  }
+
+  async function syncOpenTerminationTrackers(db) {
+    const catalog = await getTerminationTrackerCatalog(db);
+    const records = (await db.collection('employee_hr_termination').find({ 'fileTracker.finalLockedAt': { $in: [null, ''] } }).toArray()).filter(record => !trackerCatalogMatches(record.fileTracker, catalog));
+    if (!records.length) return;
+    await db.collection('employee_hr_termination').bulkWrite(records.map(record => ({ updateOne: { filter: { _id: record._id }, update: { $set: { fileTracker: { ...trackerForCatalog(record.fileTracker, catalog), confirmationDate: '', submittedAt: null, submittedBy: null, finalLockedAt: null, finalLockedBy: null } } } } })));
   }
 
   async function restoreTerminationCatalogFromSnapshots(db) {
@@ -736,18 +754,6 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     await migrations.updateOne({ id: migrationId }, { $set: { status: 'complete', completedAt: new Date(), source, restoredFieldCount: normalized.length } });
   }
 
-  void (async () => {
-    const client = createClient();
-    try {
-      await client.connect();
-      await restoreTerminationCatalogFromSnapshots(client.db(databaseName));
-    } catch (error) {
-      console.error('Unable to restore the Termination File Tracker catalog:', error);
-    } finally {
-      await client.close();
-    }
-  })();
-
   router.get('/termination-file-tracker-fields', async (req, res) => {
     const client = createClient();
     try {
@@ -766,9 +772,11 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const result = sanitizeTrackerCatalogField({ ...req.body, id: crypto.randomUUID() });
       if (result.error) return res.status(400).json({ error: result.error });
       await client.connect();
-      const collection = await ensureTerminationTrackerCatalog(client.db(databaseName));
+      const db = client.db(databaseName);
+      const collection = await ensureTerminationTrackerCatalog(db);
       result.field.order = await collection.countDocuments({});
       await collection.insertOne({ ...result.field, createdAt: new Date(), createdBy: req.adminSession?.email || null });
+      await syncOpenTerminationTrackers(db);
       return res.status(201).json({ field: result.field });
     } catch (error) {
       console.error('Unable to add Termination File Tracker field:', error);
@@ -780,12 +788,14 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const collection = await ensureTerminationTrackerCatalog(client.db(databaseName));
+      const db = client.db(databaseName);
+      const collection = await ensureTerminationTrackerCatalog(db);
       const existing = await collection.findOne({ id: req.params.fieldId });
       if (!existing) return res.status(404).json({ error: 'Termination checklist item not found.' });
       const result = sanitizeTrackerCatalogField(req.body, existing);
       if (result.error) return res.status(400).json({ error: result.error });
       await collection.updateOne({ id: existing.id }, { $set: { ...result.field, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } });
+      await syncOpenTerminationTrackers(db);
       return res.json({ field: result.field });
     } catch (error) {
       console.error('Unable to update Termination File Tracker field:', error);
@@ -801,6 +811,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const existing = await collection.findOne({ id: req.params.fieldId, deleted: { $ne: true } });
       if (!existing) return res.status(404).json({ error: 'Termination checklist item not found.' });
       await collection.updateOne({ id: existing.id }, { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } });
+      await syncOpenTerminationTrackers(client.db(databaseName));
       return res.json({ success: true, fieldId: existing.id });
     } catch (error) {
       console.error('Unable to delete Termination File Tracker field:', error);
@@ -944,7 +955,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       // Manager changes apply to every currently open case. Preserve responses
       // for unchanged item IDs while adding, renaming, or removing catalog items.
       const catalogFingerprint = JSON.stringify(medicalCatalog.map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active })));
-      const recordsNeedingCatalogSync = leaveRecords.filter(record => JSON.stringify((record.medicalFileTracker?.fieldsSnapshot || []).map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active }))) !== catalogFingerprint);
+      const recordsNeedingCatalogSync = leaveRecords.filter(record => !record.medicalFileTracker?.checkedAt && JSON.stringify((record.medicalFileTracker?.fieldsSnapshot || []).map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active }))) !== catalogFingerprint);
       if (recordsNeedingCatalogSync.length) {
         await db.collection('employee_hr_leave').bulkWrite(recordsNeedingCatalogSync.map(record => {
           const existingTracker = record.medicalFileTracker || {}; const responses = {};
@@ -1147,7 +1158,11 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Leave History');
       sheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Company App Status', key: 'status', width: 22 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Leave Start Date', key: 'start', width: 18 }, { header: 'Anticipated Return Date', key: 'anticipated', width: 24 }, { header: 'Actual Return to Work Date', key: 'actual', width: 26 }, { header: 'Affected Payroll Start Date', key: 'payrollStart', width: 26 }, { header: 'Affected Payroll End Date', key: 'payrollEnd', width: 25 }, { header: 'Insurance Status', key: 'insurance', width: 24 }, { header: 'Insurance End Date', key: 'insuranceEnd', width: 22 }, { header: 'COBRA Start Date', key: 'cobraStart', width: 20 }, { header: 'Closed At', key: 'closedAt', width: 22 }, { header: 'Closed By', key: 'closedBy', width: 30 }];
       records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; sheet.addRow({ employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), status: clean(employee['Position Status']), caseStatus: record.active === true ? 'Open' : 'Closed', start: record.leaveStartedAt || '', anticipated: clean(record.anticipatedReturnDate), actual: clean(record.actualReturnDate), payrollStart: clean(record.payrollStartDate), payrollEnd: clean(record.payrollEndDate), insurance: clean(record.insuranceStatus), insuranceEnd: clean(record.insuranceEndDate), cobraStart: clean(record.cobraStartDate), closedAt: record.closedAt || '', closedBy: clean(record.closedBy) }); });
-      styleReportSheet(sheet); return await sendWorkbook(res, workbook, `Medical_Leave_Current_and_History_${new Date().toISOString().slice(0,10)}.xlsx`);
+      const trackerSheet = workbook.addWorksheet('Medical File Tracker History');
+      trackerSheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Leave Start Date', key: 'start', width: 20 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Checklist Item', key: 'item', width: 38 }, { header: 'Response', key: 'response', width: 22 }, { header: 'Comments', key: 'comments', width: 48 }, { header: 'File Check Status', key: 'trackerStatus', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Checked At', key: 'checkedAt', width: 22 }];
+      const currentMedicalCatalog = await getMedicalTrackerCatalog(db, true);
+      records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; const tracker = record.medicalFileTracker || {}; const fields = tracker.fieldsSnapshot?.length ? tracker.fieldsSnapshot : currentMedicalCatalog; const base = { employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), start: record.leaveStartedAt || '', caseStatus: record.active === true ? 'Open' : 'Closed', comments: clean(tracker.comments), trackerStatus: tracker.checkedAt ? 'File Checked' : 'In Progress', checkedBy: clean(tracker.checkedBy), checkedAt: tracker.checkedAt || '' }; if (fields.length) fields.forEach(field => trackerSheet.addRow({ ...base, item: clean(field.label), response: clean(tracker.responses?.[field.id]) || 'Not Completed' })); else trackerSheet.addRow({ ...base, item: 'No checklist items', response: 'Not Completed' }); });
+      styleReportSheet(sheet); styleReportSheet(trackerSheet); return await sendWorkbook(res, workbook, `Medical_Leave_Current_and_History_${new Date().toISOString().slice(0,10)}.xlsx`);
     } catch (error) { console.error('Unable to create Medical Leave history report:', error); return res.status(500).json({ error: 'Medical Leave history report could not be created.' }); } finally { await client.close(); }
   });
 
@@ -1156,6 +1171,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
+      await syncOpenEmploymentChangeTrackers(db);
       const records = await db.collection('employee_hr_employment_change')
         .find({}).sort({ effectiveDate: 1, createdAt: 1 }).toArray();
       // Terminated employees move to the Termination workspace. Keep their
@@ -1244,6 +1260,16 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     return fields.map(({ _id, ...field }) => field).filter(field => includeInactive || field.active);
   }
 
+  async function syncOpenEmploymentChangeTrackers(db) {
+    const catalog = await getEmploymentTrackerCatalog(db);
+    const records = (await db.collection('employee_hr_employment_change').find({ 'tasks.file.finalReviewedAt': { $in: [null, ''] } }).toArray()).filter(record => !trackerCatalogMatches(record.tasks?.file?.tracker, catalog));
+    if (!records.length) return;
+    await db.collection('employee_hr_employment_change').bulkWrite(records.map(record => {
+      const fileTask = record.tasks?.file || {};
+      return { updateOne: { filter: { _id: record._id }, update: { $set: { 'tasks.file': { ...fileTask, tracker: trackerForCatalog(fileTask.tracker, catalog), checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' } } } } };
+    }));
+  }
+
   router.get('/employment-change-file-tracker-fields', async (req, res) => {
     const client = createClient();
     try { await client.connect(); return res.json({ fields: await getEmploymentTrackerCatalog(client.db(databaseName), req.query.includeInactive === 'true') }); }
@@ -1254,25 +1280,25 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       const result = sanitizeTrackerCatalogField({ ...req.body, id: crypto.randomUUID() }); if (result.error) return res.status(400).json({ error: result.error });
-      await client.connect(); const collection = await ensureEmploymentTrackerCatalog(client.db(databaseName)); result.field.order = await collection.countDocuments({});
-      await collection.insertOne({ ...result.field, createdAt: new Date(), createdBy: req.adminSession?.email || null }); return res.status(201).json({ field: result.field });
+      await client.connect(); const db = client.db(databaseName); const collection = await ensureEmploymentTrackerCatalog(db); result.field.order = await collection.countDocuments({});
+      await collection.insertOne({ ...result.field, createdAt: new Date(), createdBy: req.adminSession?.email || null }); await syncOpenEmploymentChangeTrackers(db); return res.status(201).json({ field: result.field });
     } catch (error) { console.error('Unable to add Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be added.' }); }
     finally { await client.close(); }
   });
   router.put('/employment-change-file-tracker-fields/:fieldId', async (req, res) => {
     const client = createClient();
     try {
-      await client.connect(); const collection = await ensureEmploymentTrackerCatalog(client.db(databaseName)); const existing = await collection.findOne({ id: req.params.fieldId });
+      await client.connect(); const db = client.db(databaseName); const collection = await ensureEmploymentTrackerCatalog(db); const existing = await collection.findOne({ id: req.params.fieldId });
       if (!existing) return res.status(404).json({ error: 'Checklist item not found.' }); const result = sanitizeTrackerCatalogField(req.body, existing); if (result.error) return res.status(400).json({ error: result.error });
-      await collection.updateOne({ id: existing.id }, { $set: { ...result.field, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } }); return res.json({ field: result.field });
+      await collection.updateOne({ id: existing.id }, { $set: { ...result.field, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } }); await syncOpenEmploymentChangeTrackers(db); return res.json({ field: result.field });
     } catch (error) { console.error('Unable to update Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be updated.' }); }
     finally { await client.close(); }
   });
   router.delete('/employment-change-file-tracker-fields/:fieldId', async (req, res) => {
     const client = createClient();
     try {
-      await client.connect(); const collection = await ensureEmploymentTrackerCatalog(client.db(databaseName)); const existing = await collection.findOne({ id: req.params.fieldId, deleted: { $ne: true } });
-      if (!existing) return res.status(404).json({ error: 'Checklist item not found.' }); await collection.updateOne({ id: existing.id }, { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } }); return res.json({ success: true });
+      await client.connect(); const db = client.db(databaseName); const collection = await ensureEmploymentTrackerCatalog(db); const existing = await collection.findOne({ id: req.params.fieldId, deleted: { $ne: true } });
+      if (!existing) return res.status(404).json({ error: 'Checklist item not found.' }); await collection.updateOne({ id: existing.id }, { $set: { deleted: true, deletedAt: new Date(), deletedBy: req.adminSession?.email || null } }); await syncOpenEmploymentChangeTrackers(db); return res.json({ success: true });
     } catch (error) { console.error('Unable to delete Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be deleted.' }); }
     finally { await client.close(); }
   });
