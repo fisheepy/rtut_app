@@ -791,7 +791,10 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 { $set: { employeeStatus: 'Active', returnedAt: new Date(), returnedBy: adminSession?.email || '', lastStatusChangedAt: new Date(), lastStatusChangedBy: adminSession?.email || '' } },
             );
         }
-        await db.collection('employee_hr_employment_change').insertOne({
+        const statusOnlyRouting = changes.length === 1 && changes[0].field === 'Position Status'
+            && !payroll && !insurance && !retirement
+            && /^(active|leave)$/i.test(String(changes[0].to || '').trim());
+        if (!statusOnlyRouting) await db.collection('employee_hr_employment_change').insertOne({
                 employeeId,
                 employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),
                 employeeEmail: employeeUpdate.Email ?? existing.Email ?? '',
@@ -808,7 +811,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 },
                 createdAt: new Date(), createdBy: adminSession?.email || '',
             });
-        return { found: true, changed: result.modifiedCount > 0, tracked: true };
+        return { found: true, changed: result.modifiedCount > 0, tracked: !statusOnlyRouting, leaveRouted: statusOnlyRouting };
     } catch (error) {
         console.error('Error updating employee in database:', error);
         throw error;
