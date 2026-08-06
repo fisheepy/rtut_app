@@ -962,6 +962,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
           anticipatedReturnDate: clean(record.anticipatedReturnDate), actualReturnDate: clean(record.actualReturnDate),
           medicalFolderUrl: clean(record.medicalFolderUrl), payrollStartDate: clean(record.payrollStartDate), payrollEndDate: clean(record.payrollEndDate),
           medicalFileTracker: record.medicalFileTracker || {},
+          payrollCheckedAt: record.payrollCheckedAt || null, payrollCheckedBy: clean(record.payrollCheckedBy),
+          payrollFinalReviewedAt: record.payrollFinalReviewedAt || null, payrollFinalReviewedBy: clean(record.payrollFinalReviewedBy),
         };
       }).sort((left, right) => left.name.localeCompare(right.name)));
     } catch (error) {
@@ -1035,7 +1037,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       await client.connect(); const db = client.db(databaseName); const collection = db.collection('employee_hr_leave'); const now = new Date();
-      const result = await collection.updateOne({ employeeId, active: true }, { $set: { ...values, updatedAt: now, updatedBy: clean(req.adminSession?.email).toLowerCase() } });
+      const existing = await collection.findOne({ employeeId, active: true });
+      if (!existing) return res.status(404).json({ error: 'Open leave case not found.' });
+      const update = { $set: { ...values, updatedAt: now, updatedBy: clean(req.adminSession?.email).toLowerCase() } };
+      if (clean(existing.payrollStartDate) !== values.payrollStartDate || clean(existing.payrollEndDate) !== values.payrollEndDate) {
+        update.$unset = { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' };
+      }
+      const result = await collection.updateOne({ _id: existing._id }, update);
       if (!result.matchedCount) return res.status(404).json({ error: 'Open leave case not found.' }); return res.json(values);
     } catch (error) { console.error('Unable to save Medical Leave details:', error); return res.status(500).json({ error: 'Medical Leave details could not be saved.' }); }
     finally { await client.close(); }
@@ -1052,6 +1060,25 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const now = new Date(); const reviewer = clean(req.adminSession?.email).toLowerCase(); const saved = { ...tracker, fieldsSnapshot: catalog, updatedAt: now, updatedBy: reviewer, checkedAt: action === 'check' ? now : null, checkedBy: action === 'check' ? reviewer : '' };
       await collection.updateOne({ _id: record._id }, { $set: { medicalFileTracker: saved, updatedAt: now, updatedBy: reviewer } }); return res.json({ medicalFileTracker: saved });
     } catch (error) { console.error('Unable to save Medical File Check:', error); return res.status(500).json({ error: 'The Medical File Check could not be saved.' }); }
+    finally { await client.close(); }
+  });
+
+  router.put('/leaves/:employeeId/payroll-review', async (req, res) => {
+    const employeeId = req.params.employeeId; const action = clean(req.body?.action).toLowerCase();
+    if (!ObjectId.isValid(employeeId) || !['admin-check', 'final-review'].includes(action)) return res.status(400).json({ error: 'Invalid Medical Leave payroll action.' });
+    const reviewer = clean(req.adminSession?.email).toLowerCase();
+    if (action === 'final-review' && reviewer !== finalReviewerEmail) return res.status(403).json({ error: 'Only the upper-level manager can perform Payroll Final Review.' });
+    const client = createClient();
+    try {
+      await client.connect(); const collection = client.db(databaseName).collection('employee_hr_leave'); const record = await collection.findOne({ employeeId, active: true });
+      if (!record) return res.status(404).json({ error: 'Open leave case not found.' });
+      if (!record.payrollStartDate || !record.payrollEndDate) return res.status(400).json({ error: 'Affected Payroll Start Date and End Date are required before payroll review.' });
+      if (action === 'final-review' && !record.payrollCheckedAt) return res.status(400).json({ error: 'Payroll Admin Check is required before final review.' });
+      const now = new Date(); const set = action === 'admin-check'
+        ? { payrollCheckedAt: now, payrollCheckedBy: reviewer, payrollFinalReviewedAt: null, payrollFinalReviewedBy: '', updatedAt: now, updatedBy: reviewer }
+        : { payrollFinalReviewedAt: now, payrollFinalReviewedBy: reviewer, updatedAt: now, updatedBy: reviewer };
+      await collection.updateOne({ _id: record._id }, { $set: set }); return res.json(set);
+    } catch (error) { console.error('Unable to save Medical Leave payroll review:', error); return res.status(500).json({ error: 'Medical Leave payroll review could not be saved.' }); }
     finally { await client.close(); }
   });
 
