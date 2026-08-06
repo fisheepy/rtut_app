@@ -765,13 +765,11 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         const payroll = _employmentChange.payroll === true;
         const insurance = _employmentChange.insurance === true;
         const retirement = _employmentChange.retirement === true;
-        const trackOther = _employmentChange.trackOther === true;
         const result = await collection.updateOne(
             { _id: new ObjectId(employeeId) },
             { $set: employeeUpdate }
         );
-        if (payroll || insurance || retirement || trackOther) {
-            await db.collection('employee_hr_employment_change').insertOne({
+        await db.collection('employee_hr_employment_change').insertOne({
                 employeeId,
                 employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),
                 employeeEmail: employeeUpdate.Email ?? existing.Email ?? '',
@@ -784,12 +782,11 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                     payroll: { required: payroll, applicable: payroll ? null : false, actionDate: '', checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
                     insurance: { required: insurance, applicable: insurance ? null : false, actionDate: '', checkedAt: null, checkedBy: '' },
                     retirement: { required: retirement, applicable: retirement ? null : false, actionDate: '', checkedAt: null, checkedBy: '' },
-                    followUp: { required: trackOther, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
+                    followUp: { required: false, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
                 },
                 createdAt: new Date(), createdBy: adminSession?.email || '',
             });
-        }
-        return { found: true, changed: result.modifiedCount > 0, tracked: payroll || insurance || retirement || trackOther };
+        return { found: true, changed: result.modifiedCount > 0, tracked: true };
     } catch (error) {
         console.error('Error updating employee in database:', error);
         throw error;

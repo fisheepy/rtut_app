@@ -263,9 +263,8 @@ function EmployeeSelectionComponent() {
     const handleSaveChanges = async () => {
         const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(selectedEmployee?.[field] || '').trim());
         if (!changedFields.length) return setEditError('No information has been changed.');
-        const tracked = changeDetails.payroll || changeDetails.insurance || changeDetails.retirement || changeDetails.trackOther;
         const review = changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} → ${selectedEmployee[field] || '(blank)'}`).join('\n');
-        if (!window.confirm(`Review the following employee changes:\n\n${review}\n\nCompany App information will be updated immediately.${tracked ? '\nRequired follow-up will also be sent to HR Platform.' : ''}`)) return;
+        if (!window.confirm(`Review the following employee changes:\n\n${review}\n\nCompany App information will be updated immediately. This change record will automatically be sent to Employment Change on HR Platform.`)) return;
         try {
             const updatedEmployee = { ...originalEmployee };
             changedFields.forEach(field => { updatedEmployee[field] = selectedEmployee[field]; });
@@ -630,12 +629,11 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                 />
                             </Grid>
-                            <Grid item xs={12}><Typography variant="h6">HR Action Tracking</Typography><Typography variant="body2" color="text.secondary">Payroll, Insurance, and 401(k) changes are always transferred to HR Platform. For other changes, choose whether HR follow-up is needed.</Typography></Grid>
+                            <Grid item xs={12}><Typography variant="h6">HR Action Tracking</Typography><Typography variant="body2" color="text.secondary">Every employee information change is automatically transferred to Employment Change on HR Platform. Select any related payroll or benefit actions below.</Typography></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked }))} />} label="Payroll change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
-                            <Grid item xs={12}><FormControlLabel control={<Checkbox checked={changeDetails.trackOther} onChange={event => setChangeDetails(current => ({ ...current, trackOther: event.target.checked }))} />} label="Track this non-financial change in HR Platform" /></Grid>
-                            {(changeDetails.payroll || changeDetails.insurance || changeDetails.retirement || changeDetails.trackOther) && <Grid item xs={12}><Alert severity="info">This record will be sent to Employment Change. HR Action Date and follow-up details will be entered there.</Alert></Grid>}
+                            <Grid item xs={12}><Alert severity="info">This change record will be sent to Employment Change automatically. Action dates and any follow-up details will be entered on HR Platform.</Alert></Grid>
                         </Grid>
                     )}
                 </DialogContent>
