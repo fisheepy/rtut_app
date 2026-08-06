@@ -1,72 +1,1419 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft, Download, ExternalLink, Filter, HeartPulse, ListPlus, Plus, RefreshCw, Search, Settings, Trash2, X } from 'lucide-react'
-import { api } from '../shared/api'
-import { isAuthenticationError, SessionExpired } from '../shared/hrPlatformUi'
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  Filter,
+  HeartPulse,
+  ListPlus,
+  Plus,
+  RefreshCw,
+  Search,
+  Settings,
+  Trash2,
+  X,
+} from "lucide-react";
+import { api } from "../shared/api";
+import { isAuthenticationError, SessionExpired } from "../shared/hrPlatformUi";
 
-type TrackerField = { id: string; label: string; options: string[]; active?: boolean }
-type Tracker = { responses?: Record<string,string>; comments?: string; fieldsSnapshot?: TrackerField[]; checkedAt?: string|null; checkedBy?: string }
-type CaseLog = { id:string; date:string; description:string; createdBy?:string; updatedBy?:string }
+type TrackerField = {
+  id: string;
+  label: string;
+  options: string[];
+  active?: boolean;
+};
+type Tracker = {
+  responses?: Record<string, string>;
+  comments?: string;
+  fieldsSnapshot?: TrackerField[];
+  checkedAt?: string | null;
+  checkedBy?: string;
+};
+type CaseLog = {
+  id: string;
+  date: string;
+  description: string;
+  createdBy?: string;
+  updatedBy?: string;
+};
 type LeaveEmployee = {
-  id:string; name:string; email:string; phone:string; status:string; hireDate:string; department:string; jobTitle:string; location:string; supervisor:string;
-  leaveStartedAt:string|null; returnedAt:string|null; caseStatus:string; anticipatedReturnDate:string; actualReturnDate:string; medicalFolderUrl:string;
-  payrollStartDate:string; payrollEndDate:string; insuranceStatus:string; insuranceEndDate:string; cobraStartDate:string; caseLogs:CaseLog[]; medicalFileTracker:Tracker; payrollCheckedAt:string|null; payrollCheckedBy:string; payrollFinalReviewedAt:string|null; payrollFinalReviewedBy:string;
-}
-type Details = { leaveStartedAt:string; anticipatedReturnDate:string; actualReturnDate:string; medicalFolderUrl:string; payrollStartDate:string; payrollEndDate:string; insuranceStatus:string; insuranceEndDate:string; cobraStartDate:string }
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: string;
+  hireDate: string;
+  department: string;
+  jobTitle: string;
+  location: string;
+  supervisor: string;
+  leaveStartedAt: string | null;
+  returnedAt: string | null;
+  caseStatus: string;
+  anticipatedReturnDate: string;
+  actualReturnDate: string;
+  medicalFolderUrl: string;
+  payrollStartDate: string;
+  payrollEndDate: string;
+  firstPayrollAfterLeaveDate: string;
+  insuranceStatus: string;
+  insuranceEndDate: string;
+  cobraStartDate: string;
+  caseLogs: CaseLog[];
+  medicalFileTracker: Tracker;
+  payrollCheckedAt: string | null;
+  payrollCheckedBy: string;
+  payrollFinalReviewedAt: string | null;
+  payrollFinalReviewedBy: string;
+};
+type Details = {
+  leaveStartedAt: string;
+  anticipatedReturnDate: string;
+  actualReturnDate: string;
+  medicalFolderUrl: string;
+  payrollStartDate: string;
+  payrollEndDate: string;
+  firstPayrollAfterLeaveDate: string;
+  insuranceStatus: string;
+  insuranceEndDate: string;
+  cobraStartDate: string;
+};
 
-const dateDisplay = (value?:string|null) => value ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value).toLocaleDateString('en-US') : '--'
-const dateInput = (value?:string|null) => value ? String(value).slice(0,10) : ''
+const dateDisplay = (value?: string | null) =>
+  value
+    ? new Date(
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+      ).toLocaleDateString("en-US")
+    : "--";
+const dateInput = (value?: string | null) =>
+  value ? String(value).slice(0, 10) : "";
 
 export default function MedicalLeave() {
-  const [employees,setEmployees]=useState<LeaveEmployee[]>([]); const [fields,setFields]=useState<TrackerField[]>([]); const [loading,setLoading]=useState(true); const [error,setError]=useState('')
-  const [query,setQuery]=useState(''); const [showFilters,setShowFilters]=useState(false); const [department,setDepartment]=useState(''); const [location,setLocation]=useState('')
-  const [appStatus,setAppStatus]=useState(''); const [payrollStatus,setPayrollStatus]=useState(''); const [leaveFrom,setLeaveFrom]=useState(''); const [leaveTo,setLeaveTo]=useState(''); const [userEmail,setUserEmail]=useState('')
-  const [editing,setEditing]=useState<LeaveEmployee|null>(null); const [details,setDetails]=useState<Details>({leaveStartedAt:'',anticipatedReturnDate:'',actualReturnDate:'',medicalFolderUrl:'',payrollStartDate:'',payrollEndDate:'',insuranceStatus:'',insuranceEndDate:'',cobraStartDate:''})
-  const [tracking,setTracking]=useState<LeaveEmployee|null>(null); const [tracker,setTracker]=useState<Tracker>({responses:{},comments:''}); const [modalError,setModalError]=useState('')
-  const [showManager,setShowManager]=useState(false); const [drafts,setDrafts]=useState<TrackerField[]>([]); const [newLabel,setNewLabel]=useState(''); const [newOptions,setNewOptions]=useState('Complete, Missing, Not Applicable')
-  const [logging,setLogging]=useState<LeaveEmployee|null>(null)
+  const [employees, setEmployees] = useState<LeaveEmployee[]>([]);
+  const [fields, setFields] = useState<TrackerField[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [department, setDepartment] = useState("");
+  const [location, setLocation] = useState("");
+  const [appStatus, setAppStatus] = useState("");
+  const [payrollStatus, setPayrollStatus] = useState("");
+  const [leaveFrom, setLeaveFrom] = useState("");
+  const [leaveTo, setLeaveTo] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [editing, setEditing] = useState<LeaveEmployee | null>(null);
+  const [details, setDetails] = useState<Details>({
+    leaveStartedAt: "",
+    anticipatedReturnDate: "",
+    actualReturnDate: "",
+    medicalFolderUrl: "",
+    payrollStartDate: "",
+    payrollEndDate: "",
+    firstPayrollAfterLeaveDate: "",
+    insuranceStatus: "",
+    insuranceEndDate: "",
+    cobraStartDate: "",
+  });
+  const [tracking, setTracking] = useState<LeaveEmployee | null>(null);
+  const [tracker, setTracker] = useState<Tracker>({
+    responses: {},
+    comments: "",
+  });
+  const [modalError, setModalError] = useState("");
+  const [showManager, setShowManager] = useState(false);
+  const [drafts, setDrafts] = useState<TrackerField[]>([]);
+  const [newLabel, setNewLabel] = useState("");
+  const [newOptions, setNewOptions] = useState(
+    "Complete, Missing, Not Applicable",
+  );
+  const [logging, setLogging] = useState<LeaveEmployee | null>(null);
 
-  async function load(){setLoading(true);setError('');try{const [leaveResponse,fieldResponse,authResponse]=await Promise.all([api.get('/hr-platform/leaves'),api.get('/hr-platform/medical-leave-file-tracker-fields'),api.get('/hr-tools-auth/me')]);setEmployees(leaveResponse.data||[]);setFields(fieldResponse.data.fields||[]);setUserEmail(authResponse.data.email||'')}catch(requestError:any){setError(requestError.response?.data?.error||'FMLA / ADA / Medical Leave records could not be loaded.')}finally{setLoading(false)}}
-  useEffect(()=>{load()},[])
-  const visible=useMemo(()=>employees.filter(employee=>{const needle=query.trim().toLowerCase();if(needle&&!`${employee.name} ${employee.email} ${employee.phone} ${employee.department} ${employee.jobTitle} ${employee.location} ${employee.supervisor}`.toLowerCase().includes(needle))return false;if(department&&employee.department!==department)return false;if(location&&employee.location!==location)return false;if(appStatus&&employee.status.toLowerCase()!==appStatus)return false;const start=dateInput(employee.leaveStartedAt);if(leaveFrom&&start<leaveFrom)return false;if(leaveTo&&start>leaveTo)return false;if(payrollStatus==='needed'&&employee.payrollFinalReviewedAt)return false;if(payrollStatus==='admin'&&(!employee.payrollCheckedAt||employee.payrollFinalReviewedAt))return false;if(payrollStatus==='finished'&&!employee.payrollFinalReviewedAt)return false;return true}),[employees,query,department,location,appStatus,payrollStatus,leaveFrom,leaveTo])
-  const departments=[...new Set(employees.map(employee=>employee.department).filter(Boolean))].sort(); const locations=[...new Set(employees.map(employee=>employee.location).filter(Boolean))].sort()
-  function openDetails(employee:LeaveEmployee){setEditing(employee);setDetails({leaveStartedAt:dateInput(employee.leaveStartedAt),anticipatedReturnDate:dateInput(employee.anticipatedReturnDate),actualReturnDate:dateInput(employee.actualReturnDate),medicalFolderUrl:employee.medicalFolderUrl||'',payrollStartDate:dateInput(employee.payrollStartDate),payrollEndDate:dateInput(employee.payrollEndDate),insuranceStatus:employee.insuranceStatus||'',insuranceEndDate:dateInput(employee.insuranceEndDate),cobraStartDate:dateInput(employee.cobraStartDate)});setModalError('')}
-  async function saveDetails(){if(!editing)return;try{await api.put(`/hr-platform/leaves/${editing.id}/details`,details);setEditing(null);await load()}catch(requestError:any){setModalError(requestError.response?.data?.error||'Medical Leave details could not be saved.')}}
-  function openTracker(employee:LeaveEmployee){setTracking(employee);setTracker(employee.medicalFileTracker?.fieldsSnapshot?employee.medicalFileTracker:{responses:{},comments:''});setModalError('')}
-  async function saveTracker(action:'save'|'check'){if(!tracking)return;if(action==='check'&&!window.confirm(`Confirm Medical File Check for ${tracking.name}?`))return;try{await api.put(`/hr-platform/leaves/${tracking.id}/medical-file-tracker`,{action,tracker});setTracking(null);await load()}catch(requestError:any){setModalError(requestError.response?.data?.error||'Medical File Check could not be saved.')}}
-  async function payrollReview(employee:LeaveEmployee,action:'admin-check'|'final-review'){const label=action==='admin-check'?'Payroll Admin Check':'Payroll Final Review';if(!window.confirm(`Confirm ${label} for ${employee.name}?`))return;try{await api.put(`/hr-platform/leaves/${employee.id}/payroll-review`,{action});await load()}catch(requestError:any){setError(requestError.response?.data?.error||`${label} could not be saved.`)}}
-  async function closeCase(employee:LeaveEmployee){if(!window.confirm(`Close the Medical Leave case for ${employee.name}? Closed cases remain available in the history report.`))return;try{await api.put(`/hr-platform/leaves/${employee.id}/close`);await load()}catch(requestError:any){setError(requestError.response?.data?.error||'The Medical Leave case could not be closed.')}}
-  async function downloadHistory(){try{const response=await api.get('/hr-platform/leaves/reports/history.xlsx',{responseType:'blob'});const url=URL.createObjectURL(response.data);const link=document.createElement('a');link.href=url;link.download='Medical_Leave_Current_and_History.xlsx';link.click();URL.revokeObjectURL(url)}catch(requestError:any){setError(requestError.response?.data?.error||'Medical Leave history report could not be downloaded.')}}
-  async function saveLog(employee:LeaveEmployee,entry:{date:string;description:string;id?:string}){try{if(entry.id)await api.put(`/hr-platform/leaves/${employee.id}/logs/${entry.id}`,entry);else await api.post(`/hr-platform/leaves/${employee.id}/logs`,entry);setLogging(null);await load()}catch(requestError:any){setError(requestError.response?.data?.error||'The case log could not be saved.')}}
-  async function deleteLog(employee:LeaveEmployee,logId:string){if(!window.confirm('Remove this case log entry?'))return;try{await api.delete(`/hr-platform/leaves/${employee.id}/logs/${logId}`);setLogging(null);await load()}catch(requestError:any){setError(requestError.response?.data?.error||'The case log could not be removed.')}}
-  function openManager(){setDrafts(fields.map(field=>({...field,options:[...field.options]})));setShowManager(true)}
-  async function saveManager(){if(!window.confirm('Review complete. Save Medical File Check changes? These changes apply only to future Medical Leave cases.'))return;try{const removed=fields.filter(field=>!drafts.some(draft=>draft.id===field.id));await Promise.all(removed.map(field=>api.delete(`/hr-platform/medical-leave-file-tracker-fields/${field.id}`)));for(const field of drafts){if(field.id.startsWith('new-'))await api.post('/hr-platform/medical-leave-file-tracker-fields',{label:field.label,options:field.options});else await api.put(`/hr-platform/medical-leave-file-tracker-fields/${field.id}`,field)}setShowManager(false);await load()}catch(requestError:any){setError(requestError.response?.data?.error||'Medical File Check Manager could not be saved.')}}
-  function addDraft(){const label=newLabel.trim(),options=newOptions.split(',').map(value=>value.trim()).filter(Boolean);if(!label||options.length<2)return;setDrafts(current=>[...current,{id:`new-${Date.now()}`,label,options,active:true}]);setNewLabel('')}
-  if(!loading&&isAuthenticationError(error))return <SessionExpired />
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const [leaveResponse, fieldResponse, authResponse] = await Promise.all([
+        api.get("/hr-platform/leaves"),
+        api.get("/hr-platform/medical-leave-file-tracker-fields"),
+        api.get("/hr-tools-auth/me"),
+      ]);
+      setEmployees(leaveResponse.data || []);
+      setFields(fieldResponse.data.fields || []);
+      setUserEmail(authResponse.data.email || "");
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "FMLA / ADA / Medical Leave records could not be loaded.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    load();
+  }, []);
+  const visible = useMemo(
+    () =>
+      employees.filter((employee) => {
+        const needle = query.trim().toLowerCase();
+        if (
+          needle &&
+          !`${employee.name} ${employee.email} ${employee.phone} ${employee.department} ${employee.jobTitle} ${employee.location} ${employee.supervisor}`
+            .toLowerCase()
+            .includes(needle)
+        )
+          return false;
+        if (department && employee.department !== department) return false;
+        if (location && employee.location !== location) return false;
+        if (appStatus && employee.status.toLowerCase() !== appStatus)
+          return false;
+        const start = dateInput(employee.leaveStartedAt);
+        if (leaveFrom && start < leaveFrom) return false;
+        if (leaveTo && start > leaveTo) return false;
+        if (payrollStatus === "needed" && employee.payrollFinalReviewedAt)
+          return false;
+        if (
+          payrollStatus === "admin" &&
+          (!employee.payrollCheckedAt || employee.payrollFinalReviewedAt)
+        )
+          return false;
+        if (payrollStatus === "finished" && !employee.payrollFinalReviewedAt)
+          return false;
+        return true;
+      }),
+    [
+      employees,
+      query,
+      department,
+      location,
+      appStatus,
+      payrollStatus,
+      leaveFrom,
+      leaveTo,
+    ],
+  );
+  const departments = [
+    ...new Set(
+      employees.map((employee) => employee.department).filter(Boolean),
+    ),
+  ].sort();
+  const locations = [
+    ...new Set(employees.map((employee) => employee.location).filter(Boolean)),
+  ].sort();
+  function openDetails(employee: LeaveEmployee) {
+    setEditing(employee);
+    setDetails({
+      leaveStartedAt: dateInput(employee.leaveStartedAt),
+      anticipatedReturnDate: dateInput(employee.anticipatedReturnDate),
+      actualReturnDate: dateInput(employee.actualReturnDate),
+      medicalFolderUrl: employee.medicalFolderUrl || "",
+      payrollStartDate: dateInput(employee.payrollStartDate),
+      payrollEndDate: dateInput(employee.payrollEndDate),
+      firstPayrollAfterLeaveDate: dateInput(employee.firstPayrollAfterLeaveDate),
+      insuranceStatus: employee.insuranceStatus || "",
+      insuranceEndDate: dateInput(employee.insuranceEndDate),
+      cobraStartDate: dateInput(employee.cobraStartDate),
+    });
+    setModalError("");
+  }
+  async function saveDetails() {
+    if (!editing) return;
+    try {
+      await api.put(`/hr-platform/leaves/${editing.id}/details`, details);
+      setEditing(null);
+      await load();
+    } catch (requestError: any) {
+      setModalError(
+        requestError.response?.data?.error ||
+          "Medical Leave details could not be saved.",
+      );
+    }
+  }
+  function openTracker(employee: LeaveEmployee) {
+    setTracking(employee);
+    setTracker(
+      employee.medicalFileTracker?.fieldsSnapshot
+        ? employee.medicalFileTracker
+        : { responses: {}, comments: "" },
+    );
+    setModalError("");
+  }
+  async function saveTracker(action: "save" | "check") {
+    if (!tracking) return;
+    if (
+      action === "check" &&
+      !window.confirm(`Confirm Medical File Check for ${tracking.name}?`)
+    )
+      return;
+    try {
+      await api.put(`/hr-platform/leaves/${tracking.id}/medical-file-tracker`, {
+        action,
+        tracker,
+      });
+      setTracking(null);
+      await load();
+    } catch (requestError: any) {
+      setModalError(
+        requestError.response?.data?.error ||
+          "Medical File Check could not be saved.",
+      );
+    }
+  }
+  async function payrollReview(
+    employee: LeaveEmployee,
+    action: "admin-check" | "final-review",
+  ) {
+    const label =
+      action === "admin-check" ? "Payroll Admin Check" : "Payroll Final Review";
+    if (!window.confirm(`Confirm ${label} for ${employee.name}?`)) return;
+    try {
+      await api.put(`/hr-platform/leaves/${employee.id}/payroll-review`, {
+        action,
+      });
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error || `${label} could not be saved.`,
+      );
+    }
+  }
+  async function closeCase(employee: LeaveEmployee) {
+    if (
+      !window.confirm(
+        `Close the Medical Leave case for ${employee.name}? Closed cases remain available in the history report.`,
+      )
+    )
+      return;
+    try {
+      await api.put(`/hr-platform/leaves/${employee.id}/close`);
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The Medical Leave case could not be closed.",
+      );
+    }
+  }
+  async function downloadHistory() {
+    try {
+      const response = await api.get(
+        "/hr-platform/leaves/reports/history.xlsx",
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Medical_Leave_Current_and_History.xlsx";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "Medical Leave history report could not be downloaded.",
+      );
+    }
+  }
+  async function saveLog(
+    employee: LeaveEmployee,
+    entry: { date: string; description: string; id?: string },
+  ) {
+    try {
+      if (entry.id)
+        await api.put(
+          `/hr-platform/leaves/${employee.id}/logs/${entry.id}`,
+          entry,
+        );
+      else await api.post(`/hr-platform/leaves/${employee.id}/logs`, entry);
+      setLogging(null);
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The case log could not be saved.",
+      );
+    }
+  }
+  async function deleteLog(employee: LeaveEmployee, logId: string) {
+    if (!window.confirm("Remove this case log entry?")) return;
+    try {
+      await api.delete(`/hr-platform/leaves/${employee.id}/logs/${logId}`);
+      setLogging(null);
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "The case log could not be removed.",
+      );
+    }
+  }
+  function openManager() {
+    setDrafts(
+      fields.map((field) => ({ ...field, options: [...field.options] })),
+    );
+    setShowManager(true);
+  }
+  async function saveManager() {
+    if (
+      !window.confirm(
+        "Review complete. Save Medical File Check changes? These changes apply only to future Medical Leave cases.",
+      )
+    )
+      return;
+    try {
+      const removed = fields.filter(
+        (field) => !drafts.some((draft) => draft.id === field.id),
+      );
+      await Promise.all(
+        removed.map((field) =>
+          api.delete(
+            `/hr-platform/medical-leave-file-tracker-fields/${field.id}`,
+          ),
+        ),
+      );
+      for (const field of drafts) {
+        if (field.id.startsWith("new-"))
+          await api.post("/hr-platform/medical-leave-file-tracker-fields", {
+            label: field.label,
+            options: field.options,
+          });
+        else
+          await api.put(
+            `/hr-platform/medical-leave-file-tracker-fields/${field.id}`,
+            field,
+          );
+      }
+      setShowManager(false);
+      await load();
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "Medical File Check Manager could not be saved.",
+      );
+    }
+  }
+  function addDraft() {
+    const label = newLabel.trim(),
+      options = newOptions
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+    if (!label || options.length < 2) return;
+    setDrafts((current) => [
+      ...current,
+      { id: `new-${Date.now()}`, label, options, active: true },
+    ]);
+    setNewLabel("");
+  }
+  if (!loading && isAuthenticationError(error)) return <SessionExpired />;
 
-  return <div className="space-y-7 pb-12">
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-900 px-7 py-8 text-white shadow-2xl"><Link className="inline-flex items-center gap-2 text-sm font-semibold text-violet-100" to="/hr-platform"><ArrowLeft className="h-4 w-4"/>Back to HR Platform</Link><div className="mt-6 flex flex-wrap items-end justify-between gap-4"><div><div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider"><HeartPulse className="h-4 w-4"/>Protected & Medical Leave</div><h1 className="mt-3 text-4xl font-semibold">FMLA / ADA / Medical Leave</h1><p className="mt-2 max-w-3xl text-sm text-violet-100">Manage leave dates, affected payroll periods, medical folders, and required medical file checks.</p></div><div className="flex flex-wrap gap-2"><button className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold" onClick={openManager}><Settings className="h-4 w-4"/>Medical File Check Manager</button><button className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold" onClick={downloadHistory}><Download className="h-4 w-4"/>Current & History Report</button><button className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-950" onClick={load}><RefreshCw className={`h-4 w-4 ${loading?'animate-spin':''}`}/>Refresh</button></div></div></section>
-    {error&&<div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">{error}</div>}
-    <section className="max-w-sm"><Card label="Open Leave Cases" value={String(employees.length)} tone="violet"/></section>
-    <section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="flex flex-wrap items-center gap-3"><label className="relative min-w-72 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400"/><input className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm" placeholder="Search name, email, phone, department, title, location, or supervisor..." value={query} onChange={event=>setQuery(event.target.value)}/></label><button className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={()=>setShowFilters(value=>!value)}><Filter className="h-4 w-4"/>Filters</button><span className="text-sm font-bold text-slate-500">{visible.length} cases</span></div>{showFilters&&<div className="mt-4 grid gap-3 border-t pt-4 md:grid-cols-4"><SelectFilter label="Department" value={department} setValue={setDepartment} options={departments}/><SelectFilter label="Location" value={location} setValue={setLocation} options={locations}/><SelectFilter label="Company App Status" value={appStatus} setValue={setAppStatus} options={['leave','active']} displayOptions={['Leave','Active']}/><SelectFilter label="Payroll Review Status" value={payrollStatus} setValue={setPayrollStatus} options={['needed','admin','finished']} displayOptions={['Action Needed','Admin Checked','Final Reviewed']}/><DateFilter label="Leave Started From" value={leaveFrom} setValue={setLeaveFrom}/><DateFilter label="Leave Started To" value={leaveTo} setValue={setLeaveTo}/><button className="self-end rounded-xl border px-4 py-2.5 text-sm font-bold" onClick={()=>{setDepartment('');setLocation('');setAppStatus('');setPayrollStatus('');setLeaveFrom('');setLeaveTo('');setQuery('')}}>Reset All Filters</button></div>}</section>
-    <section className="overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-xl"><div className="border-b bg-violet-50 px-6 py-5"><h2 className="text-xl font-bold text-violet-950">Open Leave Cases</h2><p className="text-sm text-violet-700">Click a date or payroll period to edit case details. Affected Payroll End Date may remain blank until known.</p></div><div className="max-h-[650px] overflow-auto"><table className="min-w-[2650px] w-full text-sm"><thead className="sticky top-0 z-20 bg-slate-100 text-left text-xs uppercase text-slate-600"><tr>{['Employee','Department','Job Title','Location','Supervisor','Email','Company App Status','Leave Started','Anticipated Return','Return to Work','Medical Folder','Medical File Check','Insurance Status','Affected Payroll Start Date','Affected Payroll End Date','Payroll Admin Check','Payroll Final Review','Case Log','Close Case'].map((label,index)=><th className={`whitespace-nowrap px-4 py-3 ${index===0?'sticky left-0 z-30 bg-slate-100':''}`} key={label}>{label}</th>)}</tr></thead><tbody>{visible.map(employee=><tr className="border-t hover:bg-violet-50/40" key={employee.id}><td className="sticky left-0 z-10 min-w-56 border-r-4 border-violet-100 bg-white px-4 py-3 font-bold">{employee.name}<div className="text-xs font-normal text-slate-500">Open case</div></td><td className="px-4 py-3">{employee.department||'--'}</td><td className="px-4 py-3">{employee.jobTitle||'--'}</td><td className="px-4 py-3">{employee.location||'--'}</td><td className="px-4 py-3">{employee.supervisor||'--'}</td><td className="px-4 py-3">{employee.email||'--'}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${employee.status.toLowerCase()==='leave'?'bg-violet-100 text-violet-800':employee.status.toLowerCase()==='terminated'?'bg-rose-100 text-rose-800':'bg-emerald-100 text-emerald-800'}`}>{employee.status}</span></td><ClickCell value={dateDisplay(employee.leaveStartedAt)} onClick={()=>openDetails(employee)}/><ClickCell value={dateDisplay(employee.anticipatedReturnDate)} onClick={()=>openDetails(employee)}/><ClickCell value={dateDisplay(employee.actualReturnDate)} onClick={()=>openDetails(employee)}/><td className="px-4 py-3">{employee.medicalFolderUrl?<span className="flex items-center gap-2"><a className="font-bold text-violet-700" href={employee.medicalFolderUrl} target="_blank" rel="noreferrer">Open <ExternalLink className="inline h-3 w-3"/></a><button className="text-xs font-bold text-slate-600" onClick={()=>openDetails(employee)}>Edit</button></span>:<button className="font-bold text-violet-700" onClick={()=>openDetails(employee)}>Add Folder</button>}</td><td className="px-4 py-3"><button className={`rounded-lg px-3 py-2 text-xs font-bold ${employee.medicalFileTracker?.checkedAt?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-900 ring-1 ring-amber-300'}`} onClick={()=>openTracker(employee)}>{employee.medicalFileTracker?.checkedAt?'File Checked':'Medical File Check'}</button></td><td className="px-4 py-3"><button className={`rounded-lg px-3 py-2 text-xs font-bold ${employee.insuranceStatus==='cobra'?'bg-blue-100 text-blue-800':'bg-emerald-100 text-emerald-800'}`} onClick={()=>openDetails(employee)}>{employee.insuranceStatus==='cobra'?'COBRA':employee.insuranceStatus==='ongoing'?'Ongoing':'Set Status'}</button></td><ClickCell value={dateDisplay(employee.payrollStartDate)} onClick={()=>openDetails(employee)} required={!employee.payrollStartDate}/><ClickCell value={dateDisplay(employee.payrollEndDate)} onClick={()=>openDetails(employee)}/><td className="px-4 py-3">{employee.payrollCheckedAt?<StatusPill label="Admin Checked"/>:<ReviewButton label="Payroll Admin Check" onClick={()=>payrollReview(employee,'admin-check')} disabled={!employee.payrollStartDate}/>}</td><td className="px-4 py-3">{employee.payrollFinalReviewedAt?<StatusPill label="Final Reviewed"/>:userEmail.toLowerCase()==='myu@royaltrailersales.com'?<ReviewButton label="Payroll Final Review" onClick={()=>payrollReview(employee,'final-review')} disabled={!employee.payrollCheckedAt||!employee.payrollEndDate}/>:<span className="text-xs font-bold text-violet-700">Upper-Level Manager Review Needed</span>}</td><td className="px-4 py-3"><button className="inline-flex items-center gap-1 rounded-lg border border-violet-300 px-3 py-2 text-xs font-bold text-violet-800" onClick={()=>setLogging(employee)}><ListPlus className="h-3.5 w-3.5"/>Log ({employee.caseLogs?.length||0})</button></td><td className="px-4 py-3"><button className="rounded-lg border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700" onClick={()=>closeCase(employee)}>Close Case</button></td></tr>)}{!visible.length&&<tr><td className="px-6 py-14 text-center text-slate-500" colSpan={19}>{loading?'Loading leave cases...':'No leave cases match the selected filters.'}</td></tr>}</tbody></table></div></section>
-    {editing&&<DetailsModal employee={editing} value={details} setValue={setDetails} error={modalError} save={saveDetails} close={()=>setEditing(null)}/>}
-    {tracking&&<TrackerModal employee={tracking} tracker={tracker} setTracker={setTracker} fallback={fields} error={modalError} save={saveTracker} close={()=>setTracking(null)}/>}
-    {showManager&&<Manager fields={drafts} setFields={setDrafts} newLabel={newLabel} setNewLabel={setNewLabel} newOptions={newOptions} setNewOptions={setNewOptions} add={addDraft} save={saveManager} close={()=>setShowManager(false)}/>}
-    {logging&&<LogModal employee={logging} save={entry=>saveLog(logging,entry)} remove={logId=>deleteLog(logging,logId)} close={()=>setLogging(null)}/>}
-  </div>
+  return (
+    <div className="space-y-7 pb-12">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-900 px-7 py-8 text-white shadow-2xl">
+        <Link
+          className="inline-flex items-center gap-2 text-sm font-semibold text-violet-100"
+          to="/hr-platform"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to HR Platform
+        </Link>
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+              <HeartPulse className="h-4 w-4" />
+              Protected & Medical Leave
+            </div>
+            <h1 className="mt-3 text-4xl font-semibold">
+              FMLA / ADA / Medical Leave
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-violet-100">
+              Manage leave dates, affected payroll periods, medical folders, and
+              required medical file checks.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
+              onClick={openManager}
+            >
+              <Settings className="h-4 w-4" />
+              Medical File Check Manager
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
+              onClick={downloadHistory}
+            >
+              <Download className="h-4 w-4" />
+              Current & History Report
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-950"
+              onClick={load}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </section>
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+          {error}
+        </div>
+      )}
+      <section className="max-w-sm">
+        <Card
+          label="Open Leave Cases"
+          value={String(employees.length)}
+          tone="violet"
+        />
+      </section>
+      <section className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="relative min-w-72 flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+            <input
+              className="w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm"
+              placeholder="Search name, email, phone, department, title, location, or supervisor..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <button
+            className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold"
+            onClick={() => setShowFilters((value) => !value)}
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+          </button>
+          <span className="text-sm font-bold text-slate-500">
+            {visible.length} cases
+          </span>
+        </div>
+        {showFilters && (
+          <div className="mt-4 grid gap-3 border-t pt-4 md:grid-cols-4">
+            <SelectFilter
+              label="Department"
+              value={department}
+              setValue={setDepartment}
+              options={departments}
+            />
+            <SelectFilter
+              label="Location"
+              value={location}
+              setValue={setLocation}
+              options={locations}
+            />
+            <SelectFilter
+              label="Company App Status"
+              value={appStatus}
+              setValue={setAppStatus}
+              options={["leave", "active"]}
+              displayOptions={["Leave", "Active"]}
+            />
+            <SelectFilter
+              label="Payroll Review Status"
+              value={payrollStatus}
+              setValue={setPayrollStatus}
+              options={["needed", "admin", "finished"]}
+              displayOptions={[
+                "Action Needed",
+                "Admin Checked",
+                "Final Reviewed",
+              ]}
+            />
+            <DateFilter
+              label="Leave Started From"
+              value={leaveFrom}
+              setValue={setLeaveFrom}
+            />
+            <DateFilter
+              label="Leave Started To"
+              value={leaveTo}
+              setValue={setLeaveTo}
+            />
+            <button
+              className="self-end rounded-xl border px-4 py-2.5 text-sm font-bold"
+              onClick={() => {
+                setDepartment("");
+                setLocation("");
+                setAppStatus("");
+                setPayrollStatus("");
+                setLeaveFrom("");
+                setLeaveTo("");
+                setQuery("");
+              }}
+            >
+              Reset All Filters
+            </button>
+          </div>
+        )}
+      </section>
+      <section className="overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-xl">
+        <div className="border-b bg-violet-50 px-6 py-5">
+          <h2 className="text-xl font-bold text-violet-950">
+            Open Leave Cases
+          </h2>
+          <p className="text-sm text-violet-700">
+            Click a date to edit case details. STD Approved Ending Date may
+            remain blank until known.
+          </p>
+        </div>
+        <div className="max-h-[650px] overflow-auto">
+          <table className="min-w-[2650px] w-full text-sm">
+            <thead className="sticky top-0 z-20 bg-slate-100 text-left text-xs uppercase text-slate-600">
+              <tr>
+                {[
+                  "Employee",
+                  "Department",
+                  "Job Title",
+                  "Location",
+                  "Supervisor",
+                  "Email",
+                  "Company App Status",
+                  "Leave Started",
+                  "Anticipated Return",
+                  "Return to Work",
+                  "Medical Folder",
+                  "Medical File Check",
+                  "Insurance Status",
+                  "Insurance End Date",
+                  "COBRA Start Date",
+                  "STD Approved Starting Date",
+                  "STD Approved Ending Date",
+                  "First Payroll After Leave Date",
+                  "Payroll Admin Check",
+                  "Payroll Final Review",
+                  "Case Log",
+                  "Close Case",
+                ].map((label, index) => (
+                  <th
+                    className={`whitespace-nowrap px-4 py-3 ${index === 0 ? "sticky left-0 z-30 bg-slate-100" : ""}`}
+                    key={label}
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((employee) => (
+                <tr
+                  className="border-t hover:bg-violet-50/40"
+                  key={employee.id}
+                >
+                  <td className="sticky left-0 z-10 min-w-56 border-r-4 border-violet-100 bg-white px-4 py-3 font-bold">
+                    {employee.name}
+                    <div className="text-xs font-normal text-slate-500">
+                      Open case
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">{employee.department || "--"}</td>
+                  <td className="px-4 py-3">{employee.jobTitle || "--"}</td>
+                  <td className="px-4 py-3">{employee.location || "--"}</td>
+                  <td className="px-4 py-3">{employee.supervisor || "--"}</td>
+                  <td className="px-4 py-3">{employee.email || "--"}</td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${employee.status.toLowerCase() === "leave" ? "bg-violet-100 text-violet-800" : employee.status.toLowerCase() === "terminated" ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"}`}
+                    >
+                      {employee.status}
+                    </span>
+                  </td>
+                  <ClickCell
+                    value={dateDisplay(employee.leaveStartedAt)}
+                    onClick={() => openDetails(employee)}
+                  />
+                  <ClickCell
+                    value={dateDisplay(employee.anticipatedReturnDate)}
+                    onClick={() => openDetails(employee)}
+                  />
+                  <ClickCell
+                    value={dateDisplay(employee.actualReturnDate)}
+                    onClick={() => openDetails(employee)}
+                  />
+                  <td className="px-4 py-3">
+                    {employee.medicalFolderUrl ? (
+                      <span className="flex items-center gap-2">
+                        <a
+                          className="font-bold text-violet-700"
+                          href={employee.medicalFolderUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open <ExternalLink className="inline h-3 w-3" />
+                        </a>
+                        <button
+                          className="text-xs font-bold text-slate-600"
+                          onClick={() => openDetails(employee)}
+                        >
+                          Edit
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        className="font-bold text-violet-700"
+                        onClick={() => openDetails(employee)}
+                      >
+                        Add Folder
+                      </button>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      className={`rounded-lg px-3 py-2 text-xs font-bold ${employee.medicalFileTracker?.checkedAt ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900 ring-1 ring-amber-300"}`}
+                      onClick={() => openTracker(employee)}
+                    >
+                      {employee.medicalFileTracker?.checkedAt
+                        ? "File Checked"
+                        : "Medical File Check"}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      className={`rounded-lg px-3 py-2 text-xs font-bold ${employee.insuranceStatus === "cobra" ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"}`}
+                      onClick={() => openDetails(employee)}
+                    >
+                      {employee.insuranceStatus === "cobra"
+                        ? "COBRA"
+                        : employee.insuranceStatus === "ongoing"
+                          ? "Ongoing"
+                          : "Set Status"}
+                    </button>
+                  </td>
+                  <ClickCell
+                    value={
+                      employee.insuranceStatus === "cobra"
+                        ? dateDisplay(employee.insuranceEndDate)
+                        : "--"
+                    }
+                    onClick={() => openDetails(employee)}
+                  />
+                  <ClickCell
+                    value={
+                      employee.insuranceStatus === "cobra"
+                        ? dateDisplay(employee.cobraStartDate)
+                        : "--"
+                    }
+                    onClick={() => openDetails(employee)}
+                  />
+                  <ClickCell
+                    value={dateDisplay(employee.payrollStartDate)}
+                    onClick={() => openDetails(employee)}
+                    required={!employee.payrollStartDate}
+                  />
+                  <ClickCell
+                    value={dateDisplay(employee.payrollEndDate)}
+                    onClick={() => openDetails(employee)}
+                  />
+                  <ClickCell
+                    value={dateDisplay(employee.firstPayrollAfterLeaveDate)}
+                    onClick={() => openDetails(employee)}
+                  />
+                  <td className="px-4 py-3">
+                    {employee.payrollCheckedAt ? (
+                      <StatusPill label="Admin Checked" />
+                    ) : (
+                      <ReviewButton
+                        label="Payroll Admin Check"
+                        onClick={() => payrollReview(employee, "admin-check")}
+                        disabled={!employee.payrollStartDate}
+                      />
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {employee.payrollFinalReviewedAt ? (
+                      <StatusPill label="Final Reviewed" />
+                    ) : userEmail.toLowerCase() ===
+                      "myu@royaltrailersales.com" ? (
+                      <ReviewButton
+                        label="Payroll Final Review"
+                        onClick={() => payrollReview(employee, "final-review")}
+                        disabled={
+                          !employee.payrollCheckedAt || !employee.payrollEndDate
+                        }
+                      />
+                    ) : (
+                      <span className="text-xs font-bold text-violet-700">
+                        Upper-Level Manager Review Needed
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      className="inline-flex items-center gap-1 rounded-lg border border-violet-300 px-3 py-2 text-xs font-bold text-violet-800"
+                      onClick={() => setLogging(employee)}
+                    >
+                      <ListPlus className="h-3.5 w-3.5" />
+                      Log ({employee.caseLogs?.length || 0})
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      className="rounded-lg border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700"
+                      onClick={() => closeCase(employee)}
+                    >
+                      Close Case
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {!visible.length && (
+                <tr>
+                  <td
+                    className="px-6 py-14 text-center text-slate-500"
+                    colSpan={22}
+                  >
+                    {loading
+                      ? "Loading leave cases..."
+                      : "No leave cases match the selected filters."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {editing && (
+        <DetailsModal
+          employee={editing}
+          value={details}
+          setValue={setDetails}
+          error={modalError}
+          save={saveDetails}
+          close={() => setEditing(null)}
+        />
+      )}
+      {tracking && (
+        <TrackerModal
+          employee={tracking}
+          tracker={tracker}
+          setTracker={setTracker}
+          fallback={fields}
+          error={modalError}
+          save={saveTracker}
+          close={() => setTracking(null)}
+        />
+      )}
+      {showManager && (
+        <Manager
+          fields={drafts}
+          setFields={setDrafts}
+          newLabel={newLabel}
+          setNewLabel={setNewLabel}
+          newOptions={newOptions}
+          setNewOptions={setNewOptions}
+          add={addDraft}
+          save={saveManager}
+          close={() => setShowManager(false)}
+        />
+      )}
+      {logging && (
+        <LogModal
+          employee={logging}
+          save={(entry) => saveLog(logging, entry)}
+          remove={(logId) => deleteLog(logging, logId)}
+          close={() => setLogging(null)}
+        />
+      )}
+    </div>
+  );
 }
 
-function DetailsModal({employee,value,setValue,error,save,close}:{employee:LeaveEmployee;value:Details;setValue:React.Dispatch<React.SetStateAction<Details>>;error:string;save:()=>void;close:()=>void}){const input=(key:keyof Details)=>(event:React.ChangeEvent<HTMLInputElement>)=>setValue(current=>({...current,[key]:event.target.value}));return <Modal title="Medical Leave Details" subtitle={employee.name} close={close}><div className="grid gap-4 p-6 sm:grid-cols-2">{error&&<div className="sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}<Field label="Leave Started Date *"><input type="date" value={value.leaveStartedAt} onChange={input('leaveStartedAt')}/></Field><Field label="Anticipated Back to Work Date"><input type="date" value={value.anticipatedReturnDate} onChange={input('anticipatedReturnDate')}/></Field><Field label="Return to Work Date"><input type="date" value={value.actualReturnDate} onChange={input('actualReturnDate')}/></Field><Field label="Affected Payroll Start Date *"><input type="date" value={value.payrollStartDate} onChange={input('payrollStartDate')}/></Field><Field label="Affected Payroll End Date (optional until known)"><input type="date" value={value.payrollEndDate} onChange={input('payrollEndDate')}/></Field><Field label="Insurance Status *"><select value={value.insuranceStatus} onChange={event=>setValue(current=>({...current,insuranceStatus:event.target.value,...(event.target.value==='ongoing'?{insuranceEndDate:'',cobraStartDate:''}:{})}))}><option value="">Select insurance status...</option><option value="ongoing">Ongoing</option><option value="cobra">Insurance Ended / COBRA</option></select></Field>{value.insuranceStatus==='cobra'?<><Field label="Insurance End Date *"><input type="date" value={value.insuranceEndDate} onChange={input('insuranceEndDate')}/></Field><Field label="COBRA Start Date *"><input type="date" value={value.cobraStartDate} onChange={input('cobraStartDate')}/></Field></>:null}<div className="sm:col-span-2"><Field label="Employee Medical File Folder"><input type="url" placeholder="https://..." value={value.medicalFolderUrl} onChange={input('medicalFolderUrl')}/></Field></div></div><Footer close={close} save={save} saveLabel="Save Leave Details"/></Modal>}
-function TrackerModal({employee,tracker,setTracker,fallback,error,save,close}:{employee:LeaveEmployee;tracker:Tracker;setTracker:React.Dispatch<React.SetStateAction<Tracker>>;fallback:TrackerField[];error:string;save:(action:'save'|'check')=>void;close:()=>void}){const items=tracker.fieldsSnapshot||fallback;return <Modal title="Medical File Check" subtitle={employee.name} close={close}><div className="space-y-4 p-6">{error&&<div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{error}</div>}{items.map(field=><Field label={field.label} key={field.id}><select value={tracker.responses?.[field.id]||''} onChange={event=>setTracker(current=>({...current,responses:{...(current.responses||{}),[field.id]:event.target.value}}))}><option value="">Select...</option>{field.options.map(option=><option key={option}>{option}</option>)}</select></Field>)}<Field label="Comments"><textarea value={tracker.comments||''} onChange={event=>setTracker(current=>({...current,comments:event.target.value}))}/></Field></div><div className="flex justify-end gap-2 border-t px-6 py-4"><button className="rounded-lg border px-4 py-2 font-bold" onClick={close}>Cancel</button><button className="rounded-lg border border-violet-300 px-4 py-2 font-bold text-violet-700" onClick={()=>save('save')}>Save Draft</button><button className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white" onClick={()=>save('check')}>Confirm File Check</button></div></Modal>}
-function LogModal({employee,save,remove,close}:{employee:LeaveEmployee;save:(entry:{date:string;description:string;id?:string})=>void;remove:(id:string)=>void;close:()=>void}){const [entry,setEntry]=useState<{date:string;description:string;id?:string}>({date:new Date().toISOString().slice(0,10),description:''});return <Modal title="Medical Leave Case Log" subtitle={employee.name} close={close}><div className="space-y-4 p-6"><div className="grid gap-3 rounded-xl bg-violet-50 p-4 sm:grid-cols-[180px_1fr_auto]"><input className="rounded-lg border p-2.5" type="date" value={entry.date} onChange={event=>setEntry(current=>({...current,date:event.target.value}))}/><input className="rounded-lg border p-2.5" placeholder="Description" value={entry.description} onChange={event=>setEntry(current=>({...current,description:event.target.value}))}/><button className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white" onClick={()=>save(entry)}>{entry.id?'Save Edit':'Add Log'}</button></div>{[...(employee.caseLogs||[])].sort((a,b)=>b.date.localeCompare(a.date)).map(log=><div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4" key={log.id}><div><div className="font-bold">{dateDisplay(log.date)}</div><div className="mt-1 text-sm text-slate-700">{log.description}</div><div className="mt-1 text-xs text-slate-500">Updated by {log.updatedBy||log.createdBy||'admin'}</div></div><div className="flex gap-2"><button className="rounded-lg border px-3 py-1.5 text-xs font-bold" onClick={()=>setEntry({id:log.id,date:log.date,description:log.description})}>Edit</button><button className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700" onClick={()=>remove(log.id)}>Remove</button></div></div>)}{!employee.caseLogs?.length&&<div className="py-8 text-center text-sm text-slate-500">No case log entries yet.</div>}</div><div className="flex justify-end border-t px-6 py-4"><button className="rounded-lg border px-4 py-2 font-bold" onClick={close}>Close</button></div></Modal>}
-function Manager({fields,setFields,newLabel,setNewLabel,newOptions,setNewOptions,add,save,close}:{fields:TrackerField[];setFields:React.Dispatch<React.SetStateAction<TrackerField[]>>;newLabel:string;setNewLabel:(v:string)=>void;newOptions:string;setNewOptions:(v:string)=>void;add:()=>void;save:()=>void;close:()=>void}){return <Modal title="Medical File Check Manager" subtitle="Independent from New Hire, Termination, and Employment Change. Changes apply only to future leave cases." close={close}><div className="space-y-3 p-6">{fields.map((field,index)=><div className="grid gap-2 rounded-xl border p-3 md:grid-cols-[1fr_1fr_auto]" key={field.id}><input className="rounded-lg border p-2.5" value={field.label} onChange={event=>setFields(current=>current.map((item,i)=>i===index?{...item,label:event.target.value}:item))}/><input className="rounded-lg border p-2.5" value={field.options.join(', ')} onChange={event=>setFields(current=>current.map((item,i)=>i===index?{...item,options:event.target.value.split(',').map(v=>v.trim()).filter(Boolean)}:item))}/><button className="rounded-lg border border-red-200 p-2 text-red-700" onClick={()=>setFields(current=>current.filter(item=>item.id!==field.id))}><Trash2 className="h-4 w-4"/></button></div>)}<div className="grid gap-2 rounded-xl bg-violet-50 p-3 md:grid-cols-[1fr_1fr_auto]"><input className="rounded-lg border p-2.5" placeholder="New checklist item" value={newLabel} onChange={event=>setNewLabel(event.target.value)}/><input className="rounded-lg border p-2.5" value={newOptions} onChange={event=>setNewOptions(event.target.value)}/><button className="inline-flex items-center gap-1 rounded-lg bg-violet-700 px-3 py-2 font-bold text-white" onClick={add}><Plus className="h-4 w-4"/>Stage Item</button></div></div><Footer close={close} save={save} saveLabel="Review Changes & Confirm"/></Modal>}
-function Modal({title,subtitle,close,children}:{title:string;subtitle:string;close:()=>void;children:React.ReactNode}){return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"><div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between border-b bg-white px-6 py-4"><div><h2 className="text-xl font-bold">{title}</h2><p className="text-sm text-slate-500">{subtitle}</p></div><button onClick={close}><X className="h-5 w-5"/></button></div>{children}</div></div>}
-function Field({label,children}:{label:string;children:React.ReactNode}){return <label className="block text-xs font-bold text-slate-600">{label}<div className="mt-1 [&>*]:w-full [&>*]:rounded-lg [&>*]:border [&>*]:p-2.5 [&>textarea]:min-h-24">{children}</div></label>}
-function Footer({close,save,saveLabel}:{close:()=>void;save:()=>void;saveLabel:string}){return <div className="flex justify-end gap-2 border-t px-6 py-4"><button className="rounded-lg border px-4 py-2 font-bold" onClick={close}>Cancel</button><button className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white" onClick={save}>{saveLabel}</button></div>}
-function ClickCell({value,onClick,required=false}:{value:string;onClick:()=>void;required?:boolean}){return <td className="px-4 py-3"><button className={`font-bold ${required?'rounded-lg bg-red-100 px-2 py-1 text-red-800 ring-1 ring-red-300':'text-violet-700'}`} onClick={onClick}>{required?'Required':value}</button></td>}
-function Card({label,value,tone}:{label:string;value:string;tone:'violet'|'emerald'|'slate'}){const colors={violet:'border-violet-200 bg-violet-50 text-violet-950',emerald:'border-emerald-200 bg-emerald-50 text-emerald-950',slate:'border-slate-200 bg-white text-slate-950'};return <div className={`rounded-2xl border p-5 shadow-sm ${colors[tone]}`}><div className="text-xs font-bold uppercase tracking-wider opacity-70">{label}</div><div className="mt-2 text-2xl font-bold">{value}</div></div>}
-function SelectFilter({label,value,setValue,options,displayOptions}:{label:string;value:string;setValue:(v:string)=>void;options:string[];displayOptions?:string[]}){return <label className="text-xs font-bold text-slate-600">{label}<select className="mt-1 block w-full rounded-xl border p-2.5 text-sm font-normal" value={value} onChange={event=>setValue(event.target.value)}><option value="">All</option>{options.map((option,index)=><option value={option} key={option}>{displayOptions?.[index]||option}</option>)}</select></label>}
-function DateFilter({label,value,setValue}:{label:string;value:string;setValue:(v:string)=>void}){return <label className="text-xs font-bold text-slate-600">{label}<input className="mt-1 block w-full rounded-xl border p-2.5 text-sm font-normal" type="date" value={value} onChange={event=>setValue(event.target.value)}/></label>}
-function ReviewButton({label,onClick,disabled=false}:{label:string;onClick:()=>void;disabled?:boolean}){return <button className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-bold text-violet-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400" disabled={disabled} onClick={onClick}>{label}</button>}
-function StatusPill({label}:{label:string}){return <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{label}</span>}
+function DetailsModal({
+  employee,
+  value,
+  setValue,
+  error,
+  save,
+  close,
+}: {
+  employee: LeaveEmployee;
+  value: Details;
+  setValue: React.Dispatch<React.SetStateAction<Details>>;
+  error: string;
+  save: () => void;
+  close: () => void;
+}) {
+  const input =
+    (key: keyof Details) => (event: React.ChangeEvent<HTMLInputElement>) =>
+      setValue((current) => ({ ...current, [key]: event.target.value }));
+  return (
+    <Modal title="Medical Leave Details" subtitle={employee.name} close={close}>
+      <div className="grid gap-4 p-6 sm:grid-cols-2">
+        {error && (
+          <div className="sm:col-span-2 rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+            {error}
+          </div>
+        )}
+        <Field label="Leave Started Date *">
+          <input
+            type="date"
+            value={value.leaveStartedAt}
+            onChange={input("leaveStartedAt")}
+          />
+        </Field>
+        <Field label="Anticipated Back to Work Date">
+          <input
+            type="date"
+            value={value.anticipatedReturnDate}
+            onChange={input("anticipatedReturnDate")}
+          />
+        </Field>
+        <Field label="Return to Work Date">
+          <input
+            type="date"
+            value={value.actualReturnDate}
+            onChange={input("actualReturnDate")}
+          />
+        </Field>
+        <Field label="STD Approved Starting Date *">
+          <input
+            type="date"
+            value={value.payrollStartDate}
+            onChange={input("payrollStartDate")}
+          />
+        </Field>
+        <Field label="STD Approved Ending Date (optional until known)">
+          <input
+            type="date"
+            value={value.payrollEndDate}
+            onChange={input("payrollEndDate")}
+          />
+        </Field>
+        <Field label="First Payroll After Leave Date">
+          <input
+            type="date"
+            value={value.firstPayrollAfterLeaveDate}
+            onChange={input("firstPayrollAfterLeaveDate")}
+          />
+        </Field>
+        <Field label="Insurance Status *">
+          <select
+            value={value.insuranceStatus}
+            onChange={(event) =>
+              setValue((current) => ({
+                ...current,
+                insuranceStatus: event.target.value,
+                ...(event.target.value === "ongoing"
+                  ? { insuranceEndDate: "", cobraStartDate: "" }
+                  : {}),
+              }))
+            }
+          >
+            <option value="">Select insurance status...</option>
+            <option value="ongoing">Ongoing</option>
+            <option value="cobra">Insurance Ended / COBRA</option>
+          </select>
+        </Field>
+        {value.insuranceStatus === "cobra" ? (
+          <>
+            <Field label="Insurance End Date *">
+              <input
+                type="date"
+                value={value.insuranceEndDate}
+                onChange={input("insuranceEndDate")}
+              />
+            </Field>
+            <Field label="COBRA Start Date *">
+              <input
+                type="date"
+                value={value.cobraStartDate}
+                onChange={input("cobraStartDate")}
+              />
+            </Field>
+          </>
+        ) : null}
+        <div className="sm:col-span-2">
+          <Field label="Employee Medical File Folder">
+            <input
+              type="url"
+              placeholder="https://..."
+              value={value.medicalFolderUrl}
+              onChange={input("medicalFolderUrl")}
+            />
+          </Field>
+        </div>
+      </div>
+      <Footer close={close} save={save} saveLabel="Save Leave Details" />
+    </Modal>
+  );
+}
+function TrackerModal({
+  employee,
+  tracker,
+  setTracker,
+  fallback,
+  error,
+  save,
+  close,
+}: {
+  employee: LeaveEmployee;
+  tracker: Tracker;
+  setTracker: React.Dispatch<React.SetStateAction<Tracker>>;
+  fallback: TrackerField[];
+  error: string;
+  save: (action: "save" | "check") => void;
+  close: () => void;
+}) {
+  const items = tracker.fieldsSnapshot || fallback;
+  return (
+    <Modal title="Medical File Check" subtitle={employee.name} close={close}>
+      <div className="space-y-4 p-6">
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">
+            {error}
+          </div>
+        )}
+        {items.map((field) => (
+          <Field label={field.label} key={field.id}>
+            <select
+              value={tracker.responses?.[field.id] || ""}
+              onChange={(event) =>
+                setTracker((current) => ({
+                  ...current,
+                  responses: {
+                    ...(current.responses || {}),
+                    [field.id]: event.target.value,
+                  },
+                }))
+              }
+            >
+              <option value="">Select...</option>
+              {field.options.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
+            </select>
+          </Field>
+        ))}
+        <Field label="Comments">
+          <textarea
+            value={tracker.comments || ""}
+            onChange={(event) =>
+              setTracker((current) => ({
+                ...current,
+                comments: event.target.value,
+              }))
+            }
+          />
+        </Field>
+      </div>
+      <div className="flex justify-end gap-2 border-t px-6 py-4">
+        <button
+          className="rounded-lg border px-4 py-2 font-bold"
+          onClick={close}
+        >
+          Cancel
+        </button>
+        <button
+          className="rounded-lg border border-violet-300 px-4 py-2 font-bold text-violet-700"
+          onClick={() => save("save")}
+        >
+          Save Draft
+        </button>
+        <button
+          className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white"
+          onClick={() => save("check")}
+        >
+          Confirm File Check
+        </button>
+      </div>
+    </Modal>
+  );
+}
+function LogModal({
+  employee,
+  save,
+  remove,
+  close,
+}: {
+  employee: LeaveEmployee;
+  save: (entry: { date: string; description: string; id?: string }) => void;
+  remove: (id: string) => void;
+  close: () => void;
+}) {
+  const [entry, setEntry] = useState<{
+    date: string;
+    description: string;
+    id?: string;
+  }>({ date: new Date().toISOString().slice(0, 10), description: "" });
+  return (
+    <Modal
+      title="Medical Leave Case Log"
+      subtitle={employee.name}
+      close={close}
+    >
+      <div className="space-y-4 p-6">
+        <div className="grid gap-3 rounded-xl bg-violet-50 p-4 sm:grid-cols-[180px_1fr_auto]">
+          <input
+            className="rounded-lg border p-2.5"
+            type="date"
+            value={entry.date}
+            onChange={(event) =>
+              setEntry((current) => ({ ...current, date: event.target.value }))
+            }
+          />
+          <input
+            className="rounded-lg border p-2.5"
+            placeholder="Description"
+            value={entry.description}
+            onChange={(event) =>
+              setEntry((current) => ({
+                ...current,
+                description: event.target.value,
+              }))
+            }
+          />
+          <button
+            className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white"
+            onClick={() => save(entry)}
+          >
+            {entry.id ? "Save Edit" : "Add Log"}
+          </button>
+        </div>
+        {[...(employee.caseLogs || [])]
+          .sort((a, b) => b.date.localeCompare(a.date))
+          .map((log) => (
+            <div
+              className="flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4"
+              key={log.id}
+            >
+              <div>
+                <div className="font-bold">{dateDisplay(log.date)}</div>
+                <div className="mt-1 text-sm text-slate-700">
+                  {log.description}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">
+                  Updated by {log.updatedBy || log.createdBy || "admin"}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="rounded-lg border px-3 py-1.5 text-xs font-bold"
+                  onClick={() =>
+                    setEntry({
+                      id: log.id,
+                      date: log.date,
+                      description: log.description,
+                    })
+                  }
+                >
+                  Edit
+                </button>
+                <button
+                  className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700"
+                  onClick={() => remove(log.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        {!employee.caseLogs?.length && (
+          <div className="py-8 text-center text-sm text-slate-500">
+            No case log entries yet.
+          </div>
+        )}
+      </div>
+      <div className="flex justify-end border-t px-6 py-4">
+        <button
+          className="rounded-lg border px-4 py-2 font-bold"
+          onClick={close}
+        >
+          Close
+        </button>
+      </div>
+    </Modal>
+  );
+}
+function Manager({
+  fields,
+  setFields,
+  newLabel,
+  setNewLabel,
+  newOptions,
+  setNewOptions,
+  add,
+  save,
+  close,
+}: {
+  fields: TrackerField[];
+  setFields: React.Dispatch<React.SetStateAction<TrackerField[]>>;
+  newLabel: string;
+  setNewLabel: (v: string) => void;
+  newOptions: string;
+  setNewOptions: (v: string) => void;
+  add: () => void;
+  save: () => void;
+  close: () => void;
+}) {
+  return (
+    <Modal
+      title="Medical File Check Manager"
+      subtitle="Independent from New Hire, Termination, and Employment Change. Changes apply only to future leave cases."
+      close={close}
+    >
+      <div className="space-y-3 p-6">
+        {fields.map((field, index) => (
+          <div
+            className="grid gap-2 rounded-xl border p-3 md:grid-cols-[1fr_1fr_auto]"
+            key={field.id}
+          >
+            <input
+              className="rounded-lg border p-2.5"
+              value={field.label}
+              onChange={(event) =>
+                setFields((current) =>
+                  current.map((item, i) =>
+                    i === index ? { ...item, label: event.target.value } : item,
+                  ),
+                )
+              }
+            />
+            <input
+              className="rounded-lg border p-2.5"
+              value={field.options.join(", ")}
+              onChange={(event) =>
+                setFields((current) =>
+                  current.map((item, i) =>
+                    i === index
+                      ? {
+                          ...item,
+                          options: event.target.value
+                            .split(",")
+                            .map((v) => v.trim())
+                            .filter(Boolean),
+                        }
+                      : item,
+                  ),
+                )
+              }
+            />
+            <button
+              className="rounded-lg border border-red-200 p-2 text-red-700"
+              onClick={() =>
+                setFields((current) =>
+                  current.filter((item) => item.id !== field.id),
+                )
+              }
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        <div className="grid gap-2 rounded-xl bg-violet-50 p-3 md:grid-cols-[1fr_1fr_auto]">
+          <input
+            className="rounded-lg border p-2.5"
+            placeholder="New checklist item"
+            value={newLabel}
+            onChange={(event) => setNewLabel(event.target.value)}
+          />
+          <input
+            className="rounded-lg border p-2.5"
+            value={newOptions}
+            onChange={(event) => setNewOptions(event.target.value)}
+          />
+          <button
+            className="inline-flex items-center gap-1 rounded-lg bg-violet-700 px-3 py-2 font-bold text-white"
+            onClick={add}
+          >
+            <Plus className="h-4 w-4" />
+            Stage Item
+          </button>
+        </div>
+      </div>
+      <Footer close={close} save={save} saveLabel="Review Changes & Confirm" />
+    </Modal>
+  );
+}
+function Modal({
+  title,
+  subtitle,
+  close,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  close: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b bg-white px-6 py-4">
+          <div>
+            <h2 className="text-xl font-bold">{title}</h2>
+            <p className="text-sm text-slate-500">{subtitle}</p>
+          </div>
+          <button onClick={close}>
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block text-xs font-bold text-slate-600">
+      {label}
+      <div className="mt-1 [&>*]:w-full [&>*]:rounded-lg [&>*]:border [&>*]:p-2.5 [&>textarea]:min-h-24">
+        {children}
+      </div>
+    </label>
+  );
+}
+function Footer({
+  close,
+  save,
+  saveLabel,
+}: {
+  close: () => void;
+  save: () => void;
+  saveLabel: string;
+}) {
+  return (
+    <div className="flex justify-end gap-2 border-t px-6 py-4">
+      <button className="rounded-lg border px-4 py-2 font-bold" onClick={close}>
+        Cancel
+      </button>
+      <button
+        className="rounded-lg bg-violet-700 px-4 py-2 font-bold text-white"
+        onClick={save}
+      >
+        {saveLabel}
+      </button>
+    </div>
+  );
+}
+function ClickCell({
+  value,
+  onClick,
+  required = false,
+}: {
+  value: string;
+  onClick: () => void;
+  required?: boolean;
+}) {
+  return (
+    <td className="px-4 py-3">
+      <button
+        className={`font-bold ${required ? "rounded-lg bg-red-100 px-2 py-1 text-red-800 ring-1 ring-red-300" : "text-violet-700"}`}
+        onClick={onClick}
+      >
+        {required ? "Required" : value}
+      </button>
+    </td>
+  );
+}
+function Card({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "violet" | "emerald" | "slate";
+}) {
+  const colors = {
+    violet: "border-violet-200 bg-violet-50 text-violet-950",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-950",
+    slate: "border-slate-200 bg-white text-slate-950",
+  };
+  return (
+    <div className={`rounded-2xl border p-5 shadow-sm ${colors[tone]}`}>
+      <div className="text-xs font-bold uppercase tracking-wider opacity-70">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-bold">{value}</div>
+    </div>
+  );
+}
+function SelectFilter({
+  label,
+  value,
+  setValue,
+  options,
+  displayOptions,
+}: {
+  label: string;
+  value: string;
+  setValue: (v: string) => void;
+  options: string[];
+  displayOptions?: string[];
+}) {
+  return (
+    <label className="text-xs font-bold text-slate-600">
+      {label}
+      <select
+        className="mt-1 block w-full rounded-xl border p-2.5 text-sm font-normal"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+      >
+        <option value="">All</option>
+        {options.map((option, index) => (
+          <option value={option} key={option}>
+            {displayOptions?.[index] || option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+function DateFilter({
+  label,
+  value,
+  setValue,
+}: {
+  label: string;
+  value: string;
+  setValue: (v: string) => void;
+}) {
+  return (
+    <label className="text-xs font-bold text-slate-600">
+      {label}
+      <input
+        className="mt-1 block w-full rounded-xl border p-2.5 text-sm font-normal"
+        type="date"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+      />
+    </label>
+  );
+}
+function ReviewButton({
+  label,
+  onClick,
+  disabled = false,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-bold text-violet-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+function StatusPill({ label }: { label: string }) {
+  return (
+    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+      {label}
+    </span>
+  );
+}
