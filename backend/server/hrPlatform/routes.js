@@ -1019,6 +1019,27 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to delete Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be deleted.' }); }
     finally { await client.close(); }
   });
+  router.get('/employment-changes/reports/file-check.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect(); const db = client.db(databaseName); const records = await db.collection('employee_hr_employment_change').find({}).sort({ createdAt: 1 }).toArray();
+      const currentCatalog = await getEmploymentTrackerCatalog(db, true); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Employment Change File Check');
+      sheet.columns = [
+        { header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Change Effective Date', key: 'effectiveDate', width: 22 },
+        { header: 'Information Changed', key: 'changes', width: 55 }, { header: 'File Check Item', key: 'item', width: 36 }, { header: 'Response', key: 'response', width: 22 },
+        { header: 'Comments', key: 'comments', width: 45 }, { header: 'File Check Status', key: 'status', width: 24 }, { header: 'Admin Checked By', key: 'checkedBy', width: 30 },
+        { header: 'Admin Checked At', key: 'checkedAt', width: 22 }, { header: 'Final Reviewed By', key: 'finalBy', width: 30 }, { header: 'Final Reviewed At', key: 'finalAt', width: 22 },
+      ];
+      records.forEach(record => {
+        const task = record.tasks?.file || {}; const tracker = task.tracker || {}; const fields = tracker.fieldsSnapshot?.length ? tracker.fieldsSnapshot : currentCatalog;
+        const base = { employee: clean(record.employeeName), email: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), changes: (record.changes || []).map(change => `${clean(change.field)}: ${clean(change.from)} -> ${clean(change.to)}`).join('; '), comments: clean(tracker.comments), status: task.finalReviewedAt ? 'Final Reviewed' : task.checkedAt ? 'Admin Checked - Final Review Needed' : 'File Check Required', checkedBy: clean(task.checkedBy), checkedAt: task.checkedAt || '', finalBy: clean(task.finalReviewedBy), finalAt: task.finalReviewedAt || '' };
+        if (fields.length) fields.forEach(field => sheet.addRow({ ...base, item: clean(field.label), response: clean(tracker.responses?.[field.id]) || 'Not Completed' }));
+        else sheet.addRow({ ...base, item: 'No checklist items', response: 'Not Completed' });
+      });
+      styleReportSheet(sheet); return await sendWorkbook(res, workbook, `Employment_Change_File_Check_Status_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) { console.error('Unable to create Employment Change File Check report:', error); return res.status(500).json({ error: 'The Employment Change File Check report could not be created.' }); }
+    finally { await client.close(); }
+  });
   router.put('/employment-changes/:id/file-tracker', async (req, res) => {
     const { id } = req.params; if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid employment change.' });
     const action = clean(req.body?.action || 'save').toLowerCase(); const client = createClient();
@@ -1045,7 +1066,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid employment change.' });
     if (!values.effectiveDate || !validDate(values.effectiveDate)) return res.status(400).json({ error: 'Change Effective Date is required.' });
     if (!values.reason) return res.status(400).json({ error: 'Change Reason / Notes are required.' });
-    if (!values.employeeFolderUrl || !/^https:\/\//i.test(values.employeeFolderUrl)) return res.status(400).json({ error: 'A secure Employee Folder https:// link is required.' });
+    if (values.employeeFolderUrl && !/^https:\/\//i.test(values.employeeFolderUrl)) return res.status(400).json({ error: 'Employee Folder Link must use a secure https:// link when provided.' });
     if (values.payrollApplicable && (!values.payrollActionDate || !validDate(values.payrollActionDate))) return res.status(400).json({ error: 'New Payroll Change Date is required when applicable.' });
     if (values.insuranceApplicable && (!values.insuranceActionDate || !validDate(values.insuranceActionDate))) return res.status(400).json({ error: 'Insurance Change Date is required when applicable.' });
     if (values.retirementApplicable && (!values.retirementActionDate || !validDate(values.retirementActionDate))) return res.status(400).json({ error: '401(k) Change Date is required when applicable.' });
@@ -1096,7 +1117,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect(); const collection = client.db(databaseName).collection('employee_hr_employment_change'); const record = await collection.findOne({ _id: new ObjectId(id) });
       if (!record) return res.status(404).json({ error: 'Employment change not found.' });
-      if (!record.effectiveDate || !record.employeeFolderUrl) return res.status(400).json({ error: 'Complete Employment Change Details first.' });
+      if (!record.effectiveDate) return res.status(400).json({ error: 'Complete Employment Change Details first.' });
       if (!record.tasks?.[task]?.required) return res.status(400).json({ error: 'This task is not applicable.' });
       if (finalAction && !record.tasks?.[task]?.checkedAt) return res.status(400).json({ error: 'Admin Check must be completed before final review.' });
       const now = new Date(); await collection.updateOne({ _id: record._id }, { $set: { [`tasks.${task}.${dateField}`]: now, [`tasks.${task}.${byField}`]: reviewer, updatedAt: now, updatedBy: reviewer } });
