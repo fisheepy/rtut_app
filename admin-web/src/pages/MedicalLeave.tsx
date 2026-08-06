@@ -62,7 +62,6 @@ type LeaveEmployee = {
   firstPayrollAfterLeaveDate: string;
   insuranceStatus: string;
   insuranceEndDate: string;
-  cobraStartDate: string;
   caseLogs: CaseLog[];
   medicalFileTracker: Tracker;
   payrollCheckedAt: string | null;
@@ -80,7 +79,6 @@ type Details = {
   firstPayrollAfterLeaveDate: string;
   insuranceStatus: string;
   insuranceEndDate: string;
-  cobraStartDate: string;
 };
 
 const dateDisplay = (value?: string | null) =>
@@ -117,7 +115,6 @@ export default function MedicalLeave() {
     firstPayrollAfterLeaveDate: "",
     insuranceStatus: "",
     insuranceEndDate: "",
-    cobraStartDate: "",
   });
   const [tracking, setTracking] = useState<LeaveEmployee | null>(null);
   const [tracker, setTracker] = useState<Tracker>({
@@ -217,7 +214,6 @@ export default function MedicalLeave() {
       firstPayrollAfterLeaveDate: dateInput(employee.firstPayrollAfterLeaveDate),
       insuranceStatus: employee.insuranceStatus || "",
       insuranceEndDate: dateInput(employee.insuranceEndDate),
-      cobraStartDate: dateInput(employee.cobraStartDate),
     });
     setModalError("");
   }
@@ -587,10 +583,9 @@ export default function MedicalLeave() {
                   "Medical File Final Review",
                   "Insurance Status",
                   "Insurance End Date",
-                  "COBRA Start Date",
                   "STD Approved Starting Date",
                   "STD Approved Ending Date",
-                  "First Payroll After Leave Date",
+                  "First Payroll Date After Leave Ended",
                   "Payroll Admin Check",
                   "Payroll Final Review",
                   "Case Log",
@@ -718,14 +713,6 @@ export default function MedicalLeave() {
                     onClick={() => openDetails(employee)}
                   />
                   <ClickCell
-                    value={
-                      employee.insuranceStatus === "cobra"
-                        ? dateDisplay(employee.cobraStartDate)
-                        : "--"
-                    }
-                    onClick={() => openDetails(employee)}
-                  />
-                  <ClickCell
                     value={dateDisplay(employee.payrollStartDate)}
                     onClick={() => openDetails(employee)}
                     required={!employee.payrollStartDate}
@@ -754,13 +741,32 @@ export default function MedicalLeave() {
                       <StatusPill label="Final Reviewed" />
                     ) : userEmail.toLowerCase() ===
                       "myu@royaltrailersales.com" ? (
-                      <ReviewButton
-                        label="Payroll Final Review"
-                        onClick={() => payrollReview(employee, "final-review")}
-                        disabled={
-                          !employee.payrollCheckedAt || !employee.payrollEndDate
-                        }
-                      />
+                      <div className="space-y-1">
+                        <ReviewButton
+                          label="Payroll Final Review"
+                          onClick={() => payrollReview(employee, "final-review")}
+                          disabled={
+                            !employee.payrollCheckedAt ||
+                            !employee.payrollEndDate
+                          }
+                          title={
+                            !employee.payrollCheckedAt
+                              ? "Complete Payroll Admin Check first."
+                              : !employee.payrollEndDate
+                                ? "Enter the STD Approved Ending Date first."
+                                : "Complete Payroll Final Review."
+                          }
+                        />
+                        {!employee.payrollCheckedAt ? (
+                          <p className="max-w-40 text-[11px] font-semibold text-amber-700">
+                            Payroll Admin Check required first
+                          </p>
+                        ) : !employee.payrollEndDate ? (
+                          <p className="max-w-40 text-[11px] font-semibold text-amber-700">
+                            STD Approved Ending Date required first
+                          </p>
+                        ) : null}
+                      </div>
                     ) : (
                       <span className="text-xs font-bold text-violet-700">
                         Upper-Level Manager Review Needed
@@ -910,7 +916,7 @@ function DetailsModal({
             onChange={input("payrollEndDate")}
           />
         </Field>
-        <Field label="First Payroll After Leave Date">
+        <Field label="First Payroll Date After Leave Ended">
           <input
             type="date"
             value={value.firstPayrollAfterLeaveDate}
@@ -925,7 +931,7 @@ function DetailsModal({
                 ...current,
                 insuranceStatus: event.target.value,
                 ...(event.target.value === "ongoing"
-                  ? { insuranceEndDate: "", cobraStartDate: "" }
+                  ? { insuranceEndDate: "" }
                   : {}),
               }))
             }
@@ -937,18 +943,11 @@ function DetailsModal({
         </Field>
         {value.insuranceStatus === "cobra" ? (
           <>
-            <Field label="Insurance End Date *">
+            <Field label="Insurance End Date (optional)">
               <input
                 type="date"
                 value={value.insuranceEndDate}
                 onChange={input("insuranceEndDate")}
-              />
-            </Field>
-            <Field label="COBRA Start Date *">
-              <input
-                type="date"
-                value={value.cobraStartDate}
-                onChange={input("cobraStartDate")}
               />
             </Field>
           </>
@@ -1448,16 +1447,19 @@ function ReviewButton({
   label,
   onClick,
   disabled = false,
+  title,
 }: {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       className="rounded-lg border border-violet-300 bg-white px-3 py-2 text-xs font-bold text-violet-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
       disabled={disabled}
       onClick={onClick}
+      title={title}
     >
       {label}
     </button>
