@@ -776,17 +776,19 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         if (statusChange && /^leave$/i.test(statusChange.to)) {
             await db.collection('employee_hr_leave').updateOne(
                 { employeeId, active: true },
-                { $setOnInsert: {
-                    employeeId, active: true, leaveStartedAt: new Date(),
-                    createdAt: new Date(), createdBy: adminSession?.email || '',
-                    employeeSnapshot: { ...existing, ...employeeUpdate },
-                } },
+                {
+                    $set: { active: true, employeeStatus: 'Leave', lastStatusChangedAt: new Date(), lastStatusChangedBy: adminSession?.email || '', employeeSnapshot: { ...existing, ...employeeUpdate } },
+                    $setOnInsert: { employeeId, leaveStartedAt: new Date(), createdAt: new Date(), createdBy: adminSession?.email || '' },
+                    $unset: { returnedAt: '', returnedBy: '' },
+                },
                 { upsert: true },
             );
         } else if (statusChange && /^active$/i.test(statusChange.to)) {
+            // Returning to Active does not close the HR leave case. HR may still
+            // have follow-up work, so a separate Leave action will close it later.
             await db.collection('employee_hr_leave').updateMany(
                 { employeeId, active: true },
-                { $set: { active: false, returnedAt: new Date(), returnedBy: adminSession?.email || '' } },
+                { $set: { employeeStatus: 'Active', returnedAt: new Date(), returnedBy: adminSession?.email || '', lastStatusChangedAt: new Date(), lastStatusChangedBy: adminSession?.email || '' } },
             );
         }
         await db.collection('employee_hr_employment_change').insertOne({
@@ -1902,7 +1904,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change', '/hr-tools/hr-platform/medical-leave'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 

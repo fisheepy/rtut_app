@@ -910,7 +910,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
-      const employees = await db.collection('employees').find({
+      const leaveEmployees = await db.collection('employees').find({
         'Position Status': /^leave$/i,
         $or: [
           { 'Termination Date': { $exists: false } },
@@ -918,32 +918,41 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
           { 'Termination Date': null },
         ],
       }).toArray();
-      const employeeIds = employees.map(employee => String(employee._id));
-      const leaveRecords = employeeIds.length ? await db.collection('employee_hr_leave').find({ employeeId: { $in: employeeIds }, active: true }).toArray() : [];
+      const leaveEmployeeIds = leaveEmployees.map(employee => String(employee._id));
+      const leaveRecords = await db.collection('employee_hr_leave').find({ active: true }).toArray();
       const existingIds = new Set(leaveRecords.map(record => clean(record.employeeId)));
-      const missingIds = employeeIds.filter(employeeId => !existingIds.has(employeeId));
+      const missingIds = leaveEmployeeIds.filter(employeeId => !existingIds.has(employeeId));
       if (missingIds.length) {
         const now = new Date();
         await db.collection('employee_hr_leave').bulkWrite(missingIds.map(employeeId => ({
           updateOne: {
             filter: { employeeId, active: true },
-            update: { $setOnInsert: { employeeId, active: true, leaveStartedAt: now, createdAt: now, createdBy: 'system-status-sync' } },
+            update: { $setOnInsert: { employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, createdAt: now, createdBy: 'system-status-sync' } },
             upsert: true,
           },
         })));
-        missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, leaveStartedAt: now }));
+        missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now }));
       }
+      // Open cases stay in this workspace after Company App returns the employee
+      // to Active. Termination hides the case here but never deletes its history.
+      const recordEmployeeIds = [...new Set(leaveRecords.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))];
+      const employees = recordEmployeeIds.length ? await db.collection('employees').find({
+        _id: { $in: recordEmployeeIds.map(employeeId => new ObjectId(employeeId)) },
+        'Position Status': { $not: /^terminated$/i },
+        $or: [{ 'Termination Date': { $exists: false } }, { 'Termination Date': '' }, { 'Termination Date': null }],
+      }).toArray() : [];
       const byEmployeeId = new Map(leaveRecords.map(record => [clean(record.employeeId), record]));
       return res.json(employees.map(employee => {
         const record = byEmployeeId.get(String(employee._id)) || {};
         return {
           id: String(employee._id), leaveRecordId: record._id ? String(record._id) : '',
           name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '),
-          email: clean(employee.Email), phone: clean(employee.Phone), status: clean(employee['Position Status']),
+          email: clean(employee.Email), phone: clean(employee.Phone), status: clean(employee['Position Status']) || clean(record.employeeStatus) || 'Active',
           hireDate: clean(employee['Hire Date'] || employee['First Day']),
           department: clean(employee['Home Department'] || employee.Department), jobTitle: clean(employee['Job Title']),
           location: clean(employee.Location), supervisor: [clean(employee['Supervisor First Name']), clean(employee['Supervisor Last Name'])].filter(Boolean).join(' '),
           leaveStartedAt: record.leaveStartedAt || record.createdAt || null,
+          returnedAt: record.returnedAt || null, caseStatus: record.active === true ? 'Open' : 'Closed',
         };
       }).sort((left, right) => left.name.localeCompare(right.name)));
     } catch (error) {
