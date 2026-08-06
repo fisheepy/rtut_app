@@ -515,7 +515,14 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const commentFields = commentAudit(existing?.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
       const submit = action === 'submit';
       if (submit && (!fileTrackerComplete(tracker, catalog) || !validDate(confirmationDate) || !confirmationDate)) {
-        return res.status(400).json({ error: 'Complete every checklist item, the handbook version when required, and the confirmation date before confirming for review.' });
+        const missingItems = catalog.filter(field => !tracker.responses?.[field.id]).map(field => field.label);
+        const handbookField = catalog.find(field => field.id === 'handbookSignoff' || /handbook.*sign.?off/i.test(clean(field.label)));
+        const handbookResponse = clean(tracker.responses?.[handbookField?.id || 'handbookSignoff']);
+        let message = 'Complete every checklist item before confirming for review.';
+        if (missingItems.length) message = `Complete these checklist items: ${missingItems.join(', ')}.`;
+        else if (/^yes\b/i.test(handbookResponse) && !clean(tracker.handbookVersion)) message = 'Enter the Handbook Version because Handbook Signoff is Yes.';
+        else if (!confirmationDate || !validDate(confirmationDate)) message = 'Select a valid Confirmation Date before confirming for review.';
+        return res.status(400).json({ error: message });
       }
       const fileTracker = {
         ...tracker,

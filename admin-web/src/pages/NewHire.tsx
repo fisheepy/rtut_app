@@ -67,6 +67,13 @@ type FileTrackerField = {
   order: number;
   active: boolean;
 };
+
+const isHandbookSignoffField = (field: FileTrackerField) =>
+  field.id === "handbookSignoff" || /handbook.*sign.?off/i.test(field.label || "");
+
+const isAffirmativeHandbookResponse = (value: unknown) =>
+  /^yes\b/i.test(String(value || "").trim());
+
 type EditableRecord = Pick<
   NewHireEmployee,
   | "employeeFolderUrl"
@@ -1240,15 +1247,20 @@ export default function NewHire() {
                   <select
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
                     disabled={trackerLocked || trackerSubmitted}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
                       setTracker((current) => ({
                         ...current,
                         responses: {
                           ...(current.responses || {}),
-                          [field.id]: event.target.value,
+                          [field.id]: nextValue,
                         },
-                      }))
-                    }
+                        ...(isHandbookSignoffField(field) &&
+                        !isAffirmativeHandbookResponse(nextValue)
+                          ? { handbookVersion: "" }
+                          : {}),
+                      }));
+                    }}
                     value={String(tracker.responses?.[field.id] || "")}
                   >
                     <option value="">Select...</option>
@@ -1258,8 +1270,10 @@ export default function NewHire() {
                       </option>
                     ))}
                   </select>
-                  {field.id === "handbookSignoff" &&
-                  tracker.responses?.handbookSignoff === "Yes" ? (
+                  {isHandbookSignoffField(field) &&
+                  isAffirmativeHandbookResponse(
+                    tracker.responses?.[field.id],
+                  ) ? (
                     <input
                       className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-100"
                       disabled={trackerLocked || trackerSubmitted}

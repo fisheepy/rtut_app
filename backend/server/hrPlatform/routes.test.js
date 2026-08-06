@@ -49,6 +49,26 @@ test('requires every File Tracker item and handbook version before confirmation'
   assert.equal(fileTrackerComplete({ ...tracker, handbookVersion: '' }), false);
 });
 
+test('does not require a handbook version when the employee did not sign', () => {
+  const tracker = sanitizeFileTracker({
+    resumeInformation: 'Yes', hiringApproval: 'Yes', federalW4: 'Yes', stateW4: 'Yes',
+    handbookSignoff: 'No', handbookVersion: '', safetyPolicySignoff: 'Yes',
+    confidentialityPolicySignoff: 'Yes', offerLetter: 'Yes', nncdra: 'Exempt',
+    backgroundCheck: 'Not Applicable', i9: 'Yes',
+  });
+  assert.equal(tracker.responses.handbookSignoff, 'No');
+  assert.equal(tracker.handbookVersion, '');
+  assert.equal(fileTrackerComplete(tracker), true);
+});
+
+test('recognizes a manager-configured handbook signoff field', () => {
+  const catalog = [{ id: 'custom-handbook', label: 'Handbook Sign-off', options: ['Yes - Signed', 'No'], active: true }];
+  const declined = sanitizeFileTracker({ responses: { 'custom-handbook': 'No' }, handbookVersion: '' }, catalog);
+  const signed = sanitizeFileTracker({ responses: { 'custom-handbook': 'Yes - Signed' }, handbookVersion: '' }, catalog);
+  assert.equal(fileTrackerComplete(declined, catalog), true);
+  assert.equal(fileTrackerComplete(signed, catalog), false);
+});
+
 test('records the administrator and history when File Tracker comments change', () => {
   const now = new Date('2026-08-04T14:00:00Z');
   const changed = commentAudit({ comments: 'Old note' }, 'Updated note', 'admin@example.com', now);

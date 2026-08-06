@@ -119,14 +119,18 @@ function sanitizeFileTracker(input = {}, catalog = DEFAULT_FILE_TRACKER_FIELDS) 
     const value = clean(responses[field.id]);
     result.responses[field.id] = field.options.includes(value) ? value : '';
   }
-  result.handbookVersion = result.responses.handbookSignoff === 'Yes' ? clean(input.handbookVersion) : '';
+  const handbookField = catalog.find(field => field.id === 'handbookSignoff' || /handbook.*sign.?off/i.test(clean(field.label)));
+  const handbookResponse = clean(result.responses[handbookField?.id || 'handbookSignoff']);
+  result.handbookVersion = /^yes\b/i.test(handbookResponse) ? clean(input.handbookVersion) : '';
   result.comments = clean(input.comments);
   return result;
 }
 
 function fileTrackerComplete(tracker, catalog = DEFAULT_FILE_TRACKER_FIELDS) {
+  const handbookField = catalog.find(field => field.id === 'handbookSignoff' || /handbook.*sign.?off/i.test(clean(field.label)));
+  const handbookResponse = clean(tracker.responses?.[handbookField?.id || 'handbookSignoff']);
   return catalog.every(field => tracker.responses?.[field.id])
-    && (tracker.responses?.handbookSignoff !== 'Yes' || Boolean(tracker.handbookVersion));
+    && (!/^yes\b/i.test(handbookResponse) || Boolean(clean(tracker.handbookVersion)));
 }
 
 module.exports = {
