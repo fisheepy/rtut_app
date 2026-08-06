@@ -39,6 +39,7 @@ type CaseLog = {
 };
 type LeaveEmployee = {
   id: string;
+  leaveRecordId: string;
   name: string;
   email: string;
   phone: string;
@@ -152,6 +153,8 @@ export default function MedicalLeave() {
   const visible = useMemo(
     () =>
       employees.filter((employee) => {
+        if (!leaveFrom && !leaveTo && employee.caseStatus === "Closed")
+          return false;
         const needle = query.trim().toLowerCase();
         if (
           needle &&
@@ -192,6 +195,7 @@ export default function MedicalLeave() {
     ...new Set(employees.map((employee) => employee.location).filter(Boolean)),
   ].sort();
   function openDetails(employee: LeaveEmployee) {
+    if (employee.caseStatus === "Closed") return;
     setEditing(employee);
     setDetails({
       leaveStartedAt: dateInput(employee.leaveStartedAt),
@@ -220,6 +224,7 @@ export default function MedicalLeave() {
     }
   }
   function openTracker(employee: LeaveEmployee) {
+    if (employee.caseStatus === "Closed") return;
     setTracking(employee);
     setTracker(
       employee.medicalFileTracker?.fieldsSnapshot
@@ -445,7 +450,7 @@ export default function MedicalLeave() {
       <section className="max-w-sm">
         <Card
           label="Open Leave Cases"
-          value={String(employees.length)}
+          value={String(employees.filter((employee) => employee.caseStatus !== "Closed").length)}
           tone="violet"
         />
       </section>
@@ -529,10 +534,10 @@ export default function MedicalLeave() {
       <section className="overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-xl">
         <div className="border-b bg-violet-50 px-6 py-5">
           <h2 className="text-xl font-bold text-violet-950">
-            Open Leave Cases
+            Leave Cases
           </h2>
           <p className="text-sm text-violet-700">
-            Click a date to edit case details. Both STD Approved dates are optional.
+            Open cases appear by default. Select a Leave Started date range to include closed case history. Both STD Approved dates are optional.
           </p>
         </div>
         <div className="max-h-[650px] overflow-auto">
@@ -573,13 +578,13 @@ export default function MedicalLeave() {
             <tbody>
               {visible.map((employee) => (
                 <tr
-                  className="border-t hover:bg-violet-50/40"
-                  key={employee.id}
+                  className={`border-t hover:bg-violet-50/40 ${employee.caseStatus === "Closed" ? "bg-slate-50 text-slate-600" : ""}`}
+                  key={employee.leaveRecordId || employee.id}
                 >
                   <td className="sticky left-0 z-10 min-w-56 border-r-4 border-violet-100 bg-white px-4 py-3 font-bold">
                     {employee.name}
                     <div className="text-xs font-normal text-slate-500">
-                      Open case
+                      {employee.caseStatus === "Closed" ? "Closed case — history" : "Open case"}
                     </div>
                   </td>
                   <td className="px-4 py-3">{employee.department || "--"}</td>
@@ -678,14 +683,18 @@ export default function MedicalLeave() {
                   <td className="px-4 py-3">
                     <button
                       className="inline-flex items-center gap-1 rounded-lg border border-violet-300 px-3 py-2 text-xs font-bold text-violet-800"
+                      disabled={employee.caseStatus === "Closed"}
                       onClick={() => setLogging(employee)}
+                      title={employee.caseStatus === "Closed" ? "Closed-case logs are available in the history report." : "View and manage case logs."}
                     >
                       <ListPlus className="h-3.5 w-3.5" />
                       Log ({employee.caseLogs?.length || 0})
                     </button>
                   </td>
                   <td className="px-4 py-3">
-                    {employee.closeRequestedAt ? (
+                    {employee.caseStatus === "Closed" ? (
+                      <StatusPill label="Closed" />
+                    ) : employee.closeRequestedAt ? (
                       <div className="space-y-1">
                         <StatusPill label="Close Requested" />
                         <p className="text-[11px] text-slate-500">
@@ -702,7 +711,9 @@ export default function MedicalLeave() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {userEmail.toLowerCase() === "myu@royaltrailersales.com" ? (
+                    {employee.caseStatus === "Closed" ? (
+                      <StatusPill label="Final Approved" />
+                    ) : userEmail.toLowerCase() === "myu@royaltrailersales.com" ? (
                       <ReviewButton
                         label="Final Approve & Close"
                         onClick={() => closeCase(employee, "approve")}

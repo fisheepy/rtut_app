@@ -971,13 +971,14 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       }
       // Open cases stay in this workspace after Company App returns the employee
       // to Active. Termination hides the case here but never deletes its history.
-      const recordEmployeeIds = [...new Set(leaveRecords.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))];
+      const allLeaveRecords = await db.collection('employee_hr_leave').find({}).toArray();
+      const recordEmployeeIds = [...new Set(allLeaveRecords.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))];
       const employees = recordEmployeeIds.length ? await db.collection('employees').find({ _id: { $in: recordEmployeeIds.map(employeeId => new ObjectId(employeeId)) } }).toArray() : [];
-      const byEmployeeId = new Map(leaveRecords.map(record => [clean(record.employeeId), record]));
-      return res.json(employees.map(employee => {
-        const record = byEmployeeId.get(String(employee._id)) || {};
+      const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
+      return res.json(allLeaveRecords.map(record => {
+        const employee = employeeById.get(clean(record.employeeId)) || record.employeeSnapshot || {};
         return {
-          id: String(employee._id), leaveRecordId: record._id ? String(record._id) : '',
+          id: clean(record.employeeId), leaveRecordId: record._id ? String(record._id) : '',
           name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '),
           email: clean(employee.Email), phone: clean(employee.Phone), status: clean(employee['Position Status']) || clean(record.employeeStatus) || 'Active',
           hireDate: clean(employee['Hire Date'] || employee['First Day']),
@@ -991,7 +992,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
           medicalFileTracker: record.medicalFileTracker || {},
           closeRequestedAt: record.closeRequestedAt || null, closeRequestedBy: clean(record.closeRequestedBy),
         };
-      }).sort((left, right) => left.name.localeCompare(right.name)));
+      }).filter(record => record.id).sort((left, right) => left.name.localeCompare(right.name) || clean(left.leaveStartedAt).localeCompare(clean(right.leaveStartedAt))));
     } catch (error) {
       console.error('Unable to load Leave records:', error);
       return res.status(500).json({ error: 'FMLA / ADA / Medical Leave records could not be loaded.' });
@@ -1177,7 +1178,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       trackerSheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Leave Start Date', key: 'start', width: 20 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Checklist Item', key: 'item', width: 38 }, { header: 'Response', key: 'response', width: 22 }, { header: 'Comments', key: 'comments', width: 48 }, { header: 'File Check Status', key: 'trackerStatus', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Checked At', key: 'checkedAt', width: 22 }];
       const currentMedicalCatalog = await getMedicalTrackerCatalog(db, true);
       records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; const tracker = record.medicalFileTracker || {}; const fields = tracker.fieldsSnapshot?.length ? tracker.fieldsSnapshot : currentMedicalCatalog; const base = { employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), start: record.leaveStartedAt || '', caseStatus: record.active === true ? 'Open' : 'Closed', comments: clean(tracker.comments), trackerStatus: tracker.checkedAt ? 'File Checked' : 'In Progress', checkedBy: clean(tracker.checkedBy), checkedAt: tracker.checkedAt || '' }; if (fields.length) fields.forEach(field => trackerSheet.addRow({ ...base, item: clean(field.label), response: clean(tracker.responses?.[field.id]) || 'Not Completed' })); else trackerSheet.addRow({ ...base, item: 'No checklist items', response: 'Not Completed' }); });
-      styleReportSheet(sheet); styleReportSheet(trackerSheet); return await sendWorkbook(res, workbook, `Medical_Leave_Current_and_History_${new Date().toISOString().slice(0,10)}.xlsx`);
+      const logSheet = workbook.addWorksheet('Leave Case Logs');
+      logSheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Leave Start Date', key: 'start', width: 20 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Log Date', key: 'logDate', width: 18 }, { header: 'Description', key: 'description', width: 60 }, { header: 'Created By', key: 'createdBy', width: 30 }, { header: 'Updated By', key: 'updatedBy', width: 30 }];
+      records.forEach(record => {
+        const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; const logs = Array.isArray(record.caseLogs) ? record.caseLogs : [];
+        const base = { employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), start: record.leaveStartedAt || '', caseStatus: record.active === true ? 'Open' : 'Closed' };
+        if (logs.length) logs.forEach(log => logSheet.addRow({ ...base, logDate: clean(log.date), description: clean(log.description), createdBy: clean(log.createdBy), updatedBy: clean(log.updatedBy) }));
+        else logSheet.addRow({ ...base, logDate: '', description: 'No log entries', createdBy: '', updatedBy: '' });
+      });
+      styleReportSheet(sheet); styleReportSheet(trackerSheet); styleReportSheet(logSheet); return await sendWorkbook(res, workbook, `Medical_Leave_Current_and_History_${new Date().toISOString().slice(0,10)}.xlsx`);
     } catch (error) { console.error('Unable to create Medical Leave history report:', error); return res.status(500).json({ error: 'Medical Leave history report could not be created.' }); } finally { await client.close(); }
   });
 
