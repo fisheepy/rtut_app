@@ -934,19 +934,22 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         })));
         missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } }));
       }
-      const recordsWithoutSnapshot = leaveRecords.filter(record => !record.medicalFileTracker?.fieldsSnapshot?.length);
-      if (recordsWithoutSnapshot.length) {
-        await db.collection('employee_hr_leave').bulkWrite(recordsWithoutSnapshot.map(record => ({ updateOne: { filter: { _id: record._id }, update: { $set: { medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } } } } })));
-        recordsWithoutSnapshot.forEach(record => { record.medicalFileTracker = { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' }; });
+      // Manager changes apply to every currently open case. Preserve responses
+      // for unchanged item IDs while adding, renaming, or removing catalog items.
+      const catalogFingerprint = JSON.stringify(medicalCatalog.map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active })));
+      const recordsNeedingCatalogSync = leaveRecords.filter(record => JSON.stringify((record.medicalFileTracker?.fieldsSnapshot || []).map(field => ({ id: field.id, label: field.label, options: field.options, active: field.active }))) !== catalogFingerprint);
+      if (recordsNeedingCatalogSync.length) {
+        await db.collection('employee_hr_leave').bulkWrite(recordsNeedingCatalogSync.map(record => {
+          const existingTracker = record.medicalFileTracker || {}; const responses = {};
+          medicalCatalog.forEach(field => { responses[field.id] = field.options.includes(clean(existingTracker.responses?.[field.id])) ? clean(existingTracker.responses?.[field.id]) : ''; });
+          record.medicalFileTracker = { ...existingTracker, fieldsSnapshot: medicalCatalog, responses, checkedAt: null, checkedBy: '' };
+          return { updateOne: { filter: { _id: record._id }, update: { $set: { medicalFileTracker: record.medicalFileTracker } } } };
+        }));
       }
       // Open cases stay in this workspace after Company App returns the employee
       // to Active. Termination hides the case here but never deletes its history.
       const recordEmployeeIds = [...new Set(leaveRecords.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))];
-      const employees = recordEmployeeIds.length ? await db.collection('employees').find({
-        _id: { $in: recordEmployeeIds.map(employeeId => new ObjectId(employeeId)) },
-        'Position Status': { $not: /^terminated$/i },
-        $or: [{ 'Termination Date': { $exists: false } }, { 'Termination Date': '' }, { 'Termination Date': null }],
-      }).toArray() : [];
+      const employees = recordEmployeeIds.length ? await db.collection('employees').find({ _id: { $in: recordEmployeeIds.map(employeeId => new ObjectId(employeeId)) } }).toArray() : [];
       const byEmployeeId = new Map(leaveRecords.map(record => [clean(record.employeeId), record]));
       return res.json(employees.map(employee => {
         const record = byEmployeeId.get(String(employee._id)) || {};
@@ -961,6 +964,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
           returnedAt: record.returnedAt || null, caseStatus: record.active === true ? 'Open' : 'Closed',
           anticipatedReturnDate: clean(record.anticipatedReturnDate), actualReturnDate: clean(record.actualReturnDate),
           medicalFolderUrl: clean(record.medicalFolderUrl), payrollStartDate: clean(record.payrollStartDate), payrollEndDate: clean(record.payrollEndDate),
+          insuranceStatus: clean(record.insuranceStatus), caseLogs: Array.isArray(record.caseLogs) ? record.caseLogs : [],
           medicalFileTracker: record.medicalFileTracker || {},
           payrollCheckedAt: record.payrollCheckedAt || null, payrollCheckedBy: clean(record.payrollCheckedBy),
           payrollFinalReviewedAt: record.payrollFinalReviewedAt || null, payrollFinalReviewedBy: clean(record.payrollFinalReviewedBy),
@@ -1026,7 +1030,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const employeeId = req.params.employeeId;
     const values = {
       leaveStartedAt: clean(req.body?.leaveStartedAt), anticipatedReturnDate: clean(req.body?.anticipatedReturnDate), actualReturnDate: clean(req.body?.actualReturnDate),
-      medicalFolderUrl: clean(req.body?.medicalFolderUrl), payrollStartDate: clean(req.body?.payrollStartDate), payrollEndDate: clean(req.body?.payrollEndDate),
+      medicalFolderUrl: clean(req.body?.medicalFolderUrl), payrollStartDate: clean(req.body?.payrollStartDate), payrollEndDate: clean(req.body?.payrollEndDate), insuranceStatus: clean(req.body?.insuranceStatus).toLowerCase(),
     };
     if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
     if (!values.leaveStartedAt || !validDate(values.leaveStartedAt)) return res.status(400).json({ error: 'Leave Started Date is required.' });
@@ -1034,6 +1038,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if ([values.anticipatedReturnDate, values.actualReturnDate, values.payrollEndDate].some(value => !validDate(value))) return res.status(400).json({ error: 'Dates must use YYYY-MM-DD format.' });
     if (values.medicalFolderUrl && !/^https:\/\//i.test(values.medicalFolderUrl)) return res.status(400).json({ error: 'Employee Medical File Folder must use a secure https:// link.' });
     if (values.payrollEndDate && values.payrollEndDate < values.payrollStartDate) return res.status(400).json({ error: 'Affected Payroll Ending Date cannot be before the Starting Date.' });
+    if (!['ongoing', 'cobra'].includes(values.insuranceStatus)) return res.status(400).json({ error: 'Insurance Status must be Ongoing or COBRA.' });
     const client = createClient();
     try {
       await client.connect(); const db = client.db(databaseName); const collection = db.collection('employee_hr_leave'); const now = new Date();
@@ -1072,7 +1077,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect(); const collection = client.db(databaseName).collection('employee_hr_leave'); const record = await collection.findOne({ employeeId, active: true });
       if (!record) return res.status(404).json({ error: 'Open leave case not found.' });
-      if (!record.payrollStartDate || !record.payrollEndDate) return res.status(400).json({ error: 'Affected Payroll Start Date and End Date are required before payroll review.' });
+      if (!record.payrollStartDate) return res.status(400).json({ error: 'Affected Payroll Start Date is required before Payroll Admin Check.' });
+      if (action === 'final-review' && !record.payrollEndDate) return res.status(400).json({ error: 'Affected Payroll End Date is required before Payroll Final Review.' });
       if (action === 'final-review' && !record.payrollCheckedAt) return res.status(400).json({ error: 'Payroll Admin Check is required before final review.' });
       const now = new Date(); const set = action === 'admin-check'
         ? { payrollCheckedAt: now, payrollCheckedBy: reviewer, payrollFinalReviewedAt: null, payrollFinalReviewedBy: '', updatedAt: now, updatedBy: reviewer }
@@ -1080,6 +1086,59 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       await collection.updateOne({ _id: record._id }, { $set: set }); return res.json(set);
     } catch (error) { console.error('Unable to save Medical Leave payroll review:', error); return res.status(500).json({ error: 'Medical Leave payroll review could not be saved.' }); }
     finally { await client.close(); }
+  });
+
+  router.post('/leaves/:employeeId/logs', async (req, res) => {
+    const employeeId = req.params.employeeId; const date = clean(req.body?.date); const description = clean(req.body?.description);
+    if (!ObjectId.isValid(employeeId) || !date || !validDate(date) || !description) return res.status(400).json({ error: 'Log Date and Description are required.' });
+    const client = createClient(); try {
+      await client.connect(); const collection = client.db(databaseName).collection('employee_hr_leave'); const now = new Date(); const author = clean(req.adminSession?.email).toLowerCase();
+      const entry = { id: crypto.randomUUID(), date, description, createdAt: now, createdBy: author, updatedAt: now, updatedBy: author };
+      const result = await collection.updateOne({ employeeId, active: true }, { $push: { caseLogs: entry }, $set: { updatedAt: now, updatedBy: author } });
+      if (!result.matchedCount) return res.status(404).json({ error: 'Open leave case not found.' }); return res.status(201).json({ entry });
+    } catch (error) { console.error('Unable to add Medical Leave log:', error); return res.status(500).json({ error: 'The case log could not be added.' }); } finally { await client.close(); }
+  });
+  router.put('/leaves/:employeeId/logs/:logId', async (req, res) => {
+    const employeeId = req.params.employeeId; const date = clean(req.body?.date); const description = clean(req.body?.description);
+    if (!ObjectId.isValid(employeeId) || !date || !validDate(date) || !description) return res.status(400).json({ error: 'Log Date and Description are required.' });
+    const client = createClient(); try {
+      await client.connect(); const collection = client.db(databaseName).collection('employee_hr_leave'); const now = new Date(); const author = clean(req.adminSession?.email).toLowerCase();
+      const result = await collection.updateOne({ employeeId, active: true, 'caseLogs.id': req.params.logId }, { $set: { 'caseLogs.$.date': date, 'caseLogs.$.description': description, 'caseLogs.$.updatedAt': now, 'caseLogs.$.updatedBy': author, updatedAt: now, updatedBy: author } });
+      if (!result.matchedCount) return res.status(404).json({ error: 'Case log entry not found.' }); return res.json({ success: true });
+    } catch (error) { console.error('Unable to update Medical Leave log:', error); return res.status(500).json({ error: 'The case log could not be updated.' }); } finally { await client.close(); }
+  });
+  router.delete('/leaves/:employeeId/logs/:logId', async (req, res) => {
+    const employeeId = req.params.employeeId; if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const client = createClient(); try {
+      await client.connect(); const collection = client.db(databaseName).collection('employee_hr_leave'); const now = new Date(); const author = clean(req.adminSession?.email).toLowerCase();
+      const result = await collection.updateOne({ employeeId, active: true }, { $pull: { caseLogs: { id: req.params.logId } }, $set: { updatedAt: now, updatedBy: author } });
+      if (!result.matchedCount) return res.status(404).json({ error: 'Open leave case not found.' }); return res.json({ success: true });
+    } catch (error) { console.error('Unable to remove Medical Leave log:', error); return res.status(500).json({ error: 'The case log could not be removed.' }); } finally { await client.close(); }
+  });
+
+  router.put('/leaves/:employeeId/close', async (req, res) => {
+    const employeeId = req.params.employeeId; if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const client = createClient(); try {
+      await client.connect(); const db = client.db(databaseName); const employee = await db.collection('employees').findOne({ _id: new ObjectId(employeeId) }); const collection = db.collection('employee_hr_leave'); const record = await collection.findOne({ employeeId, active: true });
+      if (!employee || !record) return res.status(404).json({ error: 'Open leave case not found.' });
+      const terminated = /^terminated$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date'])); const returnedActive = /^active$/i.test(clean(employee['Position Status']));
+      if (!terminated && !returnedActive) return res.status(400).json({ error: 'Change Company App Status to Active or terminate the employee before closing this case.' });
+      if (!terminated && (!record.payrollEndDate || !record.payrollCheckedAt || !record.payrollFinalReviewedAt)) return res.status(400).json({ error: 'Affected Payroll End Date, Payroll Admin Check, and Payroll Final Review are required before closing a returned employee case.' });
+      const now = new Date(); const closedBy = clean(req.adminSession?.email).toLowerCase();
+      await collection.updateOne({ _id: record._id }, { $set: { active: false, caseStatus: 'Closed', closedAt: now, closedBy, closeReason: terminated ? 'Employee terminated in Company App' : 'Employee returned to work and payroll review completed', employeeSnapshot: employee, updatedAt: now, updatedBy: closedBy } });
+      return res.json({ success: true, closedAt: now });
+    } catch (error) { console.error('Unable to close Medical Leave case:', error); return res.status(500).json({ error: 'The Medical Leave case could not be closed.' }); } finally { await client.close(); }
+  });
+
+  router.get('/leaves/reports/history.xlsx', async (_req, res) => {
+    const client = createClient(); try {
+      await client.connect(); const db = client.db(databaseName); const records = await db.collection('employee_hr_leave').find({}).sort({ leaveStartedAt: 1, createdAt: 1 }).toArray();
+      const ids = [...new Set(records.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))]; const employees = ids.length ? await db.collection('employees').find({ _id: { $in: ids.map(id => new ObjectId(id)) } }).toArray() : []; const byId = new Map(employees.map(employee => [String(employee._id), employee]));
+      const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Leave History');
+      sheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Company App Status', key: 'status', width: 22 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Leave Start Date', key: 'start', width: 18 }, { header: 'Anticipated Return Date', key: 'anticipated', width: 24 }, { header: 'Actual Return to Work Date', key: 'actual', width: 26 }, { header: 'Affected Payroll Start Date', key: 'payrollStart', width: 26 }, { header: 'Affected Payroll End Date', key: 'payrollEnd', width: 25 }, { header: 'Insurance Status', key: 'insurance', width: 20 }, { header: 'Closed At', key: 'closedAt', width: 22 }, { header: 'Closed By', key: 'closedBy', width: 30 }];
+      records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; sheet.addRow({ employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), status: clean(employee['Position Status']), caseStatus: record.active === true ? 'Open' : 'Closed', start: record.leaveStartedAt || '', anticipated: clean(record.anticipatedReturnDate), actual: clean(record.actualReturnDate), payrollStart: clean(record.payrollStartDate), payrollEnd: clean(record.payrollEndDate), insurance: clean(record.insuranceStatus), closedAt: record.closedAt || '', closedBy: clean(record.closedBy) }); });
+      styleReportSheet(sheet); return await sendWorkbook(res, workbook, `Medical_Leave_Current_and_History_${new Date().toISOString().slice(0,10)}.xlsx`);
+    } catch (error) { console.error('Unable to create Medical Leave history report:', error); return res.status(500).json({ error: 'Medical Leave history report could not be created.' }); } finally { await client.close(); }
   });
 
   router.get('/employment-changes', async (_req, res) => {
