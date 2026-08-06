@@ -316,7 +316,7 @@ function EmployeeSelectionComponent() {
         if (supervisor) [canonicalEmployee['Supervisor First Name'], canonicalEmployee['Supervisor Last Name']] = supervisor;
         const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(canonicalEmployee?.[field] || '').trim());
         if (!changedFields.length) return setEditError('No information has been changed. Formatting-only differences are treated as the existing database value.');
-        const review = changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} → ${selectedEmployee[field] || '(blank)'}`).join('\n');
+        const review = changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} ??${selectedEmployee[field] || '(blank)'}`).join('\n');
         const newValueWarning = newEditReferenceValues.length ? `\n\nNEW DATABASE INFORMATION:\n${newEditReferenceValues.map(entry => `${entry.label}: ${entry.value}`).join('\n')}\nConfirm that these values are intentionally new and correctly spelled.` : '';
         if (!window.confirm(`Review the following employee changes:\n\n${review}${newValueWarning}\n\nCompany App information will be updated immediately. This change record will automatically be sent to Employment Change on HR Platform.`)) return;
         try {
@@ -713,7 +713,7 @@ function EmployeeSelectionComponent() {
                                 />
                             </Grid>
                             {newEditReferenceValues.length ? <Grid item xs={12}><Alert severity="error"><Typography fontWeight={700}>New database information detected:</Typography>{newEditReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}<Typography sx={{ mt: 1 }}>You may proceed, but the final confirmation will ask you to approve these new values.</Typography></Alert></Grid> : null}
-                            <Grid item xs={12}><Typography variant="h6">HR Action Tracking</Typography><Typography variant="body2" color="text.secondary">Every employee information change is automatically transferred to Employment Change on HR Platform. Select any related payroll or benefit actions below.</Typography></Grid>
+                            <Grid item xs={12}><Typography variant="h6">Other Changes</Typography><Typography variant="body2" color="text.secondary">Every employee information change is automatically transferred to Employment Change on HR Platform. Select one or more related payroll or benefit changes below, or leave all unchecked when none apply.</Typography></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked }))} />} label="Payroll change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
@@ -731,4 +731,5 @@ function EmployeeSelectionComponent() {
 }
 
 export default EmployeeSelectionComponent;
+
 
