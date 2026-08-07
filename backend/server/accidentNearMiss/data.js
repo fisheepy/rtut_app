@@ -4,10 +4,6 @@ function validDate(value) {
   return !value || /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-function validDateTime(value) {
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);
-}
-
 function validLink(value) {
   if (!value) return true;
   try { return new URL(value).protocol === 'https:'; } catch { return false; }
@@ -33,7 +29,7 @@ function sanitizeEventInput(input) {
   if (followUps.error) return followUps;
   const value = {
     eventType: clean(input?.eventType),
-    eventDateTime: clean(input?.eventDateTime),
+    eventDateTime: clean(input?.eventDateTime).slice(0, 10),
     reportedDate: clean(input?.reportedDate),
     location: clean(input?.location),
     department: clean(input?.department),
@@ -50,7 +46,7 @@ function sanitizeEventInput(input) {
     followUps: followUps.value,
   };
   if (!['Accident', 'Near Miss'].includes(value.eventType)) return { error: 'Event Type must be Accident or Near Miss.' };
-  if (!validDateTime(value.eventDateTime)) return { error: 'Event Date and Time is required.' };
+  if (!validDate(value.eventDateTime) || !value.eventDateTime) return { error: 'Event Date is required.' };
   if (!validDate(value.reportedDate) || !value.reportedDate) return { error: 'Reported Date is required.' };
   if (!value.location || !value.eventNature || !value.description) return { error: 'Location, Event Nature, and Description are required.' };
   if (value.eventNature === 'Other' && !value.otherEventNature) return { error: 'Please describe the other event nature.' };
