@@ -70,21 +70,28 @@ function createInsuranceBreakoutRouter({ upload, uploadDirectory, logOperationTo
   });
 
   router.post('/jobs', upload.fields([
-    { name: 'payrollFile', maxCount: 1 },
+    { name: 'salaryPayrollFile', maxCount: 1 },
+    { name: 'hourlyPayrollFile', maxCount: 1 },
     { name: 'dentalFile', maxCount: 1 },
     { name: 'visionFile', maxCount: 1 },
     { name: 'ltdLifeSuppFile', maxCount: 1 },
   ]), async (req, res) => {
-    const payrollFile = req.files?.payrollFile?.[0];
+    const salaryPayrollFile = req.files?.salaryPayrollFile?.[0];
+    const hourlyPayrollFile = req.files?.hourlyPayrollFile?.[0];
+    const hourlyPayrollCount = Number(req.body?.hourlyPayrollCount);
     const dentalFile = req.files?.dentalFile?.[0];
     const visionFile = req.files?.visionFile?.[0];
     const ltdLifeSuppFile = req.files?.ltdLifeSuppFile?.[0];
     const adminUser = req.body?.adminUser ? safeJsonParse(req.body.adminUser) : req.adminSession;
-    const uploadedFiles = [payrollFile, dentalFile, visionFile, ltdLifeSuppFile].filter(Boolean);
+    const uploadedFiles = [salaryPayrollFile, hourlyPayrollFile, dentalFile, visionFile, ltdLifeSuppFile].filter(Boolean);
 
-    if (!payrollFile || !dentalFile || !visionFile || !ltdLifeSuppFile) {
+    if (!salaryPayrollFile || !hourlyPayrollFile || !dentalFile || !visionFile || !ltdLifeSuppFile) {
       uploadedFiles.forEach((file) => fs.unlink(file.path, () => {}));
-      return res.status(400).json({ error: 'Payroll, dental, vision, and LTD/Life/SUPP files are required.' });
+      return res.status(400).json({ error: 'Salary payroll, hourly payroll, dental, vision, and LTD/Life/SUPP files are required.' });
+    }
+    if (![2, 3].includes(hourlyPayrollCount)) {
+      uploadedFiles.forEach((file) => fs.unlink(file.path, () => {}));
+      return res.status(400).json({ error: 'Select whether the hourly report contains 2 or 3 payrolls.' });
     }
 
     const jobId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
@@ -100,7 +107,9 @@ function createInsuranceBreakoutRouter({ upload, uploadDirectory, logOperationTo
 
     try {
       const result = compareInsuranceFiles({
-        payrollFilePath: payrollFile.path,
+        salaryPayrollFilePath: salaryPayrollFile.path,
+        hourlyPayrollFilePath: hourlyPayrollFile.path,
+        hourlyPayrollCount,
         dentalFilePath: dentalFile.path,
         visionFilePath: visionFile.path,
         ltdLifeSuppFilePath: ltdLifeSuppFile.path,
@@ -114,7 +123,10 @@ function createInsuranceBreakoutRouter({ upload, uploadDirectory, logOperationTo
         status: 'completed',
         createdAt,
         completedAt: new Date().toISOString(),
-        payrollFileName: payrollFile.originalname,
+        payrollFileName: `${salaryPayrollFile.originalname} + ${hourlyPayrollFile.originalname}`,
+        salaryPayrollFileName: salaryPayrollFile.originalname,
+        hourlyPayrollFileName: hourlyPayrollFile.originalname,
+        hourlyPayrollCount,
         dentalFileName: dentalFile.originalname,
         visionFileName: visionFile.originalname,
         ltdLifeSuppFileName: ltdLifeSuppFile.originalname,
@@ -135,7 +147,9 @@ function createInsuranceBreakoutRouter({ upload, uploadDirectory, logOperationTo
         selectedEmployees: [],
         payloadSummary: {
           jobId,
-          payrollFileName: payrollFile.originalname,
+          salaryPayrollFileName: salaryPayrollFile.originalname,
+          hourlyPayrollFileName: hourlyPayrollFile.originalname,
+          hourlyPayrollCount,
           dentalFileName: dentalFile.originalname,
           visionFileName: visionFile.originalname,
           ltdLifeSuppFileName: ltdLifeSuppFile.originalname,
@@ -151,7 +165,10 @@ function createInsuranceBreakoutRouter({ upload, uploadDirectory, logOperationTo
         status: 'failed',
         createdAt,
         completedAt: new Date().toISOString(),
-        payrollFileName: payrollFile.originalname,
+        payrollFileName: `${salaryPayrollFile.originalname} + ${hourlyPayrollFile.originalname}`,
+        salaryPayrollFileName: salaryPayrollFile.originalname,
+        hourlyPayrollFileName: hourlyPayrollFile.originalname,
+        hourlyPayrollCount,
         dentalFileName: dentalFile.originalname,
         visionFileName: visionFile.originalname,
         ltdLifeSuppFileName: ltdLifeSuppFile.originalname,

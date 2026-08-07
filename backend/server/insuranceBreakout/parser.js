@@ -4,9 +4,9 @@ const XLSX = require('xlsx');
 const BENEFITS = [
   { key: 'dental', label: 'Dental', payrollColumn: 'Dental 6' },
   { key: 'vision', label: 'Vision', payrollColumn: 'Vision' },
-  { key: 'ltd', label: 'LTD', payrollColumn: 'LTD Adjusted' },
-  { key: 'life', label: 'Life', payrollColumn: 'Life Adjusted' },
-  { key: 'supp', label: 'SUPP', payrollColumn: 'SUPP Adjusted' },
+  { key: 'ltd', label: 'LTD', payrollColumn: 'LTD' },
+  { key: 'life', label: 'Life', payrollColumn: 'Life-Voluntary' },
+  { key: 'supp', label: 'SUPP', payrollColumn: 'SUPP' },
 ];
 
 function cellText(value) {
@@ -42,7 +42,7 @@ function roundMoney(value) {
 }
 
 function moneyEqual(a, b) {
-  return Number(a || 0).toFixed(2) === Number(b || 0).toFixed(2);
+  return Math.abs(Number(a || 0) - Number(b || 0)) < 1;
 }
 
 function readRows(filePath, options = {}) {
@@ -64,32 +64,56 @@ function addRecord(store, record) {
   if (!store.firstByName.has(record.key)) store.firstByName.set(record.key, normalized);
 }
 
-function parsePayroll(filePath) {
+function parsePayroll(filePath, { payType, payrollCount = null } = {}) {
+  if (!['salary', 'hourly'].includes(payType)) throw new Error('Payroll pay type must be salary or hourly.');
+  if (payType === 'hourly' && ![2, 3].includes(Number(payrollCount))) throw new Error('Hourly payroll count must be 2 or 3.');
   const rows = readRows(filePath);
   const records = [];
   const keySet = new Set();
+  const expectedCode = payType === 'salary' ? 'S' : 'H';
+  const factor = payType === 'hourly' ? 26 / (Number(payrollCount) * 12) : 1;
 
   rows.forEach((row, index) => {
     const key = nameKey(row['Last Name'], row['First Name']);
     if (!key.includes('|') || key === '|') return;
+    const payCode = cellText(row['Regular Pay Rate Code']).toUpperCase();
+    if (payCode && payCode !== expectedCode) {
+      throw new Error(`${payType === 'salary' ? 'Salary' : 'Hourly'} payroll file contains pay code ${payCode} on row ${index + 2}; expected ${expectedCode}.`);
+    }
 
     keySet.add(key);
+    const rawAmounts = {
+      dental: parseMoney(row['Dental 6']),
+      vision: parseMoney(row.Vision),
+      ltd: parseMoney(row.LTD ?? row['LTD Adjusted']),
+      life: parseMoney(row['Life-Voluntary'] ?? row['Life Adjusted']),
+      supp: parseMoney(row.SUPP ?? row['SUPP Adjusted']),
+    };
     records.push({
       key,
       lastName: firstToken(row['Last Name']),
       firstName: firstToken(row['First Name']),
       name: displayName(row['Last Name'], row['First Name']),
       sourceRow: index + 2,
-      amounts: {
-        dental: parseMoney(row['Dental 6']),
-        vision: parseMoney(row.Vision),
-        ltd: parseMoney(row['LTD Adjusted']),
-        life: parseMoney(row['Life Adjusted']),
-        supp: parseMoney(row['SUPP Adjusted']),
-      },
+      payType,
+      payrollCount: payType === 'hourly' ? Number(payrollCount) : 24 / 12,
+      normalizationFactor: factor,
+      rawAmounts,
+      amounts: Object.fromEntries(Object.entries(rawAmounts).map(([benefit, amount]) => [benefit, roundMoney(amount * factor)])),
     });
   });
 
+  if (!records.length) throw new Error(`No ${payType} payroll employees were found in the uploaded file.`);
+  return { records, keySet };
+}
+
+function combinePayrolls(...payrolls) {
+  const records = payrolls.flatMap((payroll) => payroll.records);
+  const keySet = new Set();
+  for (const employee of records) {
+    if (keySet.has(employee.key)) throw new Error(`${employee.name} appears in both Salary and Hourly payroll files.`);
+    keySet.add(employee.key);
+  }
   return { records, keySet };
 }
 
@@ -190,6 +214,9 @@ function buildIssue({ benefit, issueType, payrollEmployee, invoiceRecord, payrol
     benefitKey: benefit.key,
     issueType,
     name: payrollEmployee?.name || invoiceRecord?.name || '',
+    payType: payrollEmployee?.payType ? payrollEmployee.payType[0].toUpperCase() + payrollEmployee.payType.slice(1) : '',
+    payrollCount: payrollEmployee?.payrollCount ?? null,
+    rawPayrollAmount: payrollEmployee ? roundMoney(payrollEmployee.rawAmounts?.[benefit.key] || 0) : null,
     payrollAmount: payrollAmount === null || payrollAmount === undefined ? null : roundMoney(payrollAmount),
     invoiceAmount: invoiceAmount === null || invoiceAmount === undefined ? null : roundMoney(invoiceAmount),
     difference: payrollAmount === null || invoiceAmount === null || payrollAmount === undefined || invoiceAmount === undefined
@@ -198,7 +225,7 @@ function buildIssue({ benefit, issueType, payrollEmployee, invoiceRecord, payrol
     payrollRow: payrollEmployee?.sourceRow || '',
     invoiceRows: invoiceRecord?.sourceRows?.join(', ') || '',
     notes: issueType === 'Amount Mismatch'
-      ? `${benefit.label} invoice amount does not match payroll deduction.`
+      ? `${benefit.label} invoice amount differs from the normalized payroll deduction by at least $1.00.${payrollEmployee?.payType === 'hourly' ? ` Hourly amount normalized as raw deduction / ${payrollEmployee.payrollCount} × 26 / 12.` : ''}`
       : issueType === 'Missing in Invoice'
         ? `Payroll has a ${benefit.label} deduction but no matching invoice record was found.`
         : `${benefit.label} invoice has a charge but no matching payroll employee was found.`,
@@ -235,8 +262,10 @@ function compareBenefit({ benefit, payroll, invoiceStore }) {
   return issues;
 }
 
-function compareInsuranceFiles({ payrollFilePath, dentalFilePath, visionFilePath, ltdLifeSuppFilePath }) {
-  const payroll = parsePayroll(payrollFilePath);
+function compareInsuranceFiles({ salaryPayrollFilePath, hourlyPayrollFilePath, hourlyPayrollCount, dentalFilePath, visionFilePath, ltdLifeSuppFilePath }) {
+  const salaryPayroll = parsePayroll(salaryPayrollFilePath, { payType: 'salary' });
+  const hourlyPayroll = parsePayroll(hourlyPayrollFilePath, { payType: 'hourly', payrollCount: Number(hourlyPayrollCount) });
+  const payroll = combinePayrolls(salaryPayroll, hourlyPayroll);
   const invoiceMaps = {
     dental: parseDental(dentalFilePath),
     vision: parseVision(visionFilePath),
@@ -264,6 +293,8 @@ function compareInsuranceFiles({ payrollFilePath, dentalFilePath, visionFilePath
   return {
     summary: {
       payrollEmployees: payroll.records.length,
+      salaryEmployees: salaryPayroll.records.length,
+      hourlyEmployees: hourlyPayroll.records.length,
       totalIssues: issues.length,
       amountMismatches: issues.filter((issue) => issue.issueType === 'Amount Mismatch').length,
       missingInInvoice: issues.filter((issue) => issue.issueType === 'Missing in Invoice').length,
@@ -273,12 +304,14 @@ function compareInsuranceFiles({ payrollFilePath, dentalFilePath, visionFilePath
     issues,
     issuesByBenefit,
     metadata: {
-      payrollFileName: path.basename(payrollFilePath),
+      salaryPayrollFileName: path.basename(salaryPayrollFilePath),
+      hourlyPayrollFileName: path.basename(hourlyPayrollFilePath),
+      hourlyPayrollCount: Number(hourlyPayrollCount),
       dentalFileName: path.basename(dentalFilePath),
       visionFileName: path.basename(visionFilePath),
       ltdLifeSuppFileName: path.basename(ltdLifeSuppFilePath),
       generatedAt: new Date().toISOString(),
-      ruleVersion: 'insurance-breakout-v1',
+      ruleVersion: 'insurance-breakout-v2-pay-types',
     },
   };
 }
@@ -286,6 +319,8 @@ function compareInsuranceFiles({ payrollFilePath, dentalFilePath, visionFilePath
 module.exports = {
   BENEFITS,
   compareInsuranceFiles,
+  parsePayroll,
   parseMoney,
   roundMoney,
+  moneyEqual,
 };

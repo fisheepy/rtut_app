@@ -26,6 +26,9 @@ type InsuranceJob = {
   status: 'completed' | 'failed'
   createdAt: string
   payrollFileName: string
+  salaryPayrollFileName?: string
+  hourlyPayrollFileName?: string
+  hourlyPayrollCount?: number
   dentalFileName: string
   visionFileName: string
   ltdLifeSuppFileName: string
@@ -133,7 +136,9 @@ function ReportActions({ job }: { job: InsuranceJob | null }) {
 }
 
 export default function InsuranceBreakout() {
-  const [payrollFile, setPayrollFile] = useState<File | null>(null)
+  const [salaryPayrollFile, setSalaryPayrollFile] = useState<File | null>(null)
+  const [hourlyPayrollFile, setHourlyPayrollFile] = useState<File | null>(null)
+  const [hourlyPayrollCount, setHourlyPayrollCount] = useState<'2' | '3'>('2')
   const [dentalFile, setDentalFile] = useState<File | null>(null)
   const [visionFile, setVisionFile] = useState<File | null>(null)
   const [ltdLifeSuppFile, setLtdLifeSuppFile] = useState<File | null>(null)
@@ -153,13 +158,15 @@ export default function InsuranceBreakout() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!payrollFile || !dentalFile || !visionFile || !ltdLifeSuppFile) {
-      setError('All four files are required.')
+    if (!salaryPayrollFile || !hourlyPayrollFile || !dentalFile || !visionFile || !ltdLifeSuppFile) {
+      setError('Both payroll files and all three invoice files are required.')
       return
     }
 
     const formData = new FormData()
-    formData.append('payrollFile', payrollFile)
+    formData.append('salaryPayrollFile', salaryPayrollFile)
+    formData.append('hourlyPayrollFile', hourlyPayrollFile)
+    formData.append('hourlyPayrollCount', hourlyPayrollCount)
     formData.append('dentalFile', dentalFile)
     formData.append('visionFile', visionFile)
     formData.append('ltdLifeSuppFile', ltdLifeSuppFile)
@@ -180,7 +187,7 @@ export default function InsuranceBreakout() {
   const latestJob = currentJob || jobs[0] || null
   const summary = currentJob?.summary
   const issueCount = summary?.totalIssues ?? latestJob?.summary?.totalIssues ?? 0
-  const ready = Boolean(payrollFile && dentalFile && visionFile && ltdLifeSuppFile)
+  const ready = Boolean(salaryPayrollFile && hourlyPayrollFile && dentalFile && visionFile && ltdLifeSuppFile)
   const statusCopy = useMemo(() => {
     if (isSubmitting) return 'Processing'
     if (error) return 'Needs attention'
@@ -202,7 +209,7 @@ export default function InsuranceBreakout() {
               </div>
               <h1 className="mt-5 max-w-2xl text-4xl font-semibold tracking-normal md:text-5xl">Insurance Breakout</h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                Cross-check payroll deductions against dental, vision, LTD, life, and supplemental invoices in one report package.
+                Cross-check salary and normalized hourly payroll deductions against dental, vision, LTD, life, and supplemental invoices.
               </p>
               <div className="mt-7 flex flex-wrap gap-2">
                 <ReportActions job={latestJob} />
@@ -242,15 +249,23 @@ export default function InsuranceBreakout() {
       </section>
 
       <form className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" onSubmit={handleSubmit}>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <FileDrop label="Payroll Deductions" caption="Updated deduction comparison" file={payrollFile} onChange={setPayrollFile} accent="violet" icon={<FileSpreadsheet className="h-6 w-6" />} />
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+          <FileDrop label="Salary Payroll Deductions" caption="24 payrolls/year; monthly amounts used directly" file={salaryPayrollFile} onChange={setSalaryPayrollFile} accent="violet" icon={<FileSpreadsheet className="h-6 w-6" />} />
+          <FileDrop label="Hourly Payroll Deductions" caption="26 payrolls/year; amounts normalized monthly" file={hourlyPayrollFile} onChange={setHourlyPayrollFile} accent="violet" icon={<FileSpreadsheet className="h-6 w-6" />} />
           <FileDrop label="Dental Invoice" caption="Subscriber listing" file={dentalFile} onChange={setDentalFile} accent="blue" icon={<HeartPulse className="h-6 w-6" />} />
           <FileDrop label="Vision Invoice" caption="Full month roster" file={visionFile} onChange={setVisionFile} accent="emerald" icon={<FileText className="h-6 w-6" />} />
           <FileDrop label="LTD / Life / SUPP" caption="Detail invoice breakout" file={ltdLifeSuppFile} onChange={setLtdLifeSuppFile} accent="amber" icon={<ShieldCheck className="h-6 w-6" />} />
         </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
-          <div className="text-sm text-slate-600">
-            <span className="font-semibold text-slate-950">Matching rule:</span> payroll deduction must match invoice amount, with bidirectional missing-person checks.
+        <div className="mt-5 grid gap-4 rounded-xl bg-slate-50 px-4 py-4 lg:grid-cols-[260px_1fr_auto] lg:items-end">
+          <label className="text-sm font-semibold text-slate-800">
+            Hourly payrolls included in report
+            <select className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-medium" value={hourlyPayrollCount} onChange={(event) => setHourlyPayrollCount(event.target.value as '2' | '3')}>
+              <option value="2">2 payrolls</option>
+              <option value="3">3 payrolls</option>
+            </select>
+          </label>
+          <div className="text-sm leading-6 text-slate-600">
+            <span className="font-semibold text-slate-950">Matching rule:</span> Hourly amounts are normalized as deduction ÷ {hourlyPayrollCount} × 26 ÷ 12. Differences under $1.00 are omitted; missing-person checks still apply.
           </div>
           <button className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-slate-300" type="submit" disabled={isSubmitting || !ready}>
             {isSubmitting ? 'Generating...' : 'Generate Reports'}
@@ -289,7 +304,7 @@ export default function InsuranceBreakout() {
             <div>
               <p className="text-xs font-semibold uppercase text-violet-600">Latest Output</p>
               <h3 className="mt-1 text-xl font-semibold text-slate-950">Report package is ready</h3>
-              <p className="mt-1 text-sm text-slate-600">{latestJob.payrollFileName} paired with insurance invoice files</p>
+              <p className="mt-1 text-sm text-slate-600">{latestJob.salaryPayrollFileName || latestJob.payrollFileName} + {latestJob.hourlyPayrollFileName || 'hourly payroll'} paired with insurance invoice files</p>
             </div>
             <ReportActions job={latestJob} />
           </div>
@@ -313,7 +328,7 @@ export default function InsuranceBreakout() {
               <tr>
                 <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Created</th>
                 <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Status</th>
-                <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Payroll File</th>
+                <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Payroll Files</th>
                 <th className="border-b px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Issues</th>
                 <th className="border-b px-4 py-3 text-right text-xs font-semibold uppercase text-slate-500">Mismatch</th>
                 <th className="border-b px-4 py-3 text-left text-xs font-semibold uppercase text-slate-500">Open</th>
@@ -324,7 +339,7 @@ export default function InsuranceBreakout() {
                 <tr key={job.jobId} className="even:bg-slate-50/60">
                   <td className="border-b px-4 py-3 text-slate-700">{compactDate(job.createdAt)}</td>
                   <td className="border-b px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${job.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{job.status}</span></td>
-                  <td className="border-b px-4 py-3"><div className="max-w-[360px] truncate font-medium text-slate-900">{job.payrollFileName}</div><div className="max-w-[360px] truncate text-xs text-slate-500">{job.dentalFileName} / {job.visionFileName}</div></td>
+                  <td className="border-b px-4 py-3"><div className="max-w-[360px] truncate font-medium text-slate-900">{job.salaryPayrollFileName || job.payrollFileName}</div><div className="max-w-[360px] truncate text-xs text-slate-500">{job.hourlyPayrollFileName ? `${job.hourlyPayrollFileName} (${job.hourlyPayrollCount} payrolls) / ` : ''}{job.dentalFileName} / {job.visionFileName}</div></td>
                   <td className="border-b px-4 py-3 text-right tabular-nums">{job.summary?.totalIssues ?? '-'}</td>
                   <td className="border-b px-4 py-3 text-right tabular-nums">{job.summary?.amountMismatches ?? '-'}</td>
                   <td className="border-b px-4 py-3">

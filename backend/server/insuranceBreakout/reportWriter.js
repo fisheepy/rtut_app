@@ -60,7 +60,10 @@ const issueColumns = [
   { header: 'Benefit', key: 'benefit', width: 14 },
   { header: 'Issue Type', key: 'issueType', width: 20 },
   { header: 'Name', key: 'name', width: 28 },
-  { header: 'Payroll Amount', key: 'payrollAmount', width: 18, numFmt: '$#,##0.00' },
+  { header: 'Pay Type', key: 'payType', width: 12 },
+  { header: 'Payrolls in Report', key: 'payrollCount', width: 18 },
+  { header: 'Raw Payroll Amount', key: 'rawPayrollAmount', width: 20, numFmt: '$#,##0.00' },
+  { header: 'Normalized Payroll Amount', key: 'payrollAmount', width: 26, numFmt: '$#,##0.00' },
   { header: 'Invoice Amount', key: 'invoiceAmount', width: 18, numFmt: '$#,##0.00' },
   { header: 'Difference', key: 'difference', width: 14, numFmt: '$#,##0.00' },
   { header: 'Payroll Row', key: 'payrollRow', width: 12 },
@@ -78,6 +81,8 @@ async function writeInsuranceExcelReport(result, outputPath) {
     { header: 'Value', key: 'value', width: 20 },
   ], [
     { metric: 'Payroll Employees', value: result.summary.payrollEmployees },
+    { metric: 'Salary Employees', value: result.summary.salaryEmployees },
+    { metric: 'Hourly Employees', value: result.summary.hourlyEmployees },
     { metric: 'Total Issues', value: result.summary.totalIssues },
     { metric: 'Amount Mismatches', value: result.summary.amountMismatches },
     { metric: 'Missing in Invoice', value: result.summary.missingInInvoice },
@@ -96,7 +101,11 @@ async function writeInsuranceExcelReport(result, outputPath) {
   ], [
     { field: 'Generated At', value: result.metadata.generatedAt },
     { field: 'Rule Version', value: result.metadata.ruleVersion },
-    { field: 'Payroll File', value: result.metadata.payrollFileName },
+    { field: 'Salary Payroll File', value: result.metadata.salaryPayrollFileName },
+    { field: 'Hourly Payroll File', value: result.metadata.hourlyPayrollFileName },
+    { field: 'Hourly Payrolls in Report', value: result.metadata.hourlyPayrollCount },
+    { field: 'Hourly Normalization', value: `Raw deduction / ${result.metadata.hourlyPayrollCount} × 26 / 12` },
+    { field: 'Mismatch Threshold', value: 'Differences under $1.00 are omitted' },
     { field: 'Dental File', value: result.metadata.dentalFileName },
     { field: 'Vision File', value: result.metadata.visionFileName },
     { field: 'LTD Life SUPP File', value: result.metadata.ltdLifeSuppFileName },
@@ -110,12 +119,15 @@ function issueClass(issueType) {
 }
 
 function renderIssueRows(rows) {
-  if (!rows.length) return '<tr><td colspan="7" class="empty">No issues found.</td></tr>';
+  if (!rows.length) return '<tr><td colspan="10" class="empty">No issues found.</td></tr>';
   return rows.map((issue) => `
     <tr>
       <td><span class="pill ${issueClass(issue.issueType)}">${escapeHtml(issue.issueType)}</span></td>
       <td>${escapeHtml(issue.benefit)}</td>
       <td>${escapeHtml(issue.name)}</td>
+      <td>${escapeHtml(issue.payType)}</td>
+      <td class="num">${escapeHtml(issue.payrollCount ?? '-')}</td>
+      <td class="num">${formatMoney(issue.rawPayrollAmount)}</td>
       <td class="num">${formatMoney(issue.payrollAmount)}</td>
       <td class="num">${formatMoney(issue.invoiceAmount)}</td>
       <td class="num">${formatMoney(issue.difference)}</td>
@@ -145,7 +157,7 @@ function writeInsuranceHtmlReport(result, outputPath) {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Issue</th><th>Benefit</th><th>Name</th><th class="num">Payroll</th><th class="num">Invoice</th><th class="num">Difference</th><th>Notes</th></tr></thead>
+          <thead><tr><th>Issue</th><th>Benefit</th><th>Name</th><th>Pay Type</th><th class="num">Payrolls</th><th class="num">Raw Payroll</th><th class="num">Normalized Payroll</th><th class="num">Invoice</th><th class="num">Difference</th><th>Notes</th></tr></thead>
           <tbody>${renderIssueRows(result.issuesByBenefit[benefit.key] || [])}</tbody>
         </table>
       </div>
@@ -203,7 +215,8 @@ function writeInsuranceHtmlReport(result, outputPath) {
           <div class="meta">
             <span>Generated ${escapeHtml(generated)}</span>
             <span>Rule ${escapeHtml(result.metadata.ruleVersion)}</span>
-            <span>${escapeHtml(result.metadata.payrollFileName)}</span>
+            <span>Salary: ${escapeHtml(result.metadata.salaryPayrollFileName)}</span>
+            <span>Hourly: ${escapeHtml(result.metadata.hourlyPayrollFileName)} (${escapeHtml(result.metadata.hourlyPayrollCount)} payrolls)</span>
           </div>
         </div>
         <div class="verdict">
@@ -218,7 +231,7 @@ function writeInsuranceHtmlReport(result, outputPath) {
       <div class="section-head"><h2>All Important Issues</h2><p>Amount mismatches and missing employee records across all insurance sources.</p></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Issue</th><th>Benefit</th><th>Name</th><th class="num">Payroll</th><th class="num">Invoice</th><th class="num">Difference</th><th>Notes</th></tr></thead>
+          <thead><tr><th>Issue</th><th>Benefit</th><th>Name</th><th>Pay Type</th><th class="num">Payrolls</th><th class="num">Raw Payroll</th><th class="num">Normalized Payroll</th><th class="num">Invoice</th><th class="num">Difference</th><th>Notes</th></tr></thead>
           <tbody>${renderIssueRows(result.issues)}</tbody>
         </table>
       </div>
