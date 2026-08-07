@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
+const { closureWarnings, employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
 
 const employee = {
   _id: 'employee-1', 'First Name': 'Alex', 'Last Name': 'Morgan', 'Hire Date': '2024-01-15',
@@ -144,5 +144,26 @@ test('preserves a legacy custom timeline status as Other when editing its docume
   assert.equal(result.error, undefined);
   assert.equal(result.value.timeline[0].workStatusAfter, 'Other');
   assert.equal(result.value.timeline[0].otherWorkStatusAfter, 'Light duty - no lifting');
+});
+
+test('explains every issue that should be reviewed before case closure', () => {
+  const warnings = closureWarnings({
+    workStatus: 'Off Work', investigationStatus: 'In Progress', investigationDate: '', rootCause: '',
+    safetyViolation: 'No', correctiveActionRequired: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+    followUpIssues: 'Awaiting clinic note', timeline: [],
+  });
+  assert.ok(warnings.some(message => message.includes('not "Returned to Work - No Restrictions"')));
+  assert.ok(warnings.includes('The safety investigation is not completed.'));
+  assert.ok(warnings.includes('Investigation Date is missing.'));
+  assert.ok(warnings.includes('Root Cause is missing.'));
+  assert.ok(warnings.includes('Follow-up Issues are still recorded on this case.'));
+});
+
+test('allows a complete unrestricted case to proceed without warnings', () => {
+  const warnings = closureWarnings({
+    workStatus: 'Returned to Work - No Restrictions', investigationStatus: 'Completed', investigationDate: '2026-08-10', rootCause: 'Wet floor',
+    safetyViolation: 'No', correctiveActionRequired: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No', followUpIssues: '', timeline: [],
+  });
+  assert.deepEqual(warnings, []);
 });
 

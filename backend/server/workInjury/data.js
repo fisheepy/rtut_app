@@ -43,6 +43,22 @@ function withCurrentWorkStatus(record) {
   };
 }
 
+function closureWarnings(record) {
+  const current = withCurrentWorkStatus(record);
+  const currentStatus = current.workStatus === 'Other' ? current.otherWorkStatus : current.workStatus;
+  const warnings = [];
+  if (current.workStatus !== 'Returned to Work - No Restrictions') warnings.push(`Current Work Status / Medical Restriction is "${currentStatus || 'Not entered'}", not "Returned to Work - No Restrictions".`);
+  if (clean(record?.investigationStatus) !== 'Completed') warnings.push('The safety investigation is not completed.');
+  if (!clean(record?.investigationDate)) warnings.push('Investigation Date is missing.');
+  if (!clean(record?.rootCause)) warnings.push('Root Cause is missing.');
+  if (record?.safetyViolation === 'Yes' && !clean(record?.safetyViolationDetails)) warnings.push('Safety Violation Details are missing.');
+  if (record?.correctiveActionRequired === 'Yes' && !clean(record?.correctiveActionDetails)) warnings.push('Corrective Action Details are missing.');
+  if (record?.injuryReportReceived === 'Yes' && !clean(record?.injuryReportLink)) warnings.push('The received Injury Report Link is missing.');
+  if (record?.workersCompClaimed === 'Yes' && !clean(record?.workersCompCaseNumber)) warnings.push('Workers’ Compensation Case Number is missing.');
+  if (clean(record?.followUpIssues)) warnings.push('Follow-up Issues are still recorded on this case.');
+  return warnings;
+}
+
 function sanitizeCosts(value) {
   if (!Array.isArray(value)) return { value: [] };
   const items = value.map(item => ({ invoiceDate: clean(item?.invoiceDate), description: clean(item?.description), paidBy: clean(item?.paidBy), amount: Number(item?.amount), invoiceLink: clean(item?.invoiceLink) }))
@@ -153,5 +169,5 @@ function sanitizeCaseInput(input, employee) {
   };
 }
 
-module.exports = { employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus };
+module.exports = { closureWarnings, employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus };
 

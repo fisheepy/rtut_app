@@ -58,6 +58,9 @@ type InjuryCase = {
   costs: CostEntry[]
   closedAt?: string | null
   closedBy?: string | null
+  closeRequestedAt?: string | null
+  closeRequestedBy?: string | null
+  closeWarnings?: string[]
 }
 
 type CaseForm = Pick<InjuryCase, 'employeeId' | 'injuryDateTime' | 'firstNoticeDate' | 'injuryDescription' | 'injuryLocation' | 'safetyViolation' | 'safetyViolationDetails' | 'investigationStatus' | 'investigationDate' | 'rootCause' | 'correctiveActionRequired' | 'correctiveActionDetails' | 'correctiveActionTargetDate' | 'workStatus' | 'otherWorkStatus' | 'injuredBodyPart' | 'oshaRecordable' | 'employeeInjuryFolderLink' | 'injuryReportReceived' | 'injuryReportLink' | 'workersCompClaimed' | 'workersCompCaseNumber' | 'followUpIssues' | 'timeline' | 'costs'>
@@ -250,7 +253,7 @@ function CaseDetails({ caseId, onLogout }: { caseId: string; onLogout: () => voi
 
 function CostTotal({ label, value, primary = false }: { label: string; value: number; primary?: boolean }) { return <div className={`rounded-xl p-4 ${primary ? 'bg-emerald-700 text-white' : 'bg-emerald-50 text-emerald-950'}`}><div className="text-xs font-bold uppercase tracking-wide opacity-75">{label}</div><div className="mt-2 text-2xl font-bold">{value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div></div> }
 
-function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
+function InjuryWorkspace({ currentEmail, onLogout }: { currentEmail: string; onLogout: () => void }) {
   const [tab, setTab] = useState<'injury' | 'accident'>('injury')
   const [view, setView] = useState<'dashboard' | 'new' | 'edit'>('dashboard')
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -314,10 +317,26 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
   useEffect(() => { load() }, [])
 
   async function logout() { await api.post('/training-auth/logout').catch(() => {}); onLogout() }
+  async function submitClosure(url: string, finalApproval: boolean, confirmWarnings = false) {
+    if (!selected) return
+    try { await api.post(url, { confirmWarnings }); setSelectedId(''); await load() }
+    catch (requestError: any) {
+      const warnings = requestError.response?.data?.warnings
+      if (requestError.response?.status === 409 && Array.isArray(warnings)) {
+        const action = finalApproval ? 'finally approve and close' : 'submit this case for final approval'
+        if (window.confirm(`Please review before continuing:\n\n• ${warnings.join('\n• ')}\n\nDo you still want to ${action}?`)) await submitClosure(url, finalApproval, true)
+        return
+      }
+      setError(requestError.response?.data?.error || 'The case closure action could not be completed.')
+    }
+  }
   async function closeCase() {
-    if (!selected || !window.confirm(`Close the work injury case for ${selected.employeeName}? The case will be removed from the current-case summary.`)) return
-    try { await api.post(`/work-injury/cases/${selected.id}/close`); setSelectedId(''); await load() }
-    catch (requestError: any) { setError(requestError.response?.data?.error || 'The case could not be closed.') }
+    if (!selected || !window.confirm(`Submit the work injury case for ${selected.employeeName} for final closure approval? The case will remain open until Myra approves it.`)) return
+    await submitClosure(`/work-injury/cases/${selected.id}/close-request`, false)
+  }
+  async function finalApproveClose() {
+    if (!selected || !window.confirm(`Give final approval and close the work injury case for ${selected.employeeName}?`)) return
+    await submitClosure(`/work-injury/cases/${selected.id}/close-final-approval`, true)
   }
 
   if (view !== 'dashboard') return <div className="space-y-6 pb-10"><CaseEditor employees={employees} existing={view === 'edit' ? selected : null} onCancel={() => setView('dashboard')} onSaved={async () => { setView('dashboard'); setSelectedId(''); await load() }} /></div>
@@ -329,7 +348,7 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
     </div></section>
     <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm"><button className={`flex-1 rounded-lg px-4 py-3 text-sm font-bold ${tab === 'injury' ? 'bg-orange-700 text-white shadow' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setTab('injury')}>Work Injury</button><button className={`flex-1 rounded-lg px-4 py-3 text-sm font-bold ${tab === 'accident' ? 'bg-blue-700 text-white shadow' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setTab('accident')}>Accident</button></div>
     {tab === 'accident' ? <section className="rounded-2xl border border-blue-200 bg-blue-50 p-10 text-center"><AlertTriangle className="mx-auto h-10 w-10 text-blue-700" /><h2 className="mt-4 text-2xl font-semibold">Accident Case Management</h2><p className="mt-2 text-sm text-slate-600">The Accident workflow is separate and will be configured in the next step.</p></section> : <>
-      <section className="grid gap-3 sm:grid-cols-3"><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-4 font-bold text-white shadow-sm hover:bg-orange-800" onClick={() => setView('new')}><Plus className="h-5 w-5" />New Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={() => setView('edit')}><ClipboardEdit className="h-5 w-5" />Edit Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={closeCase}><XCircle className="h-5 w-5" />Close Case</button></section>
+      <section className="grid gap-3 sm:grid-cols-3"><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-4 font-bold text-white shadow-sm hover:bg-orange-800" onClick={() => setView('new')}><Plus className="h-5 w-5" />New Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={() => setView('edit')}><ClipboardEdit className="h-5 w-5" />Edit Case</button>{selected?.closeRequestedAt ? <button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-700 px-5 py-4 font-bold text-white disabled:cursor-not-allowed disabled:opacity-40" disabled={currentEmail.toLowerCase() !== 'myu@royaltrailersales.com'} onClick={finalApproveClose}><ShieldCheck className="h-5 w-5" />{currentEmail.toLowerCase() === 'myu@royaltrailersales.com' ? 'Final Approve & Close' : 'Pending Myra Final Approval'}</button> : <button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={closeCase}><XCircle className="h-5 w-5" />Request Case Closure</button>}</section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-xl font-semibold">Current Injury Cases</h2><p className="mt-1 text-sm text-slate-500">Open cases from prior years and all cases from the current year. The summary is read-only.</p></div><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{openCount} Open</span></div>
         <div className="border-b border-slate-200 bg-slate-50/70 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><button className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" onClick={() => setFiltersOpen(value => !value)} type="button"><Search className="h-4 w-4" />{filtersOpen ? 'Hide Filters' : 'Show Filters'}{activeFilterCount ? <span className="rounded-full bg-orange-700 px-2 py-0.5 text-xs text-white">{activeFilterCount}</span> : null}</button><div className="text-xs font-semibold text-slate-500">Showing {filteredCases.length} of {cases.length} cases</div></div>{filtersOpen ? <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Employee Name</span><input className="control mt-1.5" onChange={event => setNameFilter(event.target.value)} placeholder="Search employee" value={nameFilter} /></label>
@@ -358,10 +377,11 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
 export default function WorkRelatedInjury() {
   const { caseId } = useParams()
   const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'signed-out'>('checking')
-  useEffect(() => { api.get('/training-auth/me').then(() => setAuthState('authenticated')).catch(() => setAuthState('signed-out')) }, [])
+  const [currentEmail, setCurrentEmail] = useState('')
+  useEffect(() => { api.get('/training-auth/me').then(response => { setCurrentEmail(response.data.email || ''); setAuthState('authenticated') }).catch(() => setAuthState('signed-out')) }, [])
   if (authState === 'checking') return <div className="grid min-h-64 place-items-center rounded-2xl bg-white"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div>
   if (authState === 'signed-out') return <InjuryLogin onLogin={() => setAuthState('authenticated')} />
   if (caseId) return <CaseDetails caseId={caseId} onLogout={() => setAuthState('signed-out')} />
-  return <InjuryWorkspace onLogout={() => setAuthState('signed-out')} />
+  return <InjuryWorkspace currentEmail={currentEmail} onLogout={() => setAuthState('signed-out')} />
 }
 

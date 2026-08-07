@@ -1,6 +1,8 @@
 const express = require('express');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
-const { sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
+const { closureWarnings, sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
+
+const FINAL_APPROVER_EMAIL = 'myu@royaltrailersales.com';
 
 function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
   const router = express.Router();
@@ -75,19 +77,41 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
     } finally { await client.close(); }
   });
 
-  router.post('/cases/:caseId/close', async (req, res) => {
+  router.post('/cases/:caseId/close-request', async (req, res) => {
     const client = createClient();
     try {
       if (!ObjectId.isValid(req.params.caseId)) return res.status(404).json({ error: 'Work injury case not found.' });
       await client.connect();
-      const result = await client.db(databaseName).collection('work_injury_cases').updateOne(
-        { _id: new ObjectId(req.params.caseId), closedAt: null },
-        { $set: { closedAt: new Date(), closedBy: req.adminSession?.email || null, updatedAt: new Date(), updatedBy: req.adminSession?.email || null } },
-      );
-      if (!result.matchedCount) return res.status(404).json({ error: 'Open work injury case not found.' });
+      const collection = client.db(databaseName).collection('work_injury_cases');
+      const record = await collection.findOne({ _id: new ObjectId(req.params.caseId), closedAt: null });
+      if (!record) return res.status(404).json({ error: 'Open work injury case not found.' });
+      const warnings = closureWarnings(record);
+      if (warnings.length && req.body?.confirmWarnings !== true) return res.status(409).json({ requiresConfirmation: true, warnings });
+      const now = new Date();
+      await collection.updateOne({ _id: record._id }, { $set: { closeRequestedAt: now, closeRequestedBy: req.adminSession?.email || null, closeWarnings: warnings, updatedAt: now, updatedBy: req.adminSession?.email || null } });
+      return res.json({ ok: true, pendingFinalApproval: true, warnings });
+    } catch (error) {
+      console.error('Unable to request work injury case closure:', error);
+      return res.status(500).json({ error: 'The work injury case closure request could not be saved.' });
+    } finally { await client.close(); }
+  });
+
+  router.post('/cases/:caseId/close-final-approval', async (req, res) => {
+    const client = createClient();
+    try {
+      if ((req.adminSession?.email || '').toLowerCase() !== FINAL_APPROVER_EMAIL) return res.status(403).json({ error: 'Only the authorized final approver can close this case.' });
+      if (!ObjectId.isValid(req.params.caseId)) return res.status(404).json({ error: 'Work injury case not found.' });
+      await client.connect();
+      const collection = client.db(databaseName).collection('work_injury_cases');
+      const record = await collection.findOne({ _id: new ObjectId(req.params.caseId), closedAt: null, closeRequestedAt: { $ne: null } });
+      if (!record) return res.status(404).json({ error: 'Pending case closure request not found.' });
+      const warnings = closureWarnings(record);
+      if (warnings.length && req.body?.confirmWarnings !== true) return res.status(409).json({ requiresConfirmation: true, warnings });
+      const now = new Date();
+      await collection.updateOne({ _id: record._id }, { $set: { closedAt: now, closedBy: req.adminSession.email, closeFinalApprovedAt: now, closeFinalApprovedBy: req.adminSession.email, closeWarnings: warnings, updatedAt: now, updatedBy: req.adminSession.email } });
       return res.json({ ok: true });
     } catch (error) {
-      console.error('Unable to close work injury case:', error);
+      console.error('Unable to approve work injury case closure:', error);
       return res.status(500).json({ error: 'The work injury case could not be closed.' });
     } finally { await client.close(); }
   });
