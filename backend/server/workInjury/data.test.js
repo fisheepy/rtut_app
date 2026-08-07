@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { closureWarnings, employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
+const { closureWarnings, employeeSnapshot, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus } = require('./data');
 
 const employee = {
   _id: 'employee-1', 'First Name': 'Alex', 'Last Name': 'Morgan', 'Hire Date': '2024-01-15',
@@ -129,6 +129,10 @@ test('accepts a case cost without an invoice date', () => {
   }, employee);
   assert.equal(result.error, undefined);
   assert.equal(result.value.costs[0].invoiceDate, '');
+});
+
+test('totals every cost recorded against an injury case', () => {
+  assert.equal(totalCaseCost({ costs: [{ amount: 125.5 }, { amount: '74.50' }, { amount: '' }] }), 200);
 });
 
 test('repairs a stale grid status from the latest saved timeline entry', () => {

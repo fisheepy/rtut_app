@@ -58,6 +58,10 @@ function closureWarnings(record) {
   return warnings;
 }
 
+function totalCaseCost(record) {
+  return (Array.isArray(record?.costs) ? record.costs : []).reduce((total, cost) => total + (Number(cost?.amount) || 0), 0);
+}
+
 function sanitizeCosts(value) {
   if (!Array.isArray(value)) return { value: [] };
   const items = value.map(item => ({ invoiceDate: clean(item?.invoiceDate), description: clean(item?.description), paidBy: clean(item?.paidBy), amount: Number(item?.amount), invoiceLink: clean(item?.invoiceLink) }))
@@ -169,4 +173,4 @@ function sanitizeCaseInput(input, employee, options = {}) {
   };
 }
 
-module.exports = { closureWarnings, employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus };
+module.exports = { closureWarnings, employeeSnapshot, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus };

@@ -1,6 +1,7 @@
 const express = require('express');
+const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
-const { closureWarnings, sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
+const { closureWarnings, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus } = require('./data');
 
 const FINAL_APPROVER_EMAIL = 'myu@royaltrailersales.com';
 
@@ -9,12 +10,20 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
   const createClient = () => new MongoClient(uri, { serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true } });
   router.use(requireTrainingSession);
 
+  async function sendWorkbook(res, workbook, fileName) {
+    workbook.eachSheet(sheet => { sheet.views = [{ state: 'frozen', ySplit: 1 }]; sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }; sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC2410C' } }; });
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    return res.send(Buffer.from(buffer));
+  }
+
   router.get('/cases', async (_req, res) => {
     const client = createClient();
     try {
       await client.connect();
       const cases = await client.db(databaseName).collection('work_injury_cases').find({}).sort({ injuryDateTime: -1 }).toArray();
-      return res.json({ cases: cases.map(record => ({ ...withCurrentWorkStatus(record), id: String(record._id), _id: undefined })) });
+      return res.json({ cases: cases.map(record => ({ ...withCurrentWorkStatus(record), closeRequestedAt: record.closedAt ? null : record.closeRequestedAt, id: String(record._id), _id: undefined })) });
     } catch (error) {
       console.error('Unable to load work injury cases:', error);
       return res.status(500).json({ error: 'Work injury cases could not be loaded.' });
@@ -108,7 +117,7 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
       const warnings = closureWarnings(record);
       if (warnings.length && req.body?.confirmWarnings !== true) return res.status(409).json({ requiresConfirmation: true, warnings });
       const now = new Date();
-      await collection.updateOne({ _id: record._id }, { $set: { closedAt: now, closedBy: req.adminSession.email, closeFinalApprovedAt: now, closeFinalApprovedBy: req.adminSession.email, closeWarnings: warnings, updatedAt: now, updatedBy: req.adminSession.email } });
+      await collection.updateOne({ _id: record._id }, { $set: { closedAt: now, closedBy: req.adminSession.email, closeFinalApprovedAt: now, closeFinalApprovedBy: req.adminSession.email, closeRequestedAt: null, closeRequestedBy: null, closeWarnings: warnings, updatedAt: now, updatedBy: req.adminSession.email } });
       return res.json({ ok: true });
     } catch (error) {
       console.error('Unable to approve work injury case closure:', error);
@@ -136,6 +145,27 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
       console.error('Unable to decline work injury case closure:', error);
       return res.status(500).json({ error: 'The closure request could not be declined.' });
     } finally { await client.close(); }
+  });
+
+  router.get('/reports/case-details.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const records = await client.db(databaseName).collection('work_injury_cases').find({}).sort({ injuryDateTime: -1 }).toArray();
+      const workbook = new ExcelJS.Workbook(); const cases = workbook.addWorksheet('Case Details'); const timeline = workbook.addWorksheet('Step by Step Log'); const costs = workbook.addWorksheet('Case Costs');
+      cases.columns = [{ header: 'Case ID', key: 'id', width: 26 }, { header: 'Employee', key: 'employee', width: 28 }, { header: 'Hire Date', key: 'hire', width: 14 }, { header: 'Department', key: 'department', width: 22 }, { header: 'Location', key: 'location', width: 20 }, { header: 'Supervisor', key: 'supervisor', width: 24 }, { header: 'Job Title', key: 'title', width: 24 }, { header: 'Phone', key: 'phone', width: 18 }, { header: 'Email', key: 'email', width: 30 }, { header: 'Injury Date / Time', key: 'injuryDate', width: 22 }, { header: 'First Notice Date', key: 'notice', width: 18 }, { header: 'Injury Description', key: 'description', width: 45 }, { header: 'Injury Location', key: 'injuryLocation', width: 24 }, { header: 'Body Part', key: 'bodyPart', width: 20 }, { header: 'Initial Work Status', key: 'initialStatus', width: 32 }, { header: 'Current Work Status', key: 'currentStatus', width: 32 }, { header: 'OSHA Recordable', key: 'osha', width: 18 }, { header: 'Safety Violation', key: 'violation', width: 18 }, { header: 'Violation Details', key: 'violationDetails', width: 40 }, { header: 'Investigation Status', key: 'investigationStatus', width: 22 }, { header: 'Investigation Date', key: 'investigationDate', width: 20 }, { header: 'Root Cause', key: 'rootCause', width: 40 }, { header: 'Corrective Action Required', key: 'correctiveRequired', width: 26 }, { header: 'Corrective Action Details', key: 'correctiveDetails', width: 40 }, { header: 'Corrective Action Target Date', key: 'correctiveDate', width: 28 }, { header: 'Injury Folder Link', key: 'folder', width: 45 }, { header: 'Injury Report Link', key: 'report', width: 45 }, { header: 'Workers Compensation Claimed', key: 'wcClaimed', width: 30 }, { header: 'Workers Compensation Case Number', key: 'wcNumber', width: 34 }, { header: 'Total Cost', key: 'total', width: 16 }, { header: 'Status', key: 'status', width: 14 }, { header: 'Closed At', key: 'closedAt', width: 22 }, { header: 'Closed By', key: 'closedBy', width: 30 }];
+      timeline.columns = [{ header: 'Case ID', key: 'id', width: 26 }, { header: 'Employee', key: 'employee', width: 28 }, { header: 'Date', key: 'date', width: 16 }, { header: 'Description', key: 'description', width: 55 }, { header: 'Work Status After Event', key: 'status', width: 34 }, { header: 'Documentation Link', key: 'link', width: 50 }];
+      costs.columns = [{ header: 'Case ID', key: 'id', width: 26 }, { header: 'Employee', key: 'employee', width: 28 }, { header: 'Invoice Date', key: 'date', width: 16 }, { header: 'Description', key: 'description', width: 45 }, { header: 'Paid By', key: 'paidBy', width: 24 }, { header: 'Amount', key: 'amount', width: 16 }, { header: 'Invoice Link', key: 'link', width: 50 }];
+      records.forEach(record => { const current = withCurrentWorkStatus(record); const id = String(record._id); cases.addRow({ id, employee: record.employeeName, hire: record.hireDate, department: record.department, location: record.location, supervisor: record.supervisor, title: record.jobTitle, phone: record.employeePhone, email: record.employeeEmail, injuryDate: record.injuryDateTime, notice: record.firstNoticeDate, description: record.injuryDescription, injuryLocation: record.injuryLocation, bodyPart: record.injuredBodyPart, initialStatus: record.workStatus === 'Other' ? record.otherWorkStatus : record.workStatus, currentStatus: current.workStatus === 'Other' ? current.otherWorkStatus : current.workStatus, osha: record.oshaRecordable, violation: record.safetyViolation, violationDetails: record.safetyViolationDetails, investigationStatus: record.investigationStatus, investigationDate: record.investigationDate, rootCause: record.rootCause, correctiveRequired: record.correctiveActionRequired, correctiveDetails: record.correctiveActionDetails, correctiveDate: record.correctiveActionTargetDate, folder: record.employeeInjuryFolderLink, report: record.injuryReportLink, wcClaimed: record.workersCompClaimed, wcNumber: record.workersCompCaseNumber, total: totalCaseCost(record), status: record.closedAt ? 'Closed' : 'Open', closedAt: record.closedAt || '', closedBy: record.closedBy || '' }); (record.timeline || []).forEach(entry => timeline.addRow({ id, employee: record.employeeName, date: entry.date, description: entry.description, status: entry.workStatusAfter === 'Other' ? entry.otherWorkStatusAfter : entry.workStatusAfter, link: entry.documentationLink })); (record.costs || []).forEach(cost => costs.addRow({ id, employee: record.employeeName, date: cost.invoiceDate, description: cost.description, paidBy: cost.paidBy, amount: Number(cost.amount) || 0, link: cost.invoiceLink })); });
+      cases.getColumn('total').numFmt = '$#,##0.00'; costs.getColumn('amount').numFmt = '$#,##0.00'; return await sendWorkbook(res, workbook, `Work_Injury_All_Case_Details_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) { console.error('Unable to create work injury details report:', error); return res.status(500).json({ error: 'The work injury details report could not be created.' }); } finally { await client.close(); }
+  });
+
+  router.get('/reports/case-costs.xlsx', async (req, res) => {
+    const from = String(req.query.from || ''); const to = String(req.query.to || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) return res.status(400).json({ error: 'Select a valid Injury Date From and To.' });
+    const client = createClient();
+    try { await client.connect(); const records = await client.db(databaseName).collection('work_injury_cases').find({ injuryDateTime: { $gte: from, $lte: `${to}T23:59:59.999` } }).sort({ injuryDateTime: 1 }).toArray(); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Case Cost Summary'); sheet.columns = [{ header: 'Case ID', key: 'id', width: 26 }, { header: 'Employee', key: 'employee', width: 28 }, { header: 'Injury Date / Time', key: 'date', width: 22 }, { header: 'Department', key: 'department', width: 22 }, { header: 'Location', key: 'location', width: 20 }, { header: 'Status', key: 'status', width: 14 }, { header: 'Paid by Workers Compensation', key: 'wc', width: 30 }, { header: 'Paid by Royal', key: 'royal', width: 20 }, { header: 'Total Case Cost', key: 'total', width: 20 }]; records.forEach(record => { const entries = Array.isArray(record.costs) ? record.costs : []; const wc = entries.filter(cost => cost.paidBy === 'Workers Compensation').reduce((sum, cost) => sum + (Number(cost.amount) || 0), 0); const royal = entries.filter(cost => cost.paidBy === 'Royal').reduce((sum, cost) => sum + (Number(cost.amount) || 0), 0); sheet.addRow({ id: String(record._id), employee: record.employeeName, date: record.injuryDateTime, department: record.department, location: record.location, status: record.closedAt ? 'Closed' : 'Open', wc, royal, total: wc + royal }); }); ['wc', 'royal', 'total'].forEach(key => { sheet.getColumn(key).numFmt = '$#,##0.00'; }); return await sendWorkbook(res, workbook, `Work_Injury_Case_Costs_${from}_to_${to}.xlsx`); } catch (error) { console.error('Unable to create work injury cost report:', error); return res.status(500).json({ error: 'The work injury cost report could not be created.' }); } finally { await client.close(); }
   });
 
   return router;
