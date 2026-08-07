@@ -156,7 +156,7 @@ test('explains every issue that should be reviewed before case closure', () => {
   assert.ok(warnings.includes('The safety investigation is not completed.'));
   assert.ok(warnings.includes('Investigation Date is missing.'));
   assert.ok(warnings.includes('Root Cause is missing.'));
-  assert.ok(warnings.includes('Follow-up Issues are still recorded on this case.'));
+  assert.ok(!warnings.some((warning) => warning.includes('Follow-up Issues')));
 });
 
 test('allows a complete unrestricted case to proceed without warnings', () => {
@@ -166,4 +166,3 @@ test('allows a complete unrestricted case to proceed without warnings', () => {
   });
   assert.deepEqual(warnings, []);
 });
-

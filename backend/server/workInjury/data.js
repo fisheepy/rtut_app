@@ -55,7 +55,6 @@ function closureWarnings(record) {
   if (record?.correctiveActionRequired === 'Yes' && !clean(record?.correctiveActionDetails)) warnings.push('Corrective Action Details are missing.');
   if (record?.injuryReportReceived === 'Yes' && !clean(record?.injuryReportLink)) warnings.push('The received Injury Report Link is missing.');
   if (record?.workersCompClaimed === 'Yes' && !clean(record?.workersCompCaseNumber)) warnings.push('Workers’ Compensation Case Number is missing.');
-  if (clean(record?.followUpIssues)) warnings.push('Follow-up Issues are still recorded on this case.');
   return warnings;
 }
 
@@ -170,4 +169,3 @@ function sanitizeCaseInput(input, employee) {
 }
 
 module.exports = { closureWarnings, employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus };
-
