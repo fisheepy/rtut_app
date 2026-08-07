@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { closureWarnings, employeeSnapshot, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus } = require('./data');
+const { closureBlocker, closureWarnings, employeeSnapshot, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus } = require('./data');
 
 const employee = {
   _id: 'employee-1', 'First Name': 'Alex', 'Last Name': 'Morgan', 'Hire Date': '2024-01-15',
@@ -178,4 +178,10 @@ test('allows a complete unrestricted case to proceed without warnings', () => {
     safetyViolation: 'No', correctiveActionRequired: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No', followUpIssues: '', timeline: [],
   });
   assert.deepEqual(warnings, []);
+});
+
+test('blocks closure until the injury report and its link are received', () => {
+  assert.equal(closureBlocker({ injuryReportReceived: 'No' }), 'The Injury Report must be received before requesting case closure.');
+  assert.equal(closureBlocker({ injuryReportReceived: 'Yes', injuryReportLink: '' }), 'The Injury Report Link is required before requesting case closure.');
+  assert.equal(closureBlocker({ injuryReportReceived: 'Yes', injuryReportLink: 'https://royaltruck.sharepoint.com/report' }), '');
 });

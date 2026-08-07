@@ -1,7 +1,7 @@
 const express = require('express');
 const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
-const { closureWarnings, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus } = require('./data');
+const { closureBlocker, closureWarnings, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus } = require('./data');
 
 const FINAL_APPROVER_EMAIL = 'myu@royaltrailersales.com';
 
@@ -94,6 +94,8 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
       const collection = client.db(databaseName).collection('work_injury_cases');
       const record = await collection.findOne({ _id: new ObjectId(req.params.caseId), closedAt: null });
       if (!record) return res.status(404).json({ error: 'Open work injury case not found.' });
+      const blocker = closureBlocker(record);
+      if (blocker) return res.status(400).json({ error: blocker });
       const warnings = closureWarnings(record);
       if (warnings.length && req.body?.confirmWarnings !== true) return res.status(409).json({ requiresConfirmation: true, warnings });
       const now = new Date();

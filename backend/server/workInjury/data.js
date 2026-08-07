@@ -58,6 +58,12 @@ function closureWarnings(record) {
   return warnings;
 }
 
+function closureBlocker(record) {
+  if (record?.injuryReportReceived !== 'Yes') return 'The Injury Report must be received before requesting case closure.';
+  if (!clean(record?.injuryReportLink)) return 'The Injury Report Link is required before requesting case closure.';
+  return '';
+}
+
 function totalCaseCost(record) {
   return (Array.isArray(record?.costs) ? record.costs : []).reduce((total, cost) => total + (Number(cost?.amount) || 0), 0);
 }
@@ -173,4 +179,4 @@ function sanitizeCaseInput(input, employee, options = {}) {
   };
 }
 
-module.exports = { closureWarnings, employeeSnapshot, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus };
+module.exports = { closureBlocker, closureWarnings, employeeSnapshot, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus };

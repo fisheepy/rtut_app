@@ -332,6 +332,7 @@ function InjuryWorkspace({ currentEmail, onLogout }: { currentEmail: string; onL
     }
   }
   async function closeCase() {
+    if (selected?.injuryReportReceived !== 'Yes' || !selected.injuryReportLink) { window.alert('The Injury Report must be received and its link saved before requesting case closure.'); return }
     if (!selected || !window.confirm(`Submit the work injury case for ${selected.employeeName} for final closure approval? The case will remain open while waiting for upper-level manager approval.`)) return
     await submitClosure(`/work-injury/cases/${selected.id}/close-request`, false)
   }
