@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, BriefcaseBusiness, FileSpreadsheet, GraduationCap, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, BriefcaseBusiness, FileSpreadsheet, GraduationCap, HardHat, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
@@ -12,6 +12,7 @@ import NewHire from './pages/NewHire'
 import Termination from './pages/Termination'
 import EmploymentChange from './pages/EmploymentChange'
 import MedicalLeave from './pages/MedicalLeave'
+import WorkRelatedInjury from './pages/WorkRelatedInjury'
 
 type AdminUser = {
   firstName?: string
@@ -69,6 +70,14 @@ const hrTools = [
     icon: BriefcaseBusiness,
     tone: 'from-amber-600 to-orange-500',
     badge: 'Employee Records',
+  },
+  {
+    title: 'Work Related Injury / Accident',
+    description: 'Open the secure workspace for work-related injury and accident records, follow-up, and case history.',
+    to: '/work-related-injury',
+    icon: HardHat,
+    tone: 'from-rose-700 to-orange-500',
+    badge: 'Safety & Injury',
   },
 ]
 
@@ -305,6 +314,7 @@ export default function App() {
           <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
           <Route path="/commission-roster" element={<CommissionRoster />} />
           <Route path="/training" element={<TrainingTools />} />
+          <Route path="/work-related-injury" element={<WorkRelatedInjury />} />
           <Route path="/hr-platform" element={<HRPlatform />} />
           <Route path="/hr-platform/new-hire" element={<NewHire />} />
           <Route path="/hr-platform/termination" element={<Termination />} />
@@ -334,4 +344,5 @@ export default function App() {
     </div>
   )
 }
+
 

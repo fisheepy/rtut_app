@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, CheckCircle2, Clock3, Download, ExternalLink, GraduationCap, KeyRound, Link2, LogOut, Mail, Plus, RefreshCw, Search, Settings, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, BookOpenCheck, CheckCircle2, Clock3, Download, ExternalLink, GraduationCap, HardHat, KeyRound, Link2, LogOut, Mail, Plus, RefreshCw, Search, Settings, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
 
@@ -134,7 +134,7 @@ const emptyColumnFilters: Record<string, string[]> = {
 }
 
 function displayDate(value?: string | null) {
-  if (!value) return '—'
+  if (!value) return '??
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-US', {
@@ -205,7 +205,7 @@ function ColumnMultiFilter({
         }`}
       >
         <span className="truncate">{selected.length ? `${selected.length} selected` : 'All'}</span>
-        <span className="text-[10px] text-slate-400 group-open:rotate-180">▼</span>
+        <span className="text-[10px] text-slate-400 group-open:rotate-180">??/span>
       </summary>
       <div className="absolute left-0 z-50 mt-1 max-h-64 min-w-[220px] overflow-auto rounded-lg border border-slate-200 bg-white p-2 text-left shadow-xl">
         <div className="mb-1 flex items-center justify-between gap-3 border-b border-slate-100 px-1 pb-2">
@@ -521,7 +521,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     ...columns,
     ...displayedMonthlyTopics.flatMap((topic): { key: ColumnKey; label: string }[] => monthlySubcolumns.map((column) => ({
       key: `monthly:${topic.id}:${column.field}`,
-      label: `${topic.name} — ${column.label}`,
+      label: `${topic.name} ??${column.label}`,
     }))),
   ], [displayedMonthlyTopics])
 
@@ -1102,10 +1102,16 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <ArrowLeft className="h-4 w-4" />
               Back to HR Tools
             </Link>
-            <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" onClick={logout} type="button">
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-orange-100 hover:bg-white/15 hover:text-white" to="/work-related-injury">
+                <HardHat className="h-4 w-4" />
+                Work Related Injury / Accident
+              </Link>
+              <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" onClick={logout} type="button">
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </button>
+            </div>
           </div>
           <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">
             <GraduationCap className="h-4 w-4" />
@@ -1262,7 +1268,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-emerald-950">{topic.name}</div>
-                          <div className="mt-1 text-xs font-normal text-emerald-700">Target {displayDate(topic.targetDate)} · {topic.courses.length} course{topic.courses.length === 1 ? '' : 's'}</div>
+                          <div className="mt-1 text-xs font-normal text-emerald-700">Target {displayDate(topic.targetDate)} 繚 {topic.courses.length} course{topic.courses.length === 1 ? '' : 's'}</div>
                         </div>
                         {topic.link ? <a aria-label={`Open ${topic.name}`} className="rounded-md p-1.5 text-emerald-700 hover:bg-emerald-100" href={topic.link} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" /></a> : null}
                       </div>
@@ -1292,7 +1298,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                   ))}
                   {displayedMonthlyTopics.flatMap((topic) => monthlySubcolumns.map((subcolumn, subcolumnIndex) => {
                     const key = `monthly:${topic.id}:${subcolumn.field}` as MonthlyColumnKey
-                    const label = `${topic.name} — ${subcolumn.label}`
+                    const label = `${topic.name} ??${subcolumn.label}`
                     return (
                       <th className={`min-w-[145px] border-b bg-emerald-50/30 px-3 pb-3 pt-2 ${subcolumnIndex === 0 ? 'border-l-2 border-emerald-200' : ''}`} key={`${key}-filter`}>
                         <button aria-label={`Sort ${label}`} className="mb-2 inline-flex w-full items-center justify-between gap-2 text-left text-[11px] font-semibold uppercase tracking-wide text-emerald-800" onClick={() => toggleSort(key)} type="button">
@@ -1346,15 +1352,15 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       </div>
                     </td>
                     <td className="border-b px-4 py-3">
-                      {employee.email ? <a className="text-blue-700 hover:underline" href={`mailto:${employee.email}`}>{employee.email}</a> : '—'}
+                      {employee.email ? <a className="text-blue-700 hover:underline" href={`mailto:${employee.email}`}>{employee.email}</a> : '??}
                     </td>
                     <td className="whitespace-nowrap border-b px-4 py-3">
-                      {employee.contactNumber ? <a className="text-blue-700 hover:underline" href={`tel:${employee.contactNumber}`}>{employee.contactNumber}</a> : '—'}
+                      {employee.contactNumber ? <a className="text-blue-700 hover:underline" href={`tel:${employee.contactNumber}`}>{employee.contactNumber}</a> : '??}
                     </td>
-                    <td className="border-b px-4 py-3">{employee.jobTitle || '—'}</td>
-                    <td className="border-b px-4 py-3">{employee.location || '—'}</td>
-                    <td className="border-b px-4 py-3">{employee.department || '—'}</td>
-                    <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
+                    <td className="border-b px-4 py-3">{employee.jobTitle || '??}</td>
+                    <td className="border-b px-4 py-3">{employee.location || '??}</td>
+                    <td className="border-b px-4 py-3">{employee.department || '??}</td>
+                    <td className="border-b px-4 py-3">{employee.reportingTo || '??}</td>
                     <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
                     <td className="border-b px-4 py-3">
                       <TrainingBadge training={employee.training.orientation} />
@@ -1443,7 +1449,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 <div className="text-right">
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</div>
                   <div className={`mt-1 text-sm font-semibold ${monthlyDraftStatus === 'Finished' ? 'text-emerald-700' : monthlyDraftStatus === 'In Process' ? 'text-blue-700' : 'text-slate-600'}`}>
-                    {monthlyDraftStatus} · {monthlyFinishedCount}/{monthlyRequiredAssignments.length} required finished
+                    {monthlyDraftStatus} 繚 {monthlyFinishedCount}/{monthlyRequiredAssignments.length} required finished
                   </div>
                 </div>
                 <button aria-label="Close monthly training" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setMonthlyEmployee(null)} type="button"><X className="h-5 w-5" /></button>
@@ -1603,7 +1609,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 <button className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white" onClick={() => editTopic()} type="button"><Plus className="h-4 w-4" />Add Topic</button>
                 <div className="mt-4 space-y-2">{monthlyTopics.filter((topic) => !isTestMonthlyTopic(topic.name)).map((topic) => (
                   <button className={`w-full rounded-lg border p-3 text-left ${topicEditor?.id === topic.id ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-200'}`} key={topic.id} onClick={() => editTopic(topic)} type="button">
-                    <span className="block text-sm font-semibold text-slate-800">{topic.name}</span><span className="mt-1 block text-xs text-slate-500">Target: {displayDate(topic.targetDate)} · {topic.courses.length} courses</span>
+                    <span className="block text-sm font-semibold text-slate-800">{topic.name}</span><span className="mt-1 block text-xs text-slate-500">Target: {displayDate(topic.targetDate)} 繚 {topic.courses.length} courses</span>
                   </button>
                 ))}</div>
               </aside>
@@ -1675,7 +1681,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                       type="button"
                     >
                       <span className="block text-sm font-semibold text-slate-800">{library.name}</span>
-                      <span className="mt-1 block text-xs text-slate-500">{library.courses.length} courses · {library.accessCode || 'No access code'}</span>
+                      <span className="mt-1 block text-xs text-slate-500">{library.courses.length} courses 繚 {library.accessCode || 'No access code'}</span>
                     </button>
                   ))}
                 </div>
@@ -1789,7 +1795,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automatic Status</div>
                   <div className={`mt-1 text-sm font-semibold ${orientationDraftStatus === 'Finished' ? 'text-emerald-700' : orientationDraftStatus === 'In Process' ? 'text-blue-700' : 'text-slate-600'}`}>
                     {orientationDraftStatus}
-                    {orientationRequiredCount ? ` · ${orientationCompletedCount}/${orientationRequiredCount}` : ''}
+                    {orientationRequiredCount ? ` 繚 ${orientationCompletedCount}/${orientationRequiredCount}` : ''}
                   </div>
                 </div>
                 <button
@@ -2000,3 +2006,4 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     </div>
   )
 }
+
