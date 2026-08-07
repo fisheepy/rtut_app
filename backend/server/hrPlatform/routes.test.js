@@ -92,3 +92,12 @@ test('maps a terminated Company App employee into the termination workflow', () 
   assert.equal(row.pendingIssues, true);
   assert.equal(row.insuranceParticipation, 'not-participated');
 });
+
+test('keeps historical COBRA enrollment dates on a terminated employee', () => {
+  const row = terminationEmployeeView({
+    _id: 'cobra-employee', 'First Name': 'Cobra', 'Last Name': 'History', 'Termination Date': '2025-01-15',
+  }, { cobraStartDate: '2025-02-01', cobraEndDate: '2026-02-01', cobraUpdatedBy: 'admin@example.com' });
+  assert.equal(row.cobraStartDate, '2025-02-01');
+  assert.equal(row.cobraEndDate, '2026-02-01');
+  assert.equal(row.cobraUpdatedBy, 'admin@example.com');
+});

@@ -43,6 +43,10 @@ type Employee = {
   payrollFollowThroughUntil: string;
   insuranceParticipation: string;
   insuranceEndingDate: string;
+  cobraStartDate: string;
+  cobraEndDate: string;
+  cobraUpdatedAt: string | null;
+  cobraUpdatedBy: string;
   retirementParticipation: string;
   retirementEndingDate: string;
   payrollCheckedAt: string | null;
@@ -142,6 +146,11 @@ export default function Termination() {
     confirmationDate: "",
   });
   const [trackerError, setTrackerError] = useState("");
+  const [cobraEmployeeId, setCobraEmployeeId] = useState("");
+  const [cobraEditing, setCobraEditing] = useState<Employee | null>(null);
+  const [cobraRecord, setCobraRecord] = useState({ cobraStartDate: "", cobraEndDate: "" });
+  const [cobraSaving, setCobraSaving] = useState(false);
+  const [cobraError, setCobraError] = useState("");
 
   async function load() {
     setLoading(true);
@@ -246,6 +255,14 @@ export default function Termination() {
           b.retirementEndingDate || "9999-12-31",
         ) || a.name.localeCompare(b.name),
     );
+  const cobraEnrollments = [...employees]
+    .filter((employee) => employee.cobraStartDate)
+    .sort(
+      (a, b) =>
+        Number(Boolean(a.cobraEndDate)) - Number(Boolean(b.cobraEndDate)) ||
+        (a.cobraStartDate || "9999-12-31").localeCompare(b.cobraStartDate || "9999-12-31") ||
+        a.name.localeCompare(b.name),
+    );
   const monthlyActions = employees
     .flatMap(
       (employee) =>
@@ -306,6 +323,26 @@ export default function Termination() {
       retirementEndingDate: employee.retirementEndingDate,
     });
     setSaveError("");
+  }
+  function openCobra(employee: Employee) {
+    setCobraEditing(employee);
+    setCobraRecord({ cobraStartDate: employee.cobraStartDate || "", cobraEndDate: employee.cobraEndDate || "" });
+    setCobraError("");
+  }
+  async function saveCobra() {
+    if (!cobraEditing) return;
+    setCobraSaving(true);
+    setCobraError("");
+    try {
+      await api.put(`/hr-platform/terminations/${cobraEditing.id}/cobra`, cobraRecord);
+      setCobraEditing(null);
+      setCobraEmployeeId("");
+      await load();
+    } catch (requestError: any) {
+      setCobraError(requestError.response?.data?.error || "COBRA enrollment could not be saved.");
+    } finally {
+      setCobraSaving(false);
+    }
   }
   function openTracker(employee: Employee) {
     const value = employee.fileTracker || {};
@@ -920,6 +957,60 @@ export default function Termination() {
           check={requestCheck}
         />
       </StatusSection>
+
+      <StatusSection
+        title="Historical COBRA Enrollment"
+        description="Record COBRA coverage for any historical terminated employee. Active coverage remains visible until an End Date is entered."
+        tone="emerald"
+        count={cobraEnrollments.length}
+      >
+        <div className="border-b border-emerald-100 bg-emerald-50/60 p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Select a terminated employee">
+              <select
+                className="mt-1 block min-w-72 rounded-lg border border-emerald-200 bg-white p-2.5 font-normal"
+                value={cobraEmployeeId}
+                onChange={(event) => setCobraEmployeeId(event.target.value)}
+              >
+                <option value="">Select employee...</option>
+                {[...employees].sort((a, b) => a.name.localeCompare(b.name)).map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name} — Terminated {dateDisplay(employee.terminationDate)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <button
+              className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!cobraEmployeeId}
+              onClick={() => {
+                const employee = employees.find((item) => item.id === cobraEmployeeId);
+                if (employee) openCobra(employee);
+              }}
+              type="button"
+            >
+              {employees.find((item) => item.id === cobraEmployeeId)?.cobraStartDate ? "Edit COBRA Record" : "Add COBRA Record"}
+            </button>
+          </div>
+        </div>
+        <table className="min-w-full text-sm">
+          <TableHead labels={["Employee", "Termination Date", "COBRA Start Date", "COBRA End Date", "Coverage Status", "Last Updated By", "Action"]} />
+          <tbody>
+            {cobraEnrollments.map((employee) => (
+              <tr className="group bg-white transition hover:bg-emerald-50/40" key={employee.id}>
+                <StickyName employee={employee} />
+                <Cell>{dateDisplay(employee.terminationDate)}</Cell>
+                <Cell><span className="font-semibold text-slate-900">{dateDisplay(employee.cobraStartDate)}</span></Cell>
+                <Cell>{dateDisplay(employee.cobraEndDate)}</Cell>
+                <Cell>{statusPill(Boolean(employee.cobraEndDate), employee.cobraEndDate ? "Ended" : "Active COBRA")}</Cell>
+                <Cell><span className="text-xs text-slate-600">{employee.cobraUpdatedBy || "--"}</span></Cell>
+                <Cell><ActionButton label="Edit Dates" onClick={() => openCobra(employee)} /></Cell>
+              </tr>
+            ))}
+            {!cobraEnrollments.length && <EmptyRow columns={7} />}
+          </tbody>
+        </table>
+      </StatusSection>
       <StatusSection
         title="401(k) Status"
         description="Unfinished actions remain until completed and are sorted by 401(k) Ending Date."
@@ -933,6 +1024,38 @@ export default function Termination() {
           check={requestCheck}
         />
       </StatusSection>
+
+      {cobraEditing && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-emerald-100 bg-emerald-50 px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold text-emerald-950">COBRA Enrollment</h2>
+                <p className="mt-1 text-sm text-emerald-800">{cobraEditing.name} · Terminated {dateDisplay(cobraEditing.terminationDate)}</p>
+              </div>
+              <button aria-label="Close COBRA Enrollment" onClick={() => setCobraEditing(null)} type="button"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                Enter the COBRA Start Date when coverage begins. Leave the End Date blank while coverage remains active, then return here to record it when coverage ends.
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="COBRA Start Date *">
+                  <input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={cobraRecord.cobraStartDate} onChange={(event) => setCobraRecord({ ...cobraRecord, cobraStartDate: event.target.value })} />
+                </Field>
+                <Field label="COBRA End Date (leave blank while active)">
+                  <input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={cobraRecord.cobraEndDate} onChange={(event) => setCobraRecord({ ...cobraRecord, cobraEndDate: event.target.value })} />
+                </Field>
+              </div>
+              {cobraError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{cobraError}</div>}
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700" onClick={() => setCobraEditing(null)} type="button">Cancel</button>
+                <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-40" disabled={cobraSaving || !cobraRecord.cobraStartDate} onClick={saveCobra} type="button"><Save className="h-4 w-4" />{cobraSaving ? "Saving..." : "Save COBRA Record"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editing && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4">

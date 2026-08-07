@@ -696,6 +696,30 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
+  router.put('/terminations/:employeeId/cobra', async (req, res) => {
+    const employeeId = req.params.employeeId;
+    if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
+    const cobraStartDate = clean(req.body?.cobraStartDate);
+    const cobraEndDate = clean(req.body?.cobraEndDate);
+    if (!cobraStartDate || !validDate(cobraStartDate)) return res.status(400).json({ error: 'COBRA Start Date is required.' });
+    if (!validDate(cobraEndDate)) return res.status(400).json({ error: 'COBRA End Date must use YYYY-MM-DD format.' });
+    if (cobraEndDate && cobraEndDate < cobraStartDate) return res.status(400).json({ error: 'COBRA End Date cannot be before the Start Date.' });
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employee = await db.collection('employees').findOne({ _id: new ObjectId(employeeId), $or: [{ 'Position Status': /^terminated$/i }, { 'Termination Date': { $exists: true, $nin: ['', null] } }] });
+      if (!employee) return res.status(404).json({ error: 'Terminated employee not found.' });
+      const reviewer = clean(req.adminSession?.email).toLowerCase();
+      const values = { cobraStartDate, cobraEndDate, cobraUpdatedAt: new Date(), cobraUpdatedBy: reviewer, updatedAt: new Date(), updatedBy: reviewer };
+      await db.collection('employee_hr_termination').updateOne({ employeeId }, { $set: values }, { upsert: true });
+      return res.json(values);
+    } catch (error) {
+      console.error('Unable to save COBRA enrollment:', error);
+      return res.status(500).json({ error: 'COBRA enrollment could not be saved.' });
+    } finally { await client.close(); }
+  });
+
   const DEFAULT_TERMINATION_FILE_TRACKER_FIELDS = [
     { id: 'terminationFilesMoved', label: 'Move files and I-9 to Termination', options: ['Yes', 'No'], order: 0, active: true },
   ];
@@ -916,7 +940,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect(); const rows = await terminationReportRows(client.db(databaseName)); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination Tasks');
       sheet.columns = [{ header: 'Employee', key: 'name', width: 28 }, { header: 'Termination Date', key: 'terminationDate', width: 18 }, { header: 'Task', key: 'task', width: 28 }, { header: 'Task Date', key: 'date', width: 18 }, { header: 'Status', key: 'status', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalBy', width: 30 }, { header: 'Notes', key: 'notes', width: 45 }];
-      rows.forEach(({ employee, record }) => { const base = { name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), terminationDate: clean(employee['Termination Date']) }; const add = (task, date, checked, final, notes = '') => sheet.addRow({ ...base, task, date: clean(date), status: final ? 'Finished' : checked ? 'In Process - Final Review Needed' : 'Unfinished', checkedBy: clean(checked?.by), finalBy: clean(final?.by), notes }); add('Final Pay', record.finalPayrollDate, record.payrollCheckedAt && { by: record.payrollCheckedBy }, record.payrollFinalReviewedAt && { by: record.payrollFinalReviewedBy }); if (record.pendingIssues) add('Payroll Follow-up Issues', record.payrollFollowThroughUntil, record.followUpCheckedAt && { by: record.followUpCheckedBy }, record.followUpFinalReviewedAt && { by: record.followUpFinalReviewedBy }, clean(record.pendingIssuesNotes)); if (record.insuranceParticipation === 'participated') add('Insurance & COBRA', record.insuranceEndingDate, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }); if (record.retirementParticipation === 'participated') add('401(k)', record.retirementEndingDate, record.retirementCheckedAt && { by: record.retirementCheckedBy }, record.retirementCheckedAt && { by: record.retirementCheckedBy }); });
+      rows.forEach(({ employee, record }) => { const base = { name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), terminationDate: clean(employee['Termination Date']) }; const add = (task, date, checked, final, notes = '') => sheet.addRow({ ...base, task, date: clean(date), status: final ? 'Finished' : checked ? 'In Process - Final Review Needed' : 'Unfinished', checkedBy: clean(checked?.by), finalBy: clean(final?.by), notes }); add('Final Pay', record.finalPayrollDate, record.payrollCheckedAt && { by: record.payrollCheckedBy }, record.payrollFinalReviewedAt && { by: record.payrollFinalReviewedBy }); if (record.pendingIssues) add('Payroll Follow-up Issues', record.payrollFollowThroughUntil, record.followUpCheckedAt && { by: record.followUpCheckedBy }, record.followUpFinalReviewedAt && { by: record.followUpFinalReviewedBy }, clean(record.pendingIssuesNotes)); if (record.insuranceParticipation === 'participated') add('Insurance & COBRA', record.insuranceEndingDate, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }); if (record.cobraStartDate) sheet.addRow({ ...base, task: 'COBRA Enrollment', date: clean(record.cobraStartDate), status: record.cobraEndDate ? 'Ended' : 'Active', checkedBy: clean(record.cobraUpdatedBy), finalBy: '', notes: record.cobraEndDate ? `COBRA End Date: ${clean(record.cobraEndDate)}` : 'COBRA coverage is active' }); if (record.retirementParticipation === 'participated') add('401(k)', record.retirementEndingDate, record.retirementCheckedAt && { by: record.retirementCheckedBy }, record.retirementCheckedAt && { by: record.retirementCheckedBy }); });
       sheet.getRow(1).font = { bold: true }; return await sendWorkbook(res, workbook, `Termination_All_Tasks_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (error) { console.error('Unable to create termination task report:', error); return res.status(500).json({ error: 'The termination task report could not be created.' }); } finally { await client.close(); }
   });
