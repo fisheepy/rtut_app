@@ -116,8 +116,29 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
     } finally { await client.close(); }
   });
 
+  router.post('/cases/:caseId/close-decline', async (req, res) => {
+    const client = createClient();
+    try {
+      if ((req.adminSession?.email || '').toLowerCase() !== FINAL_APPROVER_EMAIL) return res.status(403).json({ error: 'Only the authorized final approver can decline this closure request.' });
+      if (!ObjectId.isValid(req.params.caseId)) return res.status(404).json({ error: 'Work injury case not found.' });
+      await client.connect();
+      const collection = client.db(databaseName).collection('work_injury_cases');
+      const record = await collection.findOne({ _id: new ObjectId(req.params.caseId), closedAt: null, closeRequestedAt: { $ne: null } });
+      if (!record) return res.status(404).json({ error: 'Pending case closure request not found.' });
+      const now = new Date();
+      const declinedBy = req.adminSession.email;
+      await collection.updateOne({ _id: record._id }, {
+        $set: { closeRequestedAt: null, closeRequestedBy: null, closeWarnings: [], closeDeclinedAt: now, closeDeclinedBy: declinedBy, updatedAt: now, updatedBy: declinedBy },
+        $push: { closeDecisionHistory: { decision: 'Declined', decidedAt: now, decidedBy: declinedBy, requestedAt: record.closeRequestedAt, requestedBy: record.closeRequestedBy || null } }
+      });
+      return res.json({ ok: true, reopenedForEditing: true });
+    } catch (error) {
+      console.error('Unable to decline work injury case closure:', error);
+      return res.status(500).json({ error: 'The closure request could not be declined.' });
+    } finally { await client.close(); }
+  });
+
   return router;
 }
 
 module.exports = { createWorkInjuryRouter };
-
