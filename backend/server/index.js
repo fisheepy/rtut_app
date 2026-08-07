@@ -21,6 +21,7 @@ const { createCommissionRosterRouter } = require('./commissionRoster/routes');
 const { createTrainingRouter } = require('./training/routes');
 const { createTrainingAuthRouter } = require('./training/authRoutes');
 const { createWorkInjuryRouter } = require('./workInjury/routes');
+const { createAccidentNearMissRouter } = require('./accidentNearMiss/routes');
 const { createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
 const { createHrPlatformRouter } = require('./hrPlatform/routes');
 const {
@@ -1245,6 +1246,11 @@ app.use('/api/training', createTrainingRouter({
   requireTrainingSession,
 }));
 app.use('/api/work-injury', createWorkInjuryRouter({
+  uri,
+  databaseName: database_name,
+  requireTrainingSession,
+}));
+app.use('/api/accident-near-miss', createAccidentNearMissRouter({
   uri,
   databaseName: database_name,
   requireTrainingSession,
