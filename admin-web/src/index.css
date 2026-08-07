@@ -31,3 +31,18 @@ select,
 textarea {
   font: inherit;
 }
+
+.control {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  color: #0f172a;
+  background: #fff;
+  outline: none;
+}
+
+.control:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgb(255 237 213);
+}

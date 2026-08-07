@@ -20,6 +20,7 @@ const { createInsuranceBreakoutRouter } = require('./insuranceBreakout/routes');
 const { createCommissionRosterRouter } = require('./commissionRoster/routes');
 const { createTrainingRouter } = require('./training/routes');
 const { createTrainingAuthRouter } = require('./training/authRoutes');
+const { createWorkInjuryRouter } = require('./workInjury/routes');
 const { createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
 const { createHrPlatformRouter } = require('./hrPlatform/routes');
 const {
@@ -1239,6 +1240,11 @@ app.use('/api/hr-tools-auth', createTrainingAuthRouter({
   sessionType: 'hr-tools',
 }));
 app.use('/api/training', createTrainingRouter({
+  uri,
+  databaseName: database_name,
+  requireTrainingSession,
+}));
+app.use('/api/work-injury', createWorkInjuryRouter({
   uri,
   databaseName: database_name,
   requireTrainingSession,
