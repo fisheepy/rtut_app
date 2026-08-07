@@ -67,3 +67,29 @@ test('sanitizes timeline entries and case costs', () => {
   assert.equal(result.value.timeline[0].description, 'Clinic visit');
   assert.equal(result.value.costs[0].amount, 125.5);
 });
+
+test('validates and stores safety investigation details', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'Yes', safetyViolationDetails: 'Guard was removed',
+    investigationStatus: 'Completed', investigationDate: '2026-08-08', rootCause: 'Machine guard bypassed',
+    correctiveActionRequired: 'Yes', correctiveActionDetails: 'Replace guard and retrain team',
+    correctiveActionTargetDate: '2026-08-15', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+  }, employee);
+  assert.equal(result.error, undefined);
+  assert.equal(result.value.investigationStatus, 'Completed');
+  assert.equal(result.value.rootCause, 'Machine guard bypassed');
+  assert.equal(result.value.correctiveActionDetails, 'Replace guard and retrain team');
+});
+
+test('requires investigation findings before an investigation is completed', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'No', investigationStatus: 'Completed',
+    correctiveActionRequired: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+  }, employee);
+  assert.equal(result.error, 'A completed investigation requires an investigation date and root cause.');
+});
+

@@ -58,6 +58,12 @@ function sanitizeCaseInput(input, employee) {
   const injuryLocation = clean(input?.injuryLocation);
   const safetyViolation = clean(input?.safetyViolation);
   const safetyViolationDetails = clean(input?.safetyViolationDetails);
+  const investigationStatus = clean(input?.investigationStatus || 'Not Started');
+  const investigationDate = clean(input?.investigationDate);
+  const rootCause = clean(input?.rootCause);
+  const correctiveActionRequired = clean(input?.correctiveActionRequired || 'No');
+  const correctiveActionDetails = clean(input?.correctiveActionDetails);
+  const correctiveActionTargetDate = clean(input?.correctiveActionTargetDate);
   const workStatus = clean(input?.workStatus || input?.employeeStatus);
   const otherWorkStatus = clean(input?.otherWorkStatus);
   const injuredBodyPart = clean(input?.injuredBodyPart);
@@ -78,6 +84,10 @@ function sanitizeCaseInput(input, employee) {
   if (!injuryLocation) return { error: 'Injury location is required.' };
   if (!['Yes', 'No'].includes(safetyViolation)) return { error: 'Safety violation must be Yes or No.' };
   if (safetyViolation === 'Yes' && !safetyViolationDetails) return { error: 'Describe the safety violation.' };
+  if (!['Not Started', 'In Progress', 'Completed'].includes(investigationStatus)) return { error: 'Select a valid investigation status.' };
+  if (investigationStatus === 'Completed' && (!investigationDate || !rootCause)) return { error: 'A completed investigation requires an investigation date and root cause.' };
+  if (!['Yes', 'No'].includes(correctiveActionRequired)) return { error: 'Corrective action required must be Yes or No.' };
+  if (correctiveActionRequired === 'Yes' && !correctiveActionDetails) return { error: 'Describe the corrective action needed.' };
   if (!['Off Work', 'Returned to Work - No Restrictions', 'Returned to Work - With Restrictions', 'Pending Medical Evaluation', 'Other'].includes(workStatus)) return { error: 'Select a valid Work Status / Medical Restriction.' };
   if (workStatus === 'Other' && !otherWorkStatus) return { error: 'Enter the other Work Status / Medical Restriction.' };
   if (!injuredBodyPart) return { error: 'Injured body part is required.' };
@@ -101,6 +111,12 @@ function sanitizeCaseInput(input, employee) {
       injuryLocation,
       safetyViolation,
       safetyViolationDetails: safetyViolation === 'Yes' ? safetyViolationDetails : '',
+      investigationStatus,
+      investigationDate,
+      rootCause,
+      correctiveActionRequired,
+      correctiveActionDetails: correctiveActionRequired === 'Yes' ? correctiveActionDetails : '',
+      correctiveActionTargetDate: correctiveActionRequired === 'Yes' ? correctiveActionTargetDate : '',
       workStatus,
       otherWorkStatus: workStatus === 'Other' ? otherWorkStatus : '',
       injuredBodyPart,
@@ -118,3 +134,4 @@ function sanitizeCaseInput(input, employee) {
 }
 
 module.exports = { employeeSnapshot, sanitizeCaseInput };
+
