@@ -12,6 +12,29 @@ function validSecureLink(value) {
   }
 }
 
+function sanitizeTimeline(value) {
+  if (!Array.isArray(value)) return { value: [] };
+  const items = value.map(item => ({ date: clean(item?.date), description: clean(item?.description), workStatusAfter: clean(item?.workStatusAfter), documentationLink: clean(item?.documentationLink) }))
+    .filter(item => Object.values(item).some(Boolean));
+  for (const item of items) {
+    if (!item.date || !item.description || !item.workStatusAfter) return { error: 'Every timeline entry requires a date, description, and employee work status.' };
+    if (!validSecureLink(item.documentationLink)) return { error: 'Timeline documentation must use a secure SharePoint link.' };
+  }
+  return { value: items };
+}
+
+function sanitizeCosts(value) {
+  if (!Array.isArray(value)) return { value: [] };
+  const items = value.map(item => ({ invoiceDate: clean(item?.invoiceDate), description: clean(item?.description), paidBy: clean(item?.paidBy), amount: Number(item?.amount), invoiceLink: clean(item?.invoiceLink) }))
+    .filter(item => item.invoiceDate || item.description || item.paidBy || item.amount || item.invoiceLink);
+  for (const item of items) {
+    if (!item.invoiceDate || !item.description || !['Workers Compensation', 'Royal'].includes(item.paidBy) || !Number.isFinite(item.amount) || item.amount < 0) return { error: 'Every cost entry requires an invoice date, description, valid payer, and non-negative amount.' };
+    if (!validSecureLink(item.invoiceLink)) return { error: 'Invoice documentation must use a secure SharePoint link.' };
+    item.amount = Math.round(item.amount * 100) / 100;
+  }
+  return { value: items };
+}
+
 function employeeSnapshot(employee) {
   return {
     employeeId: clean(employee?._id),
@@ -45,6 +68,8 @@ function sanitizeCaseInput(input, employee) {
   const workersCompClaimed = clean(input?.workersCompClaimed);
   const workersCompCaseNumber = clean(input?.workersCompCaseNumber);
   const followUpIssues = clean(input?.followUpIssues);
+  const timeline = sanitizeTimeline(input?.timeline);
+  const costs = sanitizeCosts(input?.costs);
 
   if (!snapshot.employeeId || !snapshot.employeeName) return { error: 'Select a valid employee.' };
   if (!injuryDateTime) return { error: 'Injury date and time is required.' };
@@ -63,6 +88,9 @@ function sanitizeCaseInput(input, employee) {
   if (!validSecureLink(injuryReportLink)) return { error: 'Injury Report Link must be a secure SharePoint link.' };
   if (!['Yes', 'No'].includes(workersCompClaimed)) return { error: 'Workers’ Compensation Claimed must be Yes or No.' };
   if (workersCompClaimed === 'Yes' && !workersCompCaseNumber) return { error: 'Workers’ Compensation case number is required.' };
+
+  if (timeline.error) return { error: timeline.error };
+  if (costs.error) return { error: costs.error };
 
   return {
     value: {
@@ -83,6 +111,8 @@ function sanitizeCaseInput(input, employee) {
       workersCompClaimed,
       workersCompCaseNumber: workersCompClaimed === 'Yes' ? workersCompCaseNumber : '',
       followUpIssues,
+      timeline: timeline.value,
+      costs: costs.value,
     },
   };
 }

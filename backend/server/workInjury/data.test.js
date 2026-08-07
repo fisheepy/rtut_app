@@ -54,3 +54,16 @@ test('requires conditional safety and workers compensation details', () => {
   }, employee);
   assert.equal(result.error, 'Describe the safety violation.');
 });
+
+test('sanitizes timeline entries and case costs', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+    timeline: [{ date: '2026-08-08', description: 'Clinic visit', workStatusAfter: 'Off Work', documentationLink: '' }],
+    costs: [{ invoiceDate: '2026-08-09', description: 'Clinic invoice', paidBy: 'Royal', amount: '125.50', invoiceLink: '' }],
+  }, employee);
+  assert.equal(result.error, undefined);
+  assert.equal(result.value.timeline[0].description, 'Clinic visit');
+  assert.equal(result.value.costs[0].amount, 125.5);
+});
