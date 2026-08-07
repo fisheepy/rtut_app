@@ -78,11 +78,12 @@ test('sanitizes timeline entries and case costs', () => {
     injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
     oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
     timeline: [{ date: '2026-08-08', description: 'Clinic visit', workStatusAfter: 'Off Work', documentationLink: '' }],
-    costs: [{ invoiceDate: '2026-08-09', description: 'Clinic invoice', paidBy: 'Royal', amount: '125.50', invoiceLink: '' }],
+    costs: [{ invoiceDate: '2026-08-09', description: 'Clinic invoice', paidBy: 'Royal', royalCostType: 'Medical Bill', amount: '125.50', invoiceLink: '' }],
   }, employee);
   assert.equal(result.error, undefined);
   assert.equal(result.value.timeline[0].description, 'Clinic visit');
   assert.equal(result.value.costs[0].amount, 125.5);
+  assert.equal(result.value.costs[0].royalCostType, 'Medical Bill');
 });
 
 test('validates and stores safety investigation details', () => {
@@ -133,7 +134,7 @@ test('accepts a case cost without an invoice date', () => {
     injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
     injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
     oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
-    costs: [{ description: 'Estimated clinic cost', paidBy: 'Royal', amount: '100', invoiceLink: '' }],
+    costs: [{ description: 'Estimated clinic cost', paidBy: 'Royal', royalCostType: 'Medical Bill', amount: '100', invoiceLink: '' }],
   }, employee);
   assert.equal(result.error, undefined);
   assert.equal(result.value.costs[0].invoiceDate, '');
@@ -193,3 +194,4 @@ test('blocks closure until the injury report and its link are received', () => {
   assert.equal(closureBlocker({ injuryReportReceived: 'Yes', injuryReportLink: '' }), 'The Injury Report Link is required before requesting case closure.');
   assert.equal(closureBlocker({ injuryReportReceived: 'Yes', injuryReportLink: 'https://royaltruck.sharepoint.com/report' }), '');
 });
+
