@@ -94,6 +94,10 @@ function uniqueCaseValues(cases: InjuryCase[], field: 'location' | 'jobTitle' | 
   return [...values.values()].sort((a, b) => a.localeCompare(b))
 }
 
+function MultiSelectFilter({ label, options, selected, onChange }: { label: string; options: string[]; selected: string[]; onChange: (values: string[]) => void }) {
+  return <details className="relative"><summary className="control mt-1.5 cursor-pointer list-none pr-8"><span className="block truncate">{selected.length ? `${selected.length} selected` : `All ${label}s`}</span><span className="absolute right-3 top-[2.7rem] text-xs text-slate-400">▼</span></summary><div className="absolute z-30 mt-1 max-h-64 w-full min-w-56 overflow-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"><button className="mb-1 w-full rounded-lg px-3 py-2 text-left text-xs font-bold text-blue-700 hover:bg-blue-50" onClick={() => onChange([])} type="button">Select All</button>{options.map(option => <label className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-slate-50" key={option}><input checked={selected.includes(option)} onChange={() => onChange(selected.includes(option) ? selected.filter(value => value !== option) : [...selected, option])} type="checkbox" /><span>{option}</span></label>)}</div></details>
+}
+
 function InjuryLogin({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -251,9 +255,10 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
   const [injuryDateTo, setInjuryDateTo] = useState('')
   const [oshaFilter, setOshaFilter] = useState<'all' | 'yes' | 'no'>('all')
   const [caseView, setCaseView] = useState<'current' | 'open' | 'closed' | 'all'>('current')
-  const [locationFilter, setLocationFilter] = useState('')
-  const [jobTitleFilter, setJobTitleFilter] = useState('')
-  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [locationFilter, setLocationFilter] = useState<string[]>([])
+  const [jobTitleFilter, setJobTitleFilter] = useState<string[]>([])
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([])
   const [seniorityFrom, setSeniorityFrom] = useState('')
   const [seniorityTo, setSeniorityTo] = useState('')
   const selected = cases.find(item => item.id === selectedId) || null
@@ -272,9 +277,9 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
       if (injuryDateFrom && injuryDate < injuryDateFrom) return false
       if (injuryDateTo && injuryDate > injuryDateTo) return false
       if (oshaFilter !== 'all' && item.oshaRecordable.toLowerCase() !== oshaFilter) return false
-      if (locationFilter && item.location.trim().toLowerCase() !== locationFilter.toLowerCase()) return false
-      if (jobTitleFilter && item.jobTitle.trim().toLowerCase() !== jobTitleFilter.toLowerCase()) return false
-      if (departmentFilter && item.department.trim().toLowerCase() !== departmentFilter.toLowerCase()) return false
+      if (locationFilter.length && !locationFilter.some(value => value.toLowerCase() === item.location.trim().toLowerCase())) return false
+      if (jobTitleFilter.length && !jobTitleFilter.some(value => value.toLowerCase() === item.jobTitle.trim().toLowerCase())) return false
+      if (departmentFilter.length && !departmentFilter.some(value => value.toLowerCase() === item.department.trim().toLowerCase())) return false
       const years = employmentYears(item.hireDate)
       if (seniorityFrom && (years === null || years < Number(seniorityFrom))) return false
       if (seniorityTo && (years === null || years > Number(seniorityTo))) return false
@@ -285,8 +290,9 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
 
   function resetFilters() {
     setNameFilter(''); setInjuryDateFrom(''); setInjuryDateTo(''); setOshaFilter('all'); setCaseView('current')
-    setLocationFilter(''); setJobTitleFilter(''); setDepartmentFilter(''); setSeniorityFrom(''); setSeniorityTo('')
+    setLocationFilter([]); setJobTitleFilter([]); setDepartmentFilter([]); setSeniorityFrom(''); setSeniorityTo('')
   }
+  const activeFilterCount = [nameFilter, injuryDateFrom, injuryDateTo, oshaFilter !== 'all' ? oshaFilter : '', caseView !== 'current' ? caseView : '', seniorityFrom, seniorityTo].filter(Boolean).length + locationFilter.length + jobTitleFilter.length + departmentFilter.length
 
   async function load() {
     setLoading(true); setError('')
@@ -317,19 +323,19 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
     {tab === 'accident' ? <section className="rounded-2xl border border-blue-200 bg-blue-50 p-10 text-center"><AlertTriangle className="mx-auto h-10 w-10 text-blue-700" /><h2 className="mt-4 text-2xl font-semibold">Accident Case Management</h2><p className="mt-2 text-sm text-slate-600">The Accident workflow is separate and will be configured in the next step.</p></section> : <>
       <section className="grid gap-3 sm:grid-cols-3"><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-4 font-bold text-white shadow-sm hover:bg-orange-800" onClick={() => setView('new')}><Plus className="h-5 w-5" />New Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={() => setView('edit')}><ClipboardEdit className="h-5 w-5" />Edit Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={closeCase}><XCircle className="h-5 w-5" />Close Case</button></section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-xl font-semibold">Current Injury Cases</h2><p className="mt-1 text-sm text-slate-500">Open cases from prior years and all cases from the current year. The summary is read-only.</p></div><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{openCount} Open</span></div>
-        <div className="border-b border-slate-200 bg-slate-50/70 p-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="border-b border-slate-200 bg-slate-50/70 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><button className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" onClick={() => setFiltersOpen(value => !value)} type="button"><Search className="h-4 w-4" />{filtersOpen ? 'Hide Filters' : 'Show Filters'}{activeFilterCount ? <span className="rounded-full bg-orange-700 px-2 py-0.5 text-xs text-white">{activeFilterCount}</span> : null}</button><div className="text-xs font-semibold text-slate-500">Showing {filteredCases.length} of {cases.length} cases</div></div>{filtersOpen ? <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Employee Name</span><input className="control mt-1.5" onChange={event => setNameFilter(event.target.value)} placeholder="Search employee" value={nameFilter} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Injury Date From</span><input className="control mt-1.5" onChange={event => setInjuryDateFrom(event.target.value)} type="date" value={injuryDateFrom} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Injury Date To</span><input className="control mt-1.5" onChange={event => setInjuryDateTo(event.target.value)} type="date" value={injuryDateTo} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">OSHA Recordable</span><select className="control mt-1.5" onChange={event => setOshaFilter(event.target.value as 'all' | 'yes' | 'no')} value={oshaFilter}><option value="all">All</option><option value="yes">Yes</option><option value="no">No</option></select></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Case View</span><select className="control mt-1.5" onChange={event => setCaseView(event.target.value as 'current' | 'open' | 'closed' | 'all')} value={caseView}><option value="current">Current Window</option><option value="open">Open Cases - All Years</option><option value="closed">Closed Cases - All History</option><option value="all">All Cases - All History</option></select></label>
-          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Location</span><select className="control mt-1.5" onChange={event => setLocationFilter(event.target.value)} value={locationFilter}><option value="">All Locations</option>{locations.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Job Title</span><select className="control mt-1.5" onChange={event => setJobTitleFilter(event.target.value)} value={jobTitleFilter}><option value="">All Job Titles</option>{jobTitles.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Department</span><select className="control mt-1.5" onChange={event => setDepartmentFilter(event.target.value)} value={departmentFilter}><option value="">All Departments</option>{departments.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Location</span><MultiSelectFilter label="Location" onChange={setLocationFilter} options={locations} selected={locationFilter} /></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Job Title</span><MultiSelectFilter label="Job Title" onChange={setJobTitleFilter} options={jobTitles} selected={jobTitleFilter} /></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Department</span><MultiSelectFilter label="Department" onChange={setDepartmentFilter} options={departments} selected={departmentFilter} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Seniority From (Years)</span><input className="control mt-1.5" min="0" onChange={event => setSeniorityFrom(event.target.value)} placeholder="Minimum years" type="number" value={seniorityFrom} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Seniority To (Years)</span><input className="control mt-1.5" min="0" onChange={event => setSeniorityTo(event.target.value)} placeholder="Maximum years" type="number" value={seniorityTo} /></label>
           <button className="self-end rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" onClick={resetFilters} type="button">Reset All Filters</button>
-        </div><div className="mt-3 text-xs font-semibold text-slate-500">Showing {filteredCases.length} of {cases.length} cases</div></div>
+        </div> : null}</div>
         {error ? <p className="m-5 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
         {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : filteredCases.length === 0 ? <div className="px-6 py-14 text-center"><Search className="mx-auto h-10 w-10 text-slate-400" /><h3 className="mt-3 text-lg font-semibold">No matching injury cases</h3><p className="mt-1 text-sm text-slate-500">Adjust or reset the filters to see more cases.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee / Case Status','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Work Status / Restriction','Injury Report','Workers’ Comp','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{filteredCases.map(item => {
           const isOpen = !item.closedAt
