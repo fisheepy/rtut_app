@@ -176,4 +176,3 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
 }
 
 module.exports = { createWorkInjuryRouter };
-

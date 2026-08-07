@@ -194,4 +194,3 @@ test('blocks closure until the injury report and its link are received', () => {
   assert.equal(closureBlocker({ injuryReportReceived: 'Yes', injuryReportLink: '' }), 'The Injury Report Link is required before requesting case closure.');
   assert.equal(closureBlocker({ injuryReportReceived: 'Yes', injuryReportLink: 'https://royaltruck.sharepoint.com/report' }), '');
 });
-

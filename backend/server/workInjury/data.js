@@ -54,7 +54,7 @@ function closureWarnings(record) {
   if (record?.safetyViolation === 'Yes' && !clean(record?.safetyViolationDetails)) warnings.push('Safety Violation Details are missing.');
   if (record?.correctiveActionRequired === 'Yes' && !clean(record?.correctiveActionDetails)) warnings.push('Corrective Action Details are missing.');
   if (record?.injuryReportReceived === 'Yes' && !clean(record?.injuryReportLink)) warnings.push('The received Injury Report Link is missing.');
-  if (record?.workersCompClaimed === 'Yes' && !clean(record?.workersCompCaseNumber)) warnings.push('Workers??Compensation Case Number is missing.');
+  if (record?.workersCompClaimed === 'Yes' && !clean(record?.workersCompCaseNumber)) warnings.push('Workers’ Compensation Case Number is missing.');
   return warnings;
 }
 
@@ -147,8 +147,8 @@ function sanitizeCaseInput(input, employee, options = {}) {
   if (!['Yes', 'No'].includes(injuryReportReceived)) return { error: 'Injury Report Received must be Yes or No.' };
   if (injuryReportReceived === 'Yes' && !injuryReportLink) return { error: 'Add the received injury report link.' };
   if (!validSecureLink(injuryReportLink)) return { error: 'Injury Report Link must be a secure SharePoint link.' };
-  if (!['Yes', 'No'].includes(workersCompClaimed)) return { error: 'Workers??Compensation Claimed must be Yes or No.' };
-  if (workersCompClaimed === 'Yes' && !workersCompCaseNumber) return { error: 'Workers??Compensation case number is required.' };
+  if (!['Yes', 'No'].includes(workersCompClaimed)) return { error: 'Workers’ Compensation Claimed must be Yes or No.' };
+  if (workersCompClaimed === 'Yes' && !workersCompCaseNumber) return { error: 'Workers’ Compensation case number is required.' };
 
   if (timeline.error) return { error: timeline.error };
   if (costs.error) return { error: costs.error };
@@ -188,4 +188,3 @@ function sanitizeCaseInput(input, employee, options = {}) {
 }
 
 module.exports = { closureBlocker, closureWarnings, employeeSnapshot, sanitizeCaseInput, totalCaseCost, withCurrentWorkStatus };
-
