@@ -147,6 +147,7 @@ export default function Termination() {
   });
   const [trackerError, setTrackerError] = useState("");
   const [cobraEmployeeId, setCobraEmployeeId] = useState("");
+  const [cobraEmployeeSearch, setCobraEmployeeSearch] = useState("");
   const [cobraEditing, setCobraEditing] = useState<Employee | null>(null);
   const [cobraRecord, setCobraRecord] = useState({ cobraStartDate: "", cobraEndDate: "" });
   const [cobraSaving, setCobraSaving] = useState(false);
@@ -263,6 +264,16 @@ export default function Termination() {
         (a.cobraStartDate || "9999-12-31").localeCompare(b.cobraStartDate || "9999-12-31") ||
         a.name.localeCompare(b.name),
     );
+  const cobraEmployeeMatches = cobraEmployeeSearch.trim()
+    ? [...employees]
+        .filter((employee) => {
+          const needle = cobraEmployeeSearch.trim().toLowerCase();
+          return [employee.name, employee.email, employee.terminationDate, dateDisplay(employee.terminationDate)]
+            .some((value) => String(value || "").toLowerCase().includes(needle));
+        })
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, 8)
+    : [];
   const monthlyActions = employees
     .flatMap(
       (employee) =>
@@ -337,6 +348,7 @@ export default function Termination() {
       await api.put(`/hr-platform/terminations/${cobraEditing.id}/cobra`, cobraRecord);
       setCobraEditing(null);
       setCobraEmployeeId("");
+      setCobraEmployeeSearch("");
       await load();
     } catch (requestError: any) {
       setCobraError(requestError.response?.data?.error || "COBRA enrollment could not be saved.");
@@ -966,20 +978,42 @@ export default function Termination() {
       >
         <div className="border-b border-emerald-100 bg-emerald-50/60 p-4">
           <div className="flex flex-wrap items-end gap-3">
-            <Field label="Select a terminated employee">
-              <select
-                className="mt-1 block min-w-72 rounded-lg border border-emerald-200 bg-white p-2.5 font-normal"
-                value={cobraEmployeeId}
-                onChange={(event) => setCobraEmployeeId(event.target.value)}
-              >
-                <option value="">Select employee...</option>
-                {[...employees].sort((a, b) => a.name.localeCompare(b.name)).map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name} — Terminated {dateDisplay(employee.terminationDate)}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <div className="relative min-w-80 flex-1 max-w-xl">
+              <label className="text-sm font-bold text-slate-700" htmlFor="cobra-employee-search">Search terminated employees</label>
+              <div className="relative mt-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-700" />
+                <input
+                  autoComplete="off"
+                  className="block w-full rounded-lg border border-emerald-200 bg-white py-2.5 pl-9 pr-3 font-normal outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  id="cobra-employee-search"
+                  placeholder="Search by name, email, or termination date..."
+                  value={cobraEmployeeSearch}
+                  onChange={(event) => {
+                    setCobraEmployeeSearch(event.target.value);
+                    setCobraEmployeeId("");
+                  }}
+                />
+              </div>
+              {cobraEmployeeSearch.trim() && !cobraEmployeeId && (
+                <div className="absolute z-40 mt-1 max-h-72 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl">
+                  {cobraEmployeeMatches.map((employee) => (
+                    <button
+                      className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-emerald-50"
+                      key={employee.id}
+                      onClick={() => {
+                        setCobraEmployeeId(employee.id);
+                        setCobraEmployeeSearch(employee.name);
+                      }}
+                      type="button"
+                    >
+                      <span><span className="block font-bold text-slate-900">{employee.name}</span><span className="block text-xs text-slate-500">{employee.email || "No email on file"}</span></span>
+                      <span className="shrink-0 text-xs font-semibold text-slate-500">Terminated {dateDisplay(employee.terminationDate)}</span>
+                    </button>
+                  ))}
+                  {!cobraEmployeeMatches.length && <div className="px-3 py-5 text-center text-sm text-slate-500">No terminated employees match this search.</div>}
+                </div>
+              )}
+            </div>
             <button
               className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!cobraEmployeeId}
