@@ -45,7 +45,7 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
       await client.connect();
       const db = client.db(databaseName);
       const employee = await findEmployee(db, req.body?.employeeId);
-      const result = sanitizeCaseInput(req.body, employee);
+      const result = sanitizeCaseInput(req.body, employee, { requireEmployeeInjuryFolder: true });
       if (result.error) return res.status(400).json({ error: result.error });
       const now = new Date();
       const record = { ...result.value, closedAt: null, closedBy: null, createdAt: now, createdBy: req.adminSession?.email || null, updatedAt: now, updatedBy: req.adminSession?.email || null };

@@ -85,7 +85,7 @@ function employeeSnapshot(employee) {
   };
 }
 
-function sanitizeCaseInput(input, employee) {
+function sanitizeCaseInput(input, employee, options = {}) {
   const snapshot = employeeSnapshot(employee);
   const injuryDateTime = clean(input?.injuryDateTime);
   const firstNoticeDate = clean(input?.firstNoticeDate);
@@ -127,6 +127,7 @@ function sanitizeCaseInput(input, employee) {
   if (workStatus === 'Other' && !otherWorkStatus) return { error: 'Enter the other Work Status / Medical Restriction.' };
   if (!injuredBodyPart) return { error: 'Injured body part is required.' };
   if (!['Yes', 'No'].includes(oshaRecordable)) return { error: 'OSHA recordable must be Yes or No.' };
+  if (options.requireEmployeeInjuryFolder && !employeeInjuryFolderLink) return { error: 'Employee Injury Folder Link is required for a new case.' };
   if (!validSecureLink(employeeInjuryFolderLink)) return { error: 'Employee Injury Folder must be a secure SharePoint link.' };
   if (!['Yes', 'No'].includes(injuryReportReceived)) return { error: 'Injury Report Received must be Yes or No.' };
   if (injuryReportReceived === 'Yes' && !injuryReportLink) return { error: 'Add the received injury report link.' };

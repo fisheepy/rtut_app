@@ -28,6 +28,15 @@ test('validates and sanitizes a new work injury case', () => {
   assert.equal(result.value.followUpIssues, 'Clinic follow-up');
 });
 
+test('requires an employee injury folder link when creating a new case', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+  }, employee, { requireEmployeeInjuryFolder: true });
+  assert.equal(result.error, 'Employee Injury Folder Link is required for a new case.');
+});
+
 test('accepts follow-up issues without a follow-up date', () => {
   const result = sanitizeCaseInput({
     injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
