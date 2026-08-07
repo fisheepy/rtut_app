@@ -129,9 +129,9 @@ function HrToolsHubLogin({ onLogin }: { onLogin: () => void }) {
               <ShieldCheck className="h-4 w-4" />
               Authorized Access Only
             </div>
-            <h1 className="mt-5 text-4xl font-semibold">RTUT HR Tools</h1>
+            <h1 className="mt-5 text-4xl font-semibold">RTUT Integrated HR &amp; Safety Platform</h1>
             <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
-              HR operational tools are protected. Request a one-time code using an authorized email address.
+              HR and Safety information is protected. Request a one-time code using an authorized email address.
             </p>
           </div>
         </div>
@@ -228,7 +228,7 @@ function HrToolsHubContent({ onLogout }: { onLogout: () => void }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-cyan-100">
               <FileSpreadsheet className="h-4 w-4" />
-              HR Tools
+              HR &amp; Safety Platform
             </div>
             <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" onClick={logout} type="button">
               <LogOut className="h-4 w-4" />
@@ -236,9 +236,9 @@ function HrToolsHubContent({ onLogout }: { onLogout: () => void }) {
             </button>
           </div>
           <div className="max-w-3xl">
-            <h1 className="mt-5 text-4xl font-semibold tracking-normal md:text-5xl">Focused file workflows for HR operations.</h1>
+            <h1 className="mt-5 text-4xl font-semibold tracking-normal md:text-5xl">One connected platform for HR &amp; Safety.</h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-              Securely access focused workflows for payroll, benefits, commissions, and training operations.
+              Bring employee lifecycle, payroll, benefits, training, safety, injury, and compliance work together in one secure place.
             </p>
           </div>
         </div>

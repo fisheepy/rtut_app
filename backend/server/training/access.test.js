@@ -65,3 +65,17 @@ test('rejects a Training Tools session for another email', () => {
   assert.equal(statusCode, 401);
   assert.equal(responseBody.error, 'Training Tools authentication required');
 });
+
+test('reuses an authorized HR Tools session for Training Tools', () => {
+  const middleware = createRequireTrainingSession(() => ({
+    email: 'myu@royaltrailersales.com',
+    type: 'hr-tools',
+  }), {});
+  let nextCalled = false;
+  const request = {};
+  middleware(request, {}, () => {
+    nextCalled = true;
+  });
+  assert.equal(nextCalled, true);
+  assert.equal(request.adminSession.type, 'hr-tools');
+});
