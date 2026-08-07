@@ -118,6 +118,9 @@ function sanitizeCaseInput(input, employee, options = {}) {
   const injuryReportLink = clean(input?.injuryReportLink);
   const workersCompClaimed = clean(input?.workersCompClaimed);
   const workersCompCaseNumber = clean(input?.workersCompCaseNumber);
+  const workersCompContactName = clean(input?.workersCompContactName);
+  const workersCompContactPhone = clean(input?.workersCompContactPhone);
+  const workersCompContactEmail = clean(input?.workersCompContactEmail);
   const followUpIssues = clean(input?.followUpIssues);
   const timeline = sanitizeTimeline(input?.timeline);
   const costs = sanitizeCosts(input?.costs);
@@ -172,6 +175,9 @@ function sanitizeCaseInput(input, employee, options = {}) {
       injuryReportLink: injuryReportReceived === 'Yes' ? injuryReportLink : '',
       workersCompClaimed,
       workersCompCaseNumber: workersCompClaimed === 'Yes' ? workersCompCaseNumber : '',
+      workersCompContactName: workersCompClaimed === 'Yes' ? workersCompContactName : '',
+      workersCompContactPhone: workersCompClaimed === 'Yes' ? workersCompContactPhone : '',
+      workersCompContactEmail: workersCompClaimed === 'Yes' ? workersCompContactEmail : '',
       followUpIssues,
       timeline: timeline.value,
       costs: costs.value,

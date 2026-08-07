@@ -64,6 +64,14 @@ test('requires conditional safety and workers compensation details', () => {
   assert.equal(result.error, 'Describe the safety violation.');
 });
 
+test('keeps optional workers compensation contact information', () => {
+  const result = sanitizeCaseInput({ injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand', injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand', oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'Yes', workersCompCaseNumber: 'WC-123', workersCompContactName: 'Taylor Smith', workersCompContactPhone: '555-0102', workersCompContactEmail: 'taylor@example.com' }, employee);
+  assert.equal(result.error, undefined);
+  assert.equal(result.value.workersCompContactName, 'Taylor Smith');
+  assert.equal(result.value.workersCompContactPhone, '555-0102');
+  assert.equal(result.value.workersCompContactEmail, 'taylor@example.com');
+});
+
 test('sanitizes timeline entries and case costs', () => {
   const result = sanitizeCaseInput({
     injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
