@@ -502,6 +502,10 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       await client.connect();
       const db = client.db(databaseName);
       const collection = db.collection('employee_hr_platform');
+      // Always reconcile an unlocked tracker with the current New Hire catalog.
+      // This prevents a browser tab opened before a checklist deletion from
+      // submitting an obsolete fieldsSnapshot and requiring removed items.
+      await syncOpenNewHireTrackers(db);
       const existing = await collection.findOne({ employeeId });
       if (existing?.fileTracker?.finalLockedAt || existing?.fileTracker?.confirmedAt) {
         return res.status(409).json({ error: 'This File Tracker has been finally confirmed and can no longer be modified.' });
@@ -523,7 +527,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         await collection.updateOne({ employeeId }, { $set: { fileTracker, updatedAt: new Date(), updatedBy: finalReviewerEmail } });
         return res.json({ fileTracker });
       }
-      const catalog = existing?.fileTracker?.fieldsSnapshot || await getTrackerCatalog(db);
+      const catalog = await getTrackerCatalog(db);
       const tracker = sanitizeFileTracker(req.body?.fileTracker, catalog);
       const commentFields = commentAudit(existing?.fileTracker || {}, tracker.comments, req.adminSession?.email || null);
       const submit = action === 'submit';
