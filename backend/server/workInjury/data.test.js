@@ -86,6 +86,15 @@ test('sanitizes timeline entries and case costs', () => {
   assert.equal(result.value.costs[0].royalCostType, 'Medical Bill');
 });
 
+test('requires and stores an item for Other Royal costs', () => {
+  const base = { injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand', injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand', oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No' };
+  const missing = sanitizeCaseInput({ ...base, costs: [{ description: 'Other expense', paidBy: 'Royal', royalCostType: 'Other', amount: '25', invoiceLink: '' }] }, employee);
+  assert.match(missing.error, /Other Royal cost item/);
+  const result = sanitizeCaseInput({ ...base, costs: [{ description: 'Other expense', paidBy: 'Royal', royalCostType: 'Other', royalCostOtherItem: 'Damaged uniform replacement', amount: '25', invoiceLink: '' }] }, employee);
+  assert.equal(result.error, undefined);
+  assert.equal(result.value.costs[0].royalCostOtherItem, 'Damaged uniform replacement');
+});
+
 test('validates and stores safety investigation details', () => {
   const result = sanitizeCaseInput({
     injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',

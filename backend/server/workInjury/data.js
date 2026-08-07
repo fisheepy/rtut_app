@@ -70,12 +70,14 @@ function totalCaseCost(record) {
 
 function sanitizeCosts(value) {
   if (!Array.isArray(value)) return { value: [] };
-  const items = value.map(item => ({ invoiceDate: clean(item?.invoiceDate), description: clean(item?.description), paidBy: clean(item?.paidBy), royalCostType: clean(item?.royalCostType), amount: Number(item?.amount), invoiceLink: clean(item?.invoiceLink) }))
-    .filter(item => item.invoiceDate || item.description || item.paidBy || item.royalCostType || item.amount || item.invoiceLink);
+  const items = value.map(item => ({ invoiceDate: clean(item?.invoiceDate), description: clean(item?.description), paidBy: clean(item?.paidBy), royalCostType: clean(item?.royalCostType), royalCostOtherItem: clean(item?.royalCostOtherItem), amount: Number(item?.amount), invoiceLink: clean(item?.invoiceLink) }))
+    .filter(item => item.invoiceDate || item.description || item.paidBy || item.royalCostType || item.royalCostOtherItem || item.amount || item.invoiceLink);
   for (const item of items) {
     if (!item.description || !['Workers Compensation', 'Royal'].includes(item.paidBy) || !Number.isFinite(item.amount) || item.amount < 0) return { error: 'Every cost entry requires a description, valid payer, and non-negative amount.' };
-    if (item.paidBy === 'Royal' && !['Lost Time', 'Medical Bill'].includes(item.royalCostType)) return { error: 'Every cost paid by Royal requires a Lost Time or Medical Bill classification.' };
-    if (item.paidBy !== 'Royal') item.royalCostType = '';
+    if (item.paidBy === 'Royal' && !['Lost Time', 'Medical Bill', 'Other'].includes(item.royalCostType)) return { error: 'Every cost paid by Royal requires a Lost Time, Medical Bill, or Other classification.' };
+    if (item.paidBy === 'Royal' && item.royalCostType === 'Other' && !item.royalCostOtherItem) return { error: 'Please describe the Other Royal cost item.' };
+    if (item.paidBy !== 'Royal') { item.royalCostType = ''; item.royalCostOtherItem = ''; }
+    if (item.royalCostType !== 'Other') item.royalCostOtherItem = '';
     if (!validSecureLink(item.invoiceLink)) return { error: 'Invoice documentation must use a secure SharePoint link.' };
     item.amount = Math.round(item.amount * 100) / 100;
   }
