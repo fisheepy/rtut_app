@@ -84,6 +84,8 @@ function terminationEmployeeView(employee, record = {}) {
     cobraEndDate: clean(record.cobraEndDate),
     cobraUpdatedAt: record.cobraUpdatedAt || null,
     cobraUpdatedBy: clean(record.cobraUpdatedBy),
+    cobraClosedAt: record.cobraClosedAt || null,
+    cobraClosedBy: clean(record.cobraClosedBy),
     retirementParticipation: clean(record.retirementParticipation),
     retirementEndingDate: clean(record.retirementEndingDate),
     fileTracker: record.fileTracker || {},

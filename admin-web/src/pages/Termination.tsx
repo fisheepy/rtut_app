@@ -47,6 +47,8 @@ type Employee = {
   cobraEndDate: string;
   cobraUpdatedAt: string | null;
   cobraUpdatedBy: string;
+  cobraClosedAt: string | null;
+  cobraClosedBy: string;
   retirementParticipation: string;
   retirementEndingDate: string;
   payrollCheckedAt: string | null;
@@ -257,7 +259,7 @@ export default function Termination() {
         ) || a.name.localeCompare(b.name),
     );
   const cobraEnrollments = [...employees]
-    .filter((employee) => employee.cobraStartDate)
+    .filter((employee) => employee.cobraStartDate && !employee.cobraClosedAt)
     .sort(
       (a, b) =>
         Number(Boolean(a.cobraEndDate)) - Number(Boolean(b.cobraEndDate)) ||
@@ -354,6 +356,19 @@ export default function Termination() {
       setCobraError(requestError.response?.data?.error || "COBRA enrollment could not be saved.");
     } finally {
       setCobraSaving(false);
+    }
+  }
+  async function closeCobra(employee: Employee) {
+    if (!employee.cobraEndDate) {
+      setError(`Enter a COBRA End Date for ${employee.name} before closing the record.`);
+      return;
+    }
+    if (!window.confirm(`Close the COBRA record for ${employee.name}? After closing, it will leave this active table but remain available in the COBRA report.`)) return;
+    try {
+      await api.put(`/hr-platform/terminations/${employee.id}/cobra/close`);
+      await load();
+    } catch (requestError: any) {
+      setError(requestError.response?.data?.error || "COBRA enrollment could not be closed.");
     }
   }
   function openTracker(employee: Employee) {
@@ -971,8 +986,8 @@ export default function Termination() {
       </StatusSection>
 
       <StatusSection
-        title="Historical COBRA Enrollment"
-        description="Record COBRA coverage for any historical terminated employee. Active coverage remains visible until an End Date is entered."
+        title="COBRA Enrollment Management"
+        description="Active and ready-to-close COBRA records remain here. Closed records are retained in the downloadable history report."
         tone="emerald"
         count={cobraEnrollments.length}
       >
@@ -1007,7 +1022,7 @@ export default function Termination() {
                       type="button"
                     >
                       <span><span className="block font-bold text-slate-900">{employee.name}</span><span className="block text-xs text-slate-500">{employee.email || "No email on file"}</span></span>
-                      <span className="shrink-0 text-xs font-semibold text-slate-500">Terminated {dateDisplay(employee.terminationDate)}</span>
+                      <span className="shrink-0 text-right text-xs font-semibold text-slate-500">Terminated {dateDisplay(employee.terminationDate)}{employee.cobraClosedAt ? <span className="mt-1 block text-emerald-700">COBRA record closed</span> : null}</span>
                     </button>
                   ))}
                   {!cobraEmployeeMatches.length && <div className="px-3 py-5 text-center text-sm text-slate-500">No terminated employees match this search.</div>}
@@ -1016,19 +1031,20 @@ export default function Termination() {
             </div>
             <button
               className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={!cobraEmployeeId}
+              disabled={!cobraEmployeeId || Boolean(employees.find((item) => item.id === cobraEmployeeId)?.cobraClosedAt)}
               onClick={() => {
                 const employee = employees.find((item) => item.id === cobraEmployeeId);
                 if (employee) openCobra(employee);
               }}
               type="button"
             >
-              {employees.find((item) => item.id === cobraEmployeeId)?.cobraStartDate ? "Edit COBRA Record" : "Add COBRA Record"}
+              {employees.find((item) => item.id === cobraEmployeeId)?.cobraClosedAt ? "COBRA Record Closed" : employees.find((item) => item.id === cobraEmployeeId)?.cobraStartDate ? "Edit COBRA Record" : "Add COBRA Record"}
             </button>
+            <button className="ml-auto inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-100" onClick={() => downloadReport("/hr-platform/terminations/reports/cobra.xlsx", "COBRA_Enrollment_Report.xlsx")} type="button"><Download className="h-4 w-4" />Download COBRA Report</button>
           </div>
         </div>
         <table className="min-w-full text-sm">
-          <TableHead labels={["Employee", "Termination Date", "COBRA Start Date", "COBRA End Date", "Coverage Status", "Last Updated By", "Action"]} />
+          <TableHead labels={["Employee", "Termination Date", "COBRA Start Date", "COBRA End Date", "Coverage Status", "Edit", "Close"]} />
           <tbody>
             {cobraEnrollments.map((employee) => (
               <tr className="group bg-white transition hover:bg-emerald-50/40" key={employee.id}>
@@ -1037,8 +1053,8 @@ export default function Termination() {
                 <Cell><span className="font-semibold text-slate-900">{dateDisplay(employee.cobraStartDate)}</span></Cell>
                 <Cell>{dateDisplay(employee.cobraEndDate)}</Cell>
                 <Cell>{statusPill(Boolean(employee.cobraEndDate), employee.cobraEndDate ? "Ended" : "Active COBRA")}</Cell>
-                <Cell><span className="text-xs text-slate-600">{employee.cobraUpdatedBy || "--"}</span></Cell>
                 <Cell><ActionButton label="Edit Dates" onClick={() => openCobra(employee)} /></Cell>
+                <Cell><button className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400" disabled={!employee.cobraEndDate} onClick={() => closeCobra(employee)} type="button">Close COBRA Record</button></Cell>
               </tr>
             ))}
             {!cobraEnrollments.length && <EmptyRow columns={7} />}

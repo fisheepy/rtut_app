@@ -101,3 +101,14 @@ test('keeps historical COBRA enrollment dates on a terminated employee', () => {
   assert.equal(row.cobraEndDate, '2026-02-01');
   assert.equal(row.cobraUpdatedBy, 'admin@example.com');
 });
+
+test('exposes COBRA closure audit without removing historical dates', () => {
+  const closedAt = new Date('2026-02-02T12:00:00Z');
+  const row = terminationEmployeeView({
+    _id: 'closed-cobra', 'First Name': 'Closed', 'Last Name': 'Cobra', 'Termination Date': '2025-01-15',
+  }, { cobraStartDate: '2025-02-01', cobraEndDate: '2026-02-01', cobraClosedAt: closedAt, cobraClosedBy: 'admin@example.com' });
+  assert.equal(row.cobraStartDate, '2025-02-01');
+  assert.equal(row.cobraEndDate, '2026-02-01');
+  assert.equal(row.cobraClosedAt, closedAt);
+  assert.equal(row.cobraClosedBy, 'admin@example.com');
+});
