@@ -134,3 +134,15 @@ test('repairs a stale grid status from the latest saved timeline entry', () => {
   assert.equal(record.otherWorkStatus, 'No lifting over ten pounds');
 });
 
+test('preserves a legacy custom timeline status as Other when editing its documentation', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+    timeline: [{ date: '2026-08-08', description: 'Doctor note', workStatusAfter: 'Light duty - no lifting', documentationLink: 'https://royaltruck.sharepoint.com/sites/Safety/file.pdf' }],
+  }, employee);
+  assert.equal(result.error, undefined);
+  assert.equal(result.value.timeline[0].workStatusAfter, 'Other');
+  assert.equal(result.value.timeline[0].otherWorkStatusAfter, 'Light duty - no lifting');
+});
+

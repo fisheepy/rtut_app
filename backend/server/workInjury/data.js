@@ -19,7 +19,10 @@ function sanitizeTimeline(value) {
     .filter(item => Object.values(item).some(Boolean));
   for (const item of items) {
     if (!item.date || !item.description || !item.workStatusAfter) return { error: 'Every timeline entry requires a date, description, and employee work status.' };
-    if (!validWorkStatuses.includes(item.workStatusAfter)) return { error: 'Select a valid Work Status / Medical Restriction for every timeline entry.' };
+    if (!validWorkStatuses.includes(item.workStatusAfter)) {
+      item.otherWorkStatusAfter = item.otherWorkStatusAfter || item.workStatusAfter;
+      item.workStatusAfter = 'Other';
+    }
     if (item.workStatusAfter === 'Other' && !item.otherWorkStatusAfter) return { error: 'Enter the other Work Status / Medical Restriction for the timeline entry.' };
     if (item.workStatusAfter !== 'Other') item.otherWorkStatusAfter = '';
     if (!validSecureLink(item.documentationLink)) return { error: 'Timeline documentation must use a secure SharePoint link.' };

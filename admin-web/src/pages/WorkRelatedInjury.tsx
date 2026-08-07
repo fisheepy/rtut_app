@@ -70,6 +70,12 @@ const emptyForm: CaseForm = {
   followUpIssues: '', timeline: [], costs: [],
 }
 
+const standardWorkStatuses = ['Pending Medical Evaluation', 'Off Work', 'Returned to Work - No Restrictions', 'Returned to Work - With Restrictions', 'Other']
+
+function editableTimeline(timeline: TimelineEntry[] = []) {
+  return timeline.map(item => standardWorkStatuses.includes(item.workStatusAfter) ? { ...item, otherWorkStatusAfter: item.otherWorkStatusAfter || '' } : { ...item, workStatusAfter: 'Other', otherWorkStatusAfter: item.otherWorkStatusAfter || item.workStatusAfter })
+}
+
 function displayDate(value: string, withTime = false) {
   if (!value) return '—'
   const date = new Date(withTime ? value : `${value}T00:00:00`)
@@ -143,7 +149,7 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
     safetyViolationDetails: existing.safetyViolationDetails || '', workStatus: existing.initialWorkStatus || existing.workStatus || 'Pending Medical Evaluation', otherWorkStatus: existing.initialOtherWorkStatus || existing.otherWorkStatus || '', injuredBodyPart: existing.injuredBodyPart, oshaRecordable: existing.oshaRecordable,
     investigationStatus: existing.investigationStatus || 'Not Started', investigationDate: existing.investigationDate || '', rootCause: existing.rootCause || '', correctiveActionRequired: existing.correctiveActionRequired || 'No', correctiveActionDetails: existing.correctiveActionDetails || '', correctiveActionTargetDate: existing.correctiveActionTargetDate || '',
     employeeInjuryFolderLink: existing.employeeInjuryFolderLink || '', injuryReportReceived: existing.injuryReportReceived || 'No', injuryReportLink: existing.injuryReportLink || '', workersCompClaimed: existing.workersCompClaimed || 'No', workersCompCaseNumber: existing.workersCompCaseNumber || '',
-    followUpIssues: existing.followUpIssues || '', timeline: existing.timeline || [], costs: existing.costs || [],
+    followUpIssues: existing.followUpIssues || '', timeline: editableTimeline(existing.timeline), costs: existing.costs || [],
   } : emptyForm)
   const [search, setSearch] = useState(existing?.employeeName || '')
   const [error, setError] = useState('')
