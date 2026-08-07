@@ -93,3 +93,29 @@ test('requires investigation findings before an investigation is completed', () 
   assert.equal(result.error, 'A completed investigation requires an investigation date and root cause.');
 });
 
+test('uses the latest timeline entry as the current work status', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+    timeline: [
+      { date: '2026-08-08', description: 'Initial restriction', workStatusAfter: 'Off Work' },
+      { date: '2026-08-10', description: 'Doctor update', workStatusAfter: 'Other', otherWorkStatusAfter: 'Light duty - four hours' },
+    ],
+  }, employee);
+  assert.equal(result.error, undefined);
+  assert.equal(result.value.workStatus, 'Other');
+  assert.equal(result.value.otherWorkStatus, 'Light duty - four hours');
+});
+
+test('accepts a case cost without an invoice date', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+    costs: [{ description: 'Estimated clinic cost', paidBy: 'Royal', amount: '100', invoiceLink: '' }],
+  }, employee);
+  assert.equal(result.error, undefined);
+  assert.equal(result.value.costs[0].invoiceDate, '');
+});
+

@@ -14,10 +14,14 @@ function validSecureLink(value) {
 
 function sanitizeTimeline(value) {
   if (!Array.isArray(value)) return { value: [] };
-  const items = value.map(item => ({ date: clean(item?.date), description: clean(item?.description), workStatusAfter: clean(item?.workStatusAfter), documentationLink: clean(item?.documentationLink) }))
+  const validWorkStatuses = ['Off Work', 'Returned to Work - No Restrictions', 'Returned to Work - With Restrictions', 'Pending Medical Evaluation', 'Other'];
+  const items = value.map(item => ({ date: clean(item?.date), description: clean(item?.description), workStatusAfter: clean(item?.workStatusAfter), otherWorkStatusAfter: clean(item?.otherWorkStatusAfter), documentationLink: clean(item?.documentationLink) }))
     .filter(item => Object.values(item).some(Boolean));
   for (const item of items) {
     if (!item.date || !item.description || !item.workStatusAfter) return { error: 'Every timeline entry requires a date, description, and employee work status.' };
+    if (!validWorkStatuses.includes(item.workStatusAfter)) return { error: 'Select a valid Work Status / Medical Restriction for every timeline entry.' };
+    if (item.workStatusAfter === 'Other' && !item.otherWorkStatusAfter) return { error: 'Enter the other Work Status / Medical Restriction for the timeline entry.' };
+    if (item.workStatusAfter !== 'Other') item.otherWorkStatusAfter = '';
     if (!validSecureLink(item.documentationLink)) return { error: 'Timeline documentation must use a secure SharePoint link.' };
   }
   return { value: items };
@@ -28,7 +32,7 @@ function sanitizeCosts(value) {
   const items = value.map(item => ({ invoiceDate: clean(item?.invoiceDate), description: clean(item?.description), paidBy: clean(item?.paidBy), amount: Number(item?.amount), invoiceLink: clean(item?.invoiceLink) }))
     .filter(item => item.invoiceDate || item.description || item.paidBy || item.amount || item.invoiceLink);
   for (const item of items) {
-    if (!item.invoiceDate || !item.description || !['Workers Compensation', 'Royal'].includes(item.paidBy) || !Number.isFinite(item.amount) || item.amount < 0) return { error: 'Every cost entry requires an invoice date, description, valid payer, and non-negative amount.' };
+    if (!item.description || !['Workers Compensation', 'Royal'].includes(item.paidBy) || !Number.isFinite(item.amount) || item.amount < 0) return { error: 'Every cost entry requires a description, valid payer, and non-negative amount.' };
     if (!validSecureLink(item.invoiceLink)) return { error: 'Invoice documentation must use a secure SharePoint link.' };
     item.amount = Math.round(item.amount * 100) / 100;
   }
@@ -101,6 +105,9 @@ function sanitizeCaseInput(input, employee) {
 
   if (timeline.error) return { error: timeline.error };
   if (costs.error) return { error: costs.error };
+  const latestTimelineEntry = [...timeline.value].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  const currentWorkStatus = latestTimelineEntry?.workStatusAfter || workStatus;
+  const currentOtherWorkStatus = latestTimelineEntry?.workStatusAfter === 'Other' ? latestTimelineEntry.otherWorkStatusAfter : (latestTimelineEntry ? '' : otherWorkStatus);
 
   return {
     value: {
@@ -117,8 +124,8 @@ function sanitizeCaseInput(input, employee) {
       correctiveActionRequired,
       correctiveActionDetails: correctiveActionRequired === 'Yes' ? correctiveActionDetails : '',
       correctiveActionTargetDate: correctiveActionRequired === 'Yes' ? correctiveActionTargetDate : '',
-      workStatus,
-      otherWorkStatus: workStatus === 'Other' ? otherWorkStatus : '',
+      workStatus: currentWorkStatus,
+      otherWorkStatus: currentWorkStatus === 'Other' ? currentOtherWorkStatus : '',
       injuredBodyPart,
       oshaRecordable,
       employeeInjuryFolderLink,
