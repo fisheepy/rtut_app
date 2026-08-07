@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardEdit, ExternalLink, HardHat, KeyRound, LogOut, Mail, Plus, RefreshCw, Search, ShieldCheck, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ClipboardEdit, ExternalLink, HardHat, KeyRound, LogOut, Mail, Plus, RefreshCw, Search, ShieldCheck, XCircle } from 'lucide-react'
 import { api } from '../shared/api'
 
 type Employee = {
@@ -196,8 +196,32 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
   const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [nameFilter, setNameFilter] = useState('')
+  const [injuryDateFrom, setInjuryDateFrom] = useState('')
+  const [injuryDateTo, setInjuryDateTo] = useState('')
+  const [oshaFilter, setOshaFilter] = useState<'all' | 'yes' | 'no'>('all')
+  const [caseView, setCaseView] = useState<'current' | 'open' | 'closed' | 'all'>('current')
   const selected = cases.find(item => item.id === selectedId) || null
-  const openCount = cases.filter(item => !item.closedAt).length
+  const filteredCases = useMemo(() => {
+    const currentYearStart = `${new Date().getFullYear()}-01-01`
+    return cases.filter(item => {
+      const injuryDate = item.injuryDateTime.slice(0, 10)
+      const isOpen = !item.closedAt
+      if (caseView === 'current' && !isOpen && injuryDate < currentYearStart) return false
+      if (caseView === 'open' && !isOpen) return false
+      if (caseView === 'closed' && isOpen) return false
+      if (nameFilter.trim() && !item.employeeName.toLowerCase().includes(nameFilter.trim().toLowerCase())) return false
+      if (injuryDateFrom && injuryDate < injuryDateFrom) return false
+      if (injuryDateTo && injuryDate > injuryDateTo) return false
+      if (oshaFilter !== 'all' && item.oshaRecordable.toLowerCase() !== oshaFilter) return false
+      return true
+    })
+  }, [caseView, cases, injuryDateFrom, injuryDateTo, nameFilter, oshaFilter])
+  const openCount = filteredCases.filter(item => !item.closedAt).length
+
+  function resetFilters() {
+    setNameFilter(''); setInjuryDateFrom(''); setInjuryDateTo(''); setOshaFilter('all'); setCaseView('current')
+  }
 
   async function load() {
     setLoading(true); setError('')
@@ -228,8 +252,16 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
     {tab === 'accident' ? <section className="rounded-2xl border border-blue-200 bg-blue-50 p-10 text-center"><AlertTriangle className="mx-auto h-10 w-10 text-blue-700" /><h2 className="mt-4 text-2xl font-semibold">Accident Case Management</h2><p className="mt-2 text-sm text-slate-600">The Accident workflow is separate and will be configured in the next step.</p></section> : <>
       <section className="grid gap-3 sm:grid-cols-3"><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-4 font-bold text-white shadow-sm hover:bg-orange-800" onClick={() => setView('new')}><Plus className="h-5 w-5" />New Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={() => setView('edit')}><ClipboardEdit className="h-5 w-5" />Edit Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={closeCase}><XCircle className="h-5 w-5" />Close Case</button></section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-xl font-semibold">Current Injury Cases</h2><p className="mt-1 text-sm text-slate-500">Open cases from prior years and all cases from the current year. The summary is read-only.</p></div><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{openCount} Open</span></div>
+        <div className="border-b border-slate-200 bg-slate-50/70 p-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.25fr_auto]">
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Employee Name</span><input className="control mt-1.5" onChange={event => setNameFilter(event.target.value)} placeholder="Search employee" value={nameFilter} /></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Injury Date From</span><input className="control mt-1.5" onChange={event => setInjuryDateFrom(event.target.value)} type="date" value={injuryDateFrom} /></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Injury Date To</span><input className="control mt-1.5" onChange={event => setInjuryDateTo(event.target.value)} type="date" value={injuryDateTo} /></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">OSHA Recordable</span><select className="control mt-1.5" onChange={event => setOshaFilter(event.target.value as 'all' | 'yes' | 'no')} value={oshaFilter}><option value="all">All</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Case View</span><select className="control mt-1.5" onChange={event => setCaseView(event.target.value as 'current' | 'open' | 'closed' | 'all')} value={caseView}><option value="current">Current Window</option><option value="open">Open Cases - All Years</option><option value="closed">Closed Cases - All History</option><option value="all">All Cases - All History</option></select></label>
+          <button className="self-end rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" onClick={resetFilters} type="button">Reset</button>
+        </div><div className="mt-3 text-xs font-semibold text-slate-500">Showing {filteredCases.length} of {cases.length} cases</div></div>
         {error ? <p className="m-5 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
-        {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : cases.length === 0 ? <div className="px-6 py-14 text-center"><CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" /><h3 className="mt-3 text-lg font-semibold">No injury cases to display</h3><p className="mt-1 text-sm text-slate-500">Use New Case when a work injury is reported.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee / Case Status','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Work Status / Restriction','Injury Report','Workers’ Comp','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{cases.map(item => {
+        {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : filteredCases.length === 0 ? <div className="px-6 py-14 text-center"><Search className="mx-auto h-10 w-10 text-slate-400" /><h3 className="mt-3 text-lg font-semibold">No matching injury cases</h3><p className="mt-1 text-sm text-slate-500">Adjust or reset the filters to see more cases.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee / Case Status','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Work Status / Restriction','Injury Report','Workers’ Comp','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{filteredCases.map(item => {
           const isOpen = !item.closedAt
           const isOsha = item.oshaRecordable === 'Yes'
           return <tr className={`cursor-pointer border-t border-slate-100 ${selectedId === item.id ? 'ring-2 ring-inset ring-orange-400' : ''} ${isOsha ? 'bg-red-50 hover:bg-red-100' : isOpen ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50'}`} key={item.id} onClick={() => setSelectedId(item.id)}><td className="px-4 py-3"><Link className="font-bold text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900" onClick={event => event.stopPropagation()} to={`/work-related-injury/cases/${item.id}`}>{item.employeeName}</Link><div className="text-xs text-slate-500">{item.jobTitle}</div><div className="mt-2 flex flex-wrap gap-1">{isOpen ? <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">Open</span> : <span className="rounded-full bg-slate-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">Closed</span>}{isOsha ? <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">OSHA Recordable</span> : null}</div></td><td className="px-4 py-3 font-semibold">{displayDate(item.injuryDateTime, true)}</td><td className="px-4 py-3">{displayDate(item.firstNoticeDate)}</td><td className="px-4 py-3"><div>{item.department}</div><div className="text-xs text-slate-500">{item.location}</div></td><td className="px-4 py-3">{item.injuredBodyPart}</td><td className="px-4 py-3">{item.oshaRecordable}</td><td className="px-4 py-3"><div>{item.safetyViolation}</div>{item.safetyViolationDetails ? <div className="max-w-48 truncate text-xs text-slate-500">{item.safetyViolationDetails}</div> : null}</td><td className="px-4 py-3 font-semibold">{item.workStatus === 'Other' ? item.otherWorkStatus : item.workStatus || 'Pending Medical Evaluation'}</td><td className="px-4 py-3">{item.injuryReportReceived || 'No'}</td><td className="px-4 py-3"><div>{item.workersCompClaimed || 'No'}</div><div className="text-xs text-slate-500">{item.workersCompCaseNumber}</div></td><td className="max-w-64 px-4 py-3"><div className="truncate">{item.followUpIssues || 'None'}</div></td></tr>

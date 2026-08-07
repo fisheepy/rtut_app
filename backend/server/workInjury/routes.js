@@ -11,10 +11,7 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const currentYearStart = `${new Date().getFullYear()}-01-01`;
-      const cases = await client.db(databaseName).collection('work_injury_cases').find({
-        $or: [{ closedAt: null }, { injuryDateTime: { $gte: currentYearStart } }],
-      }).sort({ injuryDateTime: -1 }).toArray();
+      const cases = await client.db(databaseName).collection('work_injury_cases').find({}).sort({ injuryDateTime: -1 }).toArray();
       return res.json({ cases: cases.map(record => ({ ...record, id: String(record._id), _id: undefined })) });
     } catch (error) {
       console.error('Unable to load work injury cases:', error);
