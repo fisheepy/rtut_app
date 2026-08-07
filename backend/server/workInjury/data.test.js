@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { employeeSnapshot, sanitizeCaseInput } = require('./data');
+const { employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
 
 const employee = {
   _id: 'employee-1', 'First Name': 'Alex', 'Last Name': 'Morgan', 'Hire Date': '2024-01-15',
@@ -93,7 +93,7 @@ test('requires investigation findings before an investigation is completed', () 
   assert.equal(result.error, 'A completed investigation requires an investigation date and root cause.');
 });
 
-test('uses the latest timeline entry as the current work status', () => {
+test('uses the latest timeline entry as the summary work status while preserving the initial status', () => {
   const result = sanitizeCaseInput({
     injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
     injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
@@ -104,8 +104,11 @@ test('uses the latest timeline entry as the current work status', () => {
     ],
   }, employee);
   assert.equal(result.error, undefined);
-  assert.equal(result.value.workStatus, 'Other');
-  assert.equal(result.value.otherWorkStatus, 'Light duty - four hours');
+  assert.equal(result.value.workStatus, 'Off Work');
+  const summary = withCurrentWorkStatus(result.value);
+  assert.equal(summary.workStatus, 'Other');
+  assert.equal(summary.otherWorkStatus, 'Light duty - four hours');
+  assert.equal(summary.initialWorkStatus, 'Off Work');
 });
 
 test('accepts a case cost without an invoice date', () => {
@@ -117,5 +120,17 @@ test('accepts a case cost without an invoice date', () => {
   }, employee);
   assert.equal(result.error, undefined);
   assert.equal(result.value.costs[0].invoiceDate, '');
+});
+
+test('repairs a stale grid status from the latest saved timeline entry', () => {
+  const record = withCurrentWorkStatus({
+    workStatus: 'Off Work', otherWorkStatus: '',
+    timeline: [
+      { date: '2026-08-08', workStatusAfter: 'Off Work' },
+      { date: '2026-08-12', workStatusAfter: 'Other', otherWorkStatusAfter: 'No lifting over ten pounds' },
+    ],
+  });
+  assert.equal(record.workStatus, 'Other');
+  assert.equal(record.otherWorkStatus, 'No lifting over ten pounds');
 });
 

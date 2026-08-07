@@ -44,6 +44,8 @@ type InjuryCase = {
   correctiveActionTargetDate: string
   workStatus: string
   otherWorkStatus: string
+  initialWorkStatus?: string
+  initialOtherWorkStatus?: string
   injuredBodyPart: string
   oshaRecordable: 'Yes' | 'No'
   employeeInjuryFolderLink: string
@@ -138,7 +140,7 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
   const [form, setForm] = useState<CaseForm>(existing ? {
     employeeId: existing.employeeId, injuryDateTime: existing.injuryDateTime, firstNoticeDate: existing.firstNoticeDate,
     injuryDescription: existing.injuryDescription, injuryLocation: existing.injuryLocation, safetyViolation: existing.safetyViolation,
-    safetyViolationDetails: existing.safetyViolationDetails || '', workStatus: existing.workStatus || 'Pending Medical Evaluation', otherWorkStatus: existing.otherWorkStatus || '', injuredBodyPart: existing.injuredBodyPart, oshaRecordable: existing.oshaRecordable,
+    safetyViolationDetails: existing.safetyViolationDetails || '', workStatus: existing.initialWorkStatus || existing.workStatus || 'Pending Medical Evaluation', otherWorkStatus: existing.initialOtherWorkStatus || existing.otherWorkStatus || '', injuredBodyPart: existing.injuredBodyPart, oshaRecordable: existing.oshaRecordable,
     investigationStatus: existing.investigationStatus || 'Not Started', investigationDate: existing.investigationDate || '', rootCause: existing.rootCause || '', correctiveActionRequired: existing.correctiveActionRequired || 'No', correctiveActionDetails: existing.correctiveActionDetails || '', correctiveActionTargetDate: existing.correctiveActionTargetDate || '',
     employeeInjuryFolderLink: existing.employeeInjuryFolderLink || '', injuryReportReceived: existing.injuryReportReceived || 'No', injuryReportLink: existing.injuryReportLink || '', workersCompClaimed: existing.workersCompClaimed || 'No', workersCompCaseNumber: existing.workersCompCaseNumber || '',
     followUpIssues: existing.followUpIssues || '', timeline: existing.timeline || [], costs: existing.costs || [],
@@ -179,12 +181,12 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
         <Field label="First Notice Date *"><input className="control" onChange={event => set('firstNoticeDate', event.target.value)} required type="date" value={form.firstNoticeDate} /></Field>
         <Field label="Injury Location *"><input className="control" onChange={event => set('injuryLocation', event.target.value)} required value={form.injuryLocation} /></Field>
         <Field label="Injured Body Part *"><input className="control" onChange={event => set('injuredBodyPart', event.target.value)} placeholder="Example: Left hand" required value={form.injuredBodyPart} /></Field>
-        <Field label="Work Status / Medical Restriction *"><select className="control" onChange={event => set('workStatus', event.target.value)} required value={form.workStatus}><option>Pending Medical Evaluation</option><option>Off Work</option><option>Returned to Work - No Restrictions</option><option>Returned to Work - With Restrictions</option><option>Other</option></select></Field>
+        <Field label={`${existing ? 'Initial ' : ''}Work Status / Medical Restriction *`}><select className="control" disabled={Boolean(existing)} onChange={event => set('workStatus', event.target.value)} required value={form.workStatus}><option>Pending Medical Evaluation</option><option>Off Work</option><option>Returned to Work - No Restrictions</option><option>Returned to Work - With Restrictions</option><option>Other</option></select></Field>
         <Field label="OSHA Recordable? *"><select className="control" onChange={event => set('oshaRecordable', event.target.value)} value={form.oshaRecordable}><option>No</option><option>Yes</option></select></Field>
         <Field label="Injury Report Received? *"><select className="control" onChange={event => set('injuryReportReceived', event.target.value)} value={form.injuryReportReceived}><option>No</option><option>Yes</option></select></Field>
         <Field label="Workers’ Compensation Claimed? *"><select className="control" onChange={event => set('workersCompClaimed', event.target.value)} value={form.workersCompClaimed}><option>No</option><option>Yes</option></select></Field>
       </div>
-      {form.workStatus === 'Other' ? <Field label="Other Work Status / Medical Restriction *"><input className="control" onChange={event => set('otherWorkStatus', event.target.value)} required value={form.otherWorkStatus} /></Field> : null}
+      {form.workStatus === 'Other' ? <Field label={`${existing ? 'Initial ' : ''}Other Work Status / Medical Restriction *`}><input className="control" disabled={Boolean(existing)} onChange={event => set('otherWorkStatus', event.target.value)} required value={form.otherWorkStatus} /></Field> : null}
       <Field label="Employee Injury Folder Link"><input className="control" onChange={event => set('employeeInjuryFolderLink', event.target.value)} placeholder="Secure SharePoint folder link" type="url" value={form.employeeInjuryFolderLink} /></Field>
       {form.injuryReportReceived === 'Yes' ? <Field label="Injury Report Link *"><input className="control" onChange={event => set('injuryReportLink', event.target.value)} placeholder="Secure SharePoint report link" required type="url" value={form.injuryReportLink} /></Field> : null}
       {form.workersCompClaimed === 'Yes' ? <Field label="Workers’ Compensation Case Number *"><input className="control" onChange={event => set('workersCompCaseNumber', event.target.value)} required value={form.workersCompCaseNumber} /></Field> : null}
@@ -224,7 +226,7 @@ function CaseDetails({ caseId, onLogout }: { caseId: string; onLogout: () => voi
   const status = record.closedAt ? 'Closed' : 'Open'
   const workStatus = record.workStatus === 'Other' ? record.otherWorkStatus : record.workStatus
   const basicDetails = [['Employee Name', record.employeeName], ['Hire Date', displayDate(record.hireDate)], ['Department', record.department], ['Location', record.location], ['Supervisor', record.supervisor], ['Job Title', record.jobTitle], ['Employee Phone', record.employeePhone], ['Employee Email', record.employeeEmail]]
-  const injuryDetails = [['Case Status', status], ['Injury Date and Time', displayDate(record.injuryDateTime, true)], ['First Notice Date', displayDate(record.firstNoticeDate)], ['Injury Location', record.injuryLocation], ['Injured Body Part', record.injuredBodyPart], ['Work Status / Medical Restriction', workStatus], ['OSHA Recordable', record.oshaRecordable], ['Injury Report Received', record.injuryReportReceived], ['Workers’ Compensation Claimed', record.workersCompClaimed], ['Workers’ Compensation Case Number', record.workersCompCaseNumber || 'Not applicable'], ['Closed Date', record.closedAt ? displayDate(record.closedAt, true) : 'Open'], ['Closed By', record.closedBy || '—']]
+  const injuryDetails = [['Case Status', status], ['Injury Date and Time', displayDate(record.injuryDateTime, true)], ['First Notice Date', displayDate(record.firstNoticeDate)], ['Injury Location', record.injuryLocation], ['Injured Body Part', record.injuredBodyPart], ['Initial Work Status / Medical Restriction', workStatus], ['OSHA Recordable', record.oshaRecordable], ['Injury Report Received', record.injuryReportReceived], ['Workers’ Compensation Claimed', record.workersCompClaimed], ['Workers’ Compensation Case Number', record.workersCompCaseNumber || 'Not applicable'], ['Closed Date', record.closedAt ? displayDate(record.closedAt, true) : 'Open'], ['Closed By', record.closedBy || '—']]
   const investigationDetails = [['Investigation Status', record.investigationStatus || 'Not Started'], ['Investigation Date', record.investigationDate ? displayDate(record.investigationDate) : 'Not entered'], ['Safety Violation', record.safetyViolation], ['Safety Violation Details', record.safetyViolationDetails || 'Not applicable'], ['Root Cause', record.rootCause || 'Not entered'], ['Corrective Action Needed', record.correctiveActionRequired || 'No'], ['Corrective Action Details', record.correctiveActionDetails || 'Not applicable'], ['Target Completion Date', record.correctiveActionTargetDate ? displayDate(record.correctiveActionTargetDate) : 'Not entered']]
   const timeline = record.timeline || []
   const costs = record.costs || []

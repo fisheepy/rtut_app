@@ -1,6 +1,6 @@
 const express = require('express');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
-const { sanitizeCaseInput } = require('./data');
+const { sanitizeCaseInput, withCurrentWorkStatus } = require('./data');
 
 function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
   const router = express.Router();
@@ -12,7 +12,7 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
     try {
       await client.connect();
       const cases = await client.db(databaseName).collection('work_injury_cases').find({}).sort({ injuryDateTime: -1 }).toArray();
-      return res.json({ cases: cases.map(record => ({ ...record, id: String(record._id), _id: undefined })) });
+      return res.json({ cases: cases.map(record => ({ ...withCurrentWorkStatus(record), id: String(record._id), _id: undefined })) });
     } catch (error) {
       console.error('Unable to load work injury cases:', error);
       return res.status(500).json({ error: 'Work injury cases could not be loaded.' });
@@ -66,7 +66,7 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
       const employee = await findEmployee(db, existing.employeeId);
       const result = sanitizeCaseInput({ ...req.body, employeeId: existing.employeeId }, employee);
       if (result.error) return res.status(400).json({ error: result.error });
-      const update = { ...result.value, updatedAt: new Date(), updatedBy: req.adminSession?.email || null };
+      const update = { ...result.value, workStatus: existing.workStatus, otherWorkStatus: existing.otherWorkStatus || '', updatedAt: new Date(), updatedBy: req.adminSession?.email || null };
       await db.collection('work_injury_cases').updateOne({ _id: existing._id }, { $set: update });
       return res.json({ case: { ...existing, ...update, id: String(existing._id) } });
     } catch (error) {
@@ -96,3 +96,4 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
 }
 
 module.exports = { createWorkInjuryRouter };
+

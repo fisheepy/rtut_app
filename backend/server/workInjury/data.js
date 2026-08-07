@@ -27,6 +27,19 @@ function sanitizeTimeline(value) {
   return { value: items };
 }
 
+function withCurrentWorkStatus(record) {
+  const timeline = Array.isArray(record?.timeline) ? record.timeline : [];
+  const latest = [...timeline].filter(item => clean(item?.date)).sort((a, b) => clean(a.date).localeCompare(clean(b.date))).at(-1);
+  if (!latest?.workStatusAfter) return record;
+  return {
+    ...record,
+    initialWorkStatus: clean(record.workStatus),
+    initialOtherWorkStatus: clean(record.otherWorkStatus),
+    workStatus: clean(latest.workStatusAfter),
+    otherWorkStatus: clean(latest.workStatusAfter) === 'Other' ? clean(latest.otherWorkStatusAfter) : '',
+  };
+}
+
 function sanitizeCosts(value) {
   if (!Array.isArray(value)) return { value: [] };
   const items = value.map(item => ({ invoiceDate: clean(item?.invoiceDate), description: clean(item?.description), paidBy: clean(item?.paidBy), amount: Number(item?.amount), invoiceLink: clean(item?.invoiceLink) }))
@@ -105,9 +118,6 @@ function sanitizeCaseInput(input, employee) {
 
   if (timeline.error) return { error: timeline.error };
   if (costs.error) return { error: costs.error };
-  const latestTimelineEntry = [...timeline.value].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
-  const currentWorkStatus = latestTimelineEntry?.workStatusAfter || workStatus;
-  const currentOtherWorkStatus = latestTimelineEntry?.workStatusAfter === 'Other' ? latestTimelineEntry.otherWorkStatusAfter : (latestTimelineEntry ? '' : otherWorkStatus);
 
   return {
     value: {
@@ -124,8 +134,8 @@ function sanitizeCaseInput(input, employee) {
       correctiveActionRequired,
       correctiveActionDetails: correctiveActionRequired === 'Yes' ? correctiveActionDetails : '',
       correctiveActionTargetDate: correctiveActionRequired === 'Yes' ? correctiveActionTargetDate : '',
-      workStatus: currentWorkStatus,
-      otherWorkStatus: currentWorkStatus === 'Other' ? currentOtherWorkStatus : '',
+      workStatus,
+      otherWorkStatus: workStatus === 'Other' ? otherWorkStatus : '',
       injuredBodyPart,
       oshaRecordable,
       employeeInjuryFolderLink,
@@ -140,5 +150,5 @@ function sanitizeCaseInput(input, employee) {
   };
 }
 
-module.exports = { employeeSnapshot, sanitizeCaseInput };
+module.exports = { employeeSnapshot, sanitizeCaseInput, withCurrentWorkStatus };
 
