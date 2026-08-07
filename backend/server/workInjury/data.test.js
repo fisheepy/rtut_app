@@ -20,8 +20,8 @@ test('takes employee identity and roster details from the Company App record', (
 test('validates and sanitizes a new work injury case', () => {
   const result = sanitizeCaseInput({
     injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
-    injuryLocation: 'Service bay', safetyViolation: 'No', employeeStatus: 'Active', injuredBodyPart: 'Left hand',
-    oshaRecordable: 'No', followUpIssues: 'Clinic follow-up', followUpDate: '2026-08-10',
+    injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No', followUpIssues: 'Clinic follow-up', followUpDate: '2026-08-10',
   }, employee);
   assert.equal(result.error, undefined);
   assert.equal(result.value.employeeName, 'Alex Morgan');
@@ -31,8 +31,17 @@ test('validates and sanitizes a new work injury case', () => {
 test('requires a follow-up date when follow-up issues are entered', () => {
   const result = sanitizeCaseInput({
     injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
-    injuryLocation: 'Service bay', safetyViolation: 'No', employeeStatus: 'Active', injuredBodyPart: 'Left hand',
-    oshaRecordable: 'No', followUpIssues: 'Clinic follow-up',
+    injuryLocation: 'Service bay', safetyViolation: 'No', workStatus: 'Pending Medical Evaluation', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No', followUpIssues: 'Clinic follow-up',
   }, employee);
   assert.equal(result.error, 'Follow-up date is required when follow-up issues are entered.');
+});
+
+test('requires conditional safety and workers compensation details', () => {
+  const result = sanitizeCaseInput({
+    injuryDateTime: '2026-08-07T09:30', firstNoticeDate: '2026-08-07', injuryDescription: 'Cut to hand',
+    injuryLocation: 'Service bay', safetyViolation: 'Yes', workStatus: 'Off Work', injuredBodyPart: 'Left hand',
+    oshaRecordable: 'No', injuryReportReceived: 'No', workersCompClaimed: 'No',
+  }, employee);
+  assert.equal(result.error, 'Describe the safety violation.');
 });

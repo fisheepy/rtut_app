@@ -6,7 +6,7 @@ import { api } from '../shared/api'
 type Employee = {
   id: string
   employeeName: string
-  hireDate: string
+  firstDay: string
   department: string
   location: string
   reportingTo: string
@@ -32,18 +32,25 @@ type InjuryCase = {
   injuryDescription: string
   injuryLocation: string
   safetyViolation: 'Yes' | 'No'
-  employeeStatus: string
+  safetyViolationDetails: string
+  workStatus: string
   injuredBodyPart: string
   oshaRecordable: 'Yes' | 'No'
+  employeeInjuryFolderLink: string
+  injuryReportReceived: 'Yes' | 'No'
+  injuryReportLink: string
+  workersCompClaimed: 'Yes' | 'No'
+  workersCompCaseNumber: string
   followUpIssues: string
   followUpDate: string
 }
 
-type CaseForm = Pick<InjuryCase, 'employeeId' | 'injuryDateTime' | 'firstNoticeDate' | 'injuryDescription' | 'injuryLocation' | 'safetyViolation' | 'employeeStatus' | 'injuredBodyPart' | 'oshaRecordable' | 'followUpIssues' | 'followUpDate'>
+type CaseForm = Pick<InjuryCase, 'employeeId' | 'injuryDateTime' | 'firstNoticeDate' | 'injuryDescription' | 'injuryLocation' | 'safetyViolation' | 'safetyViolationDetails' | 'workStatus' | 'injuredBodyPart' | 'oshaRecordable' | 'employeeInjuryFolderLink' | 'injuryReportReceived' | 'injuryReportLink' | 'workersCompClaimed' | 'workersCompCaseNumber' | 'followUpIssues' | 'followUpDate'>
 
 const emptyForm: CaseForm = {
   employeeId: '', injuryDateTime: '', firstNoticeDate: '', injuryDescription: '', injuryLocation: '',
-  safetyViolation: 'No', employeeStatus: 'Active', injuredBodyPart: '', oshaRecordable: 'No',
+  safetyViolation: 'No', safetyViolationDetails: '', workStatus: 'Pending Medical Evaluation', injuredBodyPart: '', oshaRecordable: 'No',
+  employeeInjuryFolderLink: '', injuryReportReceived: 'No', injuryReportLink: '', workersCompClaimed: 'No', workersCompCaseNumber: '',
   followUpIssues: '', followUpDate: '',
 }
 
@@ -94,7 +101,8 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
   const [form, setForm] = useState<CaseForm>(existing ? {
     employeeId: existing.employeeId, injuryDateTime: existing.injuryDateTime, firstNoticeDate: existing.firstNoticeDate,
     injuryDescription: existing.injuryDescription, injuryLocation: existing.injuryLocation, safetyViolation: existing.safetyViolation,
-    employeeStatus: existing.employeeStatus, injuredBodyPart: existing.injuredBodyPart, oshaRecordable: existing.oshaRecordable,
+    safetyViolationDetails: existing.safetyViolationDetails || '', workStatus: existing.workStatus || 'Pending Medical Evaluation', injuredBodyPart: existing.injuredBodyPart, oshaRecordable: existing.oshaRecordable,
+    employeeInjuryFolderLink: existing.employeeInjuryFolderLink || '', injuryReportReceived: existing.injuryReportReceived || 'No', injuryReportLink: existing.injuryReportLink || '', workersCompClaimed: existing.workersCompClaimed || 'No', workersCompCaseNumber: existing.workersCompCaseNumber || '',
     followUpIssues: existing.followUpIssues || '', followUpDate: existing.followUpDate || '',
   } : emptyForm)
   const [search, setSearch] = useState(existing?.employeeName || '')
@@ -115,7 +123,7 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
   }
 
   const rosterFields = employee ? [
-    ['Hire Date', displayDate(employee.hireDate)], ['Department', employee.department], ['Location', employee.location],
+    ['Hire Date', displayDate(employee.firstDay)], ['Department', employee.department], ['Location', employee.location],
     ['Supervisor', employee.reportingTo], ['Job Title', employee.jobTitle], ['Employee Phone', employee.contactNumber], ['Employee Email', employee.email],
   ] : []
 
@@ -123,7 +131,7 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-5"><div><p className="text-xs font-bold uppercase tracking-wider text-orange-700">Work Injury</p><h2 className="mt-1 text-2xl font-semibold">{existing ? 'Edit Injury Case' : 'New Injury Case'}</h2></div><button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold" onClick={onCancel} type="button"><ArrowLeft className="h-4 w-4" />Back to cases</button></div>
     <form className="space-y-6 p-6" onSubmit={save}>
       <div><label className="text-sm font-semibold text-slate-700">Employee Name *</label><div className="relative mt-2"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input className="w-full rounded-lg border border-slate-300 py-2.5 pl-9 pr-3" disabled={Boolean(existing)} onChange={event => { setSearch(event.target.value); set('employeeId', '') }} placeholder="Search active or leave employee" value={search} />
-        {matches.length ? <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl">{matches.map(item => <button className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-orange-50" key={item.id} onClick={() => { set('employeeId', item.id); set('employeeStatus', item.employmentStatus || 'Active'); setSearch(item.employeeName) }} type="button"><span className="font-semibold">{item.employeeName}</span><span className="ml-2 text-slate-500">{item.jobTitle} · {item.location}</span></button>)}</div> : null}
+        {matches.length ? <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl">{matches.map(item => <button className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-orange-50" key={item.id} onClick={() => { set('employeeId', item.id); setSearch(item.employeeName) }} type="button"><span className="font-semibold">{item.employeeName}</span><span className="ml-2 text-slate-500">{item.jobTitle} · {item.location}</span></button>)}</div> : null}
       </div></div>
       {employee ? <div className="grid gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2 lg:grid-cols-4">{rosterFields.map(([label, value]) => <div key={label}><div className="text-xs font-bold uppercase tracking-wide text-blue-700">{label}</div><div className="mt-1 text-sm font-semibold text-slate-800">{value || 'Not available'}</div></div>)}</div> : null}
       <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -131,11 +139,17 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
         <Field label="First Notice Date *"><input className="control" onChange={event => set('firstNoticeDate', event.target.value)} required type="date" value={form.firstNoticeDate} /></Field>
         <Field label="Injury Location *"><input className="control" onChange={event => set('injuryLocation', event.target.value)} required value={form.injuryLocation} /></Field>
         <Field label="Injured Body Part *"><input className="control" onChange={event => set('injuredBodyPart', event.target.value)} placeholder="Example: Left hand" required value={form.injuredBodyPart} /></Field>
-        <Field label="Employee Status *"><select className="control" onChange={event => set('employeeStatus', event.target.value)} required value={form.employeeStatus}><option>Active</option><option>Leave</option><option>Terminated</option></select></Field>
+        <Field label="Work Status / Medical Restriction *"><select className="control" onChange={event => set('workStatus', event.target.value)} required value={form.workStatus}><option>Pending Medical Evaluation</option><option>Off Work</option><option>Returned to Work - No Restrictions</option><option>Returned to Work - With Restrictions</option></select></Field>
         <Field label="Any Safety Violation? *"><select className="control" onChange={event => set('safetyViolation', event.target.value)} value={form.safetyViolation}><option>No</option><option>Yes</option></select></Field>
         <Field label="OSHA Recordable? *"><select className="control" onChange={event => set('oshaRecordable', event.target.value)} value={form.oshaRecordable}><option>No</option><option>Yes</option></select></Field>
+        <Field label="Injury Report Received? *"><select className="control" onChange={event => set('injuryReportReceived', event.target.value)} value={form.injuryReportReceived}><option>No</option><option>Yes</option></select></Field>
+        <Field label="Workers’ Compensation Claimed? *"><select className="control" onChange={event => set('workersCompClaimed', event.target.value)} value={form.workersCompClaimed}><option>No</option><option>Yes</option></select></Field>
         <Field label="Follow-up Date"><input className="control" onChange={event => set('followUpDate', event.target.value)} required={Boolean(form.followUpIssues.trim())} type="date" value={form.followUpDate} /></Field>
       </div>
+      {form.safetyViolation === 'Yes' ? <Field label="Safety Violation Details *"><textarea className="control min-h-24" onChange={event => set('safetyViolationDetails', event.target.value)} required value={form.safetyViolationDetails} /></Field> : null}
+      <Field label="Employee Injury Folder Link"><input className="control" onChange={event => set('employeeInjuryFolderLink', event.target.value)} placeholder="Secure SharePoint folder link" type="url" value={form.employeeInjuryFolderLink} /></Field>
+      {form.injuryReportReceived === 'Yes' ? <Field label="Injury Report Link *"><input className="control" onChange={event => set('injuryReportLink', event.target.value)} placeholder="Secure SharePoint report link" required type="url" value={form.injuryReportLink} /></Field> : null}
+      {form.workersCompClaimed === 'Yes' ? <Field label="Workers’ Compensation Case Number *"><input className="control" onChange={event => set('workersCompCaseNumber', event.target.value)} required value={form.workersCompCaseNumber} /></Field> : null}
       <Field label="Injury Description *"><textarea className="control min-h-28" onChange={event => set('injuryDescription', event.target.value)} required value={form.injuryDescription} /></Field>
       <Field label="Follow-up Issues"><textarea className="control min-h-24" onChange={event => set('followUpIssues', event.target.value)} placeholder="Enter any open issues or required follow-up" value={form.followUpIssues} /></Field>
       {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
@@ -186,7 +200,7 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
       <section className="grid gap-3 sm:grid-cols-3"><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-4 font-bold text-white shadow-sm hover:bg-orange-800" onClick={() => setView('new')}><Plus className="h-5 w-5" />New Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={() => setView('edit')}><ClipboardEdit className="h-5 w-5" />Edit Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={closeCase}><XCircle className="h-5 w-5" />Close Case</button></section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-xl font-semibold">Current Injury Cases</h2><p className="mt-1 text-sm text-slate-500">Read-only summary. Select a row, then use Edit Case or Close Case above.</p></div><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{cases.length} Open</span></div>
         {error ? <p className="m-5 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
-        {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : cases.length === 0 ? <div className="px-6 py-14 text-center"><CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" /><h3 className="mt-3 text-lg font-semibold">No open injury cases</h3><p className="mt-1 text-sm text-slate-500">Use New Case when a work injury is reported.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1250px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Employee Status','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{cases.map(item => <tr className={`cursor-pointer border-t border-slate-100 ${selectedId === item.id ? 'bg-orange-50 ring-1 ring-inset ring-orange-300' : 'hover:bg-slate-50'}`} key={item.id} onClick={() => setSelectedId(item.id)}><td className="px-4 py-3"><div className="font-bold text-slate-900">{item.employeeName}</div><div className="text-xs text-slate-500">{item.jobTitle}</div></td><td className="px-4 py-3 font-semibold">{displayDate(item.injuryDateTime, true)}</td><td className="px-4 py-3">{displayDate(item.firstNoticeDate)}</td><td className="px-4 py-3"><div>{item.department}</div><div className="text-xs text-slate-500">{item.location}</div></td><td className="px-4 py-3">{item.injuredBodyPart}</td><td className="px-4 py-3">{item.oshaRecordable}</td><td className="px-4 py-3">{item.safetyViolation}</td><td className="px-4 py-3">{item.employeeStatus}</td><td className="max-w-64 px-4 py-3"><div className="truncate">{item.followUpIssues || 'None'}</div><div className="text-xs text-slate-500">{displayDate(item.followUpDate)}</div></td></tr>)}</tbody></table></div>}
+        {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : cases.length === 0 ? <div className="px-6 py-14 text-center"><CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" /><h3 className="mt-3 text-lg font-semibold">No open injury cases</h3><p className="mt-1 text-sm text-slate-500">Use New Case when a work injury is reported.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1400px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Work Status / Restriction','Injury Report','Workers’ Comp','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{cases.map(item => <tr className={`cursor-pointer border-t border-slate-100 ${selectedId === item.id ? 'bg-orange-50 ring-1 ring-inset ring-orange-300' : 'hover:bg-slate-50'}`} key={item.id} onClick={() => setSelectedId(item.id)}><td className="px-4 py-3"><div className="font-bold text-slate-900">{item.employeeName}</div><div className="text-xs text-slate-500">{item.jobTitle}</div></td><td className="px-4 py-3 font-semibold">{displayDate(item.injuryDateTime, true)}</td><td className="px-4 py-3">{displayDate(item.firstNoticeDate)}</td><td className="px-4 py-3"><div>{item.department}</div><div className="text-xs text-slate-500">{item.location}</div></td><td className="px-4 py-3">{item.injuredBodyPart}</td><td className="px-4 py-3">{item.oshaRecordable}</td><td className="px-4 py-3"><div>{item.safetyViolation}</div>{item.safetyViolationDetails ? <div className="max-w-48 truncate text-xs text-slate-500">{item.safetyViolationDetails}</div> : null}</td><td className="px-4 py-3 font-semibold">{item.workStatus || 'Pending Medical Evaluation'}</td><td className="px-4 py-3">{item.injuryReportReceived || 'No'}</td><td className="px-4 py-3"><div>{item.workersCompClaimed || 'No'}</div><div className="text-xs text-slate-500">{item.workersCompCaseNumber}</div></td><td className="max-w-64 px-4 py-3"><div className="truncate">{item.followUpIssues || 'None'}</div><div className="text-xs text-slate-500">{displayDate(item.followUpDate)}</div></td></tr>)}</tbody></table></div>}
       </section>
     </>}
   </div>
