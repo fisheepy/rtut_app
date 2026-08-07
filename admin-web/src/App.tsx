@@ -315,6 +315,7 @@ export default function App() {
           <Route path="/commission-roster" element={<CommissionRoster />} />
           <Route path="/training" element={<TrainingTools />} />
           <Route path="/work-related-injury" element={<WorkRelatedInjury />} />
+          <Route path="/work-related-injury/cases/:caseId" element={<WorkRelatedInjury />} />
           <Route path="/hr-platform" element={<HRPlatform />} />
           <Route path="/hr-platform/new-hire" element={<NewHire />} />
           <Route path="/hr-platform/termination" element={<Termination />} />

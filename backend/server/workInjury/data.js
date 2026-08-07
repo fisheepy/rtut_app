@@ -36,6 +36,7 @@ function sanitizeCaseInput(input, employee) {
   const safetyViolation = clean(input?.safetyViolation);
   const safetyViolationDetails = clean(input?.safetyViolationDetails);
   const workStatus = clean(input?.workStatus || input?.employeeStatus);
+  const otherWorkStatus = clean(input?.otherWorkStatus);
   const injuredBodyPart = clean(input?.injuredBodyPart);
   const oshaRecordable = clean(input?.oshaRecordable);
   const employeeInjuryFolderLink = clean(input?.employeeInjuryFolderLink);
@@ -44,7 +45,6 @@ function sanitizeCaseInput(input, employee) {
   const workersCompClaimed = clean(input?.workersCompClaimed);
   const workersCompCaseNumber = clean(input?.workersCompCaseNumber);
   const followUpIssues = clean(input?.followUpIssues);
-  const followUpDate = clean(input?.followUpDate);
 
   if (!snapshot.employeeId || !snapshot.employeeName) return { error: 'Select a valid employee.' };
   if (!injuryDateTime) return { error: 'Injury date and time is required.' };
@@ -53,7 +53,8 @@ function sanitizeCaseInput(input, employee) {
   if (!injuryLocation) return { error: 'Injury location is required.' };
   if (!['Yes', 'No'].includes(safetyViolation)) return { error: 'Safety violation must be Yes or No.' };
   if (safetyViolation === 'Yes' && !safetyViolationDetails) return { error: 'Describe the safety violation.' };
-  if (!['Off Work', 'Returned to Work - No Restrictions', 'Returned to Work - With Restrictions', 'Pending Medical Evaluation'].includes(workStatus)) return { error: 'Select a valid Work Status / Medical Restriction.' };
+  if (!['Off Work', 'Returned to Work - No Restrictions', 'Returned to Work - With Restrictions', 'Pending Medical Evaluation', 'Other'].includes(workStatus)) return { error: 'Select a valid Work Status / Medical Restriction.' };
+  if (workStatus === 'Other' && !otherWorkStatus) return { error: 'Enter the other Work Status / Medical Restriction.' };
   if (!injuredBodyPart) return { error: 'Injured body part is required.' };
   if (!['Yes', 'No'].includes(oshaRecordable)) return { error: 'OSHA recordable must be Yes or No.' };
   if (!validSecureLink(employeeInjuryFolderLink)) return { error: 'Employee Injury Folder must be a secure SharePoint link.' };
@@ -62,7 +63,6 @@ function sanitizeCaseInput(input, employee) {
   if (!validSecureLink(injuryReportLink)) return { error: 'Injury Report Link must be a secure SharePoint link.' };
   if (!['Yes', 'No'].includes(workersCompClaimed)) return { error: 'Workers’ Compensation Claimed must be Yes or No.' };
   if (workersCompClaimed === 'Yes' && !workersCompCaseNumber) return { error: 'Workers’ Compensation case number is required.' };
-  if (followUpIssues && !followUpDate) return { error: 'Follow-up date is required when follow-up issues are entered.' };
 
   return {
     value: {
@@ -74,6 +74,7 @@ function sanitizeCaseInput(input, employee) {
       safetyViolation,
       safetyViolationDetails: safetyViolation === 'Yes' ? safetyViolationDetails : '',
       workStatus,
+      otherWorkStatus: workStatus === 'Other' ? otherWorkStatus : '',
       injuredBodyPart,
       oshaRecordable,
       employeeInjuryFolderLink,
@@ -82,7 +83,6 @@ function sanitizeCaseInput(input, employee) {
       workersCompClaimed,
       workersCompCaseNumber: workersCompClaimed === 'Yes' ? workersCompCaseNumber : '',
       followUpIssues,
-      followUpDate,
     },
   };
 }

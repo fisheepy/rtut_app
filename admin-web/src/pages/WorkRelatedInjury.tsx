@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardEdit, HardHat, KeyRound, LogOut, Mail, Plus, RefreshCw, Search, ShieldCheck, XCircle } from 'lucide-react'
+import { Link, useParams } from 'react-router-dom'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardEdit, ExternalLink, HardHat, KeyRound, LogOut, Mail, Plus, RefreshCw, Search, ShieldCheck, XCircle } from 'lucide-react'
 import { api } from '../shared/api'
 
 type Employee = {
@@ -34,6 +34,7 @@ type InjuryCase = {
   safetyViolation: 'Yes' | 'No'
   safetyViolationDetails: string
   workStatus: string
+  otherWorkStatus: string
   injuredBodyPart: string
   oshaRecordable: 'Yes' | 'No'
   employeeInjuryFolderLink: string
@@ -42,16 +43,17 @@ type InjuryCase = {
   workersCompClaimed: 'Yes' | 'No'
   workersCompCaseNumber: string
   followUpIssues: string
-  followUpDate: string
+  closedAt?: string | null
+  closedBy?: string | null
 }
 
-type CaseForm = Pick<InjuryCase, 'employeeId' | 'injuryDateTime' | 'firstNoticeDate' | 'injuryDescription' | 'injuryLocation' | 'safetyViolation' | 'safetyViolationDetails' | 'workStatus' | 'injuredBodyPart' | 'oshaRecordable' | 'employeeInjuryFolderLink' | 'injuryReportReceived' | 'injuryReportLink' | 'workersCompClaimed' | 'workersCompCaseNumber' | 'followUpIssues' | 'followUpDate'>
+type CaseForm = Pick<InjuryCase, 'employeeId' | 'injuryDateTime' | 'firstNoticeDate' | 'injuryDescription' | 'injuryLocation' | 'safetyViolation' | 'safetyViolationDetails' | 'workStatus' | 'otherWorkStatus' | 'injuredBodyPart' | 'oshaRecordable' | 'employeeInjuryFolderLink' | 'injuryReportReceived' | 'injuryReportLink' | 'workersCompClaimed' | 'workersCompCaseNumber' | 'followUpIssues'>
 
 const emptyForm: CaseForm = {
   employeeId: '', injuryDateTime: '', firstNoticeDate: '', injuryDescription: '', injuryLocation: '',
-  safetyViolation: 'No', safetyViolationDetails: '', workStatus: 'Pending Medical Evaluation', injuredBodyPart: '', oshaRecordable: 'No',
+  safetyViolation: 'No', safetyViolationDetails: '', workStatus: 'Pending Medical Evaluation', otherWorkStatus: '', injuredBodyPart: '', oshaRecordable: 'No',
   employeeInjuryFolderLink: '', injuryReportReceived: 'No', injuryReportLink: '', workersCompClaimed: 'No', workersCompCaseNumber: '',
-  followUpIssues: '', followUpDate: '',
+  followUpIssues: '',
 }
 
 function displayDate(value: string, withTime = false) {
@@ -101,9 +103,9 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
   const [form, setForm] = useState<CaseForm>(existing ? {
     employeeId: existing.employeeId, injuryDateTime: existing.injuryDateTime, firstNoticeDate: existing.firstNoticeDate,
     injuryDescription: existing.injuryDescription, injuryLocation: existing.injuryLocation, safetyViolation: existing.safetyViolation,
-    safetyViolationDetails: existing.safetyViolationDetails || '', workStatus: existing.workStatus || 'Pending Medical Evaluation', injuredBodyPart: existing.injuredBodyPart, oshaRecordable: existing.oshaRecordable,
+    safetyViolationDetails: existing.safetyViolationDetails || '', workStatus: existing.workStatus || 'Pending Medical Evaluation', otherWorkStatus: existing.otherWorkStatus || '', injuredBodyPart: existing.injuredBodyPart, oshaRecordable: existing.oshaRecordable,
     employeeInjuryFolderLink: existing.employeeInjuryFolderLink || '', injuryReportReceived: existing.injuryReportReceived || 'No', injuryReportLink: existing.injuryReportLink || '', workersCompClaimed: existing.workersCompClaimed || 'No', workersCompCaseNumber: existing.workersCompCaseNumber || '',
-    followUpIssues: existing.followUpIssues || '', followUpDate: existing.followUpDate || '',
+    followUpIssues: existing.followUpIssues || '',
   } : emptyForm)
   const [search, setSearch] = useState(existing?.employeeName || '')
   const [error, setError] = useState('')
@@ -139,13 +141,13 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
         <Field label="First Notice Date *"><input className="control" onChange={event => set('firstNoticeDate', event.target.value)} required type="date" value={form.firstNoticeDate} /></Field>
         <Field label="Injury Location *"><input className="control" onChange={event => set('injuryLocation', event.target.value)} required value={form.injuryLocation} /></Field>
         <Field label="Injured Body Part *"><input className="control" onChange={event => set('injuredBodyPart', event.target.value)} placeholder="Example: Left hand" required value={form.injuredBodyPart} /></Field>
-        <Field label="Work Status / Medical Restriction *"><select className="control" onChange={event => set('workStatus', event.target.value)} required value={form.workStatus}><option>Pending Medical Evaluation</option><option>Off Work</option><option>Returned to Work - No Restrictions</option><option>Returned to Work - With Restrictions</option></select></Field>
+        <Field label="Work Status / Medical Restriction *"><select className="control" onChange={event => set('workStatus', event.target.value)} required value={form.workStatus}><option>Pending Medical Evaluation</option><option>Off Work</option><option>Returned to Work - No Restrictions</option><option>Returned to Work - With Restrictions</option><option>Other</option></select></Field>
         <Field label="Any Safety Violation? *"><select className="control" onChange={event => set('safetyViolation', event.target.value)} value={form.safetyViolation}><option>No</option><option>Yes</option></select></Field>
         <Field label="OSHA Recordable? *"><select className="control" onChange={event => set('oshaRecordable', event.target.value)} value={form.oshaRecordable}><option>No</option><option>Yes</option></select></Field>
         <Field label="Injury Report Received? *"><select className="control" onChange={event => set('injuryReportReceived', event.target.value)} value={form.injuryReportReceived}><option>No</option><option>Yes</option></select></Field>
         <Field label="Workers’ Compensation Claimed? *"><select className="control" onChange={event => set('workersCompClaimed', event.target.value)} value={form.workersCompClaimed}><option>No</option><option>Yes</option></select></Field>
-        <Field label="Follow-up Date"><input className="control" onChange={event => set('followUpDate', event.target.value)} required={Boolean(form.followUpIssues.trim())} type="date" value={form.followUpDate} /></Field>
       </div>
+      {form.workStatus === 'Other' ? <Field label="Other Work Status / Medical Restriction *"><input className="control" onChange={event => set('otherWorkStatus', event.target.value)} required value={form.otherWorkStatus} /></Field> : null}
       {form.safetyViolation === 'Yes' ? <Field label="Safety Violation Details *"><textarea className="control min-h-24" onChange={event => set('safetyViolationDetails', event.target.value)} required value={form.safetyViolationDetails} /></Field> : null}
       <Field label="Employee Injury Folder Link"><input className="control" onChange={event => set('employeeInjuryFolderLink', event.target.value)} placeholder="Secure SharePoint folder link" type="url" value={form.employeeInjuryFolderLink} /></Field>
       {form.injuryReportReceived === 'Yes' ? <Field label="Injury Report Link *"><input className="control" onChange={event => set('injuryReportLink', event.target.value)} placeholder="Secure SharePoint report link" required type="url" value={form.injuryReportLink} /></Field> : null}
@@ -160,6 +162,32 @@ function CaseEditor({ employees, existing, onCancel, onSaved }: { employees: Emp
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="text-sm font-semibold text-slate-700">{label}</span><span className="mt-2 block">{children}</span></label> }
 
+function DetailBlock({ label, value }: { label: string; value: string }) {
+  return <div><div className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</div><div className="mt-2 whitespace-pre-wrap rounded-xl border border-slate-200 p-4 text-sm leading-6 text-slate-800">{value}</div></div>
+}
+
+function CaseDetails({ caseId, onLogout }: { caseId: string; onLogout: () => void }) {
+  const [record, setRecord] = useState<InjuryCase | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => { api.get(`/work-injury/cases/${caseId}`).then(response => setRecord(response.data.case)).catch(requestError => setError(requestError.response?.data?.error || 'The case could not be loaded.')) }, [caseId])
+  if (error) return <div className="rounded-xl bg-red-50 p-6 text-red-700">{error}</div>
+  if (!record) return <div className="grid min-h-64 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div>
+  const status = record.closedAt ? 'Closed' : 'Open'
+  const workStatus = record.workStatus === 'Other' ? record.otherWorkStatus : record.workStatus
+  const details = [
+    ['Case Status', status], ['Employee Name', record.employeeName], ['Hire Date', displayDate(record.hireDate)], ['Department', record.department],
+    ['Location', record.location], ['Supervisor', record.supervisor], ['Job Title', record.jobTitle], ['Employee Phone', record.employeePhone],
+    ['Employee Email', record.employeeEmail], ['Injury Date and Time', displayDate(record.injuryDateTime, true)], ['First Notice Date', displayDate(record.firstNoticeDate)],
+    ['Injury Location', record.injuryLocation], ['Injured Body Part', record.injuredBodyPart], ['Work Status / Medical Restriction', workStatus],
+    ['OSHA Recordable', record.oshaRecordable], ['Safety Violation', record.safetyViolation], ['Safety Violation Details', record.safetyViolationDetails || 'Not applicable'],
+    ['Injury Report Received', record.injuryReportReceived], ['Workers’ Compensation Claimed', record.workersCompClaimed], ['Workers’ Compensation Case Number', record.workersCompCaseNumber || 'Not applicable'],
+    ['Closed Date', record.closedAt ? displayDate(record.closedAt, true) : 'Open'], ['Closed By', record.closedBy || '—'],
+  ]
+  return <div className="space-y-6 pb-10"><section className="rounded-2xl bg-slate-950 px-6 py-6 text-white shadow-xl"><div className="flex flex-wrap items-center justify-between gap-3"><Link className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" to="/work-related-injury"><ArrowLeft className="h-4 w-4" />Back to Injury Cases</Link><button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300" onClick={onLogout}><LogOut className="h-4 w-4" />Sign out</button></div><div className="mt-6 flex flex-wrap items-center gap-3"><h1 className="text-3xl font-semibold">Work Injury Case Details</h1><span className={`rounded-full px-3 py-1 text-xs font-bold ${record.closedAt ? 'bg-slate-700 text-slate-200' : 'bg-emerald-500 text-white'}`}>{status}</span>{record.oshaRecordable === 'Yes' ? <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white">OSHA Recordable</span> : null}</div><p className="mt-2 text-slate-300">Complete read-only case record for {record.employeeName}.</p></section>
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{details.map(([label, value]) => <div className="rounded-xl bg-slate-50 p-4" key={label}><div className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</div><div className="mt-2 font-semibold text-slate-900">{value || '—'}</div></div>)}</div><div className="mt-6 space-y-4"><DetailBlock label="Injury Description" value={record.injuryDescription} /><DetailBlock label="Follow-up Issues" value={record.followUpIssues || 'None'} /></div><div className="mt-6 flex flex-wrap gap-3">{record.employeeInjuryFolderLink ? <a className="inline-flex items-center gap-2 rounded-lg bg-orange-700 px-4 py-2.5 text-sm font-bold text-white" href={record.employeeInjuryFolderLink} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" />Employee Injury Folder</a> : null}{record.injuryReportLink ? <a className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-bold text-white" href={record.injuryReportLink} rel="noreferrer" target="_blank"><ExternalLink className="h-4 w-4" />Injury Report</a> : null}</div></section>
+  </div>
+}
+
 function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<'injury' | 'accident'>('injury')
   const [view, setView] = useState<'dashboard' | 'new' | 'edit'>('dashboard')
@@ -169,6 +197,7 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const selected = cases.find(item => item.id === selectedId) || null
+  const openCount = cases.filter(item => !item.closedAt).length
 
   async function load() {
     setLoading(true); setError('')
@@ -198,18 +227,24 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
     <div className="flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm"><button className={`flex-1 rounded-lg px-4 py-3 text-sm font-bold ${tab === 'injury' ? 'bg-orange-700 text-white shadow' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setTab('injury')}>Work Injury</button><button className={`flex-1 rounded-lg px-4 py-3 text-sm font-bold ${tab === 'accident' ? 'bg-blue-700 text-white shadow' : 'text-slate-600 hover:bg-slate-50'}`} onClick={() => setTab('accident')}>Accident</button></div>
     {tab === 'accident' ? <section className="rounded-2xl border border-blue-200 bg-blue-50 p-10 text-center"><AlertTriangle className="mx-auto h-10 w-10 text-blue-700" /><h2 className="mt-4 text-2xl font-semibold">Accident Case Management</h2><p className="mt-2 text-sm text-slate-600">The Accident workflow is separate and will be configured in the next step.</p></section> : <>
       <section className="grid gap-3 sm:grid-cols-3"><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-4 font-bold text-white shadow-sm hover:bg-orange-800" onClick={() => setView('new')}><Plus className="h-5 w-5" />New Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={() => setView('edit')}><ClipboardEdit className="h-5 w-5" />Edit Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={closeCase}><XCircle className="h-5 w-5" />Close Case</button></section>
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-xl font-semibold">Current Injury Cases</h2><p className="mt-1 text-sm text-slate-500">Read-only summary. Select a row, then use Edit Case or Close Case above.</p></div><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{cases.length} Open</span></div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-xl font-semibold">Current Injury Cases</h2><p className="mt-1 text-sm text-slate-500">Open cases from prior years and all cases from the current year. The summary is read-only.</p></div><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{openCount} Open</span></div>
         {error ? <p className="m-5 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
-        {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : cases.length === 0 ? <div className="px-6 py-14 text-center"><CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" /><h3 className="mt-3 text-lg font-semibold">No open injury cases</h3><p className="mt-1 text-sm text-slate-500">Use New Case when a work injury is reported.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1400px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Work Status / Restriction','Injury Report','Workers’ Comp','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{cases.map(item => <tr className={`cursor-pointer border-t border-slate-100 ${selectedId === item.id ? 'bg-orange-50 ring-1 ring-inset ring-orange-300' : 'hover:bg-slate-50'}`} key={item.id} onClick={() => setSelectedId(item.id)}><td className="px-4 py-3"><div className="font-bold text-slate-900">{item.employeeName}</div><div className="text-xs text-slate-500">{item.jobTitle}</div></td><td className="px-4 py-3 font-semibold">{displayDate(item.injuryDateTime, true)}</td><td className="px-4 py-3">{displayDate(item.firstNoticeDate)}</td><td className="px-4 py-3"><div>{item.department}</div><div className="text-xs text-slate-500">{item.location}</div></td><td className="px-4 py-3">{item.injuredBodyPart}</td><td className="px-4 py-3">{item.oshaRecordable}</td><td className="px-4 py-3"><div>{item.safetyViolation}</div>{item.safetyViolationDetails ? <div className="max-w-48 truncate text-xs text-slate-500">{item.safetyViolationDetails}</div> : null}</td><td className="px-4 py-3 font-semibold">{item.workStatus || 'Pending Medical Evaluation'}</td><td className="px-4 py-3">{item.injuryReportReceived || 'No'}</td><td className="px-4 py-3"><div>{item.workersCompClaimed || 'No'}</div><div className="text-xs text-slate-500">{item.workersCompCaseNumber}</div></td><td className="max-w-64 px-4 py-3"><div className="truncate">{item.followUpIssues || 'None'}</div><div className="text-xs text-slate-500">{displayDate(item.followUpDate)}</div></td></tr>)}</tbody></table></div>}
+        {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : cases.length === 0 ? <div className="px-6 py-14 text-center"><CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" /><h3 className="mt-3 text-lg font-semibold">No injury cases to display</h3><p className="mt-1 text-sm text-slate-500">Use New Case when a work injury is reported.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee / Case Status','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Work Status / Restriction','Injury Report','Workers’ Comp','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{cases.map(item => {
+          const isOpen = !item.closedAt
+          const isOsha = item.oshaRecordable === 'Yes'
+          return <tr className={`cursor-pointer border-t border-slate-100 ${selectedId === item.id ? 'ring-2 ring-inset ring-orange-400' : ''} ${isOsha ? 'bg-red-50 hover:bg-red-100' : isOpen ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-slate-50'}`} key={item.id} onClick={() => setSelectedId(item.id)}><td className="px-4 py-3"><Link className="font-bold text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900" onClick={event => event.stopPropagation()} to={`/work-related-injury/cases/${item.id}`}>{item.employeeName}</Link><div className="text-xs text-slate-500">{item.jobTitle}</div><div className="mt-2 flex flex-wrap gap-1">{isOpen ? <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">Open</span> : <span className="rounded-full bg-slate-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">Closed</span>}{isOsha ? <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">OSHA Recordable</span> : null}</div></td><td className="px-4 py-3 font-semibold">{displayDate(item.injuryDateTime, true)}</td><td className="px-4 py-3">{displayDate(item.firstNoticeDate)}</td><td className="px-4 py-3"><div>{item.department}</div><div className="text-xs text-slate-500">{item.location}</div></td><td className="px-4 py-3">{item.injuredBodyPart}</td><td className="px-4 py-3">{item.oshaRecordable}</td><td className="px-4 py-3"><div>{item.safetyViolation}</div>{item.safetyViolationDetails ? <div className="max-w-48 truncate text-xs text-slate-500">{item.safetyViolationDetails}</div> : null}</td><td className="px-4 py-3 font-semibold">{item.workStatus === 'Other' ? item.otherWorkStatus : item.workStatus || 'Pending Medical Evaluation'}</td><td className="px-4 py-3">{item.injuryReportReceived || 'No'}</td><td className="px-4 py-3"><div>{item.workersCompClaimed || 'No'}</div><div className="text-xs text-slate-500">{item.workersCompCaseNumber}</div></td><td className="max-w-64 px-4 py-3"><div className="truncate">{item.followUpIssues || 'None'}</div></td></tr>
+        })}</tbody></table></div>}
       </section>
     </>}
   </div>
 }
 
 export default function WorkRelatedInjury() {
+  const { caseId } = useParams()
   const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'signed-out'>('checking')
   useEffect(() => { api.get('/training-auth/me').then(() => setAuthState('authenticated')).catch(() => setAuthState('signed-out')) }, [])
   if (authState === 'checking') return <div className="grid min-h-64 place-items-center rounded-2xl bg-white"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div>
   if (authState === 'signed-out') return <InjuryLogin onLogin={() => setAuthState('authenticated')} />
+  if (caseId) return <CaseDetails caseId={caseId} onLogout={() => setAuthState('signed-out')} />
   return <InjuryWorkspace onLogout={() => setAuthState('signed-out')} />
 }

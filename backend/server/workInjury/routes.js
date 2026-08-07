@@ -11,11 +11,28 @@ function createWorkInjuryRouter({ uri, databaseName, requireTrainingSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const cases = await client.db(databaseName).collection('work_injury_cases').find({ closedAt: null }).sort({ injuryDateTime: -1 }).toArray();
+      const currentYearStart = `${new Date().getFullYear()}-01-01`;
+      const cases = await client.db(databaseName).collection('work_injury_cases').find({
+        $or: [{ closedAt: null }, { injuryDateTime: { $gte: currentYearStart } }],
+      }).sort({ injuryDateTime: -1 }).toArray();
       return res.json({ cases: cases.map(record => ({ ...record, id: String(record._id), _id: undefined })) });
     } catch (error) {
       console.error('Unable to load work injury cases:', error);
       return res.status(500).json({ error: 'Work injury cases could not be loaded.' });
+    } finally { await client.close(); }
+  });
+
+  router.get('/cases/:caseId', async (req, res) => {
+    const client = createClient();
+    try {
+      if (!ObjectId.isValid(req.params.caseId)) return res.status(404).json({ error: 'Work injury case not found.' });
+      await client.connect();
+      const record = await client.db(databaseName).collection('work_injury_cases').findOne({ _id: new ObjectId(req.params.caseId) });
+      if (!record) return res.status(404).json({ error: 'Work injury case not found.' });
+      return res.json({ case: { ...record, id: String(record._id), _id: undefined } });
+    } catch (error) {
+      console.error('Unable to load work injury case:', error);
+      return res.status(500).json({ error: 'The work injury case could not be loaded.' });
     } finally { await client.close(); }
   });
 

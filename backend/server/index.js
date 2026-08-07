@@ -1913,7 +1913,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/work-related-injury', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change', '/hr-tools/hr-platform/medical-leave'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/work-related-injury', '/hr-tools/work-related-injury/cases/:caseId', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change', '/hr-tools/hr-platform/medical-leave'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
