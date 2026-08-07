@@ -68,6 +68,25 @@ function displayDate(value: string, withTime = false) {
   return date.toLocaleString('en-US', withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' })
 }
 
+function employmentYears(hireDate: string) {
+  if (!hireDate) return null
+  const hired = new Date(`${hireDate.slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(hired.getTime())) return null
+  const today = new Date()
+  let years = today.getFullYear() - hired.getFullYear()
+  if (today.getMonth() < hired.getMonth() || (today.getMonth() === hired.getMonth() && today.getDate() < hired.getDate())) years -= 1
+  return Math.max(0, years)
+}
+
+function uniqueCaseValues(cases: InjuryCase[], field: 'location' | 'jobTitle' | 'department') {
+  const values = new Map<string, string>()
+  cases.forEach(item => {
+    const value = item[field]?.trim()
+    if (value && !values.has(value.toLowerCase())) values.set(value.toLowerCase(), value)
+  })
+  return [...values.values()].sort((a, b) => a.localeCompare(b))
+}
+
 function InjuryLogin({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -213,7 +232,15 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
   const [injuryDateTo, setInjuryDateTo] = useState('')
   const [oshaFilter, setOshaFilter] = useState<'all' | 'yes' | 'no'>('all')
   const [caseView, setCaseView] = useState<'current' | 'open' | 'closed' | 'all'>('current')
+  const [locationFilter, setLocationFilter] = useState('')
+  const [jobTitleFilter, setJobTitleFilter] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [seniorityFrom, setSeniorityFrom] = useState('')
+  const [seniorityTo, setSeniorityTo] = useState('')
   const selected = cases.find(item => item.id === selectedId) || null
+  const locations = useMemo(() => uniqueCaseValues(cases, 'location'), [cases])
+  const jobTitles = useMemo(() => uniqueCaseValues(cases, 'jobTitle'), [cases])
+  const departments = useMemo(() => uniqueCaseValues(cases, 'department'), [cases])
   const filteredCases = useMemo(() => {
     const currentYearStart = `${new Date().getFullYear()}-01-01`
     return cases.filter(item => {
@@ -226,13 +253,20 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
       if (injuryDateFrom && injuryDate < injuryDateFrom) return false
       if (injuryDateTo && injuryDate > injuryDateTo) return false
       if (oshaFilter !== 'all' && item.oshaRecordable.toLowerCase() !== oshaFilter) return false
+      if (locationFilter && item.location.trim().toLowerCase() !== locationFilter.toLowerCase()) return false
+      if (jobTitleFilter && item.jobTitle.trim().toLowerCase() !== jobTitleFilter.toLowerCase()) return false
+      if (departmentFilter && item.department.trim().toLowerCase() !== departmentFilter.toLowerCase()) return false
+      const years = employmentYears(item.hireDate)
+      if (seniorityFrom && (years === null || years < Number(seniorityFrom))) return false
+      if (seniorityTo && (years === null || years > Number(seniorityTo))) return false
       return true
     })
-  }, [caseView, cases, injuryDateFrom, injuryDateTo, nameFilter, oshaFilter])
+  }, [caseView, cases, departmentFilter, injuryDateFrom, injuryDateTo, jobTitleFilter, locationFilter, nameFilter, oshaFilter, seniorityFrom, seniorityTo])
   const openCount = filteredCases.filter(item => !item.closedAt).length
 
   function resetFilters() {
     setNameFilter(''); setInjuryDateFrom(''); setInjuryDateTo(''); setOshaFilter('all'); setCaseView('current')
+    setLocationFilter(''); setJobTitleFilter(''); setDepartmentFilter(''); setSeniorityFrom(''); setSeniorityTo('')
   }
 
   async function load() {
@@ -264,13 +298,18 @@ function InjuryWorkspace({ onLogout }: { onLogout: () => void }) {
     {tab === 'accident' ? <section className="rounded-2xl border border-blue-200 bg-blue-50 p-10 text-center"><AlertTriangle className="mx-auto h-10 w-10 text-blue-700" /><h2 className="mt-4 text-2xl font-semibold">Accident Case Management</h2><p className="mt-2 text-sm text-slate-600">The Accident workflow is separate and will be configured in the next step.</p></section> : <>
       <section className="grid gap-3 sm:grid-cols-3"><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-4 font-bold text-white shadow-sm hover:bg-orange-800" onClick={() => setView('new')}><Plus className="h-5 w-5" />New Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 font-bold text-blue-800 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={() => setView('edit')}><ClipboardEdit className="h-5 w-5" />Edit Case</button><button className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-4 font-bold text-red-700 disabled:cursor-not-allowed disabled:opacity-40" disabled={!selected} onClick={closeCase}><XCircle className="h-5 w-5" />Close Case</button></section>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="text-xl font-semibold">Current Injury Cases</h2><p className="mt-1 text-sm text-slate-500">Open cases from prior years and all cases from the current year. The summary is read-only.</p></div><span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-bold text-orange-800">{openCount} Open</span></div>
-        <div className="border-b border-slate-200 bg-slate-50/70 p-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.25fr_auto]">
+        <div className="border-b border-slate-200 bg-slate-50/70 p-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Employee Name</span><input className="control mt-1.5" onChange={event => setNameFilter(event.target.value)} placeholder="Search employee" value={nameFilter} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Injury Date From</span><input className="control mt-1.5" onChange={event => setInjuryDateFrom(event.target.value)} type="date" value={injuryDateFrom} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Injury Date To</span><input className="control mt-1.5" onChange={event => setInjuryDateTo(event.target.value)} type="date" value={injuryDateTo} /></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">OSHA Recordable</span><select className="control mt-1.5" onChange={event => setOshaFilter(event.target.value as 'all' | 'yes' | 'no')} value={oshaFilter}><option value="all">All</option><option value="yes">Yes</option><option value="no">No</option></select></label>
           <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Case View</span><select className="control mt-1.5" onChange={event => setCaseView(event.target.value as 'current' | 'open' | 'closed' | 'all')} value={caseView}><option value="current">Current Window</option><option value="open">Open Cases - All Years</option><option value="closed">Closed Cases - All History</option><option value="all">All Cases - All History</option></select></label>
-          <button className="self-end rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" onClick={resetFilters} type="button">Reset</button>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Location</span><select className="control mt-1.5" onChange={event => setLocationFilter(event.target.value)} value={locationFilter}><option value="">All Locations</option>{locations.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Job Title</span><select className="control mt-1.5" onChange={event => setJobTitleFilter(event.target.value)} value={jobTitleFilter}><option value="">All Job Titles</option>{jobTitles.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Department</span><select className="control mt-1.5" onChange={event => setDepartmentFilter(event.target.value)} value={departmentFilter}><option value="">All Departments</option>{departments.map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Seniority From (Years)</span><input className="control mt-1.5" min="0" onChange={event => setSeniorityFrom(event.target.value)} placeholder="Minimum years" type="number" value={seniorityFrom} /></label>
+          <label><span className="text-xs font-bold uppercase tracking-wide text-slate-500">Seniority To (Years)</span><input className="control mt-1.5" min="0" onChange={event => setSeniorityTo(event.target.value)} placeholder="Maximum years" type="number" value={seniorityTo} /></label>
+          <button className="self-end rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" onClick={resetFilters} type="button">Reset All Filters</button>
         </div><div className="mt-3 text-xs font-semibold text-slate-500">Showing {filteredCases.length} of {cases.length} cases</div></div>
         {error ? <p className="m-5 rounded-lg bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
         {loading ? <div className="grid min-h-48 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-orange-600" /></div> : filteredCases.length === 0 ? <div className="px-6 py-14 text-center"><Search className="mx-auto h-10 w-10 text-slate-400" /><h3 className="mt-3 text-lg font-semibold">No matching injury cases</h3><p className="mt-1 text-sm text-slate-500">Adjust or reset the filters to see more cases.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1450px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{['Employee / Case Status','Injury Date / Time','First Notice','Department / Location','Body Part','OSHA','Safety Violation','Work Status / Restriction','Injury Report','Workers’ Comp','Follow-up'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody>{filteredCases.map(item => {
@@ -292,3 +331,4 @@ export default function WorkRelatedInjury() {
   if (caseId) return <CaseDetails caseId={caseId} onLogout={() => setAuthState('signed-out')} />
   return <InjuryWorkspace onLogout={() => setAuthState('signed-out')} />
 }
+
