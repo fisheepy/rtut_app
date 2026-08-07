@@ -150,4 +150,3 @@ export default function WorkRelatedInjury() {
   if (authState === 'signed-out') return <InjuryLogin onLogin={() => setAuthState('authenticated')} />
   return <InjuryWorkspace onLogout={() => setAuthState('signed-out')} />
 }
-
