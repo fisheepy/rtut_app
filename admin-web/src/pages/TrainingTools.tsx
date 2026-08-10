@@ -121,9 +121,9 @@ const columns: { key: ColumnKey; label: string }[] = [
   { key: 'department', label: 'Department' },
   { key: 'reportingTo', label: 'Reporting To' },
   { key: 'firstDay', label: 'Hire Date' },
+  { key: 'unsafeAct', label: 'Unsafe Act' },
   { key: 'orientation', label: 'Orientation Training' },
   { key: 'monthlyOverview', label: 'Monthly Training' },
-  { key: 'unsafeAct', label: 'Unsafe Act' },
 ]
 
 const monthlySubcolumns: { field: MonthlyColumnField; label: string }[] = [
@@ -436,8 +436,19 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
   const [isSavingLink, setIsSavingLink] = useState(false)
   const [unsafeActEmployee, setUnsafeActEmployee] = useState<TrainingEmployee | null>(null)
   const [unsafeActs, setUnsafeActs] = useState<UnsafeActRecord[]>([])
+  const [unsafeActsBaseline, setUnsafeActsBaseline] = useState<UnsafeActRecord[]>([])
   const [unsafeActError, setUnsafeActError] = useState('')
   const [isSavingUnsafeActs, setIsSavingUnsafeActs] = useState(false)
+  const [confirmUnsafeActSave, setConfirmUnsafeActSave] = useState(false)
+  const [showUnsafeActReport, setShowUnsafeActReport] = useState(false)
+  const [unsafeReportFrom, setUnsafeReportFrom] = useState(`${new Date().getFullYear()}-01-01`)
+  const [unsafeReportTo, setUnsafeReportTo] = useState(`${new Date().getFullYear()}-12-31`)
+  const [unsafeReportNames, setUnsafeReportNames] = useState<string[]>([])
+  const [unsafeReportDepartments, setUnsafeReportDepartments] = useState<string[]>([])
+  const [unsafeReportJobTitles, setUnsafeReportJobTitles] = useState<string[]>([])
+  const [unsafeReportLocations, setUnsafeReportLocations] = useState<string[]>([])
+  const [showAnnualSafetyReport, setShowAnnualSafetyReport] = useState(false)
+  const [annualSafetyYear, setAnnualSafetyYear] = useState(String(new Date().getFullYear() - 1))
   const [orientationEmployee, setOrientationEmployee] = useState<TrainingEmployee | null>(null)
   const [assignedLibraryIds, setAssignedLibraryIds] = useState<string[]>([])
   const [assignedLibrarySnapshots, setAssignedLibrarySnapshots] = useState<OrientationLibrary[]>([])
@@ -634,8 +645,11 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   function editUnsafeActs(employee: TrainingEmployee) {
     setUnsafeActEmployee(employee)
-    setUnsafeActs(JSON.parse(JSON.stringify(employee.unsafeActs || [])))
+    const records = JSON.parse(JSON.stringify(employee.unsafeActs || []))
+    setUnsafeActs(records)
+    setUnsafeActsBaseline(JSON.parse(JSON.stringify(records)))
     setUnsafeActError('')
+    setConfirmUnsafeActSave(false)
   }
 
   function addUnsafeAct() {
@@ -658,12 +672,22 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         ? { ...employee, unsafeActs: response.data.unsafeActs || [] }
         : employee))
       setUnsafeActEmployee(null)
+      setConfirmUnsafeActSave(false)
     } catch (requestError: any) {
       if (requestError.response?.status === 401) { setUnsafeActEmployee(null); onLogout(); return }
       setUnsafeActError(requestError.response?.data?.error || 'Unsafe act records could not be saved.')
     } finally {
       setIsSavingUnsafeActs(false)
     }
+  }
+
+  function requestUnsafeActSave() {
+    if (JSON.stringify(unsafeActs) === JSON.stringify(unsafeActsBaseline)) {
+      setUnsafeActError('No changes need to be saved.')
+      return
+    }
+    setUnsafeActError('')
+    setConfirmUnsafeActSave(true)
   }
 
   const activeCount = employees.filter((employee) => employee.employmentStatus === 'Active').length
@@ -913,6 +937,61 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
+  }
+
+  function downloadCsv(filename: string, headers: string[], rows: string[][]) {
+    const csvCell = (value: string) => `"${String(value || '').replace(/"/g, '""')}"`
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  function downloadUnsafeActReport() {
+    const selected = (value: string, values: string[]) => !values.length || matchesRosterSelection(value, values)
+    const rows = employees.flatMap((employee) => {
+      if (!selected(employee.employeeName, unsafeReportNames)
+        || !selected(employee.department, unsafeReportDepartments)
+        || !selected(employee.jobTitle, unsafeReportJobTitles)
+        || !selected(employee.location, unsafeReportLocations)) return []
+      return (employee.unsafeActs || [])
+        .filter((record) => (!unsafeReportFrom || record.writeUpDate >= unsafeReportFrom) && (!unsafeReportTo || record.writeUpDate <= unsafeReportTo))
+        .map((record) => [employee.employeeName, employee.employmentStatus, employee.department, employee.jobTitle, employee.location, record.writeUpDate, record.description, record.repeated ? 'Yes' : 'No', record.lastSameUnsafeActDate || '', record.documentationLink])
+    }).sort((left, right) => left[5].localeCompare(right[5]) || left[0].localeCompare(right[0]))
+    downloadCsv(`unsafe-act-report-${unsafeReportFrom || 'all'}-to-${unsafeReportTo || 'all'}.csv`, ['Employee Name', 'Employment Status', 'Department', 'Job Title', 'Location', 'Write-up Date', 'Description', 'Repeated Unsafe Act', 'Previous Write-up Date', 'Documentation Link'], rows)
+    setShowUnsafeActReport(false)
+  }
+
+  function downloadAnnualSafetyPtoReport() {
+    const year = Number(annualSafetyYear)
+    const yearEnd = `${year}-12-31`
+    const priorYearStart = `${year - 1}-01-01`
+    const rows = employees.filter((employee) => employee.firstDay && employee.firstDay <= yearEnd && (!employee.terminationDay || employee.terminationDay > yearEnd)).map((employee) => {
+      const reasons: string[] = []
+      const firstAnniversary = new Date(`${employee.firstDay.slice(0, 10)}T00:00:00Z`)
+      firstAnniversary.setUTCFullYear(firstAnniversary.getUTCFullYear() + 1)
+      if (firstAnniversary.toISOString().slice(0, 10) > yearEnd) reasons.push('Less than one year of employment at year end')
+      const orientationIncomplete = employee.training.orientation.assignedLibraryIds.length > 0 && employee.training.orientation.assignedLibraries.some((library) => library.courses.some((course) => {
+        const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
+        return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
+      }))
+      const monthlyIncomplete = employee.training.monthly.assignments.some((assignment) => assignment.requirement === 'Required' && assignment.topic.targetDate <= yearEnd && assignment.topic.courses.some((course) => {
+        const progress = assignment.courseProgress?.[course.id]
+        return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
+      }))
+      if (orientationIncomplete || monthlyIncomplete) reasons.push('Assigned training was not fully completed by year end')
+      const repeatedRecords = (employee.unsafeActs || []).filter((record) => record.repeated && record.writeUpDate >= priorYearStart && record.writeUpDate <= yearEnd)
+      if (repeatedRecords.length) reasons.push(`One-day Safety PTO reduction: repeated unsafe act write-up (${repeatedRecords.map((record) => record.writeUpDate).join('; ')})`)
+      const notEligible = reasons.some((reason) => reason.startsWith('Less than') || reason.startsWith('Assigned training'))
+      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, employee.firstDay, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? '1 Day Reduction' : 'No Reduction', reasons.join('; ') || 'Meets the available Safety PTO eligibility criteria']
+    }).sort((left, right) => left[0].localeCompare(right[0]))
+    downloadCsv(`annual-safety-pto-eligibility-report-${year}.csv`, ['Employee Name', 'Department', 'Job Title', 'Location', 'Hire Date', 'Safety PTO Eligibility', 'Safety PTO Reduction', 'Reason(s)'], rows)
+    setShowAnnualSafetyReport(false)
   }
 
   function openOrientationSettings() {
@@ -1208,6 +1287,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                 <Download className="h-4 w-4" />
                 Download Training Report
               </button>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100" onClick={() => setShowUnsafeActReport(true)} type="button"><Download className="h-4 w-4" />Unsafe Act Report</button>
+              <button className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100" onClick={() => setShowAnnualSafetyReport(true)} type="button"><ShieldCheck className="h-4 w-4" />Annual Safety PTO Report</button>
               <button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={openOrientationSettings} type="button">
                 <Settings className="h-4 w-4" />
                 Orientation Library Settings
@@ -1414,6 +1495,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     <td className="border-b px-4 py-3">{employee.department || '—'}</td>
                     <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
                     <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
+                    <td className="min-w-[200px] border-b px-4 py-3">
+                      <div className="text-xs text-slate-500">{employee.unsafeActs?.length ? `${employee.unsafeActs.length} write-up${employee.unsafeActs.length === 1 ? '' : 's'} · Latest ${displayDate(employee.unsafeActs[0]?.writeUpDate)}` : 'No unsafe act write-ups'}</div>
+                      <button className="mt-2 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100" onClick={() => editUnsafeActs(employee)} type="button"><HardHat className="h-4 w-4" />Manage Unsafe Acts</button>
+                    </td>
                     <td className="border-b px-4 py-3">
                       <TrainingBadge training={employee.training.orientation} />
                       {employee.training.orientation.requiredCourseCount > 0 ? (
@@ -1432,10 +1517,6 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     </td>
                     <td className="min-w-[190px] border-b px-4 py-3">
                       <button className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100" onClick={() => editMonthly(employee)} type="button"><BookOpenCheck className="h-4 w-4" />Manage Monthly Training</button>
-                    </td>
-                    <td className="min-w-[200px] border-b px-4 py-3">
-                      <div className="text-xs text-slate-500">{employee.unsafeActs?.length ? `${employee.unsafeActs.length} write-up${employee.unsafeActs.length === 1 ? '' : 's'} · Latest ${displayDate(employee.unsafeActs[0]?.writeUpDate)}` : 'No unsafe act write-ups'}</div>
-                      <button className="mt-2 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100" onClick={() => editUnsafeActs(employee)} type="button"><HardHat className="h-4 w-4" />Manage Unsafe Acts</button>
                     </td>
                     {displayedMonthlyTopics.map((topic) => {
                       const assignment = employee.training.monthly.assignments.find((item) => item.topic.id === topic.id)
@@ -1998,6 +2079,29 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         </div>
       ) : null}
 
+      {showUnsafeActReport ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4"><section className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true">
+          <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-slate-950">Unsafe Act Report</h2><p className="mt-1 text-sm text-slate-500">Download all matching write-ups during a selected period.</p></div><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowUnsafeActReport(false)} type="button"><X className="h-5 w-5" /></button></div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2"><label className="text-sm font-semibold text-slate-700">Write-up Date From<input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 font-normal" onChange={(event) => setUnsafeReportFrom(event.target.value)} type="date" value={unsafeReportFrom} /></label><label className="text-sm font-semibold text-slate-700">Write-up Date To<input className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 font-normal" onChange={(event) => setUnsafeReportTo(event.target.value)} type="date" value={unsafeReportTo} /></label></div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div><div className="mb-2 text-sm font-semibold text-slate-700">Employee Name</div><ColumnMultiFilter label="Employee Name" options={Array.from(new Set(employees.map((employee) => employee.employeeName))).filter(Boolean).sort()} selected={unsafeReportNames} onChange={setUnsafeReportNames} /></div>
+            <div><div className="mb-2 text-sm font-semibold text-slate-700">Department</div><ColumnMultiFilter label="Department" options={Array.from(new Set(employees.map((employee) => employee.department))).filter(Boolean).sort()} selected={unsafeReportDepartments} onChange={setUnsafeReportDepartments} /></div>
+            <div><div className="mb-2 text-sm font-semibold text-slate-700">Job Title</div><ColumnMultiFilter label="Job Title" options={Array.from(new Set(employees.map((employee) => employee.jobTitle))).filter(Boolean).sort()} selected={unsafeReportJobTitles} onChange={setUnsafeReportJobTitles} /></div>
+            <div><div className="mb-2 text-sm font-semibold text-slate-700">Location</div><ColumnMultiFilter label="Location" options={Array.from(new Set(employees.map((employee) => employee.location))).filter(Boolean).sort()} selected={unsafeReportLocations} onChange={setUnsafeReportLocations} /></div>
+          </div>
+          <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setShowUnsafeActReport(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={downloadUnsafeActReport} type="button"><Download className="h-4 w-4" />Download CSV</button></div>
+        </section></div>
+      ) : null}
+
+      {showAnnualSafetyReport ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4"><section className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true">
+          <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-slate-950">Annual Safety PTO Eligibility Report</h2><p className="mt-1 text-sm text-slate-500">Available only after the selected calendar year has ended.</p></div><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowAnnualSafetyReport(false)} type="button"><X className="h-5 w-5" /></button></div>
+          <label className="mt-5 block text-sm font-semibold text-slate-700">Report Year<select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => setAnnualSafetyYear(event.target.value)} value={annualSafetyYear}>{Array.from({ length: 10 }, (_, index) => new Date().getFullYear() - 1 - index).map((year) => <option key={year}>{year}</option>)}</select></label>
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><div className="font-semibold">Example available: 2025</div><div className="mt-1">The report covers Jan 1–Dec 31 and lists every employee active at year end, eligibility, any one-day reduction, and all reasons.</div><div className="mt-2 text-xs text-blue-700">The 2026 report will become available after Dec 31, 2026.</div></div>
+          <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setShowAnnualSafetyReport(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800" onClick={downloadAnnualSafetyPtoReport} type="button"><Download className="h-4 w-4" />Download {annualSafetyYear} Report</button></div>
+        </section></div>
+      ) : null}
+
       {unsafeActEmployee ? (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4" role="presentation">
           <section aria-labelledby="unsafe-act-title" aria-modal="true" className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl" role="dialog">
@@ -2005,15 +2109,15 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               <div><h2 className="text-xl font-semibold text-slate-950" id="unsafe-act-title">Unsafe Act Write-ups</h2><p className="mt-1 text-sm text-slate-500">{unsafeActEmployee.employeeName} · Records are retained as history.</p></div>
               <button aria-label="Close unsafe act records" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setUnsafeActEmployee(null)} type="button"><X className="h-5 w-5" /></button>
             </div>
-            <div className="mt-5 flex items-center justify-between"><div className="text-sm text-slate-600">Confirm whether the act was repeated before completing each write-up.</div><button className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={addUnsafeAct} type="button"><Plus className="h-4 w-4" />Add Write-up</button></div>
+            <div className="mt-5 flex items-center justify-between"><div className="text-sm text-slate-600">Confirm whether there was a repeated unsafe act in the current or previous year before completing each write-up.</div><button className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700" onClick={addUnsafeAct} type="button"><Plus className="h-4 w-4" />Add Write-up</button></div>
             <div className="mt-4 space-y-4">
               {unsafeActs.length ? unsafeActs.map((record, index) => (
                 <article className="rounded-xl border border-amber-200 bg-amber-50/40 p-4" key={record.id}>
                   <div className="flex items-center justify-between"><h3 className="font-semibold text-slate-900">Unsafe Act #{unsafeActs.length - index}</h3><button aria-label="Remove unsafe act" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={() => setUnsafeActs((current) => current.filter((item) => item.id !== record.id))} type="button"><Trash2 className="h-4 w-4" /></button></div>
                   <div className="mt-3 grid gap-4 md:grid-cols-2">
-                    <label className="text-sm font-semibold text-slate-700">Is this a repeated unsafe act? *<select className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => updateUnsafeAct(record.id, { repeated: event.target.value === '' ? '' : event.target.value === 'Yes' })} value={record.repeated === '' ? '' : record.repeated ? 'Yes' : 'No'}><option value="">Select Yes or No</option><option>Yes</option><option>No</option></select></label>
+                    <label className="text-sm font-semibold text-slate-700">Is there any repeated unsafe act for the current year and previous year? *<select className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => updateUnsafeAct(record.id, { repeated: event.target.value === '' ? '' : event.target.value === 'Yes' })} value={record.repeated === '' ? '' : record.repeated ? 'Yes' : 'No'}><option value="">Select Yes or No</option><option>Yes</option><option>No</option></select></label>
                     <label className="text-sm font-semibold text-slate-700">Unsafe Act Write-up Date *<input className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => updateUnsafeAct(record.id, { writeUpDate: event.target.value })} type="date" value={record.writeUpDate} /></label>
-                    {record.repeated === true ? <label className="text-sm font-semibold text-slate-700">Last Same Unsafe Act Date *<input className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" max={record.writeUpDate || undefined} onChange={(event) => updateUnsafeAct(record.id, { lastSameUnsafeActDate: event.target.value })} type="date" value={record.lastSameUnsafeActDate || ''} /></label> : null}
+                    {record.repeated === true ? <label className="text-sm font-semibold text-slate-700">Previous Write-up Date *<input className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" max={record.writeUpDate || undefined} onChange={(event) => updateUnsafeAct(record.id, { lastSameUnsafeActDate: event.target.value })} type="date" value={record.lastSameUnsafeActDate || ''} /></label> : null}
                     <label className="text-sm font-semibold text-slate-700 md:col-span-2">Description *<textarea className="mt-1.5 min-h-24 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => updateUnsafeAct(record.id, { description: event.target.value })} placeholder="Describe the unsafe act and relevant details" value={record.description} /></label>
                     <label className="text-sm font-semibold text-slate-700 md:col-span-2">Documentation Link *<input className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => updateUnsafeAct(record.id, { documentationLink: event.target.value })} placeholder="Paste the Royal SharePoint document link" type="url" value={record.documentationLink} /></label>
                   </div>
@@ -2021,9 +2125,13 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               )) : <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">No unsafe act write-ups have been recorded for this employee.</div>}
             </div>
             {unsafeActError ? <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{unsafeActError}</div> : null}
-            <div className="mt-5 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setUnsafeActEmployee(null)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60" disabled={isSavingUnsafeActs} onClick={saveUnsafeActs} type="button">{isSavingUnsafeActs ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}Save Unsafe Acts</button></div>
+            <div className="mt-5 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setUnsafeActEmployee(null)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60" disabled={isSavingUnsafeActs} onClick={requestUnsafeActSave} type="button"><ShieldCheck className="h-4 w-4" />Review & Confirm</button></div>
           </section>
         </div>
+      ) : null}
+
+      {confirmUnsafeActSave && unsafeActEmployee ? (
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/65 p-4"><section className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="alertdialog" aria-modal="true"><h2 className="text-xl font-semibold text-slate-950">Confirm Unsafe Act Changes</h2><p className="mt-2 text-sm leading-6 text-slate-600">You are about to save changes to {unsafeActEmployee.employeeName}'s unsafe act history. This may include edited or deleted previous write-ups. Please confirm that the records are accurate.</p><div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">Previous records: {unsafeActsBaseline.length} · Records after changes: {unsafeActs.length}</div><div className="mt-5 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setConfirmUnsafeActSave(false)} type="button">Go Back</button><button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={isSavingUnsafeActs} onClick={saveUnsafeActs} type="button">{isSavingUnsafeActs ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}Confirm & Save</button></div></section></div>
       ) : null}
 
       {linkEmployee ? (

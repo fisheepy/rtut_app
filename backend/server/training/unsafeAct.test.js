@@ -21,3 +21,8 @@ test('requires an explicit repeated unsafe act answer', () => {
   const result = sanitizeUnsafeActs([{ writeUpDate: '2026-02-02', description: 'Act', documentationLink: 'https://royaltruck.sharepoint.com/act' }]);
   assert.match(result.error, /confirm whether/i);
 });
+
+test('limits a repeated write-up reference to the current or previous year', () => {
+  const result = sanitizeUnsafeActs([{ writeUpDate: '2026-02-02', description: 'Repeat', documentationLink: 'https://royaltruck.sharepoint.com/repeat', repeated: 'Yes', lastSameUnsafeActDate: '2024-12-31' }]);
+  assert.match(result.error, /current year or previous year/i);
+});

@@ -17,6 +17,8 @@ function sanitizeUnsafeActs(input) {
     if (!documentationLink || !isAllowedFolderUrl(documentationLink)) return { error: 'Every unsafe act needs a valid Royal SharePoint documentation link.' };
     if (repeated && !/^\d{4}-\d{2}-\d{2}$/.test(lastSameUnsafeActDate)) return { error: 'Enter the last same unsafe act date for repeated unsafe acts.' };
     if (repeated && lastSameUnsafeActDate >= writeUpDate) return { error: 'The last same unsafe act date must be earlier than the current write-up date.' };
+    const earliestRepeatedDate = `${Number(writeUpDate.slice(0, 4)) - 1}-01-01`;
+    if (repeated && lastSameUnsafeActDate < earliestRepeatedDate) return { error: 'The previous write-up date must be in the current year or previous year.' };
     records.push({
       id: String(item?.id || randomUUID()),
       writeUpDate,
