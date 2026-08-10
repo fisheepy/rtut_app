@@ -75,6 +75,7 @@ type TrainingEmployee = {
   reportingTo: string
   folderUrl: string
   unsafeActs: UnsafeActRecord[]
+  orientationAssignedAt: string | null
   employmentStatus: 'Active' | 'Terminated'
   training: {
     orientation: OrientationTraining
@@ -989,11 +990,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const firstAnniversary = new Date(`${hireDate}T00:00:00Z`)
       firstAnniversary.setUTCFullYear(firstAnniversary.getUTCFullYear() + 1)
       if (firstAnniversary.toISOString().slice(0, 10) > yearEnd) reasons.push('Less than one year of employment at year end')
-      const orientationIncomplete = employee.training.orientation.assignedLibraryIds.length > 0 && employee.training.orientation.assignedLibraries.some((library) => library.courses.some((course) => {
+      const orientationAssignedDate = comparableDate(employee.orientationAssignedAt)
+      const orientationIncomplete = Boolean(orientationAssignedDate && orientationAssignedDate <= yearEnd) && employee.training.orientation.assignedLibraryIds.length > 0 && employee.training.orientation.assignedLibraries.some((library) => library.courses.some((course) => {
         const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
         return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
       }))
-      const monthlyIncomplete = employee.training.monthly.assignments.some((assignment) => assignment.requirement === 'Required' && assignment.topic.targetDate <= yearEnd && assignment.topic.courses.some((course) => {
+      const monthlyIncomplete = employee.training.monthly.assignments.some((assignment) => !isTestMonthlyTopic(assignment.topic.name) && assignment.requirement === 'Required' && assignment.topic.targetDate <= yearEnd && assignment.topic.courses.some((course) => {
         const progress = assignment.courseProgress?.[course.id]
         return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
       }))

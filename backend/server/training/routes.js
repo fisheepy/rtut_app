@@ -177,6 +177,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
       const orientationLibraries = await getOrientationLibraries(db);
       const existingTraining = await db.collection('employee_training').findOne({ employeeId: req.params.employeeId });
       const orientation = sanitizeOrientationInput(req.body, orientationLibraries, existingTraining);
+      const isAssigned = Boolean(orientation.assignedLibraryIds.length);
       const employee = ObjectId.isValid(req.params.employeeId)
         ? await db.collection('employees').findOne({ _id: new ObjectId(req.params.employeeId) })
         : null;
@@ -193,6 +194,9 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
             },
             orientationUpdatedAt: new Date(),
             orientationUpdatedBy: req.adminSession?.email || null,
+            orientationAssignedAt: isAssigned
+              ? (existingTraining?.orientationAssignedAt || new Date())
+              : null,
           },
         },
         { upsert: true },

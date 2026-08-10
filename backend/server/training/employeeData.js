@@ -46,6 +46,7 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries, month
     ].filter(Boolean).join(' '),
     folderUrl: text(trainingRecord?.folderUrl),
     unsafeActs: Array.isArray(trainingRecord?.unsafeActs) ? trainingRecord.unsafeActs : [],
+    orientationAssignedAt: trainingRecord?.orientationAssignedAt || null,
     employmentStatus: isTerminated ? 'Terminated' : 'Active',
     training: normalizeTraining(trainingRecord, orientationLibraries, monthlyTopics),
   };
