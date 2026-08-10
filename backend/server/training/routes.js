@@ -3,6 +3,7 @@ const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { normalizeEmployee } = require('./employeeData');
 const { canonicalizeEmployeeRosterFields } = require('./employeeFieldFormat');
 const { isAllowedFolderUrl } = require('./folderLink');
+const { sanitizeUnsafeActs } = require('./unsafeAct');
 const {
   getOrientationLibraries,
   resolveAssignedLibraries,
@@ -387,6 +388,31 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
     } catch (error) {
       console.error('Unable to save employee folder link:', error);
       return res.status(500).json({ error: 'The employee folder link could not be saved.' });
+    } finally {
+      await client.close();
+    }
+  });
+
+  router.put('/employees/:employeeId/unsafe-acts', async (req, res) => {
+    const result = sanitizeUnsafeActs(req.body?.unsafeActs);
+    if (result.error) return res.status(400).json({ error: result.error });
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const employee = ObjectId.isValid(req.params.employeeId)
+        ? await db.collection('employees').findOne({ _id: new ObjectId(req.params.employeeId) })
+        : null;
+      if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+      await db.collection('employee_training').updateOne(
+        { employeeId: req.params.employeeId },
+        { $set: { unsafeActs: result.records, unsafeActsUpdatedAt: new Date(), unsafeActsUpdatedBy: req.adminSession?.email || null } },
+        { upsert: true },
+      );
+      return res.json({ unsafeActs: result.records });
+    } catch (error) {
+      console.error('Unable to save unsafe act records:', error);
+      return res.status(500).json({ error: 'Unsafe act records could not be saved.' });
     } finally {
       await client.close();
     }
