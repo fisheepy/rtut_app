@@ -969,8 +969,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
 
   function downloadAnnualSafetyPtoReport() {
     const year = Number(annualSafetyYear)
+    const yearStart = `${year}-01-01`
     const yearEnd = `${year}-12-31`
-    const priorYearStart = `${year - 1}-01-01`
     const rows = employees.filter((employee) => employee.firstDay && employee.firstDay <= yearEnd && (!employee.terminationDay || employee.terminationDay > yearEnd)).map((employee) => {
       const reasons: string[] = []
       const firstAnniversary = new Date(`${employee.firstDay.slice(0, 10)}T00:00:00Z`)
@@ -985,12 +985,12 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
       }))
       if (orientationIncomplete || monthlyIncomplete) reasons.push('Assigned training was not fully completed by year end')
-      const repeatedRecords = (employee.unsafeActs || []).filter((record) => record.repeated && record.writeUpDate >= priorYearStart && record.writeUpDate <= yearEnd)
-      if (repeatedRecords.length) reasons.push(`One-day Safety PTO reduction: repeated unsafe act write-up (${repeatedRecords.map((record) => record.writeUpDate).join('; ')})`)
+      const repeatedRecords = (employee.unsafeActs || []).filter((record) => record.repeated && record.writeUpDate >= yearStart && record.writeUpDate <= yearEnd)
+      if (repeatedRecords.length) reasons.push(`${repeatedRecords.length}-day Safety PTO reduction and ${repeatedRecords.length} written warning${repeatedRecords.length === 1 ? '' : 's'}: repeated unsafe act write-up${repeatedRecords.length === 1 ? '' : 's'} (${repeatedRecords.map((record) => record.writeUpDate).join('; ')})`)
       const notEligible = reasons.some((reason) => reason.startsWith('Less than') || reason.startsWith('Assigned training'))
-      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, employee.firstDay, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? '1 Day Reduction' : 'No Reduction', reasons.join('; ') || 'Meets the available Safety PTO eligibility criteria']
+      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, employee.firstDay, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? `${repeatedRecords.length} Day${repeatedRecords.length === 1 ? '' : 's'} Reduction` : 'No Reduction', repeatedRecords.length ? `${repeatedRecords.length} Written Warning${repeatedRecords.length === 1 ? '' : 's'}` : 'No Written Warning', reasons.join('; ') || 'Meets the available Safety PTO eligibility criteria']
     }).sort((left, right) => left[0].localeCompare(right[0]))
-    downloadCsv(`annual-safety-pto-eligibility-report-${year}.csv`, ['Employee Name', 'Department', 'Job Title', 'Location', 'Hire Date', 'Safety PTO Eligibility', 'Safety PTO Reduction', 'Reason(s)'], rows)
+    downloadCsv(`annual-safety-pto-eligibility-report-${year}.csv`, ['Employee Name', 'Department', 'Job Title', 'Location', 'Hire Date', 'Safety PTO Eligibility', 'Safety PTO Reduction', 'Written Warning', 'Reason(s)'], rows)
     setShowAnnualSafetyReport(false)
   }
 
@@ -2097,7 +2097,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4"><section className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true">
           <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-slate-950">Annual Safety PTO Eligibility Report</h2><p className="mt-1 text-sm text-slate-500">Available only after the selected calendar year has ended.</p></div><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowAnnualSafetyReport(false)} type="button"><X className="h-5 w-5" /></button></div>
           <label className="mt-5 block text-sm font-semibold text-slate-700">Report Year<select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => setAnnualSafetyYear(event.target.value)} value={annualSafetyYear}>{Array.from({ length: 10 }, (_, index) => new Date().getFullYear() - 1 - index).map((year) => <option key={year}>{year}</option>)}</select></label>
-          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><div className="font-semibold">Example available: 2025</div><div className="mt-1">The report covers Jan 1–Dec 31 and lists every employee active at year end, eligibility, any one-day reduction, and all reasons.</div><div className="mt-2 text-xs text-blue-700">The 2026 report will become available after Dec 31, 2026.</div></div>
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><div className="font-semibold">Example available: 2025</div><div className="mt-1">The report covers Jan 1–Dec 31 and lists every employee active at year end. Each repeated unsafe act recorded during the report year produces one written warning and one day of Safety PTO reduction.</div><div className="mt-2 text-xs text-blue-700">Previous-year records help determine whether a new write-up is repeated, but are not deducted again. The 2026 report will become available after Dec 31, 2026.</div></div>
           <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setShowAnnualSafetyReport(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800" onClick={downloadAnnualSafetyPtoReport} type="button"><Download className="h-4 w-4" />Download {annualSafetyYear} Report</button></div>
         </section></div>
       ) : null}
