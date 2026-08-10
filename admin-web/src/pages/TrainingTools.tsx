@@ -991,15 +991,27 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       firstAnniversary.setUTCFullYear(firstAnniversary.getUTCFullYear() + 1)
       if (firstAnniversary.toISOString().slice(0, 10) > yearEnd) reasons.push('Less than one year of employment at year end')
       const orientationAssignedDate = comparableDate(employee.orientationAssignedAt)
-      const orientationIncomplete = Boolean(orientationAssignedDate && orientationAssignedDate <= yearEnd) && employee.training.orientation.assignedLibraryIds.length > 0 && employee.training.orientation.assignedLibraries.some((library) => library.courses.some((course) => {
-        const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
-        return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
-      }))
-      const monthlyIncomplete = employee.training.monthly.assignments.some((assignment) => !isTestMonthlyTopic(assignment.topic.name) && assignment.requirement === 'Required' && assignment.topic.targetDate <= yearEnd && assignment.topic.courses.some((course) => {
-        const progress = assignment.courseProgress?.[course.id]
-        return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
-      }))
-      if (orientationIncomplete || monthlyIncomplete) reasons.push('Assigned training was not fully completed by year end')
+      const incompleteOrientationLibraries = Boolean(orientationAssignedDate && orientationAssignedDate >= yearStart && orientationAssignedDate <= yearEnd)
+        ? employee.training.orientation.assignedLibraries.filter((library) => library.courses.some((course) => {
+          const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
+          return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
+        }))
+        : []
+      const incompleteMonthlyTopics = employee.training.monthly.assignments.filter((assignment) => !isTestMonthlyTopic(assignment.topic.name)
+        && assignment.requirement === 'Required'
+        && assignment.topic.targetDate >= yearStart
+        && assignment.topic.targetDate <= yearEnd
+        && assignment.topic.courses.some((course) => {
+          const progress = assignment.courseProgress?.[course.id]
+          return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
+        }))
+      if (incompleteOrientationLibraries.length || incompleteMonthlyTopics.length) {
+        const trainingDetails = [
+          ...incompleteOrientationLibraries.map((library) => `Orientation: ${library.name} (assigned ${orientationAssignedDate})`),
+          ...incompleteMonthlyTopics.map((assignment) => `Monthly: ${assignment.topic.name} (target ${assignment.topic.targetDate})`),
+        ]
+        reasons.push(`Assigned training was not fully completed by year end: ${trainingDetails.join('; ')}`)
+      }
       const repeatedRecords = (employee.unsafeActs || []).filter((record) => record.repeated && record.writeUpDate >= yearStart && record.writeUpDate <= yearEnd)
       if (repeatedRecords.length) reasons.push(`${repeatedRecords.length}-day Safety PTO reduction and ${repeatedRecords.length} written warning${repeatedRecords.length === 1 ? '' : 's'}: repeated unsafe act write-up${repeatedRecords.length === 1 ? '' : 's'} (${repeatedRecords.map((record) => record.writeUpDate).join('; ')})`)
       const notEligible = reasons.some((reason) => reason.startsWith('Less than') || reason.startsWith('Assigned training'))
