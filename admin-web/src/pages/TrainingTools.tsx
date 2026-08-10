@@ -158,6 +158,14 @@ function displayDate(value?: string | null) {
   })
 }
 
+function comparableDate(value?: string | null) {
+  if (!value) return ''
+  const direct = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (direct) return `${direct[1]}-${direct[2]}-${direct[3]}`
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10)
+}
+
 function normalizeRosterField(value?: string | null) {
   return String(value || '').trim().replace(/\s+/g, ' ').replace(/\s*\/\s*/g, '/').toLocaleLowerCase()
 }
@@ -967,13 +975,18 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     setShowUnsafeActReport(false)
   }
 
-  function downloadAnnualSafetyPtoReport() {
-    const year = Number(annualSafetyYear)
+  function buildAnnualSafetyPtoRows(reportYear: string) {
+    const year = Number(reportYear)
     const yearStart = `${year}-01-01`
     const yearEnd = `${year}-12-31`
-    const rows = employees.filter((employee) => employee.firstDay && employee.firstDay <= yearEnd && (!employee.terminationDay || employee.terminationDay > yearEnd)).map((employee) => {
+    return employees.filter((employee) => {
+      const hireDate = comparableDate(employee.firstDay)
+      const terminationDate = comparableDate(employee.terminationDay)
+      return hireDate && hireDate <= yearEnd && (!terminationDate || terminationDate > yearEnd)
+    }).map((employee) => {
       const reasons: string[] = []
-      const firstAnniversary = new Date(`${employee.firstDay.slice(0, 10)}T00:00:00Z`)
+      const hireDate = comparableDate(employee.firstDay)
+      const firstAnniversary = new Date(`${hireDate}T00:00:00Z`)
       firstAnniversary.setUTCFullYear(firstAnniversary.getUTCFullYear() + 1)
       if (firstAnniversary.toISOString().slice(0, 10) > yearEnd) reasons.push('Less than one year of employment at year end')
       const orientationIncomplete = employee.training.orientation.assignedLibraryIds.length > 0 && employee.training.orientation.assignedLibraries.some((library) => library.courses.some((course) => {
@@ -988,11 +1001,18 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const repeatedRecords = (employee.unsafeActs || []).filter((record) => record.repeated && record.writeUpDate >= yearStart && record.writeUpDate <= yearEnd)
       if (repeatedRecords.length) reasons.push(`${repeatedRecords.length}-day Safety PTO reduction and ${repeatedRecords.length} written warning${repeatedRecords.length === 1 ? '' : 's'}: repeated unsafe act write-up${repeatedRecords.length === 1 ? '' : 's'} (${repeatedRecords.map((record) => record.writeUpDate).join('; ')})`)
       const notEligible = reasons.some((reason) => reason.startsWith('Less than') || reason.startsWith('Assigned training'))
-      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, employee.firstDay, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? `${repeatedRecords.length} Day${repeatedRecords.length === 1 ? '' : 's'} Reduction` : 'No Reduction', repeatedRecords.length ? `${repeatedRecords.length} Written Warning${repeatedRecords.length === 1 ? '' : 's'}` : 'No Written Warning', reasons.join('; ') || 'Meets the available Safety PTO eligibility criteria']
+      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, hireDate, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? `${repeatedRecords.length} Day${repeatedRecords.length === 1 ? '' : 's'} Reduction` : 'No Reduction', repeatedRecords.length ? `${repeatedRecords.length} Written Warning${repeatedRecords.length === 1 ? '' : 's'}` : 'No Written Warning', reasons.join('; ') || 'Meets the available Safety PTO eligibility criteria']
     }).sort((left, right) => left[0].localeCompare(right[0]))
+  }
+
+  function downloadAnnualSafetyPtoReport() {
+    const year = Number(annualSafetyYear)
+    const rows = buildAnnualSafetyPtoRows(annualSafetyYear)
     downloadCsv(`annual-safety-pto-eligibility-report-${year}.csv`, ['Employee Name', 'Department', 'Job Title', 'Location', 'Hire Date', 'Safety PTO Eligibility', 'Safety PTO Reduction', 'Written Warning', 'Reason(s)'], rows)
     setShowAnnualSafetyReport(false)
   }
+
+  const annualSafetyPreviewRows = buildAnnualSafetyPtoRows(annualSafetyYear)
 
   function openOrientationSettings() {
     setShowOrientationSettings(true)
@@ -2098,7 +2118,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
           <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-slate-950">Annual Safety PTO Eligibility Report</h2><p className="mt-1 text-sm text-slate-500">Available only after the selected calendar year has ended.</p></div><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowAnnualSafetyReport(false)} type="button"><X className="h-5 w-5" /></button></div>
           <label className="mt-5 block text-sm font-semibold text-slate-700">Report Year<select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => setAnnualSafetyYear(event.target.value)} value={annualSafetyYear}>{Array.from({ length: 10 }, (_, index) => new Date().getFullYear() - 1 - index).map((year) => <option key={year}>{year}</option>)}</select></label>
           <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><div className="font-semibold">Example available: 2025</div><div className="mt-1">The report covers Jan 1–Dec 31 and lists every employee active at year end. Each repeated unsafe act recorded during the report year produces one written warning and one day of Safety PTO reduction.</div><div className="mt-2 text-xs text-blue-700">Previous-year records help determine whether a new write-up is repeated, but are not deducted again. The 2026 report will become available after Dec 31, 2026.</div></div>
-          <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setShowAnnualSafetyReport(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800" onClick={downloadAnnualSafetyPtoReport} type="button"><Download className="h-4 w-4" />Download {annualSafetyYear} Report</button></div>
+          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200"><div className="flex items-center justify-between bg-slate-50 px-4 py-3"><div className="font-semibold text-slate-900">{annualSafetyYear} Report Preview</div><div className="text-xs font-semibold text-slate-500">{annualSafetyPreviewRows.length} employees</div></div>{annualSafetyPreviewRows.length ? <div className="max-h-64 overflow-auto"><table className="w-full text-left text-xs"><thead className="sticky top-0 bg-white text-slate-500"><tr><th className="px-3 py-2">Employee</th><th className="px-3 py-2">Eligibility</th><th className="px-3 py-2">Reduction</th><th className="px-3 py-2">Reason</th></tr></thead><tbody>{annualSafetyPreviewRows.slice(0, 25).map((row, index) => <tr className="border-t border-slate-100" key={`${row[0]}-${index}`}><td className="px-3 py-2 font-semibold text-slate-900">{row[0]}</td><td className="px-3 py-2">{row[5]}</td><td className="px-3 py-2">{row[6]}</td><td className="max-w-64 px-3 py-2 text-slate-600">{row[8]}</td></tr>)}</tbody></table></div> : <div className="p-5 text-center text-sm text-amber-700">No employees qualify as active at the end of {annualSafetyYear}. Check the employee Hire Date and Termination Date records.</div>}</div>
+          <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setShowAnnualSafetyReport(false)} type="button">Close</button><button className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={!annualSafetyPreviewRows.length} onClick={downloadAnnualSafetyPtoReport} type="button"><Download className="h-4 w-4" />Download {annualSafetyYear} CSV</button></div>
         </section></div>
       ) : null}
 
