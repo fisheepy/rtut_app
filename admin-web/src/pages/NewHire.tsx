@@ -1093,8 +1093,8 @@ export default function NewHire() {
           className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4"
           role="dialog"
         >
-          <section className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
+          <section className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="shrink-0 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950">
                   Onboarding Details
@@ -1110,7 +1110,7 @@ export default function NewHire() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
               <RequiredFieldsNote />
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
@@ -1218,7 +1218,7 @@ export default function NewHire() {
                 </p>
               ) : null}
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-4 flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-white pt-4">
               <button
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
                 onClick={() => setEditing(null)}
