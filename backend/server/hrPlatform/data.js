@@ -6,6 +6,16 @@ function validDate(value) {
   return !value || /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function fourMonthReviewDate(value) {
+  const match = clean(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '';
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1 + 4;
+  const day = Number(match[3]);
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, monthIndex, Math.min(day, lastDay))).toISOString().slice(0, 10);
+}
+
 function payrollChangeRequestChanged(existing = {}, pending, date, reason) {
   return pending === true && (
     existing.payRateChangePending !== true ||
@@ -52,6 +62,13 @@ function employeeView(employee, record) {
     payrollChangeDate: clean(record?.payrollChangeDate), payrollChangeReason: clean(record?.payrollChangeReason),
     insuranceEffectiveDate: clean(record?.insuranceEffectiveDate), insuranceNotApplicable: record?.insuranceNotApplicable === true,
     retirementEffectiveDate: clean(record?.retirementEffectiveDate), retirementNotApplicable: record?.retirementNotApplicable === true,
+    referralProgramStatus: clean(record?.referralProgramStatus),
+    referredByEmployee: clean(record?.referredByEmployee),
+    referralReviewDueDate: clean(record?.referralReviewDueDate),
+    referralPerformanceStatus: clean(record?.referralPerformanceStatus),
+    referralPerformanceReviewedAt: clean(record?.referralPerformanceReviewedAt),
+    referralBonusPaidAt: clean(record?.referralBonusPaidAt),
+    referralNotes: clean(record?.referralNotes),
     fileTracker: record?.fileTracker || {},
     payrollCheckedAt: record?.payrollCheckedAt || null, payrollCheckedBy: clean(record?.payrollCheckedBy),
     payrollFinalReviewedAt: record?.payrollFinalReviewedAt || null, payrollFinalReviewedBy: clean(record?.payrollFinalReviewedBy),
@@ -141,5 +158,5 @@ function fileTrackerComplete(tracker, catalog = DEFAULT_FILE_TRACKER_FIELDS) {
 
 module.exports = {
   clean, commentAudit, employeeView, terminationEmployeeView, DEFAULT_FILE_TRACKER_FIELDS, fileTrackerComplete,
-  payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
+  fourMonthReviewDate, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate,
 };

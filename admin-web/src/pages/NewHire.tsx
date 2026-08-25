@@ -57,6 +57,13 @@ type NewHireEmployee = {
   insuranceCheckedBy: string;
   retirementCheckedAt: string | null;
   retirementCheckedBy: string;
+  referralProgramStatus: string;
+  referredByEmployee: string;
+  referralReviewDueDate: string;
+  referralPerformanceStatus: string;
+  referralPerformanceReviewedAt: string;
+  referralBonusPaidAt: string;
+  referralNotes: string;
 };
 
 type FileTracker = Record<string, any>;
@@ -87,6 +94,12 @@ type EditableRecord = Pick<
   | "insuranceNotApplicable"
   | "retirementEffectiveDate"
   | "retirementNotApplicable"
+  | "referralProgramStatus"
+  | "referredByEmployee"
+  | "referralPerformanceStatus"
+  | "referralPerformanceReviewedAt"
+  | "referralBonusPaidAt"
+  | "referralNotes"
 > & { insuranceApplicability: "" | "applicable" | "not-applicable"; retirementApplicability: "" | "applicable" | "not-applicable" };
 
 const emptyRecord: EditableRecord = {
@@ -103,6 +116,12 @@ const emptyRecord: EditableRecord = {
   retirementEffectiveDate: "",
   retirementNotApplicable: false,
   retirementApplicability: "",
+  referralProgramStatus: "",
+  referredByEmployee: "",
+  referralPerformanceStatus: "",
+  referralPerformanceReviewedAt: "",
+  referralBonusPaidAt: "",
+  referralNotes: "",
 };
 const emptyFilters = {
   homeDepartment: "",
@@ -214,6 +233,7 @@ export default function NewHire() {
             employee.fileTracker?.confirmedAt) &&
           employee.payrollFinalReviewedAt &&
           !employee.payRateChangePending &&
+          (employee.referralProgramStatus !== "employee-referral" || employee.referralPerformanceStatus === "not-approved" || (employee.referralPerformanceStatus === "approved" && Boolean(employee.referralBonusPaidAt))) &&
           !isCurrentMonth(employee.payrollFinalReviewedAt) &&
           !isCurrentHireMonth(employee.hireDate)
         ),
@@ -245,9 +265,11 @@ export default function NewHire() {
     if (employee.payRateChangePending && employee.payrollChangeDate.startsWith(currentMonthPrefix)) actions.push({ employee, type: "Payroll Change", date: employee.payrollChangeDate, status: employee.payrollChangeCheckedAt ? "Final Review Needed" : "Admin Action Needed" });
     if (employee.insuranceEffectiveDate.startsWith(currentMonthPrefix) && !employee.insuranceCheckedAt) actions.push({ employee, type: "Insurance", date: employee.insuranceEffectiveDate, status: "Action Needed" });
     if (employee.retirementEffectiveDate.startsWith(currentMonthPrefix) && !employee.retirementCheckedAt) actions.push({ employee, type: "401(k)", date: employee.retirementEffectiveDate, status: "Action Needed" });
+    const referralComplete = employee.referralPerformanceStatus === "not-approved" || (employee.referralPerformanceStatus === "approved" && Boolean(employee.referralBonusPaidAt));
+    if (employee.referralProgramStatus === "employee-referral" && employee.referralReviewDueDate && employee.referralReviewDueDate <= `${currentMonthPrefix}-31` && !referralComplete) actions.push({ employee, type: "Referral Review", date: employee.referralReviewDueDate, status: employee.referralPerformanceStatus === "approved" ? "Bonus Payment Needed" : employee.referralReviewDueDate < new Date().toISOString().slice(0, 10) ? "Overdue" : "Performance Review Needed" });
     return actions;
   }).sort((left, right) => left.date.localeCompare(right.date) || left.employee.name.localeCompare(right.employee.name));
-  const monthlyActionSummary = ["First Payroll", "Payroll Change", "Insurance", "401(k)"].map((type) => ({
+  const monthlyActionSummary = ["First Payroll", "Payroll Change", "Insurance", "401(k)", "Referral Review"].map((type) => ({
     type,
     count: monthlyActions.filter((item) => item.type === type).length,
   }));
@@ -293,6 +315,12 @@ export default function NewHire() {
       retirementEffectiveDate: employee.retirementEffectiveDate,
       retirementNotApplicable: employee.retirementNotApplicable,
       retirementApplicability: employee.retirementNotApplicable ? "not-applicable" : employee.retirementEffectiveDate ? "applicable" : "",
+      referralProgramStatus: employee.referralProgramStatus,
+      referredByEmployee: employee.referredByEmployee,
+      referralPerformanceStatus: employee.referralPerformanceStatus || (employee.referralProgramStatus === "employee-referral" ? "pending" : ""),
+      referralPerformanceReviewedAt: employee.referralPerformanceReviewedAt,
+      referralBonusPaidAt: employee.referralBonusPaidAt,
+      referralNotes: employee.referralNotes,
     });
     setSaveError("");
   }
@@ -453,6 +481,15 @@ export default function NewHire() {
     [
       "Hire Date",
       (employee: NewHireEmployee) => dateDisplay(employee.hireDate),
+    ],
+    [
+      "Referral Program",
+      (employee: NewHireEmployee) => {
+        if (!employee.referralProgramStatus) return <button className="font-semibold text-amber-700 hover:underline" onClick={() => openRecord(employee)} type="button">Set Referral Status</button>;
+        if (employee.referralProgramStatus === "not-referred") return <button className="font-semibold text-slate-600 hover:underline" onClick={() => openRecord(employee)} type="button">Not Referred</button>;
+        const complete = employee.referralPerformanceStatus === "not-approved" || (employee.referralPerformanceStatus === "approved" && Boolean(employee.referralBonusPaidAt));
+        return <button className={`rounded-full px-2.5 py-1 text-xs font-semibold ${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`} onClick={() => openRecord(employee)} title={`Referred by ${employee.referredByEmployee}`} type="button">{complete ? "Completed" : employee.referralPerformanceStatus === "approved" ? "Bonus Pending" : `Review ${dateDisplay(employee.referralReviewDueDate)}`}</button>;
+      },
     ],
     ["Email", (employee: NewHireEmployee) => display(employee.email)],
     ["Phone", (employee: NewHireEmployee) => display(employee.phone)],
@@ -643,7 +680,8 @@ export default function NewHire() {
 
   const trackerLocked = Boolean(tracker.finalLockedAt || tracker.confirmedAt);
   const trackerSubmitted = Boolean(tracker.submittedAt);
-  const onboardingDetailsComplete = Boolean(record.payRateType && record.payRate && record.firstPayrollDate && (record.insuranceApplicability === "not-applicable" || (record.insuranceApplicability === "applicable" && record.insuranceEffectiveDate)) && (record.retirementApplicability === "not-applicable" || (record.retirementApplicability === "applicable" && record.retirementEffectiveDate)));
+  const referralDetailsComplete = record.referralProgramStatus === "not-referred" || (record.referralProgramStatus === "employee-referral" && record.referredByEmployee && record.referralPerformanceStatus && (record.referralPerformanceStatus === "pending" || Boolean(record.referralPerformanceReviewedAt)) && (!record.referralBonusPaidAt || record.referralPerformanceStatus === "approved"));
+  const onboardingDetailsComplete = Boolean(record.payRateType && record.payRate && record.firstPayrollDate && (record.insuranceApplicability === "not-applicable" || (record.insuranceApplicability === "applicable" && record.insuranceEffectiveDate)) && (record.retirementApplicability === "not-applicable" || (record.retirementApplicability === "applicable" && record.retirementEffectiveDate)) && referralDetailsComplete);
   const legacyDateCorrection = Boolean(editing && (
     record.firstPayrollDate !== editing.firstPayrollDate ||
     record.insuranceEffectiveDate !== editing.insuranceEffectiveDate ||
@@ -717,7 +755,7 @@ export default function NewHire() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-cyan-200 bg-white shadow-lg shadow-cyan-950/5">
-        <div className="border-b border-cyan-200 bg-gradient-to-r from-cyan-50 via-sky-50 to-white px-5 py-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="mb-2 inline-flex rounded-full bg-cyan-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-800">Monthly Priority View</div><h2 className="text-xl font-semibold text-cyan-950">This Month&apos;s New Hire Action Calendar</h2><p className="mt-1 text-sm text-cyan-800">First payroll, payroll changes, insurance, and 401(k) actions scheduled this month. Completed items disappear automatically.</p></div><span className="rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-bold text-cyan-800 shadow-sm">{monthlyActions.length} Pending</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{monthlyActionSummary.map((item) => <div className="rounded-xl border border-white bg-white/80 px-3 py-2.5 shadow-sm" key={item.type}><div className="text-lg font-bold text-slate-950">{item.count}</div><div className="text-xs font-semibold text-slate-500">{item.type}</div></div>)}</div></div>
+        <div className="border-b border-cyan-200 bg-gradient-to-r from-cyan-50 via-sky-50 to-white px-5 py-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="mb-2 inline-flex rounded-full bg-cyan-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-800">Monthly Priority View</div><h2 className="text-xl font-semibold text-cyan-950">This Month&apos;s New Hire Action Calendar</h2><p className="mt-1 text-sm text-cyan-800">First payroll, payroll changes, insurance, 401(k), and four-month employee referral reviews. Overdue referral items remain until completed.</p></div><span className="rounded-full border border-cyan-200 bg-white px-4 py-2 text-sm font-bold text-cyan-800 shadow-sm">{monthlyActions.length} Pending</span></div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{monthlyActionSummary.map((item) => <div className="rounded-xl border border-white bg-white/80 px-3 py-2.5 shadow-sm" key={item.type}><div className="text-lg font-bold text-slate-950">{item.count}</div><div className="text-xs font-semibold text-slate-500">{item.type}</div></div>)}</div></div>
         <div className="max-h-[55vh] overflow-auto">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="sticky top-0 z-10 bg-cyan-100 text-left text-xs uppercase text-cyan-800"><tr><th className="px-4 py-3">Action Date</th><th className="px-4 py-3">Employee</th><th className="px-4 py-3">Action Type</th><th className="px-4 py-3">Status</th></tr></thead>
@@ -1021,8 +1059,8 @@ export default function NewHire() {
           <section className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Download Action Report</h2><p className="mt-1 text-sm text-slate-500">Choose the employee action report you need.</p></div><button aria-label="Close Action Reports" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button"><X className="h-5 w-5" /></button></div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <a className="rounded-xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/action-items.xlsx"><Download className="h-5 w-5 text-amber-700" /><h3 className="mt-3 font-semibold text-amber-950">Current & Future Actions</h3><p className="mt-1 text-sm text-amber-800">Employees with pending First Payroll, Payroll Change, Insurance, or 401(k) action.</p></a>
-              <a className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/completed-actions.xlsx"><Download className="h-5 w-5 text-emerald-700" /><h3 className="mt-3 font-semibold text-emerald-950">Completed Employee Actions</h3><p className="mt-1 text-sm text-emerald-800">Every completed First Payroll, Payroll Change, Insurance, and 401(k) action, grouped by employee.</p></a>
+              <a className="rounded-xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/action-items.xlsx"><Download className="h-5 w-5 text-amber-700" /><h3 className="mt-3 font-semibold text-amber-950">Current & Future Actions</h3><p className="mt-1 text-sm text-amber-800">Pending payroll, insurance, 401(k), and four-month Employee Referral actions.</p></a>
+              <a className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/completed-actions.xlsx"><Download className="h-5 w-5 text-emerald-700" /><h3 className="mt-3 font-semibold text-emerald-950">Completed Employee Actions</h3><p className="mt-1 text-sm text-emerald-800">Completed payroll, insurance, 401(k), and Employee Referral outcomes, grouped by employee.</p></a>
             </div>
             <div className="mt-5 flex justify-end"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button">Close</button></div>
           </section>
@@ -1151,6 +1189,19 @@ export default function NewHire() {
                 />
               </label>
               <label className="block"><span className="text-sm font-semibold text-slate-700">First Payroll Date <span className="text-red-600">*</span></span><input className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, firstPayrollDate: event.target.value }))} required type="date" value={record.firstPayrollDate} /></label>
+              <div className={`rounded-xl border p-4 ${record.referralProgramStatus === "employee-referral" ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-slate-50"}`}>
+                <h3 className="font-semibold text-slate-900">Employee Referral Program</h3>
+                <p className="mt-1 text-xs text-slate-600">Referred hires are reviewed after four months. Record the performance decision and referral bonus payment here.</p>
+                <label className="mt-4 block"><span className="text-sm font-semibold text-slate-700">Was this candidate referred by a current employee? <span className="text-red-600">*</span></span><select className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, referralProgramStatus: event.target.value, referredByEmployee: event.target.value === "employee-referral" ? current.referredByEmployee : "", referralPerformanceStatus: event.target.value === "employee-referral" ? (current.referralPerformanceStatus || "pending") : "", referralPerformanceReviewedAt: event.target.value === "employee-referral" ? current.referralPerformanceReviewedAt : "", referralBonusPaidAt: event.target.value === "employee-referral" ? current.referralBonusPaidAt : "", referralNotes: event.target.value === "employee-referral" ? current.referralNotes : "" }))} required value={record.referralProgramStatus}><option value="">Select...</option><option value="not-referred">No</option><option value="employee-referral">Yes — Employee Referral</option></select></label>
+                {record.referralProgramStatus === "employee-referral" ? <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="block"><span className="text-sm font-semibold text-slate-700">Referring Employee <span className="text-red-600">*</span></span><input className="mt-1.5 w-full rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-sm" list="new-hire-referring-employees" onChange={(event) => setRecord((current) => ({ ...current, referredByEmployee: event.target.value }))} placeholder="Search or enter employee name" required value={record.referredByEmployee} /><datalist id="new-hire-referring-employees">{employees.filter((employee) => employee.id !== editing?.id).map((employee) => <option key={employee.id} value={employee.name} />)}</datalist></label>
+                  <label className="block"><span className="text-sm font-semibold text-slate-700">Four-Month Review Due</span><input className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm" disabled value={editing?.referralReviewDueDate ? dateDisplay(editing.referralReviewDueDate) : "Calculated automatically from Hire Date"} /></label>
+                  <label className="block"><span className="text-sm font-semibold text-slate-700">Performance Review Status <span className="text-red-600">*</span></span><select className="mt-1.5 w-full rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, referralPerformanceStatus: event.target.value, referralPerformanceReviewedAt: event.target.value === "pending" ? "" : current.referralPerformanceReviewedAt, referralBonusPaidAt: event.target.value === "approved" ? current.referralBonusPaidAt : "" }))} required value={record.referralPerformanceStatus}><option value="pending">Pending Four-Month Review</option><option value="approved">Performance Confirmed — Bonus Eligible</option><option value="not-approved">Not Approved for Bonus</option></select></label>
+                  {record.referralPerformanceStatus !== "pending" ? <label className="block"><span className="text-sm font-semibold text-slate-700">Performance Review Date <span className="text-red-600">*</span></span><input className="mt-1.5 w-full rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, referralPerformanceReviewedAt: event.target.value }))} required type="date" value={record.referralPerformanceReviewedAt} /></label> : null}
+                  {record.referralPerformanceStatus === "approved" ? <label className="block"><span className="text-sm font-semibold text-slate-700">Referral Bonus Paid Date</span><input className="mt-1.5 w-full rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, referralBonusPaidAt: event.target.value }))} type="date" value={record.referralBonusPaidAt} /></label> : null}
+                  <label className="block sm:col-span-2"><span className="text-sm font-semibold text-slate-700">Referral Notes</span><textarea className="mt-1.5 min-h-20 w-full rounded-lg border border-violet-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setRecord((current) => ({ ...current, referralNotes: event.target.value }))} placeholder="Optional performance or bonus notes" value={record.referralNotes} /></label>
+                </div> : null}
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {([[
                   "Insurance", "insuranceEffectiveDate", "insuranceNotApplicable", "insuranceApplicability",

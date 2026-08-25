@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
-const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, terminationEmployeeView, fileTrackerComplete, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
+const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, terminationEmployeeView, fileTrackerComplete, fourMonthReviewDate, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
 
 function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   const router = express.Router();
@@ -248,6 +248,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         if (record.payRateChangePending && record.payrollChangeDate) rows.push({ ...base, action: 'Payroll Change', actionDate: record.payrollChangeDate, status: record.payrollChangeCheckedAt ? 'Admin Checked - Final Review Needed' : 'Admin Action Needed', reason: clean(record.payrollChangeReason) });
         if (record.insuranceEffectiveDate && !record.insuranceCheckedAt) rows.push({ ...base, action: 'Insurance', actionDate: record.insuranceEffectiveDate, status: 'Action Needed', reason: '' });
         if (record.retirementEffectiveDate && !record.retirementCheckedAt) rows.push({ ...base, action: '401(k)', actionDate: record.retirementEffectiveDate, status: 'Action Needed', reason: '' });
+        const referralComplete = record.referralPerformanceStatus === 'not-approved' || (record.referralPerformanceStatus === 'approved' && record.referralBonusPaidAt);
+        if (record.referralProgramStatus === 'employee-referral' && record.referralReviewDueDate && !referralComplete) rows.push({ ...base, action: 'Employee Referral Review', actionDate: record.referralReviewDueDate, status: record.referralPerformanceStatus === 'approved' ? 'Bonus Payment Needed' : 'Four-Month Performance Review Needed', reason: `Referred by ${clean(record.referredByEmployee)}${record.referralNotes ? ` — ${clean(record.referralNotes)}` : ''}` });
       });
       rows.sort((a, b) => clean(a.actionDate).localeCompare(clean(b.actionDate)) || a.employee.localeCompare(b.employee));
       const workbook = new ExcelJS.Workbook();
@@ -289,6 +291,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         if (record.payrollChangeDate && record.payrollChangeFinalReviewedAt) completed.push({ ...base, actionDate: clean(record.payrollChangeDate), actionType: 'Payroll Change', status: 'Completed', adminCheckedBy: clean(record.payrollChangeCheckedBy), finalReviewedBy: clean(record.payrollChangeFinalReviewedBy), reason: clean(record.payrollChangeReason) });
         if (record.insuranceEffectiveDate && record.insuranceCheckedAt) completed.push({ ...base, actionDate: clean(record.insuranceEffectiveDate), actionType: 'Insurance', status: 'Action Taken', adminCheckedBy: clean(record.insuranceCheckedBy), finalReviewedBy: '', reason: '' });
         if (record.retirementEffectiveDate && record.retirementCheckedAt) completed.push({ ...base, actionDate: clean(record.retirementEffectiveDate), actionType: '401(k)', status: 'Action Taken', adminCheckedBy: clean(record.retirementCheckedBy), finalReviewedBy: '', reason: '' });
+        if (record.referralProgramStatus === 'employee-referral' && record.referralPerformanceStatus === 'not-approved' && record.referralPerformanceReviewedAt) completed.push({ ...base, actionDate: clean(record.referralPerformanceReviewedAt), actionType: 'Employee Referral', status: 'Performance Not Approved', adminCheckedBy: '', finalReviewedBy: '', reason: `Referred by ${clean(record.referredByEmployee)}${record.referralNotes ? ` — ${clean(record.referralNotes)}` : ''}` });
+        if (record.referralProgramStatus === 'employee-referral' && record.referralPerformanceStatus === 'approved' && record.referralBonusPaidAt) completed.push({ ...base, actionDate: clean(record.referralBonusPaidAt), actionType: 'Employee Referral', status: 'Bonus Paid', adminCheckedBy: '', finalReviewedBy: '', reason: `Referred by ${clean(record.referredByEmployee)}; performance reviewed ${clean(record.referralPerformanceReviewedAt)}${record.referralNotes ? ` — ${clean(record.referralNotes)}` : ''}` });
         return completed;
       };
       const rows = [
@@ -329,6 +333,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const insuranceNotApplicable = req.body?.insuranceNotApplicable === true;
     const retirementEffectiveDate = clean(req.body?.retirementEffectiveDate);
     const retirementNotApplicable = req.body?.retirementNotApplicable === true;
+    const referralProgramStatus = clean(req.body?.referralProgramStatus);
+    const referredByEmployee = clean(req.body?.referredByEmployee);
+    const referralPerformanceStatus = clean(req.body?.referralPerformanceStatus);
+    const referralPerformanceReviewedAt = clean(req.body?.referralPerformanceReviewedAt);
+    const referralBonusPaidAt = clean(req.body?.referralBonusPaidAt);
+    const referralNotes = clean(req.body?.referralNotes);
 
     if (!ObjectId.isValid(employeeId)) return res.status(400).json({ error: 'Invalid employee.' });
     if (employeeFolderUrl && !isAllowedFolderUrl(employeeFolderUrl)) {
@@ -346,6 +356,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     if (![firstPayrollDate, insuranceEffectiveDate, retirementEffectiveDate].every(validDate)) {
       return res.status(400).json({ error: 'Please enter valid dates.' });
     }
+    if (!['not-referred', 'employee-referral'].includes(referralProgramStatus)) return res.status(400).json({ error: 'Select whether this employee was referred by a current employee.' });
+    if (referralProgramStatus === 'employee-referral' && !referredByEmployee) return res.status(400).json({ error: 'Enter the employee who referred this candidate.' });
+    if (!['pending', 'approved', 'not-approved'].includes(referralPerformanceStatus) && referralProgramStatus === 'employee-referral') return res.status(400).json({ error: 'Select a valid referral performance review status.' });
+    if (![referralPerformanceReviewedAt, referralBonusPaidAt].every(validDate)) return res.status(400).json({ error: 'Please enter valid Referral Program dates.' });
+    if (referralProgramStatus === 'employee-referral' && referralPerformanceStatus !== 'pending' && !referralPerformanceReviewedAt) return res.status(400).json({ error: 'Performance Review Date is required after a referral decision.' });
+    if (referralBonusPaidAt && referralPerformanceStatus !== 'approved') return res.status(400).json({ error: 'A Referral Bonus Paid Date can only be entered after performance is approved.' });
 
     const client = createClient();
     try {
@@ -353,12 +369,21 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const db = client.db(databaseName);
       const employee = await db.collection('employees').findOne({ _id: new ObjectId(employeeId) });
       if (!employee) return res.status(404).json({ error: 'Employee not found.' });
+      const hireDate = clean(employee['Hire Date'] || employee['First Day']);
+      const referralReviewDueDate = referralProgramStatus === 'employee-referral' ? fourMonthReviewDate(hireDate) : '';
       const values = {
         employeeFolderUrl, payRateType: payRate ? payRateType : '', payRate, firstPayrollDate,
         insuranceEffectiveDate: insuranceNotApplicable ? '' : insuranceEffectiveDate, insuranceNotApplicable,
         retirementEffectiveDate: retirementNotApplicable ? '' : retirementEffectiveDate, retirementNotApplicable,
         payRateChangePending, payrollChangeDate: payRateChangePending ? payrollChangeDate : '',
         payrollChangeReason: payRateChangePending ? payrollChangeReason : '',
+        referralProgramStatus,
+        referredByEmployee: referralProgramStatus === 'employee-referral' ? referredByEmployee : '',
+        referralReviewDueDate,
+        referralPerformanceStatus: referralProgramStatus === 'employee-referral' ? referralPerformanceStatus : '',
+        referralPerformanceReviewedAt: referralProgramStatus === 'employee-referral' && referralPerformanceStatus !== 'pending' ? referralPerformanceReviewedAt : '',
+        referralBonusPaidAt: referralProgramStatus === 'employee-referral' && referralPerformanceStatus === 'approved' ? referralBonusPaidAt : '',
+        referralNotes: referralProgramStatus === 'employee-referral' ? referralNotes : '',
       };
       const existingRecord = await db.collection('employee_hr_platform').findOne({ employeeId });
       const dateCorrection = Boolean(existingRecord && (
