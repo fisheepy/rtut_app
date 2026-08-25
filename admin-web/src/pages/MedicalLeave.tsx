@@ -307,6 +307,25 @@ export default function MedicalLeave() {
       );
     }
   }
+  async function downloadMedicalFileCheckReport() {
+    try {
+      const response = await api.get(
+        "/hr-platform/leaves/reports/file-check.xlsx",
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Medical_Leave_File_Check_Status.xlsx";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.error ||
+          "Medical File Check report could not be downloaded.",
+      );
+    }
+  }
   async function saveLog(
     employee: LeaveEmployee,
     entry: { date: string; description: string; id?: string },
@@ -431,6 +450,13 @@ export default function MedicalLeave() {
             >
               <Settings className="h-4 w-4" />
               Medical File Check Manager
+            </button>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
+              onClick={downloadMedicalFileCheckReport}
+            >
+              <Download className="h-4 w-4" />
+              Medical File Check Report
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
