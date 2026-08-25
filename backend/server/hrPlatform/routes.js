@@ -1269,6 +1269,72 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to create Medical Leave history report:', error); return res.status(500).json({ error: 'Medical Leave history report could not be created.' }); } finally { await client.close(); }
   });
 
+  router.get('/leaves/reports/file-check.xlsx', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const records = await db.collection('employee_hr_leave').find({}).sort({ leaveStartedAt: 1, createdAt: 1 }).toArray();
+      const ids = [...new Set(records.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))];
+      const employees = ids.length
+        ? await db.collection('employees').find({ _id: { $in: ids.map(id => new ObjectId(id)) } }).toArray()
+        : [];
+      const byId = new Map(employees.map(employee => [String(employee._id), employee]));
+      const currentCatalog = await getMedicalTrackerCatalog(db, true);
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('Medical File Check Status');
+      sheet.columns = [
+        { header: 'Employee', key: 'employee', width: 28 },
+        { header: 'Email', key: 'email', width: 32 },
+        { header: 'Department', key: 'department', width: 26 },
+        { header: 'Job Title', key: 'jobTitle', width: 28 },
+        { header: 'Location', key: 'location', width: 22 },
+        { header: 'Leave Start Date', key: 'start', width: 20 },
+        { header: 'Case Status', key: 'caseStatus', width: 18 },
+        { header: 'Medical File Check Item', key: 'item', width: 40 },
+        { header: 'Response', key: 'response', width: 22 },
+        { header: 'Admin Comments', key: 'comments', width: 48 },
+        { header: 'File Check Status', key: 'trackerStatus', width: 24 },
+        { header: 'Checked By', key: 'checkedBy', width: 30 },
+        { header: 'Checked At', key: 'checkedAt', width: 22 },
+      ];
+      records.forEach(record => {
+        const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {};
+        const tracker = record.medicalFileTracker || {};
+        const fields = tracker.fieldsSnapshot?.length ? tracker.fieldsSnapshot : currentCatalog;
+        const base = {
+          employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '),
+          email: clean(employee.Email),
+          department: clean(employee['Home Department']),
+          jobTitle: clean(employee['Job Title']),
+          location: clean(employee.Location),
+          start: record.leaveStartedAt || '',
+          caseStatus: record.active === true ? 'Open' : 'Closed',
+          comments: clean(tracker.comments),
+          trackerStatus: tracker.checkedAt ? 'File Checked' : 'File Check Required',
+          checkedBy: clean(tracker.checkedBy),
+          checkedAt: tracker.checkedAt || '',
+        };
+        if (fields.length) {
+          fields.forEach(field => sheet.addRow({
+            ...base,
+            item: clean(field.label),
+            response: clean(tracker.responses?.[field.id]) || 'Not Completed',
+          }));
+        } else {
+          sheet.addRow({ ...base, item: 'No checklist items', response: 'Not Completed' });
+        }
+      });
+      styleReportSheet(sheet);
+      return await sendWorkbook(res, workbook, `Medical_Leave_File_Check_Status_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) {
+      console.error('Unable to create Medical File Check report:', error);
+      return res.status(500).json({ error: 'Medical File Check report could not be created.' });
+    } finally {
+      await client.close();
+    }
+  });
+
   router.get('/employment-changes', async (_req, res) => {
     const client = createClient();
     try {
