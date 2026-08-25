@@ -234,6 +234,7 @@ export default function NewHire() {
           employee.payrollFinalReviewedAt &&
           !employee.payRateChangePending &&
           (employee.referralProgramStatus !== "employee-referral" || employee.referralPerformanceStatus === "not-approved" || (employee.referralPerformanceStatus === "approved" && Boolean(employee.referralBonusPaidAt))) &&
+          !isCurrentMonth(employee.referralBonusPaidAt || employee.referralPerformanceReviewedAt || null) &&
           !isCurrentMonth(employee.payrollFinalReviewedAt) &&
           !isCurrentHireMonth(employee.hireDate)
         ),
