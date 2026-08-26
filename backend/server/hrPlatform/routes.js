@@ -1360,6 +1360,23 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     }
   });
 
+  const employmentTrackingSelections = (record = {}) => {
+    const requested = record.requestedTracking || {};
+    return {
+      payroll: requested.payroll === true || (!record.requestedTracking && record.tasks?.payroll?.required === true),
+      insurance: requested.insurance === true || (!record.requestedTracking && record.tasks?.insurance?.required === true),
+      retirement: requested.retirement === true || (!record.requestedTracking && record.tasks?.retirement?.required === true),
+    };
+  };
+  const employmentChangeSummary = (record = {}) => {
+    const details = (record.changes || []).map(change => `${clean(change.field)}: ${clean(change.from)} -> ${clean(change.to)}`);
+    const requested = employmentTrackingSelections(record);
+    if (requested.payroll) details.push('Payroll Change Requested');
+    if (requested.insurance) details.push('Insurance Change Requested');
+    if (requested.retirement) details.push('401(k) Change Requested');
+    return details.join('; ');
+  };
+
   router.get('/employment-changes', async (_req, res) => {
     const client = createClient();
     try {
@@ -1383,7 +1400,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         employeeEmail: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), reason: clean(record.reason),
         employeeFolderUrl: clean(record.employeeFolderUrl), followUpIssues: record.followUpIssues === true,
         followUpNotes: clean(record.followUpNotes), followUpUntil: clean(record.followUpUntil),
-        changes: Array.isArray(record.changes) ? record.changes : [], tasks: { ...(record.tasks || {}), followUp: record.tasks?.followUp || record.tasks?.other || {} },
+        changes: Array.isArray(record.changes) ? record.changes : [], requestedTracking: employmentTrackingSelections(record), tasks: { ...(record.tasks || {}), followUp: record.tasks?.followUp || record.tasks?.other || {} },
         createdAt: record.createdAt || null, createdBy: clean(record.createdBy),
       })));
     } catch (error) {
@@ -1409,7 +1426,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         ? task.finalReviewedAt ? 'Finished' : task.checkedAt ? 'In Process - Final Review Needed' : 'Unfinished'
         : (task.checkedAt || task.completedAt) ? 'Finished' : 'Unfinished';
       records.forEach(record => {
-        const base = { employee: clean(record.employeeName), email: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), changes: (record.changes || []).map(change => `${clean(change.field)}: ${clean(change.from)} -> ${clean(change.to)}`).join('; ') };
+        const base = { employee: clean(record.employeeName), email: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), changes: employmentChangeSummary(record) };
         const add = (task, taskDate, value = {}, finalRequired = false, notes = '') => sheet.addRow({ ...base, task, taskDate: clean(taskDate), status: status(value, finalRequired), checkedBy: clean(value.checkedBy || value.completedBy), finalBy: clean(value.finalReviewedBy), notes });
         add('Employee File Backup', record.effectiveDate, record.tasks?.file || {}, true);
         if (record.tasks?.payroll?.applicable === true) add("New Payroll's Payroll Date", record.tasks.payroll.actionDate, record.tasks.payroll, true);
@@ -1509,7 +1526,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       ];
       records.forEach(record => {
         const task = record.tasks?.file || {}; const tracker = task.tracker || {}; const fields = tracker.fieldsSnapshot?.length ? tracker.fieldsSnapshot : currentCatalog;
-        const base = { employee: clean(record.employeeName), email: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), changes: (record.changes || []).map(change => `${clean(change.field)}: ${clean(change.from)} -> ${clean(change.to)}`).join('; '), comments: clean(tracker.comments), status: task.finalReviewedAt ? 'Final Reviewed' : task.checkedAt ? 'Admin Checked - Final Review Needed' : 'File Check Required', checkedBy: clean(task.checkedBy), checkedAt: task.checkedAt || '', finalBy: clean(task.finalReviewedBy), finalAt: task.finalReviewedAt || '' };
+        const base = { employee: clean(record.employeeName), email: clean(record.employeeEmail), effectiveDate: clean(record.effectiveDate), changes: employmentChangeSummary(record), comments: clean(tracker.comments), status: task.finalReviewedAt ? 'Final Reviewed' : task.checkedAt ? 'Admin Checked - Final Review Needed' : 'File Check Required', checkedBy: clean(task.checkedBy), checkedAt: task.checkedAt || '', finalBy: clean(task.finalReviewedBy), finalAt: task.finalReviewedAt || '' };
         if (fields.length) fields.forEach(field => sheet.addRow({ ...base, item: clean(field.label), response: clean(tracker.responses?.[field.id]) || 'Not Completed' }));
         else sheet.addRow({ ...base, item: 'No checklist items', response: 'Not Completed' });
       });

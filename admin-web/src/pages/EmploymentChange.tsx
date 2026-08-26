@@ -57,6 +57,11 @@ type RecordItem = {
   followUpNotes: string;
   followUpUntil: string;
   changes: { field: string; from: string; to: string }[];
+  requestedTracking?: {
+    payroll?: boolean;
+    insurance?: boolean;
+    retirement?: boolean;
+  };
   tasks: {
     file?: Task;
     payroll?: Task;
@@ -110,6 +115,18 @@ const done = (task?: Task) =>
   Boolean(task?.finalReviewedAt || task?.checkedAt || task?.completedAt);
 const finalDone = (task?: Task) =>
   Boolean(task?.finalReviewedAt || task?.completedAt);
+const requestedChangeLabels = (record: RecordItem) => {
+  const requested = record.requestedTracking || {
+    payroll: record.tasks?.payroll?.required,
+    insurance: record.tasks?.insurance?.required,
+    retirement: record.tasks?.retirement?.required,
+  };
+  return [
+    requested.payroll ? "Payroll Change Requested" : "",
+    requested.insurance ? "Insurance Change Requested" : "",
+    requested.retirement ? "401(k) Change Requested" : "",
+  ].filter(Boolean);
+};
 
 export default function EmploymentChange() {
   const [records, setRecords] = useState<RecordItem[]>([]);
@@ -175,7 +192,8 @@ export default function EmploymentChange() {
           return false;
         if (
           changeTypeFilter &&
-          !record.changes.some((change) => change.field === changeTypeFilter)
+          !record.changes.some((change) => change.field === changeTypeFilter) &&
+          !requestedChangeLabels(record).includes(changeTypeFilter)
         )
           return false;
         if (
@@ -221,7 +239,10 @@ export default function EmploymentChange() {
       [
         ...new Set(
           records
-            .flatMap((record) => record.changes.map((change) => change.field))
+            .flatMap((record) => [
+              ...record.changes.map((change) => change.field),
+              ...requestedChangeLabels(record),
+            ])
             .filter(Boolean),
         ),
       ].sort(),
@@ -794,6 +815,14 @@ export default function EmploymentChange() {
                           <span className="font-bold text-slate-950">
                             {change.to || "--"}
                           </span>
+                        </div>
+                      ))}
+                      {requestedChangeLabels(record).map((label) => (
+                        <div
+                          className="mt-1 inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800"
+                          key={label}
+                        >
+                          {label}
                         </div>
                       ))}
                     </Cell>

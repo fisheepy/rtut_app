@@ -807,6 +807,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 reason: String(_employmentChange.reason || '').trim(),
                 employeeFolderUrl: '', followUpIssues: false, followUpNotes: '', followUpUntil: '',
                 changes,
+                requestedTracking: { payroll, insurance, retirement },
                 tasks: {
                     file: { required: true, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
                     payroll: { required: payroll, applicable: payroll ? null : false, actionDate: '', checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
