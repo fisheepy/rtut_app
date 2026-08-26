@@ -756,7 +756,11 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         ]);
         const selectedFields = Array.isArray(_employmentChange.changedFields)
             ? _employmentChange.changedFields.filter(field => allowedFields.has(field)) : [];
-        if (!selectedFields.length) return { found: false, error: 'Select at least one item to change.' };
+        const payroll = _employmentChange.payroll === true;
+        const insurance = _employmentChange.insurance === true;
+        const retirement = _employmentChange.retirement === true;
+        const trackingOnlyRequest = payroll || insurance || retirement;
+        if (!selectedFields.length && !trackingOnlyRequest) return { found: false, error: 'Select at least one employee information change or choose Payroll, Insurance, or 401(k) tracking.' };
         const existing = await collection.findOne({ _id: new ObjectId(employeeId) });
         if (!existing) return { found: false };
         const employeeUpdate = Object.fromEntries(selectedFields.map(field => [field, submittedEmployee[field] == null ? '' : String(submittedEmployee[field]).trim()]));
@@ -766,14 +770,13 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         const changes = selectedFields
             .filter(field => String(existing[field] || '').trim() !== String(employeeUpdate[field] || '').trim())
             .map(field => ({ field, from: existing[field] || '', to: employeeUpdate[field] || '' }));
-        if (!changes.length) return { found: true, changed: false, error: 'The selected information has not changed.' };
-        const payroll = _employmentChange.payroll === true;
-        const insurance = _employmentChange.insurance === true;
-        const retirement = _employmentChange.retirement === true;
-        const result = await collection.updateOne(
-            { _id: new ObjectId(employeeId) },
-            { $set: employeeUpdate }
-        );
+        if (!changes.length && !trackingOnlyRequest) return { found: true, changed: false, error: 'The selected information has not changed.' };
+        const result = changes.length
+            ? await collection.updateOne(
+                { _id: new ObjectId(employeeId) },
+                { $set: employeeUpdate }
+            )
+            : { modifiedCount: 0 };
         const statusChange = changes.find(change => change.field === 'Position Status');
         if (statusChange && /^leave$/i.test(statusChange.to)) {
             await db.collection('employee_hr_leave').updateOne(

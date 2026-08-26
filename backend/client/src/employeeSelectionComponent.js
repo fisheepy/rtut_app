@@ -315,12 +315,17 @@ function EmployeeSelectionComponent() {
         const supervisor = editSupervisorMap.get(`${normalizeFilterValue(canonicalEmployee['Supervisor First Name'])}|${normalizeFilterValue(canonicalEmployee['Supervisor Last Name'])}`);
         if (supervisor) [canonicalEmployee['Supervisor First Name'], canonicalEmployee['Supervisor Last Name']] = supervisor;
         const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(canonicalEmployee?.[field] || '').trim());
-        if (!changedFields.length) return setEditError('No information has been changed. Formatting-only differences are treated as the existing database value.');
+        const trackingOnlyRequest = changeDetails.payroll || changeDetails.insurance || changeDetails.retirement;
+        if (!changedFields.length && !trackingOnlyRequest) return setEditError('Select at least one employee information change or choose Payroll, Insurance, or 401(k) tracking.');
         const statusOnlyRouting = changedFields.length === 1 && changedFields[0] === 'Position Status'
             && !changeDetails.payroll && !changeDetails.insurance && !changeDetails.retirement;
-        const review = changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} ??${selectedEmployee[field] || '(blank)'}`).join('\n');
+        const review = changedFields.length
+            ? changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} → ${selectedEmployee[field] || '(blank)'}`).join('\n')
+            : 'Company App employee information: No changes';
         const newValueWarning = newEditReferenceValues.length ? `\n\nNEW DATABASE INFORMATION:\n${newEditReferenceValues.map(entry => `${entry.label}: ${entry.value}`).join('\n')}\nConfirm that these values are intentionally new and correctly spelled.` : '';
-        const routingMessage = statusOnlyRouting
+        const routingMessage = !changedFields.length && trackingOnlyRequest
+            ? 'No Company App employee information will be changed. The selected Payroll, Insurance, or 401(k) work will be sent to Employment Change on HR Platform for the admin to complete.'
+            : statusOnlyRouting
             ? 'Company App information will be updated immediately. This status-only change will be sent to FMLA / ADA / Medical Leave and will not create an Employment Change record.'
             : 'Company App information will be updated immediately. This change record will automatically be sent to Employment Change on HR Platform.';
         if (!window.confirm(`Review the following employee changes:\n\n${review}${newValueWarning}\n\n${routingMessage}`)) return;
