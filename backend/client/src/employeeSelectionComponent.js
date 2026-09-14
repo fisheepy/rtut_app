@@ -100,6 +100,7 @@ function EmployeeSelectionComponent() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [deselectedEmployees, setDeselectedEmployees] = useState(new Set());
+    const [selectedNotActivatedEmployees, setSelectedNotActivatedEmployees] = useState(new Set());
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [originalEmployee, setOriginalEmployee] = useState(null);
@@ -138,7 +139,7 @@ function EmployeeSelectionComponent() {
 
     useEffect(() => {
         applyFilters();
-    }, [selectedFilters, employees, deselectedEmployees, startDate, endDate, employeeSearch]);
+    }, [selectedFilters, employees, deselectedEmployees, selectedNotActivatedEmployees, startDate, endDate, employeeSearch]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -228,6 +229,7 @@ function EmployeeSelectionComponent() {
         setEndDate('');
         setEmployeeSearch('');
         setDeselectedEmployees(new Set());
+        setSelectedNotActivatedEmployees(new Set());
         setShowMoreFilters(false);
     };
 
@@ -250,35 +252,56 @@ function EmployeeSelectionComponent() {
             return isInDateRange && matchesSearch && matchesOtherFilters;
         });
 
-        const finalFilteredEmployees = matchingEmployees.filter(employee =>
-            employee.isActivated === true && !deselectedEmployees.has(employee._id)
-        );
+        const finalFilteredEmployees = matchingEmployees.filter(employee => (
+            employee.isActivated === true
+                ? !deselectedEmployees.has(employee._id)
+                : selectedNotActivatedEmployees.has(employee._id)
+        ));
 
         setFilteredEmployees(matchingEmployees);
         setSelectedEmployees(finalFilteredEmployees);
     };
 
-    const handleCheckboxChange = (employeeId) => {
+    const handleCheckboxChange = (employee) => {
+        if (employee.isActivated !== true) {
+            setSelectedNotActivatedEmployees(current => {
+                const next = new Set(current);
+                if (next.has(employee._id)) next.delete(employee._id);
+                else next.add(employee._id);
+                return next;
+            });
+            return;
+        }
         setDeselectedEmployees(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(employeeId)) {
-                newSet.delete(employeeId);
+            if (newSet.has(employee._id)) {
+                newSet.delete(employee._id);
             } else {
-                newSet.add(employeeId);
+                newSet.add(employee._id);
             }
             return newSet;
         });
     };
 
     const handleSelectAllChange = () => {
-        const selectableEmployees = filteredEmployees.filter(employee => employee.isActivated === true);
-        const allVisibleSelected = selectableEmployees.length > 0
-            && selectableEmployees.every(employee => !deselectedEmployees.has(employee._id));
+        const isEmployeeSelected = employee => employee.isActivated === true
+            ? !deselectedEmployees.has(employee._id)
+            : selectedNotActivatedEmployees.has(employee._id);
+        const allVisibleSelected = filteredEmployees.length > 0
+            && filteredEmployees.every(isEmployeeSelected);
         setDeselectedEmployees(current => {
             const next = new Set(current);
-            selectableEmployees.forEach(employee => {
+            filteredEmployees.filter(employee => employee.isActivated === true).forEach(employee => {
                 if (allVisibleSelected) next.add(employee._id);
                 else next.delete(employee._id);
+            });
+            return next;
+        });
+        setSelectedNotActivatedEmployees(current => {
+            const next = new Set(current);
+            filteredEmployees.filter(employee => employee.isActivated !== true).forEach(employee => {
+                if (allVisibleSelected) next.delete(employee._id);
+                else next.add(employee._id);
             });
             return next;
         });
@@ -379,8 +402,11 @@ function EmployeeSelectionComponent() {
 
     const activeFilterCount = Object.values(selectedFilters)
         .reduce((total, values) => total + (Array.isArray(values) ? values.length : 0), 0);
-    const selectableVisibleEmployees = filteredEmployees.filter(employee => employee.isActivated === true);
-    const selectedVisibleCount = selectableVisibleEmployees.filter(employee => !deselectedEmployees.has(employee._id)).length;
+    const isEmployeeSelected = employee => employee.isActivated === true
+        ? !deselectedEmployees.has(employee._id)
+        : selectedNotActivatedEmployees.has(employee._id);
+    const selectedVisibleEmployees = filteredEmployees.filter(isEmployeeSelected);
+    const selectedVisibleCount = selectedVisibleEmployees.length;
 
     const renderFilter = ({ id, label }) => (
         <Autocomplete
@@ -522,8 +548,8 @@ function EmployeeSelectionComponent() {
                                     {column.id === 'select' ? (
                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                             <Checkbox
-                                                checked={selectableVisibleEmployees.length > 0 && selectableVisibleEmployees.every(employee => !deselectedEmployees.has(employee._id))}
-                                                indeterminate={selectableVisibleEmployees.some(employee => !deselectedEmployees.has(employee._id)) && selectableVisibleEmployees.some(employee => deselectedEmployees.has(employee._id))}
+                                                checked={filteredEmployees.length > 0 && selectedVisibleCount === filteredEmployees.length}
+                                                indeterminate={selectedVisibleCount > 0 && selectedVisibleCount < filteredEmployees.length}
                                                 onChange={handleSelectAllChange}
                                                 color="primary"
                                             />
@@ -539,15 +565,14 @@ function EmployeeSelectionComponent() {
                         {filteredEmployees.map((employee) => (
                             <TableRow
                                 key={employee._id}
-                                className={deselectedEmployees.has(employee._id) ? 'employee-row-deselected' : ''}
+                                className={!isEmployeeSelected(employee) ? 'employee-row-deselected' : ''}
                             >
                                 {columns.map((column) => (
                                     <TableCell key={column.id} className={column.sticky ? 'employee-name-cell' : ''}>
                                         {column.id === 'edit' ? <Button startIcon={<EditOutlinedIcon />} onClick={() => openEmployeeEditor(employee)} size="small" variant="outlined">Edit</Button> : column.id === 'select' ? (
                                             <Checkbox
-                                                checked={employee.isActivated === true && !deselectedEmployees.has(employee._id)}
-                                                disabled={employee.isActivated !== true}
-                                                onChange={() => handleCheckboxChange(employee._id)}
+                                                checked={isEmployeeSelected(employee)}
+                                                onChange={() => handleCheckboxChange(employee)}
                                                 color="primary"
                                             />
                                         ) : (
