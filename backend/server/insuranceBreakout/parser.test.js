@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const XLSX = require('xlsx');
-const { parsePayroll, moneyEqual } = require('./parser');
+const { parsePayroll, combinePayrolls, moneyEqual } = require('./parser');
 
 function payrollWorkbook(payCode, values = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'insurance-payroll-'));
@@ -65,4 +65,23 @@ test('ignores differences below one dollar but reports one dollar or more', () =
   assert.equal(moneyEqual(10, 11), false);
   assert.equal(moneyEqual(10, 9.01), true);
   assert.equal(moneyEqual(10, 9), false);
+});
+
+test('keeps employees with and without a last-name suffix distinct in one payroll file', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'insurance-payroll-suffix-'));
+  const filePath = path.join(directory, 'hourly.xlsx');
+  const rows = [
+    { 'Last Name': 'Russell', 'First Name': 'Ryan', 'Regular Pay Rate Code': 'H' },
+    { 'Last Name': 'Russell Jr.', 'First Name': 'Ryan', 'Regular Pay Rate Code': 'H' },
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), '1');
+  XLSX.writeFile(workbook, filePath);
+  try {
+    const hourly = parsePayroll(filePath, { payType: 'hourly', payrollCount: 2 });
+    assert.deepEqual(hourly.records.map((record) => record.key), ['russell|ryan', 'russell jr|ryan']);
+    assert.doesNotThrow(() => combinePayrolls({ records: [], keySet: new Set() }, hourly));
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });

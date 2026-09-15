@@ -18,8 +18,16 @@ function firstToken(value) {
   return cellText(value).toLowerCase().split(/\s+/, 1)[0] || '';
 }
 
+function normalizedLastName(value) {
+  return cellText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function nameKey(lastName, firstName) {
-  return `${firstToken(lastName)}|${firstToken(firstName)}`;
+  return `${normalizedLastName(lastName)}|${firstToken(firstName)}`;
 }
 
 function displayName(lastName, firstName) {
@@ -107,13 +115,14 @@ function parsePayroll(filePath, { payType, payrollCount = null } = {}) {
   return { records, keySet };
 }
 
-function combinePayrolls(...payrolls) {
-  const records = payrolls.flatMap((payroll) => payroll.records);
-  const keySet = new Set();
-  for (const employee of records) {
-    if (keySet.has(employee.key)) throw new Error(`${employee.name} appears in both Salary and Hourly payroll files.`);
-    keySet.add(employee.key);
+function combinePayrolls(salaryPayroll, hourlyPayroll) {
+  for (const employee of hourlyPayroll.records) {
+    if (salaryPayroll.keySet.has(employee.key)) {
+      throw new Error(`${employee.name} appears in both Salary and Hourly payroll files.`);
+    }
   }
+  const records = [...salaryPayroll.records, ...hourlyPayroll.records];
+  const keySet = new Set(records.map((employee) => employee.key));
   return { records, keySet };
 }
 
@@ -159,7 +168,7 @@ function parseParticipantName(value) {
 }
 
 function participantKey(lastName, firstName) {
-  return `${cellText(lastName).toLowerCase()}|${cellText(firstName).toLowerCase()}`;
+  return nameKey(lastName, firstName);
 }
 
 function classifyCoverage(value) {
@@ -320,6 +329,7 @@ module.exports = {
   BENEFITS,
   compareInsuranceFiles,
   parsePayroll,
+  combinePayrolls,
   parseMoney,
   roundMoney,
   moneyEqual,
