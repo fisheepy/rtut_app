@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeEmployee, completedAtLeastOneYear, explicitPriorServiceQualified } = require('./employeeData');
+const { normalizeEmployee, completedAtLeastOneYear, explicitPriorServiceQualified, isPartTimeCategory } = require('./employeeData');
 const { canonicalizeEmployeeRosterFields } = require('./employeeFieldFormat');
 
 test('maps Company App roster fields and supplies both training types', () => {
@@ -82,7 +82,24 @@ test('keeps an employee on Leave in the active Training Tools roster', () => {
   });
 
   assert.equal(employee.employmentStatus, 'Active');
+  assert.equal(employee.companyAppStatus, 'Leave');
   assert.equal(employee.terminationDay, null);
+});
+
+test('exposes Company App employment category and recognizes part-time formatting variants', () => {
+  const employee = normalizeEmployee({
+    _id: 'employee-part-time',
+    'First Name': 'Part',
+    'Last Name': 'Time',
+    'Position Status': 'Active',
+    'Worker Category': 'PART-TIME',
+  });
+
+  assert.equal(employee.companyAppStatus, 'Active');
+  assert.equal(employee.employmentCategory, 'PART-TIME');
+  assert.equal(employee.isPartTime, true);
+  assert.equal(isPartTimeCategory('Part / Time'), true);
+  assert.equal(isPartTimeCategory('Full Time'), false);
 });
 
 test('recognizes a rehire whose prior completed employment period lasted at least one year', () => {

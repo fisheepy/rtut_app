@@ -7,6 +7,10 @@ function text(value) {
   return value == null ? '' : String(value).trim();
 }
 
+function isPartTimeCategory(value) {
+  return text(value).toLowerCase().replace(/[^a-z0-9]/g, '') === 'parttime';
+}
+
 function dateValue(employee, names) {
   for (const name of names) {
     if (employee[name]) return employee[name];
@@ -48,7 +52,9 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries, month
   const lastName = text(employee['Last Name']);
   const terminationDay = dateValue(employee, ['Termination Date', 'Termination Day']);
   const accountStatus = text(employee['Account Active']).toLowerCase();
-  const positionStatus = text(employee['Position Status']).toLowerCase();
+  const rawPositionStatus = text(employee['Position Status']);
+  const positionStatus = rawPositionStatus.toLowerCase();
+  const employmentCategory = text(employee['Worker Category']);
   const isTerminated = Boolean(terminationDay)
     || ['inactive', 'terminated'].includes(accountStatus)
     || ['inactive', 'terminated'].includes(positionStatus);
@@ -91,6 +97,9 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries, month
     safetyPtoServiceBasis: priorServiceQualified
       ? 'Prior employment period satisfied the one-year requirement'
       : 'Current Hire Date must satisfy the one-year requirement',
+    companyAppStatus: rawPositionStatus || (['active', 'true'].includes(accountStatus) ? 'Active' : (isTerminated ? 'Terminated' : 'Active')),
+    employmentCategory,
+    isPartTime: isPartTimeCategory(employmentCategory),
     employmentStatus: isTerminated ? 'Terminated' : 'Active',
     training: normalizeTraining(trainingRecord, orientationLibraries, monthlyTopics),
   };
@@ -101,5 +110,6 @@ module.exports = {
   normalizeTraining,
   completedAtLeastOneYear,
   explicitPriorServiceQualified,
+  isPartTimeCategory,
   TRAINING_TYPES,
 };

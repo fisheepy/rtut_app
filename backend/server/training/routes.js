@@ -112,6 +112,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
         'Supervisor Last Name': 1,
         'Account Active': 1,
         'Position Status': 1,
+        'Worker Category': 1,
       }).toArray();
 
       const employeeIds = employees.map((employee) => String(employee._id));

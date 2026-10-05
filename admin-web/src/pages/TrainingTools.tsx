@@ -75,6 +75,9 @@ type TrainingEmployee = {
   previousHireDate: string | null
   previousTerminationDate: string | null
   safetyPtoServiceBasis: string
+  companyAppStatus: string
+  employmentCategory: string
+  isPartTime: boolean
   terminationDay: string | null
   reportingTo: string
   folderUrl: string
@@ -991,8 +994,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
     const yearEnd = `${year}-12-31`
     return employees.filter((employee) => {
       const hireDate = comparableDate(employee.firstDay)
-      const terminationDate = comparableDate(employee.terminationDay)
-      return hireDate && hireDate <= yearEnd && (!terminationDate || terminationDate > yearEnd)
+      return employee.companyAppStatus.trim().toLowerCase() === 'active' && hireDate && hireDate <= yearEnd
     }).map((employee) => {
       const reasons: string[] = []
       const hireDate = comparableDate(employee.firstDay)
@@ -1003,7 +1005,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const incompleteOrientationLibraries = Boolean(orientationAssignedDate && orientationAssignedDate >= yearStart && orientationAssignedDate <= yearEnd)
         ? employee.training.orientation.assignedLibraries.filter((library) => library.courses.some((course) => {
           const progress = employee.training.orientation.courseProgress[`${library.id}:${course.id}`]
-          return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
+          return !progress?.completedAt || progress.completedAt > yearEnd
         }))
         : []
       const incompleteMonthlyTopics = employee.training.monthly.assignments.filter((assignment) => !isTestMonthlyTopic(assignment.topic.name)
@@ -1012,7 +1014,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         && assignment.topic.targetDate <= yearEnd
         && assignment.topic.courses.some((course) => {
           const progress = assignment.courseProgress?.[course.id]
-          return !progress?.completedAt || progress.completedAt > yearEnd || !progress.folderUpdated
+          return !progress?.completedAt || progress.completedAt > yearEnd
         }))
       if (incompleteOrientationLibraries.length || incompleteMonthlyTopics.length) {
         const trainingDetails = [
@@ -1024,17 +1026,22 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const repeatedRecords = (employee.unsafeActs || []).filter((record) => record.repeated && record.writeUpDate >= yearStart && record.writeUpDate <= yearEnd)
       if (repeatedRecords.length) reasons.push(`${repeatedRecords.length}-day Safety PTO reduction and ${repeatedRecords.length} written warning${repeatedRecords.length === 1 ? '' : 's'}: repeated unsafe act write-up${repeatedRecords.length === 1 ? '' : 's'} (${repeatedRecords.map((record) => record.writeUpDate).join('; ')})`)
       const notEligible = reasons.some((reason) => reason.startsWith('Less than') || reason.startsWith('Assigned training'))
+      const eligibility = notEligible
+        ? 'Not Eligible'
+        : employee.isPartTime
+          ? 'Eligible — PTO Pro-Ration Required'
+          : 'Eligible'
       const eligibilityReason = reasons.join('; ') || (employee.priorServiceQualifiedForSafetyPto
         ? 'Rehire: prior completed employment period satisfied the one-year service requirement'
         : 'Meets the available Safety PTO eligibility criteria')
-      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, hireDate, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? `${repeatedRecords.length} Day${repeatedRecords.length === 1 ? '' : 's'} Reduction` : 'No Reduction', repeatedRecords.length ? `${repeatedRecords.length} Written Warning${repeatedRecords.length === 1 ? '' : 's'}` : 'No Written Warning', eligibilityReason, employee.isRehire ? 'Rehire' : 'New Hire', employee.previousHireDate || '', employee.previousTerminationDate || '', employee.safetyPtoServiceBasis]
+      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, hireDate, eligibility, repeatedRecords.length ? `${repeatedRecords.length} Day${repeatedRecords.length === 1 ? '' : 's'} Reduction` : 'No Reduction', repeatedRecords.length ? `${repeatedRecords.length} Written Warning${repeatedRecords.length === 1 ? '' : 's'}` : 'No Written Warning', eligibilityReason, employee.isRehire ? 'Rehire' : 'New Hire', employee.previousHireDate || '', employee.previousTerminationDate || '', employee.safetyPtoServiceBasis, employee.employmentCategory, employee.isPartTime ? 'Required' : 'Not Required']
     }).sort((left, right) => left[0].localeCompare(right[0]))
   }
 
   function downloadAnnualSafetyPtoReport() {
     const year = Number(annualSafetyYear)
     const rows = buildAnnualSafetyPtoRows(annualSafetyYear)
-    downloadCsv(`annual-safety-pto-eligibility-report-${year}.csv`, ['Employee Name', 'Department', 'Job Title', 'Location', 'Current Hire Date', 'Safety PTO Eligibility', 'Safety PTO Reduction', 'Written Warning', 'Reason(s)', 'Employment Type', 'Previous Hire Date', 'Previous Termination Date', 'Service Requirement Basis'], rows)
+    downloadCsv(`annual-safety-pto-eligibility-report-${year}.csv`, ['Employee Name', 'Department', 'Job Title', 'Location', 'Current Hire Date', 'Safety PTO Eligibility', 'Safety PTO Reduction', 'Written Warning', 'Reason(s)', 'Employment Type', 'Previous Hire Date', 'Previous Termination Date', 'Service Requirement Basis', 'Employment Category', 'PTO Pro-Ration'], rows)
     setShowAnnualSafetyReport(false)
   }
 
@@ -2147,8 +2154,8 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
         <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4"><section className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true">
           <div className="flex items-start justify-between"><div><h2 className="text-xl font-semibold text-slate-950">Annual Safety PTO Eligibility Report</h2><p className="mt-1 text-sm text-slate-500">Available only after the selected calendar year has ended.</p></div><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowAnnualSafetyReport(false)} type="button"><X className="h-5 w-5" /></button></div>
           <label className="mt-5 block text-sm font-semibold text-slate-700">Report Year<select className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal" onChange={(event) => setAnnualSafetyYear(event.target.value)} value={annualSafetyYear}>{Array.from({ length: 10 }, (_, index) => new Date().getFullYear() - 1 - index).map((year) => <option key={year}>{year}</option>)}</select></label>
-          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><div className="font-semibold">Example available: 2025</div><div className="mt-1">The report covers Jan 1–Dec 31 and lists every employee active at year end. Each repeated unsafe act recorded during the report year produces one written warning and one day of Safety PTO reduction.</div><div className="mt-2 text-xs text-blue-700">Previous-year records help determine whether a new write-up is repeated, but are not deducted again. The 2026 report will become available after Dec 31, 2026.</div></div>
-          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200"><div className="flex items-center justify-between bg-slate-50 px-4 py-3"><div className="font-semibold text-slate-900">{annualSafetyYear} Report Preview</div><div className="text-xs font-semibold text-slate-500">{annualSafetyPreviewRows.length} employees</div></div>{annualSafetyPreviewRows.length ? <div className="max-h-72 overflow-auto"><table className="w-full text-left text-xs"><thead className="sticky top-0 bg-white text-slate-500"><tr><th className="px-3 py-2">Employee</th><th className="px-3 py-2">Employment</th><th className="px-3 py-2">Current Hire</th><th className="px-3 py-2">Previous Employment</th><th className="px-3 py-2">Eligibility</th><th className="px-3 py-2">Reduction</th><th className="px-3 py-2">Reason / Basis</th></tr></thead><tbody>{annualSafetyPreviewRows.slice(0, 25).map((row, index) => <tr className="border-t border-slate-100" key={`${row[0]}-${index}`}><td className="px-3 py-2 font-semibold text-slate-900">{row[0]}</td><td className="px-3 py-2">{row[9]}</td><td className="whitespace-nowrap px-3 py-2">{displayDate(String(row[4] || ''))}</td><td className="whitespace-nowrap px-3 py-2">{row[9] === 'Rehire' ? `${displayDate(String(row[10] || ''))} – ${displayDate(String(row[11] || ''))}` : '—'}</td><td className="px-3 py-2">{row[5]}</td><td className="px-3 py-2">{row[6]}</td><td className="max-w-72 px-3 py-2 text-slate-600">{row[8]} · {row[12]}</td></tr>)}</tbody></table></div> : <div className="p-5 text-center text-sm text-amber-700">No employees qualify as active at the end of {annualSafetyYear}. Check the employee Hire Date and Termination Date records.</div>}</div>
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><div className="font-semibold">Example available: 2025</div><div className="mt-1">The report covers Jan 1–Dec 31 and includes only employees whose current Company App Status is Active. Each repeated unsafe act recorded during the report year produces one written warning and one day of Safety PTO reduction.</div><div className="mt-2 text-xs text-blue-700">Folder Updated is an administrative task and does not affect eligibility. Eligible part-time employees are marked for PTO pro-ration. Previous-year unsafe act records help determine whether a new write-up is repeated, but are not deducted again.</div></div>
+          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200"><div className="flex items-center justify-between bg-slate-50 px-4 py-3"><div className="font-semibold text-slate-900">{annualSafetyYear} Report Preview</div><div className="text-xs font-semibold text-slate-500">{annualSafetyPreviewRows.length} employees</div></div>{annualSafetyPreviewRows.length ? <div className="max-h-72 overflow-auto"><table className="w-full text-left text-xs"><thead className="sticky top-0 bg-white text-slate-500"><tr><th className="px-3 py-2">Employee</th><th className="px-3 py-2">Employment</th><th className="px-3 py-2">Current Hire</th><th className="px-3 py-2">Previous Employment</th><th className="px-3 py-2">Eligibility</th><th className="px-3 py-2">PTO Pro-Ration</th><th className="px-3 py-2">Reduction</th><th className="px-3 py-2">Reason / Basis</th></tr></thead><tbody>{annualSafetyPreviewRows.slice(0, 25).map((row, index) => <tr className="border-t border-slate-100" key={`${row[0]}-${index}`}><td className="px-3 py-2 font-semibold text-slate-900">{row[0]}</td><td className="px-3 py-2">{row[9]}</td><td className="whitespace-nowrap px-3 py-2">{displayDate(String(row[4] || ''))}</td><td className="whitespace-nowrap px-3 py-2">{row[9] === 'Rehire' ? `${displayDate(String(row[10] || ''))} – ${displayDate(String(row[11] || ''))}` : '—'}</td><td className="px-3 py-2">{row[5]}</td><td className="px-3 py-2">{row[14]}</td><td className="px-3 py-2">{row[6]}</td><td className="max-w-72 px-3 py-2 text-slate-600">{row[8]} · {row[12]}</td></tr>)}</tbody></table></div> : <div className="p-5 text-center text-sm text-amber-700">No currently active employees qualify for the selected report year. Check Company App Status and Hire Date records.</div>}</div>
           <div className="mt-6 flex justify-end gap-3"><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold" onClick={() => setShowAnnualSafetyReport(false)} type="button">Close</button><button className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50" disabled={!annualSafetyPreviewRows.length} onClick={downloadAnnualSafetyPtoReport} type="button"><Download className="h-4 w-4" />Download {annualSafetyYear} CSV</button></div>
         </section></div>
       ) : null}
