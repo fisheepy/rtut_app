@@ -202,7 +202,7 @@ function getColumnValue(employee: TrainingEmployee, key: ColumnKey) {
   if (key === 'monthlyOverview') return 'Manage'
   if (key === 'unsafeAct') return employee.unsafeActs?.length ? `${employee.unsafeActs.length} record${employee.unsafeActs.length === 1 ? '' : 's'}` : 'No records'
   if (key === 'folderLink') return employee.folderUrl ? 'Linked' : 'Not linked'
-  if (key === 'rehireHistory') return employee.isRehire ? 'Rehire' : 'New Hire'
+  if (key === 'rehireHistory') return employee.isRehire ? 'Rehire' : 'Not Applicable'
   const employeeKey = key as Exclude<StaticColumnKey, 'folderLink' | 'orientation' | 'monthlyOverview' | 'unsafeAct' | 'rehireHistory'>
   return String(employee[employeeKey] || '')
 }
@@ -1542,7 +1542,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
                     <td className="border-b px-4 py-3">{employee.reportingTo || '—'}</td>
                     <td className="border-b px-4 py-3 whitespace-nowrap">{displayDate(employee.firstDay)}</td>
                     <td className="min-w-[210px] border-b px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${employee.isRehire ? 'bg-violet-100 text-violet-800' : 'bg-slate-100 text-slate-700'}`}>{employee.isRehire ? 'Rehire' : 'New Hire'}</span>
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${employee.isRehire ? 'bg-violet-100 text-violet-800' : 'bg-slate-100 text-slate-600'}`}>{employee.isRehire ? 'Rehire' : 'Not Applicable'}</span>
                       {employee.isRehire ? <div className="mt-1.5 text-xs leading-5 text-slate-600"><div>Previous Hire: {displayDate(employee.previousHireDate)}</div><div>Previous Termination: {displayDate(employee.previousTerminationDate)}</div></div> : null}
                     </td>
                     <td className="min-w-[200px] border-b px-4 py-3">
