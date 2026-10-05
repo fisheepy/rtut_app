@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeEmployee, completedAtLeastOneYear } = require('./employeeData');
+const { normalizeEmployee, completedAtLeastOneYear, explicitPriorServiceQualified } = require('./employeeData');
 const { canonicalizeEmployeeRosterFields } = require('./employeeFieldFormat');
 
 test('maps Company App roster fields and supplies both training types', () => {
@@ -116,4 +116,23 @@ test('does not waive the one-year requirement when prior rehire service was shor
 
   assert.equal(employee.priorServiceQualifiedForSafetyPto, false);
   assert.equal(completedAtLeastOneYear({ 'Hire Date': '2024-02-29', 'Termination Date': '2025-02-28' }), true);
+});
+
+test('uses explicitly recorded previous rehire dates before archived onboarding history', () => {
+  const employee = normalizeEmployee({
+    _id: 'employee-explicit-rehire',
+    'First Name': 'Explicit',
+    'Last Name': 'Rehire',
+    'Hire Date': '2026-09-01',
+    'Is Rehire': true,
+    'Previous Hire Date': '2021-03-15',
+    'Previous Termination Date': '2024-04-01',
+  });
+
+  assert.equal(explicitPriorServiceQualified({
+    'Is Rehire': true,
+    'Previous Hire Date': '2021-03-15',
+    'Previous Termination Date': '2024-04-01',
+  }), true);
+  assert.equal(employee.priorServiceQualifiedForSafetyPto, true);
 });

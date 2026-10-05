@@ -1,6 +1,7 @@
 const TRAINING_TYPES = ['orientation', 'monthly'];
 const { normalizeOrientation } = require('./orientationCatalog');
 const { normalizeMonthly } = require('./monthlyCatalog');
+const { completedOneYear } = require('../employmentHistory');
 
 function text(value) {
   return value == null ? '' : String(value).trim();
@@ -38,6 +39,10 @@ function completedAtLeastOneYear(employeeSnapshot) {
   return terminationDate >= anniversary.toISOString().slice(0, 10);
 }
 
+function explicitPriorServiceQualified(employee) {
+  return employee?.['Is Rehire'] === true && completedOneYear(employee['Previous Hire Date'], employee['Previous Termination Date']);
+}
+
 function normalizeEmployee(employee, trainingRecord, orientationLibraries, monthlyTopics, employmentHistory = []) {
   const firstName = text(employee['First Name']);
   const lastName = text(employee['Last Name']);
@@ -65,7 +70,8 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries, month
     folderUrl: text(trainingRecord?.folderUrl),
     unsafeActs: Array.isArray(trainingRecord?.unsafeActs) ? trainingRecord.unsafeActs : [],
     orientationAssignedAt: trainingRecord?.orientationAssignedAt || null,
-    priorServiceQualifiedForSafetyPto: employmentHistory.some((record) => completedAtLeastOneYear(record?.employeeSnapshot)),
+    priorServiceQualifiedForSafetyPto: explicitPriorServiceQualified(employee)
+      || employmentHistory.some((record) => completedAtLeastOneYear(record?.employeeSnapshot)),
     employmentStatus: isTerminated ? 'Terminated' : 'Active',
     training: normalizeTraining(trainingRecord, orientationLibraries, monthlyTopics),
   };
@@ -75,5 +81,6 @@ module.exports = {
   normalizeEmployee,
   normalizeTraining,
   completedAtLeastOneYear,
+  explicitPriorServiceQualified,
   TRAINING_TYPES,
 };

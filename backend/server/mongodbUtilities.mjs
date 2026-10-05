@@ -733,6 +733,8 @@ export async function addNewEmployee(newEmployee) {
         }
 
         if (newEmployee.duplicateDecision === 'reactivate') {
+          const previousHireDate = newEmployee.previousHireDate || cleanValue(duplicateCheck['Hire Date']);
+          const previousTerminationDate = newEmployee.previousTerminationDate || cleanValue(duplicateCheck['Termination Date']);
           const hrPlatformCollection = db.collection('employee_hr_platform');
           const oldHrPlatformRecord = await hrPlatformCollection.findOne({ employeeId: String(duplicateCheck._id) });
           if (oldHrPlatformRecord) {
@@ -769,6 +771,9 @@ export async function addNewEmployee(newEmployee) {
               "Account Active": "Active",
               "Reactivation Date": new Date(),
               "HR Platform New Hire At": new Date(),
+              "Is Rehire": true,
+              "Previous Hire Date": previousHireDate,
+              "Previous Termination Date": previousTerminationDate,
             },
           },
         );
@@ -821,6 +826,9 @@ export async function addNewEmployee(newEmployee) {
       "isActivated": 'false',
       "Account Active": "Active",
       "HR Platform New Hire At": new Date(),
+      "Is Rehire": newEmployee.isRehire === true,
+      "Previous Hire Date": newEmployee.isRehire ? newEmployee.previousHireDate : '',
+      "Previous Termination Date": newEmployee.isRehire ? newEmployee.previousTerminationDate : '',
       username,
       password
     };

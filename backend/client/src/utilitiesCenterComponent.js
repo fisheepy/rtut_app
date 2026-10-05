@@ -11,6 +11,7 @@ import {
     List,
     ListItem,
     ListItemText,
+    MenuItem,
     TextField,
     Typography,
 } from '@mui/material';
@@ -24,6 +25,7 @@ const emptyEmployee = () => ({
     hireDate: new Date().toISOString().split('T')[0],
     homeDepartment: '', jobTitle: '', location: '', supervisorFirstName: '', supervisorLastName: '',
     eeoc: '', workCategory: '', payCategory: '',
+    isRehire: '', previousHireDate: '', previousTerminationDate: '',
 });
 
 const referenceFields = [
@@ -114,11 +116,22 @@ const UtilitiesCenterComponent = () => {
         return entries;
     }, [newEmployee, referenceMaps, supervisorMap]);
     const missingFields = requiredFields.filter(([field]) => !cleanFilterLabel(newEmployee[field]));
+    const missingRehireFields = !newEmployee.isRehire
+        || (newEmployee.isRehire === 'yes' && (!newEmployee.previousHireDate || !newEmployee.previousTerminationDate));
+    const invalidRehireDates = newEmployee.isRehire === 'yes' && Boolean(
+        (newEmployee.previousHireDate && newEmployee.previousTerminationDate && newEmployee.previousTerminationDate < newEmployee.previousHireDate)
+        || (newEmployee.previousTerminationDate && newEmployee.hireDate && newEmployee.previousTerminationDate > newEmployee.hireDate)
+    );
     const newFieldNames = new Set(newReferenceValues.map(entry => entry.field));
 
     const handleAddEmployeeChange = (field, value) => {
-        const nextValue = field === 'hireDate' && value ? value.toISOString().split('T')[0] : value;
-        setNewEmployee(previous => ({ ...previous, [field]: nextValue }));
+        const dateFields = ['hireDate', 'previousHireDate', 'previousTerminationDate'];
+        const nextValue = dateFields.includes(field) && value ? value.toISOString().split('T')[0] : value;
+        setNewEmployee(previous => ({
+            ...previous,
+            [field]: nextValue,
+            ...(field === 'isRehire' && value === 'no' ? { previousHireDate: '', previousTerminationDate: '' } : {}),
+        }));
     };
 
     const fieldProps = (field, label, type = 'text') => ({
@@ -149,7 +162,7 @@ const UtilitiesCenterComponent = () => {
 
     const requestAddEmployee = () => {
         setAttemptedSubmit(true);
-        if (missingFields.length || referenceError) return;
+        if (missingFields.length || missingRehireFields || invalidRehireDates || referenceError) return;
         if (newReferenceValues.length) setOpenNewValueConfirmation(true);
         else handleAddEmployeeSubmit(false);
     };
@@ -211,6 +224,19 @@ const UtilitiesCenterComponent = () => {
                     <Typography variant="subtitle1" sx={{ mt: 2 }}>Hire Date *</Typography>
                     <DatePicker selected={newEmployee.hireDate ? new Date(`${newEmployee.hireDate}T00:00:00`) : null} onChange={date => handleAddEmployeeChange('hireDate', date)} dateFormat="yyyy-MM-dd" wrapperClassName="datePicker" />
                     {attemptedSubmit && !newEmployee.hireDate ? <Typography color="error" variant="caption">Hire Date is required.</Typography> : null}
+                    <TextField select margin="dense" fullWidth required label="Is this employee a rehire?" value={newEmployee.isRehire} onChange={event => handleAddEmployeeChange('isRehire', event.target.value)} error={attemptedSubmit && !newEmployee.isRehire} helperText={attemptedSubmit && !newEmployee.isRehire ? 'Select Yes or No.' : 'Rehire dates are retained for Annual Safety PTO eligibility.'}>
+                        <MenuItem value="no">No</MenuItem>
+                        <MenuItem value="yes">Yes</MenuItem>
+                    </TextField>
+                    {newEmployee.isRehire === 'yes' ? <>
+                        <Typography variant="subtitle1" sx={{ mt: 2 }}>Previous Hire Date *</Typography>
+                        <DatePicker selected={newEmployee.previousHireDate ? new Date(`${newEmployee.previousHireDate}T00:00:00`) : null} onChange={date => handleAddEmployeeChange('previousHireDate', date)} dateFormat="yyyy-MM-dd" wrapperClassName="datePicker" />
+                        {attemptedSubmit && !newEmployee.previousHireDate ? <Typography color="error" variant="caption" display="block">Previous Hire Date is required.</Typography> : null}
+                        <Typography variant="subtitle1" sx={{ mt: 2 }}>Previous Termination Date *</Typography>
+                        <DatePicker selected={newEmployee.previousTerminationDate ? new Date(`${newEmployee.previousTerminationDate}T00:00:00`) : null} onChange={date => handleAddEmployeeChange('previousTerminationDate', date)} dateFormat="yyyy-MM-dd" wrapperClassName="datePicker" />
+                        {attemptedSubmit && !newEmployee.previousTerminationDate ? <Typography color="error" variant="caption" display="block">Previous Termination Date is required.</Typography> : null}
+                        {invalidRehireDates ? <Alert severity="error" sx={{ mt: 1 }}>Previous employment dates must be in order and the Previous Termination Date cannot be after the current Hire Date.</Alert> : null}
+                    </> : null}
                     <TextField {...fieldProps('homeDepartment', 'Home Department')} />
                     <TextField {...fieldProps('jobTitle', 'Job Title')} />
                     <TextField {...fieldProps('location', 'Location')} />

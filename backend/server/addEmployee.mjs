@@ -1,5 +1,8 @@
- import fs from 'fs';
+import fs from 'fs';
 import { addNewEmployee } from './mongodbUtilities.mjs';
+import employmentHistory from './employmentHistory.js';
+
+const { validatePreviousEmployment } = employmentHistory;
 
 // Function to format the phone number
 const formatPhoneNumber = (phoneNumber) => {
@@ -37,6 +40,8 @@ const addEmployee = async (tempFilePath) => {
         if (!validateEmail(newEmployee.email)) {
             throw new Error('Error during operation: Invalid email format');
         }
+
+        Object.assign(newEmployee, validatePreviousEmployment(newEmployee));
 
         console.log('Formatted new employee data:', newEmployee);
 
