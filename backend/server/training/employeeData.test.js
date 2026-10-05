@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { normalizeEmployee } = require('./employeeData');
+const { normalizeEmployee, completedAtLeastOneYear } = require('./employeeData');
 const { canonicalizeEmployeeRosterFields } = require('./employeeFieldFormat');
 
 test('maps Company App roster fields and supplies both training types', () => {
@@ -83,4 +83,37 @@ test('keeps an employee on Leave in the active Training Tools roster', () => {
 
   assert.equal(employee.employmentStatus, 'Active');
   assert.equal(employee.terminationDay, null);
+});
+
+test('recognizes a rehire whose prior completed employment period lasted at least one year', () => {
+  const employee = normalizeEmployee({
+    _id: 'employee-rehire-qualified',
+    'First Name': 'Rehire',
+    'Last Name': 'Qualified',
+    'Hire Date': '2026-09-01',
+  }, null, [], [], [{
+    employeeSnapshot: {
+      'Hire Date': '2022-04-10',
+      'Termination Date': '2024-06-15',
+    },
+  }]);
+
+  assert.equal(employee.priorServiceQualifiedForSafetyPto, true);
+});
+
+test('does not waive the one-year requirement when prior rehire service was shorter than one year', () => {
+  const employee = normalizeEmployee({
+    _id: 'employee-rehire-not-qualified',
+    'First Name': 'Rehire',
+    'Last Name': 'New',
+    'Hire Date': '2026-09-01',
+  }, null, [], [], [{
+    employeeSnapshot: {
+      'Hire Date': '2025-01-10',
+      'Termination Date': '2025-08-15',
+    },
+  }]);
+
+  assert.equal(employee.priorServiceQualifiedForSafetyPto, false);
+  assert.equal(completedAtLeastOneYear({ 'Hire Date': '2024-02-29', 'Termination Date': '2025-02-28' }), true);
 });

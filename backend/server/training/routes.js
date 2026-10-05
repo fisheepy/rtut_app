@@ -136,6 +136,16 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
       const trainingByEmployeeId = new Map(
         trainingRecords.map((record) => [String(record.employeeId), record]),
       );
+      const historyRecords = employeeIds.length
+        ? await db.collection('employee_hr_platform_history').find({
+          employeeId: { $in: employeeIds },
+        }).project({ employeeId: 1, employeeSnapshot: 1 }).toArray()
+        : [];
+      const historyByEmployeeId = new Map();
+      historyRecords.forEach((record) => {
+        const employeeId = String(record.employeeId);
+        historyByEmployeeId.set(employeeId, [...(historyByEmployeeId.get(employeeId) || []), record]);
+      });
 
       const data = canonicalizeEmployeeRosterFields(employees
         .map((employee) => normalizeEmployee(
@@ -143,6 +153,7 @@ function createTrainingRouter({ uri, databaseName, requireTrainingSession }) {
           trainingByEmployeeId.get(String(employee._id)),
           orientationLibraries,
           monthlyTopics,
+          historyByEmployeeId.get(String(employee._id)) || [],
         )))
         .sort((left, right) => {
           if (left.employmentStatus !== right.employmentStatus) {

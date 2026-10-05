@@ -76,6 +76,7 @@ type TrainingEmployee = {
   folderUrl: string
   unsafeActs: UnsafeActRecord[]
   orientationAssignedAt: string | null
+  priorServiceQualifiedForSafetyPto: boolean
   employmentStatus: 'Active' | 'Terminated'
   training: {
     orientation: OrientationTraining
@@ -989,7 +990,7 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const hireDate = comparableDate(employee.firstDay)
       const firstAnniversary = new Date(`${hireDate}T00:00:00Z`)
       firstAnniversary.setUTCFullYear(firstAnniversary.getUTCFullYear() + 1)
-      if (firstAnniversary.toISOString().slice(0, 10) > yearEnd) reasons.push('Less than one year of employment at year end')
+      if (!employee.priorServiceQualifiedForSafetyPto && firstAnniversary.toISOString().slice(0, 10) > yearEnd) reasons.push('Less than one year of employment at year end')
       const orientationAssignedDate = comparableDate(employee.orientationAssignedAt)
       const incompleteOrientationLibraries = Boolean(orientationAssignedDate && orientationAssignedDate >= yearStart && orientationAssignedDate <= yearEnd)
         ? employee.training.orientation.assignedLibraries.filter((library) => library.courses.some((course) => {
@@ -1015,7 +1016,10 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
       const repeatedRecords = (employee.unsafeActs || []).filter((record) => record.repeated && record.writeUpDate >= yearStart && record.writeUpDate <= yearEnd)
       if (repeatedRecords.length) reasons.push(`${repeatedRecords.length}-day Safety PTO reduction and ${repeatedRecords.length} written warning${repeatedRecords.length === 1 ? '' : 's'}: repeated unsafe act write-up${repeatedRecords.length === 1 ? '' : 's'} (${repeatedRecords.map((record) => record.writeUpDate).join('; ')})`)
       const notEligible = reasons.some((reason) => reason.startsWith('Less than') || reason.startsWith('Assigned training'))
-      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, hireDate, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? `${repeatedRecords.length} Day${repeatedRecords.length === 1 ? '' : 's'} Reduction` : 'No Reduction', repeatedRecords.length ? `${repeatedRecords.length} Written Warning${repeatedRecords.length === 1 ? '' : 's'}` : 'No Written Warning', reasons.join('; ') || 'Meets the available Safety PTO eligibility criteria']
+      const eligibilityReason = reasons.join('; ') || (employee.priorServiceQualifiedForSafetyPto
+        ? 'Rehire: prior completed employment period satisfied the one-year service requirement'
+        : 'Meets the available Safety PTO eligibility criteria')
+      return [employee.employeeName, employee.department, employee.jobTitle, employee.location, hireDate, notEligible ? 'Not Eligible' : 'Eligible', repeatedRecords.length ? `${repeatedRecords.length} Day${repeatedRecords.length === 1 ? '' : 's'} Reduction` : 'No Reduction', repeatedRecords.length ? `${repeatedRecords.length} Written Warning${repeatedRecords.length === 1 ? '' : 's'}` : 'No Written Warning', eligibilityReason]
     }).sort((left, right) => left[0].localeCompare(right[0]))
   }
 
