@@ -99,6 +99,10 @@ test('recognizes a rehire whose prior completed employment period lasted at leas
   }]);
 
   assert.equal(employee.priorServiceQualifiedForSafetyPto, true);
+  assert.equal(employee.isRehire, true);
+  assert.equal(employee.previousHireDate, '2022-04-10');
+  assert.equal(employee.previousTerminationDate, '2024-06-15');
+  assert.equal(employee.safetyPtoServiceBasis, 'Prior employment period satisfied the one-year requirement');
 });
 
 test('does not waive the one-year requirement when prior rehire service was shorter than one year', () => {
@@ -115,6 +119,8 @@ test('does not waive the one-year requirement when prior rehire service was shor
   }]);
 
   assert.equal(employee.priorServiceQualifiedForSafetyPto, false);
+  assert.equal(employee.isRehire, true);
+  assert.equal(employee.safetyPtoServiceBasis, 'Current Hire Date must satisfy the one-year requirement');
   assert.equal(completedAtLeastOneYear({ 'Hire Date': '2024-02-29', 'Termination Date': '2025-02-28' }), true);
 });
 
@@ -135,4 +141,6 @@ test('uses explicitly recorded previous rehire dates before archived onboarding 
     'Previous Termination Date': '2024-04-01',
   }), true);
   assert.equal(employee.priorServiceQualifiedForSafetyPto, true);
+  assert.equal(employee.previousHireDate, '2021-03-15');
+  assert.equal(employee.previousTerminationDate, '2024-04-01');
 });

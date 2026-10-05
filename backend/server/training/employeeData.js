@@ -52,6 +52,20 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries, month
   const isTerminated = Boolean(terminationDay)
     || ['inactive', 'terminated'].includes(accountStatus)
     || ['inactive', 'terminated'].includes(positionStatus);
+  const explicitRehire = employee?.['Is Rehire'] === true;
+  const archivedCycles = employmentHistory
+    .filter((record) => record?.employeeSnapshot)
+    .sort((left, right) => new Date(right.archivedAt || 0) - new Date(left.archivedAt || 0));
+  const displayedPreviousCycle = archivedCycles[0]?.employeeSnapshot || {};
+  const qualifyingArchivedCycle = archivedCycles.find((record) => completedAtLeastOneYear(record.employeeSnapshot))?.employeeSnapshot;
+  const explicitPriorQualified = explicitPriorServiceQualified(employee);
+  const priorServiceQualified = explicitPriorQualified || Boolean(qualifyingArchivedCycle);
+  const previousHireDate = explicitRehire
+    ? dateValue(employee, ['Previous Hire Date'])
+    : dateValue(displayedPreviousCycle, ['Hire Date', 'First Day']);
+  const previousTerminationDate = explicitRehire
+    ? dateValue(employee, ['Previous Termination Date'])
+    : dateValue(displayedPreviousCycle, ['Termination Date', 'Termination Day']);
 
   return {
     id: String(employee._id),
@@ -70,8 +84,13 @@ function normalizeEmployee(employee, trainingRecord, orientationLibraries, month
     folderUrl: text(trainingRecord?.folderUrl),
     unsafeActs: Array.isArray(trainingRecord?.unsafeActs) ? trainingRecord.unsafeActs : [],
     orientationAssignedAt: trainingRecord?.orientationAssignedAt || null,
-    priorServiceQualifiedForSafetyPto: explicitPriorServiceQualified(employee)
-      || employmentHistory.some((record) => completedAtLeastOneYear(record?.employeeSnapshot)),
+    isRehire: explicitRehire || archivedCycles.length > 0,
+    previousHireDate: previousHireDate || null,
+    previousTerminationDate: previousTerminationDate || null,
+    priorServiceQualifiedForSafetyPto: priorServiceQualified,
+    safetyPtoServiceBasis: priorServiceQualified
+      ? 'Prior employment period satisfied the one-year requirement'
+      : 'Current Hire Date must satisfy the one-year requirement',
     employmentStatus: isTerminated ? 'Terminated' : 'Active',
     training: normalizeTraining(trainingRecord, orientationLibraries, monthlyTopics),
   };
