@@ -227,9 +227,21 @@ export default function EmploymentChange() {
             .includes(query.trim().toLowerCase())
         )
           return false;
-        const effectiveDate = comparableDate(record.effectiveDate);
-        if (dateFrom && (!effectiveDate || effectiveDate < dateFrom)) return false;
-        if (dateTo && (!effectiveDate || effectiveDate > dateTo)) return false;
+        const displayedDateTime = new Date(
+          `${record.effectiveDate.slice(0, 10)}T00:00:00`,
+        ).getTime();
+        const normalizedEffectiveDate = comparableDate(record.effectiveDate);
+        const effectiveDateTime = Number.isNaN(displayedDateTime)
+          ? new Date(`${normalizedEffectiveDate}T00:00:00`).getTime()
+          : displayedDateTime;
+        const dateFromTime = dateFrom
+          ? new Date(`${dateFrom}T00:00:00`).getTime()
+          : null;
+        const dateToTime = dateTo
+          ? new Date(`${dateTo}T23:59:59`).getTime()
+          : null;
+        if (dateFromTime !== null && (Number.isNaN(effectiveDateTime) || effectiveDateTime < dateFromTime)) return false;
+        if (dateToTime !== null && (Number.isNaN(effectiveDateTime) || effectiveDateTime > dateToTime)) return false;
         const allComplete =
           finalDone(record.tasks?.file) &&
           (!record.tasks?.payroll?.applicable ||
