@@ -155,6 +155,10 @@ export default function EmploymentChange() {
     comments: "",
   });
   const [trackerError, setTrackerError] = useState("");
+  const [showFileReportFilters, setShowFileReportFilters] = useState(false);
+  const [fileReportName, setFileReportName] = useState("");
+  const [fileReportDateFrom, setFileReportDateFrom] = useState("");
+  const [fileReportDateTo, setFileReportDateTo] = useState("");
   const [pendingAction, setPendingAction] = useState<{
     record: RecordItem;
     action: string;
@@ -529,8 +533,12 @@ export default function EmploymentChange() {
   }
   async function downloadFileCheckReport() {
     try {
+      const params = new URLSearchParams();
+      if (fileReportName.trim()) params.set("employeeName", fileReportName.trim());
+      if (fileReportDateFrom) params.set("effectiveDateFrom", fileReportDateFrom);
+      if (fileReportDateTo) params.set("effectiveDateTo", fileReportDateTo);
       const response = await api.get(
-        "/hr-platform/employment-changes/reports/file-check.xlsx",
+        `/hr-platform/employment-changes/reports/file-check.xlsx${params.toString() ? `?${params.toString()}` : ""}`,
         { responseType: "blob" },
       );
       const url = URL.createObjectURL(response.data);
@@ -539,6 +547,7 @@ export default function EmploymentChange() {
       link.download = "Employment_Change_File_Check_Status.xlsx";
       link.click();
       URL.revokeObjectURL(url);
+      setShowFileReportFilters(false);
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.error ||
@@ -546,6 +555,7 @@ export default function EmploymentChange() {
       );
     }
   }
+  const fileReportRangeValid = !fileReportDateFrom || !fileReportDateTo || fileReportDateFrom <= fileReportDateTo;
   const pill = (complete: boolean, completeLabel = "Complete") => (
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-bold ${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
@@ -586,7 +596,7 @@ export default function EmploymentChange() {
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
-              onClick={downloadFileCheckReport}
+              onClick={() => setShowFileReportFilters(true)}
             >
               <Download className="h-4 w-4" />
               File Tracker Status Report
@@ -1187,6 +1197,28 @@ export default function EmploymentChange() {
                 {saving ? "Saving..." : "Confirm & Save Details"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showFileReportFilters && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-blue-100 bg-blue-50 px-6 py-5">
+              <div><h2 className="text-xl font-bold text-blue-950">File Tracker Status Report</h2><p className="mt-1 text-sm text-blue-800">Filter by employee name, Change Effective Date range, or both.</p></div>
+              <button aria-label="Close report filters" className="rounded-lg p-2 text-slate-500 hover:bg-white" onClick={() => setShowFileReportFilters(false)} type="button"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label><span className="text-xs font-bold uppercase tracking-wide text-blue-900">Employee Name</span><input className="mt-1.5 w-full rounded-lg border border-blue-200 px-3 py-2.5 text-sm" onChange={(event) => setFileReportName(event.target.value)} placeholder="Search employee name" value={fileReportName} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-blue-900">Effective Date From</span><input className="mt-1.5 w-full rounded-lg border border-blue-200 px-3 py-2.5 text-sm" onChange={(event) => setFileReportDateFrom(event.target.value)} type="date" value={fileReportDateFrom} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-blue-900">Effective Date To</span><input className="mt-1.5 w-full rounded-lg border border-blue-200 px-3 py-2.5 text-sm" onChange={(event) => setFileReportDateTo(event.target.value)} type="date" value={fileReportDateTo} /></label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-blue-50 p-4">
+                <p className={`text-sm font-semibold ${fileReportRangeValid ? "text-blue-900" : "text-red-700"}`}>{fileReportRangeValid ? "Leave all filters blank to include every Employment Change record." : "Effective Date From cannot be later than Effective Date To."}</p>
+                <button className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-800 hover:bg-blue-100" onClick={() => { setFileReportName(""); setFileReportDateFrom(""); setFileReportDateTo(""); }} type="button">Reset Report Filters</button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"><button className="rounded-lg px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200" onClick={() => setShowFileReportFilters(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:bg-slate-400" disabled={!fileReportRangeValid} onClick={downloadFileCheckReport} type="button"><Download className="h-4 w-4" />Download Excel</button></div>
           </div>
         </div>
       )}

@@ -1651,10 +1651,32 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to delete Employment Change tracker field:', error); return res.status(500).json({ error: 'The checklist item could not be deleted.' }); }
     finally { await client.close(); }
   });
-  router.get('/employment-changes/reports/file-check.xlsx', async (_req, res) => {
+  function employmentChangeReportFilter(req) {
+    const employeeName = clean(req.query.employeeName).toLowerCase();
+    const effectiveDateFrom = clean(req.query.effectiveDateFrom);
+    const effectiveDateTo = clean(req.query.effectiveDateTo);
+    const error = (effectiveDateFrom && !validDate(effectiveDateFrom))
+      || (effectiveDateTo && !validDate(effectiveDateTo))
+      || (effectiveDateFrom && effectiveDateTo && effectiveDateFrom > effectiveDateTo)
+      ? 'Select a valid Change Effective Date From and To.'
+      : '';
+    const matches = record => {
+      const name = clean(record.employeeName).toLowerCase();
+      const effectiveDate = clean(record.effectiveDate).slice(0, 10);
+      if (employeeName && !name.includes(employeeName)) return false;
+      if (effectiveDateFrom && effectiveDate < effectiveDateFrom) return false;
+      if (effectiveDateTo && effectiveDate > effectiveDateTo) return false;
+      return true;
+    };
+    return { error, matches };
+  }
+
+  router.get('/employment-changes/reports/file-check.xlsx', async (req, res) => {
+    const reportFilter = employmentChangeReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
-      await client.connect(); const db = client.db(databaseName); const records = await db.collection('employee_hr_employment_change').find({}).sort({ createdAt: 1 }).toArray();
+      await client.connect(); const db = client.db(databaseName); const records = (await db.collection('employee_hr_employment_change').find({}).sort({ createdAt: 1 }).toArray()).filter(reportFilter.matches);
       const currentCatalog = await getEmploymentTrackerCatalog(db, true); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Employment Change File Check');
       sheet.columns = [
         { header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Change Effective Date', key: 'effectiveDate', width: 22 },
