@@ -1004,7 +1004,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const rows = (await terminationReportRows(client.db(databaseName))).filter(({ record }) => clean(record.cobraStartDate));
+      const db = client.db(databaseName);
+      const rows = (await terminationReportRows(db)).filter(({ record }) => clean(record.cobraStartDate));
+      const manualRows = await db.collection('hr_manual_cobra').find({ cobraStartDate: { $exists: true, $nin: ['', null] } }).toArray();
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('COBRA Enrollments');
       sheet.columns = [
@@ -1020,12 +1022,97 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         status: record.cobraClosedAt ? 'Closed' : record.cobraEndDate ? 'Ready to Close' : 'Active', updatedBy: clean(record.cobraUpdatedBy),
         closedAt: record.cobraClosedAt || '', closedBy: clean(record.cobraClosedBy),
       }));
+      manualRows.sort((a, b) => clean(a.cobraStartDate).localeCompare(clean(b.cobraStartDate))).forEach(record => sheet.addRow({
+        name: clean(record.name), email: clean(record.email), terminationDate: clean(record.terminationDate), startDate: clean(record.cobraStartDate), endDate: clean(record.cobraEndDate),
+        status: record.cobraClosedAt ? 'Closed' : record.cobraEndDate ? 'Ready to Close' : 'Active', updatedBy: clean(record.cobraUpdatedBy),
+        closedAt: record.cobraClosedAt || '', closedBy: clean(record.cobraClosedBy),
+      }));
       sheet.getRow(1).font = { bold: true };
       return await sendWorkbook(res, workbook, `COBRA_Enrollment_Report_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (error) {
       console.error('Unable to create COBRA enrollment report:', error);
       return res.status(500).json({ error: 'The COBRA enrollment report could not be created.' });
     } finally { await client.close(); }
+  });
+
+  const manualCobraValues = body => {
+    const values = {
+      name: clean(body?.name), email: clean(body?.email), terminationDate: clean(body?.terminationDate),
+      cobraStartDate: clean(body?.cobraStartDate), cobraEndDate: clean(body?.cobraEndDate),
+    };
+    let error = '';
+    if (!values.name) error = 'Employee Name is required.';
+    else if (!values.terminationDate || !validDate(values.terminationDate)) error = 'Eligibility / Termination Date is required.';
+    else if (!values.cobraStartDate || !validDate(values.cobraStartDate)) error = 'COBRA Start Date is required.';
+    else if (!validDate(values.cobraEndDate)) error = 'COBRA End Date must use YYYY-MM-DD format.';
+    else if (values.cobraEndDate && values.cobraEndDate < values.cobraStartDate) error = 'COBRA End Date cannot be before the Start Date.';
+    return { values, error };
+  };
+
+  router.get('/terminations/cobra/manual', async (_req, res) => {
+    const client = createClient();
+    try {
+      await client.connect();
+      const records = await client.db(databaseName).collection('hr_manual_cobra').find({}).toArray();
+      return res.json(records.map(record => ({
+        id: String(record._id), name: clean(record.name), email: clean(record.email), terminationDate: clean(record.terminationDate),
+        cobraStartDate: clean(record.cobraStartDate), cobraEndDate: clean(record.cobraEndDate), cobraUpdatedAt: record.cobraUpdatedAt || null,
+        cobraUpdatedBy: clean(record.cobraUpdatedBy), cobraClosedAt: record.cobraClosedAt || null, cobraClosedBy: clean(record.cobraClosedBy),
+        manualCobra: true,
+      })));
+    } catch (error) {
+      console.error('Unable to load manual COBRA participants:', error);
+      return res.status(500).json({ error: 'Manual COBRA participants could not be loaded.' });
+    } finally { await client.close(); }
+  });
+
+  router.post('/terminations/cobra/manual', async (req, res) => {
+    const parsed = manualCobraValues(req.body);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    const client = createClient();
+    try {
+      await client.connect();
+      const reviewer = clean(req.adminSession?.email).toLowerCase();
+      const record = { ...parsed.values, manualCobra: true, cobraUpdatedAt: new Date(), cobraUpdatedBy: reviewer, createdAt: new Date(), createdBy: reviewer, updatedAt: new Date(), updatedBy: reviewer };
+      const result = await client.db(databaseName).collection('hr_manual_cobra').insertOne(record);
+      return res.status(201).json({ id: String(result.insertedId), ...record });
+    } catch (error) {
+      console.error('Unable to add manual COBRA participant:', error);
+      return res.status(500).json({ error: 'Manual COBRA participant could not be added.' });
+    } finally { await client.close(); }
+  });
+
+  router.put('/terminations/cobra/manual/:id', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid COBRA record.' });
+    const cobraStartDate = clean(req.body?.cobraStartDate); const cobraEndDate = clean(req.body?.cobraEndDate);
+    if (!cobraStartDate || !validDate(cobraStartDate)) return res.status(400).json({ error: 'COBRA Start Date is required.' });
+    if (!validDate(cobraEndDate) || (cobraEndDate && cobraEndDate < cobraStartDate)) return res.status(400).json({ error: 'Select a valid COBRA End Date on or after the Start Date.' });
+    const client = createClient();
+    try {
+      await client.connect(); const collection = client.db(databaseName).collection('hr_manual_cobra');
+      const existing = await collection.findOne({ _id: new ObjectId(req.params.id) });
+      if (!existing) return res.status(404).json({ error: 'Manual COBRA participant not found.' });
+      if (existing.cobraClosedAt) return res.status(409).json({ error: 'This COBRA record is closed and cannot be modified.' });
+      const reviewer = clean(req.adminSession?.email).toLowerCase();
+      const values = { cobraStartDate, cobraEndDate, cobraUpdatedAt: new Date(), cobraUpdatedBy: reviewer, updatedAt: new Date(), updatedBy: reviewer };
+      await collection.updateOne({ _id: existing._id }, { $set: values }); return res.json(values);
+    } catch (error) { console.error('Unable to update manual COBRA participant:', error); return res.status(500).json({ error: 'Manual COBRA participant could not be updated.' }); }
+    finally { await client.close(); }
+  });
+
+  router.put('/terminations/cobra/manual/:id/close', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid COBRA record.' });
+    const client = createClient();
+    try {
+      await client.connect(); const collection = client.db(databaseName).collection('hr_manual_cobra');
+      const existing = await collection.findOne({ _id: new ObjectId(req.params.id) });
+      if (!existing?.cobraStartDate) return res.status(404).json({ error: 'Manual COBRA participant not found.' });
+      if (!existing.cobraEndDate) return res.status(400).json({ error: 'Enter the COBRA End Date before closing this record.' });
+      if (existing.cobraClosedAt) return res.status(409).json({ error: 'This COBRA record is already closed.' });
+      const reviewer = clean(req.adminSession?.email).toLowerCase(); const values = { cobraClosedAt: new Date(), cobraClosedBy: reviewer, updatedAt: new Date(), updatedBy: reviewer };
+      await collection.updateOne({ _id: existing._id }, { $set: values }); return res.json(values);
+    } catch (error) { console.error('Unable to close manual COBRA participant:', error); return res.status(500).json({ error: 'Manual COBRA participant could not be closed.' }); }
+    finally { await client.close(); }
   });
 
   function terminationReportFilter(req) {

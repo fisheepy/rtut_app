@@ -7,6 +7,7 @@ import {
   Filter,
   FolderOpen,
   Lock,
+  Plus,
   RefreshCw,
   Save,
   Search,
@@ -63,6 +64,7 @@ type Employee = {
   insuranceCobraCheckedBy: string;
   retirementCheckedAt: string | null;
   retirementCheckedBy: string;
+  manualCobra?: boolean;
 };
 type EditRecord = Pick<
   Employee,
@@ -158,19 +160,24 @@ export default function Termination() {
   const [cobraRecord, setCobraRecord] = useState({ cobraStartDate: "", cobraEndDate: "" });
   const [cobraSaving, setCobraSaving] = useState(false);
   const [cobraError, setCobraError] = useState("");
+  const [manualCobraEmployees, setManualCobraEmployees] = useState<Employee[]>([]);
+  const [showManualCobra, setShowManualCobra] = useState(false);
+  const [manualCobraRecord, setManualCobraRecord] = useState({ name: "", email: "", terminationDate: "", cobraStartDate: "", cobraEndDate: "" });
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const [records, auth, fields] = await Promise.all([
+      const [records, auth, fields, manualCobra] = await Promise.all([
         api.get("/hr-platform/terminations"),
         api.get("/hr-tools-auth/me"),
         api.get("/hr-platform/termination-file-tracker-fields"),
+        api.get("/hr-platform/terminations/cobra/manual"),
       ]);
       setEmployees(records.data || []);
       setCurrentUserEmail(auth.data.email || "");
       setCatalog(fields.data.fields || []);
+      setManualCobraEmployees(manualCobra.data || []);
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.error ||
@@ -262,7 +269,7 @@ export default function Termination() {
           b.retirementEndingDate || "9999-12-31",
         ) || a.name.localeCompare(b.name),
     );
-  const cobraEnrollments = [...employees]
+  const cobraEnrollments = [...employees, ...manualCobraEmployees]
     .filter((employee) => employee.cobraStartDate && !employee.cobraClosedAt)
     .sort(
       (a, b) =>
@@ -351,13 +358,27 @@ export default function Termination() {
     setCobraSaving(true);
     setCobraError("");
     try {
-      await api.put(`/hr-platform/terminations/${cobraEditing.id}/cobra`, cobraRecord);
+      await api.put(cobraEditing.manualCobra ? `/hr-platform/terminations/cobra/manual/${cobraEditing.id}` : `/hr-platform/terminations/${cobraEditing.id}/cobra`, cobraRecord);
       setCobraEditing(null);
       setCobraEmployeeId("");
       setCobraEmployeeSearch("");
       await load();
     } catch (requestError: any) {
       setCobraError(requestError.response?.data?.error || "COBRA enrollment could not be saved.");
+    } finally {
+      setCobraSaving(false);
+    }
+  }
+  async function saveManualCobra() {
+    setCobraSaving(true);
+    setCobraError("");
+    try {
+      await api.post("/hr-platform/terminations/cobra/manual", manualCobraRecord);
+      setShowManualCobra(false);
+      setManualCobraRecord({ name: "", email: "", terminationDate: "", cobraStartDate: "", cobraEndDate: "" });
+      await load();
+    } catch (requestError: any) {
+      setCobraError(requestError.response?.data?.error || "Manual COBRA participant could not be added.");
     } finally {
       setCobraSaving(false);
     }
@@ -369,7 +390,7 @@ export default function Termination() {
     }
     if (!window.confirm(`Close the COBRA record for ${employee.name}? After closing, it will leave this active table but remain available in the COBRA report.`)) return;
     try {
-      await api.put(`/hr-platform/terminations/${employee.id}/cobra/close`);
+      await api.put(employee.manualCobra ? `/hr-platform/terminations/cobra/manual/${employee.id}/close` : `/hr-platform/terminations/${employee.id}/cobra/close`);
       await load();
     } catch (requestError: any) {
       setError(requestError.response?.data?.error || "COBRA enrollment could not be closed.");
@@ -1057,6 +1078,7 @@ export default function Termination() {
             >
               {employees.find((item) => item.id === cobraEmployeeId)?.cobraClosedAt ? "COBRA Record Closed" : employees.find((item) => item.id === cobraEmployeeId)?.cobraStartDate ? "Edit COBRA Record" : "Add COBRA Record"}
             </button>
+            <button className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-100" onClick={() => { setCobraError(""); setShowManualCobra(true); }} type="button"><Plus className="h-4 w-4" />Add Manual Participant</button>
             <button className="ml-auto inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 py-2.5 text-sm font-bold text-emerald-800 shadow-sm transition hover:bg-emerald-100" onClick={() => downloadReport("/hr-platform/terminations/reports/cobra.xlsx", "COBRA_Enrollment_Report.xlsx")} type="button"><Download className="h-4 w-4" />Download COBRA Report</button>
           </div>
         </div>
@@ -1092,6 +1114,24 @@ export default function Termination() {
         />
       </StatusSection>
 
+      {showManualCobra && (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/55 p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-emerald-100 bg-emerald-50 px-6 py-4"><div><h2 className="text-xl font-semibold text-emerald-950">Add Manual COBRA Participant</h2><p className="mt-1 text-sm text-emerald-800">For an eligible participant who is not available in Company App.</p></div><button aria-label="Close Manual COBRA Participant" onClick={() => setShowManualCobra(false)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className="space-y-4 p-6">
+              <Field label="Employee Name *"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" value={manualCobraRecord.name} onChange={(event) => setManualCobraRecord({ ...manualCobraRecord, name: event.target.value })} /></Field>
+              <Field label="Email (optional)"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="email" value={manualCobraRecord.email} onChange={(event) => setManualCobraRecord({ ...manualCobraRecord, email: event.target.value })} /></Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Eligibility / Termination Date *"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={manualCobraRecord.terminationDate} onChange={(event) => setManualCobraRecord({ ...manualCobraRecord, terminationDate: event.target.value })} /></Field>
+                <Field label="COBRA Start Date *"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={manualCobraRecord.cobraStartDate} onChange={(event) => setManualCobraRecord({ ...manualCobraRecord, cobraStartDate: event.target.value })} /></Field>
+              </div>
+              <Field label="COBRA End Date (optional while active)"><input className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal" type="date" value={manualCobraRecord.cobraEndDate} onChange={(event) => setManualCobraRecord({ ...manualCobraRecord, cobraEndDate: event.target.value })} /></Field>
+              {cobraError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{cobraError}</div>}
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"><button className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold" onClick={() => setShowManualCobra(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-40" disabled={cobraSaving || !manualCobraRecord.name.trim() || !manualCobraRecord.terminationDate || !manualCobraRecord.cobraStartDate} onClick={saveManualCobra} type="button"><Save className="h-4 w-4" />{cobraSaving ? "Saving..." : "Add Participant"}</button></div>
+          </div>
+        </div>
+      )}
       {cobraEditing && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/55 p-4">
           <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
