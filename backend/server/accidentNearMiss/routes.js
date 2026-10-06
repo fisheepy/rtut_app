@@ -76,8 +76,9 @@ function createAccidentNearMissRouter({ uri, databaseName, requireTrainingSessio
   });
 
   router.get('/reports/events.xlsx', async (req, res) => {
-    const query = {};
-    if (req.query.from || req.query.to) query.eventDateTime = { ...(req.query.from ? { $gte: String(req.query.from) } : {}), ...(req.query.to ? { $lte: `${String(req.query.to)}T23:59:59.999` } : {}) };
+    const from = String(req.query.from || ''); const to = String(req.query.to || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) return res.status(400).json({ error: 'Select a valid Event Date From and To.' });
+    const query = { eventDateTime: { $gte: from, $lte: `${to}T23:59:59.999` } };
     if (['Accident', 'Near Miss'].includes(req.query.type)) query.eventType = req.query.type;
     const client = createClient();
     try {
@@ -96,7 +97,7 @@ function createAccidentNearMissRouter({ uri, databaseName, requireTrainingSessio
       ['estimated', 'final'].forEach(key => { events.getColumn(key).numFmt = '$#,##0.00'; });
       const buffer = await workbook.xlsx.writeBuffer();
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="Accident_Near_Miss_Report_${new Date().toISOString().slice(0, 10)}.xlsx"`);
+      res.setHeader('Content-Disposition', `attachment; filename="Accident_Near_Miss_Report_${from}_to_${to}.xlsx"`);
       return res.send(Buffer.from(buffer));
     } catch (error) {
       console.error('Unable to create accident and near miss report:', error);
