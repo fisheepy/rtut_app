@@ -159,6 +159,10 @@ export default function EmploymentChange() {
   const [fileReportName, setFileReportName] = useState("");
   const [fileReportDateFrom, setFileReportDateFrom] = useState("");
   const [fileReportDateTo, setFileReportDateTo] = useState("");
+  const [showTaskReportFilters, setShowTaskReportFilters] = useState(false);
+  const [taskReportName, setTaskReportName] = useState("");
+  const [taskReportDateFrom, setTaskReportDateFrom] = useState("");
+  const [taskReportDateTo, setTaskReportDateTo] = useState("");
   const [pendingAction, setPendingAction] = useState<{
     record: RecordItem;
     action: string;
@@ -514,8 +518,12 @@ export default function EmploymentChange() {
   }
   async function downloadReport() {
     try {
+      const params = new URLSearchParams();
+      if (taskReportName.trim()) params.set("employeeName", taskReportName.trim());
+      if (taskReportDateFrom) params.set("effectiveDateFrom", taskReportDateFrom);
+      if (taskReportDateTo) params.set("effectiveDateTo", taskReportDateTo);
       const response = await api.get(
-        "/hr-platform/employment-changes/reports/tasks.xlsx",
+        `/hr-platform/employment-changes/reports/tasks.xlsx${params.toString() ? `?${params.toString()}` : ""}`,
         { responseType: "blob" },
       );
       const url = URL.createObjectURL(response.data);
@@ -547,6 +555,7 @@ export default function EmploymentChange() {
       link.download = "Employment_Change_File_Check_Status.xlsx";
       link.click();
       URL.revokeObjectURL(url);
+      setShowTaskReportFilters(false);
       setShowFileReportFilters(false);
     } catch (requestError: any) {
       setError(
@@ -556,6 +565,7 @@ export default function EmploymentChange() {
     }
   }
   const fileReportRangeValid = !fileReportDateFrom || !fileReportDateTo || fileReportDateFrom <= fileReportDateTo;
+  const taskReportRangeValid = !taskReportDateFrom || !taskReportDateTo || taskReportDateFrom <= taskReportDateTo;
   const pill = (complete: boolean, completeLabel = "Complete") => (
     <span
       className={`rounded-full px-2.5 py-1 text-xs font-bold ${complete ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
@@ -603,7 +613,7 @@ export default function EmploymentChange() {
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
-              onClick={downloadReport}
+              onClick={() => setShowTaskReportFilters(true)}
             >
               <Download className="h-4 w-4" />
               All Task Report
@@ -1219,6 +1229,28 @@ export default function EmploymentChange() {
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"><button className="rounded-lg px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200" onClick={() => setShowFileReportFilters(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white hover:bg-blue-800 disabled:bg-slate-400" disabled={!fileReportRangeValid} onClick={downloadFileCheckReport} type="button"><Download className="h-4 w-4" />Download Excel</button></div>
+          </div>
+        </div>
+      )}
+      {showTaskReportFilters && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-indigo-100 bg-indigo-50 px-6 py-5">
+              <div><h2 className="text-xl font-bold text-indigo-950">All Task Report</h2><p className="mt-1 text-sm text-indigo-800">Filter by employee name, Change Effective Date range, or both.</p></div>
+              <button aria-label="Close task report filters" className="rounded-lg p-2 text-slate-500 hover:bg-white" onClick={() => setShowTaskReportFilters(false)} type="button"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label><span className="text-xs font-bold uppercase tracking-wide text-indigo-900">Employee Name</span><input className="mt-1.5 w-full rounded-lg border border-indigo-200 px-3 py-2.5 text-sm" onChange={(event) => setTaskReportName(event.target.value)} placeholder="Search employee name" value={taskReportName} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-indigo-900">Effective Date From</span><input className="mt-1.5 w-full rounded-lg border border-indigo-200 px-3 py-2.5 text-sm" onChange={(event) => setTaskReportDateFrom(event.target.value)} type="date" value={taskReportDateFrom} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-indigo-900">Effective Date To</span><input className="mt-1.5 w-full rounded-lg border border-indigo-200 px-3 py-2.5 text-sm" onChange={(event) => setTaskReportDateTo(event.target.value)} type="date" value={taskReportDateTo} /></label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-indigo-50 p-4">
+                <p className={`text-sm font-semibold ${taskReportRangeValid ? "text-indigo-900" : "text-red-700"}`}>{taskReportRangeValid ? "Leave all filters blank to include every Employment Change task." : "Effective Date From cannot be later than Effective Date To."}</p>
+                <button className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-100" onClick={() => { setTaskReportName(""); setTaskReportDateFrom(""); setTaskReportDateTo(""); }} type="button">Reset Report Filters</button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"><button className="rounded-lg px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200" onClick={() => setShowTaskReportFilters(false)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-indigo-700 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-800 disabled:bg-slate-400" disabled={!taskReportRangeValid} onClick={downloadReport} type="button"><Download className="h-4 w-4" />Download Excel</button></div>
           </div>
         </div>
       )}

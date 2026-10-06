@@ -1547,11 +1547,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
-  router.get('/employment-changes/reports/tasks.xlsx', async (_req, res) => {
+  router.get('/employment-changes/reports/tasks.xlsx', async (req, res) => {
+    const reportFilter = employmentChangeReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
       await client.connect();
-      const records = await client.db(databaseName).collection('employee_hr_employment_change').find({}).sort({ effectiveDate: 1, createdAt: 1 }).toArray();
+      const records = (await client.db(databaseName).collection('employee_hr_employment_change').find({}).sort({ effectiveDate: 1, createdAt: 1 }).toArray()).filter(reportFilter.matches);
       const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Employment Change Tasks');
       sheet.columns = [
         { header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 },
