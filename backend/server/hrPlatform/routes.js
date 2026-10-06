@@ -1667,8 +1667,11 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const rawEffectiveDate = clean(record.effectiveDate);
       const isoMatch = rawEffectiveDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
       const usMatch = rawEffectiveDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      const normalizedIsoYear = isoMatch && Number(isoMatch[1]) < 100
+        ? String(2000 + Number(isoMatch[1]))
+        : isoMatch?.[1];
       let effectiveDate = isoMatch
-        ? `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`
+        ? `${normalizedIsoYear}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`
         : usMatch
           ? `${usMatch[3]}-${usMatch[1].padStart(2, '0')}-${usMatch[2].padStart(2, '0')}`
           : '';

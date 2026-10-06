@@ -130,8 +130,12 @@ const requestedChangeLabels = (record: RecordItem) => {
 const comparableDate = (value = "") => {
   const trimmed = value.trim();
   const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (isoMatch)
-    return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`;
+  if (isoMatch) {
+    const year = Number(isoMatch[1]) < 100
+      ? String(2000 + Number(isoMatch[1]))
+      : isoMatch[1];
+    return `${year}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`;
+  }
   const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (usMatch)
     return `${usMatch[3]}-${usMatch[1].padStart(2, "0")}-${usMatch[2].padStart(2, "0")}`;
@@ -227,13 +231,10 @@ export default function EmploymentChange() {
             .includes(query.trim().toLowerCase())
         )
           return false;
-        const displayedDateTime = new Date(
-          `${record.effectiveDate.slice(0, 10)}T00:00:00`,
-        ).getTime();
         const normalizedEffectiveDate = comparableDate(record.effectiveDate);
-        const effectiveDateTime = Number.isNaN(displayedDateTime)
-          ? new Date(`${normalizedEffectiveDate}T00:00:00`).getTime()
-          : displayedDateTime;
+        const effectiveDateTime = new Date(
+          `${normalizedEffectiveDate}T00:00:00`,
+        ).getTime();
         const dateFromTime = dateFrom
           ? new Date(`${dateFrom}T00:00:00`).getTime()
           : null;
@@ -831,8 +832,6 @@ export default function EmploymentChange() {
                 return (
                   <tr
                     className={`border-t ${attention ? "bg-red-100 ring-2 ring-inset ring-red-300" : ""}`}
-                    data-effective-date={record.effectiveDate}
-                    data-effective-date-key={comparableDate(record.effectiveDate)}
                     key={record.id}
                   >
                     <Sticky record={record} />
