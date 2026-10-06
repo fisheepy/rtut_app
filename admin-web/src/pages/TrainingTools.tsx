@@ -1421,26 +1421,26 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
             ref={tableScrollRef}
           >
             <table className="w-full text-sm" style={{ minWidth: `${2070 + displayedMonthlyTopics.length * 310}px` }}>
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-100">
                 <tr>
                   {columns.map((column, index) => (
                     <th
-                      className={`border-b px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 ${
+                      className={`border-b border-slate-300 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-900 ${
                         index === 0
-                          ? 'sticky left-0 z-30 min-w-[220px] border-r border-slate-200 bg-slate-50 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]'
+                          ? 'sticky left-0 z-30 min-w-[220px] border-r border-slate-300 bg-slate-100 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]'
                           : ''
                       }`}
                       key={column.key}
                     >
                       <button
                         aria-label={`Sort ${column.label} ${sort.key === column.key && sort.direction === 'asc' ? 'descending' : 'ascending'}`}
-                        className="inline-flex w-full items-center justify-between gap-2 text-left hover:text-slate-800"
+                        className="inline-flex w-full items-center justify-between gap-2 text-left hover:text-emerald-800"
                         onClick={() => toggleSort(column.key)}
                         type="button"
                       >
                         <span>{column.label}</span>
                         {sort.key !== column.key ? (
-                          <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                          <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-slate-600" />
                         ) : sort.direction === 'asc' ? (
                           <ArrowUp className="h-3.5 w-3.5 shrink-0 text-emerald-700" />
                         ) : (
