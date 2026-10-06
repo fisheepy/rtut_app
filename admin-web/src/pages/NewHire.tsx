@@ -167,6 +167,9 @@ export default function NewHire() {
   const [fileReportHireFrom, setFileReportHireFrom] = useState("");
   const [fileReportHireTo, setFileReportHireTo] = useState("");
   const [showActionReports, setShowActionReports] = useState(false);
+  const [actionReportName, setActionReportName] = useState("");
+  const [actionReportHireFrom, setActionReportHireFrom] = useState("");
+  const [actionReportHireTo, setActionReportHireTo] = useState("");
   const [newTrackerLabel, setNewTrackerLabel] = useState("");
   const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
   const [managerError, setManagerError] = useState("");
@@ -241,6 +244,12 @@ export default function NewHire() {
   if (fileReportName.trim()) fileReportParams.set("employeeName", fileReportName.trim());
   if (fileReportHireFrom) fileReportParams.set("hireDateFrom", fileReportHireFrom);
   if (fileReportHireTo) fileReportParams.set("hireDateTo", fileReportHireTo);
+  const actionReportRangeValid = !actionReportHireFrom || !actionReportHireTo || actionReportHireFrom <= actionReportHireTo;
+  const actionReportParams = new URLSearchParams();
+  if (actionReportName.trim()) actionReportParams.set("employeeName", actionReportName.trim());
+  if (actionReportHireFrom) actionReportParams.set("hireDateFrom", actionReportHireFrom);
+  if (actionReportHireTo) actionReportParams.set("hireDateTo", actionReportHireTo);
+  const actionReportQuery = actionReportParams.toString() ? `?${actionReportParams}` : "";
 
   const hireDateRangeActive = Boolean(filters.hireDateFrom || filters.hireDateTo);
   const mainEmployees = filteredEmployees
@@ -1078,9 +1087,17 @@ export default function NewHire() {
         <div aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4" role="dialog">
           <section className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-slate-950">Download Action Report</h2><p className="mt-1 text-sm text-slate-500">Choose the employee action report you need.</p></div><button aria-label="Close Action Reports" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button"><X className="h-5 w-5" /></button></div>
+            <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label><span className="text-xs font-bold uppercase tracking-wide text-blue-900">Employee Name</span><input className="mt-1.5 w-full rounded-lg border border-blue-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setActionReportName(event.target.value)} placeholder="Search employee name" value={actionReportName} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-blue-900">Hire Date From</span><input className="mt-1.5 w-full rounded-lg border border-blue-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setActionReportHireFrom(event.target.value)} type="date" value={actionReportHireFrom} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-blue-900">Hire Date To</span><input className="mt-1.5 w-full rounded-lg border border-blue-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setActionReportHireTo(event.target.value)} type="date" value={actionReportHireTo} /></label>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className={`text-sm font-semibold ${actionReportRangeValid ? "text-blue-800" : "text-red-700"}`}>{actionReportRangeValid ? "The selected filters will apply to either report below." : "Hire Date From cannot be later than Hire Date To."}</p><button className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100" onClick={() => { setActionReportName(""); setActionReportHireFrom(""); setActionReportHireTo(""); }} type="button">Reset Report Filters</button></div>
+            </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <a className="rounded-xl border border-amber-200 bg-amber-50 p-4 transition hover:border-amber-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/action-items.xlsx"><Download className="h-5 w-5 text-amber-700" /><h3 className="mt-3 font-semibold text-amber-950">Current & Future Actions</h3><p className="mt-1 text-sm text-amber-800">Pending payroll, insurance, 401(k), and four-month Employee Referral actions.</p></a>
-              <a className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 transition hover:border-emerald-300 hover:shadow-md" href="/api/hr-platform/new-hires/reports/completed-actions.xlsx"><Download className="h-5 w-5 text-emerald-700" /><h3 className="mt-3 font-semibold text-emerald-950">Completed Employee Actions</h3><p className="mt-1 text-sm text-emerald-800">Completed payroll, insurance, 401(k), and Employee Referral outcomes, grouped by employee.</p></a>
+              <a aria-disabled={!actionReportRangeValid} className={`rounded-xl border p-4 transition ${actionReportRangeValid ? "border-amber-200 bg-amber-50 hover:border-amber-300 hover:shadow-md" : "pointer-events-none border-slate-200 bg-slate-100 opacity-60"}`} href={actionReportRangeValid ? `/api/hr-platform/new-hires/reports/action-items.xlsx${actionReportQuery}` : undefined}><Download className="h-5 w-5 text-amber-700" /><h3 className="mt-3 font-semibold text-amber-950">Current & Future Actions</h3><p className="mt-1 text-sm text-amber-800">Pending payroll, insurance, 401(k), and four-month Employee Referral actions.</p></a>
+              <a aria-disabled={!actionReportRangeValid} className={`rounded-xl border p-4 transition ${actionReportRangeValid ? "border-emerald-200 bg-emerald-50 hover:border-emerald-300 hover:shadow-md" : "pointer-events-none border-slate-200 bg-slate-100 opacity-60"}`} href={actionReportRangeValid ? `/api/hr-platform/new-hires/reports/completed-actions.xlsx${actionReportQuery}` : undefined}><Download className="h-5 w-5 text-emerald-700" /><h3 className="mt-3 font-semibold text-emerald-950">Completed Employee Actions</h3><p className="mt-1 text-sm text-emerald-800">Completed payroll, insurance, 401(k), and Employee Referral outcomes, grouped by employee.</p></a>
             </div>
             <div className="mt-5 flex justify-end"><button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100" onClick={() => setShowActionReports(false)} type="button">Close</button></div>
           </section>

@@ -174,12 +174,14 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     return res.send(Buffer.from(buffer));
   }
 
-  router.get('/new-hires/reports/file-tracker.xlsx', async (req, res) => {
+  function newHireReportFilter(req) {
     const employeeName = clean(req.query.employeeName).toLowerCase();
     const hireDateFrom = clean(req.query.hireDateFrom);
     const hireDateTo = clean(req.query.hireDateTo);
-    if ((hireDateFrom && !validDate(hireDateFrom)) || (hireDateTo && !validDate(hireDateTo)) || (hireDateFrom && hireDateTo && hireDateFrom > hireDateTo)) return res.status(400).json({ error: 'Select a valid Hire Date From and To.' });
-    const matchesReportFilters = employee => {
+    const error = (hireDateFrom && !validDate(hireDateFrom)) || (hireDateTo && !validDate(hireDateTo)) || (hireDateFrom && hireDateTo && hireDateFrom > hireDateTo)
+      ? 'Select a valid Hire Date From and To.'
+      : '';
+    const matches = employee => {
       const firstName = clean(employee?.['First Name']);
       const lastName = clean(employee?.['Last Name']);
       const searchableName = `${firstName} ${lastName} ${lastName}, ${firstName}`.toLowerCase();
@@ -189,6 +191,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       if (hireDateTo && hireDate > hireDateTo) return false;
       return true;
     };
+    return { error, matches };
+  }
+
+  router.get('/new-hires/reports/file-tracker.xlsx', async (req, res) => {
+    const reportFilter = newHireReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
       await client.connect();
@@ -224,10 +232,10 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         if (fields.length) fields.forEach(field => sheet.addRow({ ...base, item: clean(field.label), status: clean(tracker.responses?.[field.id]) || 'Missing' }));
         else sheet.addRow({ ...base, item: 'No checklist snapshot', status: 'Missing' });
       };
-      employees.filter(matchesReportFilters).sort((a, b) => clean(a['Last Name']).localeCompare(clean(b['Last Name']))).forEach(employee => {
+      employees.filter(reportFilter.matches).sort((a, b) => clean(a['Last Name']).localeCompare(clean(b['Last Name']))).forEach(employee => {
         appendTrackerRows(employee, byId.get(String(employee._id)) || {}, 'Current');
       });
-      historicalRecords.filter(record => matchesReportFilters(record.employeeSnapshot || {})).forEach(record => appendTrackerRows(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle'));
+      historicalRecords.filter(record => reportFilter.matches(record.employeeSnapshot || {})).forEach(record => appendTrackerRows(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle'));
       styleReportSheet(sheet);
       return await sendWorkbook(res, workbook, `New_Hire_File_Tracker_History_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (error) {
@@ -238,7 +246,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     }
   });
 
-  router.get('/new-hires/reports/action-items.xlsx', async (_req, res) => {
+  router.get('/new-hires/reports/action-items.xlsx', async (req, res) => {
+    const reportFilter = newHireReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
       await client.connect();
@@ -254,7 +264,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const records = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray() : [];
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       const rows = [];
-      employees.forEach(employee => {
+      employees.filter(reportFilter.matches).forEach(employee => {
         const record = byId.get(String(employee._id)) || {};
         const employeeName = [clean(employee['Last Name']), clean(employee['First Name'])].filter(Boolean).join(', ');
         const base = { employee: employeeName, hireDate: clean(employee['Hire Date']), department: clean(employee['Home Department']), location: clean(employee.Location) };
@@ -285,7 +295,9 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     }
   });
 
-  router.get('/new-hires/reports/completed-actions.xlsx', async (_req, res) => {
+  router.get('/new-hires/reports/completed-actions.xlsx', async (req, res) => {
+    const reportFilter = newHireReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
       await client.connect();
@@ -310,8 +322,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         return completed;
       };
       const rows = [
-        ...employees.flatMap(employee => completedRowsFor(employee, byId.get(String(employee._id)) || {}, 'Current')),
-        ...historicalRecords.flatMap(record => completedRowsFor(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle')),
+        ...employees.filter(reportFilter.matches).flatMap(employee => completedRowsFor(employee, byId.get(String(employee._id)) || {}, 'Current')),
+        ...historicalRecords.filter(record => reportFilter.matches(record.employeeSnapshot || {})).flatMap(record => completedRowsFor(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle')),
       ].sort((a, b) => a.employee.localeCompare(b.employee) || a.actionDate.localeCompare(b.actionDate) || a.actionType.localeCompare(b.actionType));
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('Completed Employee Actions');
