@@ -778,13 +778,14 @@ export default function Termination() {
         tone="blue"
         count={payroll.length}
       >
-        <table className="min-w-[2100px] text-sm">
+        <table className="min-w-[2220px] text-sm">
           <TableHead
             labels={[
               "Name",
               "Termination Date",
               "Department",
               "Job Title",
+              "Pay Category",
               "Location",
               "Supervisor",
               "Employee Folder (Optional)",
@@ -815,6 +816,11 @@ export default function Termination() {
                   <Cell>{dateDisplay(employee.terminationDate)}</Cell>
                   <Cell>{employee.homeDepartment || "--"}</Cell>
                   <Cell>{employee.jobTitle || "--"}</Cell>
+                  <Cell>
+                    <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-800">
+                      {employee.payCategory || "--"}
+                    </span>
+                  </Cell>
                   <Cell>{employee.location || "--"}</Cell>
                   <Cell>{employee.supervisor || "--"}</Cell>
                   <EditableCell onClick={() => openEdit(employee)}>
@@ -977,7 +983,7 @@ export default function Termination() {
                 </tr>
               );
             })}
-            {!payroll.length && <EmptyRow columns={16} />}
+            {!payroll.length && <EmptyRow columns={17} />}
           </tbody>
         </table>
       </StatusSection>
