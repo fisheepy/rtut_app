@@ -126,6 +126,10 @@ export default function Termination() {
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [payrollFilter, setPayrollFilter] = useState("");
+  const [reportDialog, setReportDialog] = useState<"file-tracker" | "tasks" | null>(null);
+  const [reportEmployeeName, setReportEmployeeName] = useState("");
+  const [reportTerminationFrom, setReportTerminationFrom] = useState("");
+  const [reportTerminationTo, setReportTerminationTo] = useState("");
   const [showTrackerManager, setShowTrackerManager] = useState(false);
   const [catalogDrafts, setCatalogDrafts] = useState<TrackerField[]>([]);
   const [newChecklistName, setNewChecklistName] = useState("");
@@ -467,6 +471,26 @@ export default function Termination() {
     link.click();
     URL.revokeObjectURL(url);
   }
+  const reportRangeValid =
+    !reportTerminationFrom ||
+    !reportTerminationTo ||
+    reportTerminationFrom <= reportTerminationTo;
+  function openReport(type: "file-tracker" | "tasks") {
+    setReportDialog(type);
+  }
+  function downloadFilteredReport() {
+    if (!reportDialog || !reportRangeValid) return;
+    const params = new URLSearchParams();
+    if (reportEmployeeName.trim()) params.set("employeeName", reportEmployeeName.trim());
+    if (reportTerminationFrom) params.set("terminationDateFrom", reportTerminationFrom);
+    if (reportTerminationTo) params.set("terminationDateTo", reportTerminationTo);
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+    const isFileTracker = reportDialog === "file-tracker";
+    downloadReport(
+      `/hr-platform/terminations/reports/${isFileTracker ? "file-tracker" : "tasks"}.xlsx${queryString}`,
+      isFileTracker ? "Termination_File_Trackers.xlsx" : "Termination_All_Tasks.xlsx",
+    );
+  }
   async function save() {
     if (!editing) return;
     setSaving(true);
@@ -550,24 +574,14 @@ export default function Termination() {
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold"
-              onClick={() =>
-                downloadReport(
-                  "/hr-platform/terminations/reports/file-tracker.xlsx",
-                  "Termination_File_Trackers.xlsx",
-                )
-              }
+              onClick={() => openReport("file-tracker")}
             >
               <Download className="h-4 w-4" />
               File Tracker Status Report
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-semibold"
-              onClick={() =>
-                downloadReport(
-                  "/hr-platform/terminations/reports/tasks.xlsx",
-                  "Termination_All_Tasks.xlsx",
-                )
-              }
+              onClick={() => openReport("tasks")}
             >
               <Download className="h-4 w-4" />
               All Task Report
@@ -1298,6 +1312,56 @@ export default function Termination() {
           close={() => setTracking(null)}
           save={saveTracker}
         />
+      )}
+      {reportDialog && (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  {reportDialog === "file-tracker" ? "File Tracker Status Report" : "All Task Report"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Filter the Excel report by employee name, termination date range, or both.
+                </p>
+              </div>
+              <button aria-label="Close report filters" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" onClick={() => setReportDialog(null)} type="button">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label>
+                  <span className="text-xs font-bold uppercase tracking-wide text-rose-900">Employee Name</span>
+                  <input className="mt-1.5 w-full rounded-lg border border-rose-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setReportEmployeeName(event.target.value)} placeholder="Search employee name" value={reportEmployeeName} />
+                </label>
+                <label>
+                  <span className="text-xs font-bold uppercase tracking-wide text-rose-900">Termination Date From</span>
+                  <input className="mt-1.5 w-full rounded-lg border border-rose-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setReportTerminationFrom(event.target.value)} type="date" value={reportTerminationFrom} />
+                </label>
+                <label>
+                  <span className="text-xs font-bold uppercase tracking-wide text-rose-900">Termination Date To</span>
+                  <input className="mt-1.5 w-full rounded-lg border border-rose-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setReportTerminationTo(event.target.value)} type="date" value={reportTerminationTo} />
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-rose-50 p-4">
+                <p className={`text-sm font-semibold ${reportRangeValid ? "text-rose-900" : "text-red-700"}`}>
+                  {reportRangeValid ? "Leave all filters blank to include every terminated employee." : "Termination Date From cannot be later than Termination Date To."}
+                </p>
+                <button className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-100" onClick={() => { setReportEmployeeName(""); setReportTerminationFrom(""); setReportTerminationTo(""); }} type="button">
+                  Reset Report Filters
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <button className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200" onClick={() => setReportDialog(null)} type="button">Cancel</button>
+              <button className="inline-flex items-center gap-2 rounded-lg bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:bg-slate-400" disabled={!reportRangeValid} onClick={downloadFilteredReport} type="button">
+                <Download className="h-4 w-4" />
+                Download Excel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {showTrackerManager && (
         <ChecklistManager

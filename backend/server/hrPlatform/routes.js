@@ -1028,10 +1028,34 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } finally { await client.close(); }
   });
 
-  router.get('/terminations/reports/file-tracker.xlsx', async (_req, res) => {
+  function terminationReportFilter(req) {
+    const employeeName = clean(req.query.employeeName).toLowerCase();
+    const terminationDateFrom = clean(req.query.terminationDateFrom);
+    const terminationDateTo = clean(req.query.terminationDateTo);
+    const error = (terminationDateFrom && !validDate(terminationDateFrom))
+      || (terminationDateTo && !validDate(terminationDateTo))
+      || (terminationDateFrom && terminationDateTo && terminationDateFrom > terminationDateTo)
+      ? 'Select a valid Termination Date From and To.'
+      : '';
+    const matches = ({ employee }) => {
+      const firstName = clean(employee?.['First Name']);
+      const lastName = clean(employee?.['Last Name']);
+      const searchableName = `${firstName} ${lastName} ${lastName}, ${firstName}`.toLowerCase();
+      const terminationDate = clean(employee?.['Termination Date']).slice(0, 10);
+      if (employeeName && !searchableName.includes(employeeName)) return false;
+      if (terminationDateFrom && terminationDate < terminationDateFrom) return false;
+      if (terminationDateTo && terminationDate > terminationDateTo) return false;
+      return true;
+    };
+    return { error, matches };
+  }
+
+  router.get('/terminations/reports/file-tracker.xlsx', async (req, res) => {
+    const reportFilter = terminationReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
-      await client.connect(); const db = client.db(databaseName); const rows = await terminationReportRows(db);
+      await client.connect(); const db = client.db(databaseName); const rows = (await terminationReportRows(db)).filter(reportFilter.matches);
       const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination File Trackers');
       const catalog = await getTerminationTrackerCatalog(db, true);
       sheet.columns = [{ header: 'Employee', key: 'name', width: 28 }, { header: 'Termination Date', key: 'terminationDate', width: 18 }, { header: 'Employee Folder', key: 'folder', width: 45 }, ...catalog.map(field => ({ header: field.label, key: `f_${field.id}`, width: 24 })), { header: 'Comments', key: 'comments', width: 45 }, { header: 'Admin Checked By', key: 'admin', width: 30 }, { header: 'Final Reviewed By', key: 'final', width: 30 }, { header: 'Status', key: 'status', width: 20 }];
@@ -1040,10 +1064,12 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to create termination tracker report:', error); return res.status(500).json({ error: 'The termination tracker report could not be created.' }); } finally { await client.close(); }
   });
 
-  router.get('/terminations/reports/tasks.xlsx', async (_req, res) => {
+  router.get('/terminations/reports/tasks.xlsx', async (req, res) => {
+    const reportFilter = terminationReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
-      await client.connect(); const rows = await terminationReportRows(client.db(databaseName)); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination Tasks');
+      await client.connect(); const rows = (await terminationReportRows(client.db(databaseName))).filter(reportFilter.matches); const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Termination Tasks');
       sheet.columns = [{ header: 'Employee', key: 'name', width: 28 }, { header: 'Termination Date', key: 'terminationDate', width: 18 }, { header: 'Task', key: 'task', width: 28 }, { header: 'Task Date', key: 'date', width: 18 }, { header: 'Status', key: 'status', width: 24 }, { header: 'Checked By', key: 'checkedBy', width: 30 }, { header: 'Final Reviewed By', key: 'finalBy', width: 30 }, { header: 'Notes', key: 'notes', width: 45 }];
       rows.forEach(({ employee, record }) => { const base = { name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), terminationDate: clean(employee['Termination Date']) }; const add = (task, date, checked, final, notes = '') => sheet.addRow({ ...base, task, date: clean(date), status: final ? 'Finished' : checked ? 'In Process - Final Review Needed' : 'Unfinished', checkedBy: clean(checked?.by), finalBy: clean(final?.by), notes }); add('Final Pay', record.finalPayrollDate, record.payrollCheckedAt && { by: record.payrollCheckedBy }, record.payrollFinalReviewedAt && { by: record.payrollFinalReviewedBy }); if (record.pendingIssues) add('Payroll Follow-up Issues', record.payrollFollowThroughUntil, record.followUpCheckedAt && { by: record.followUpCheckedBy }, record.followUpFinalReviewedAt && { by: record.followUpFinalReviewedBy }, clean(record.pendingIssuesNotes)); if (record.insuranceParticipation === 'participated') add('Insurance & COBRA', record.insuranceEndingDate, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }, record.insuranceCobraCheckedAt && { by: record.insuranceCobraCheckedBy }); if (record.cobraStartDate) sheet.addRow({ ...base, task: 'COBRA Enrollment', date: clean(record.cobraStartDate), status: record.cobraClosedAt ? 'Closed' : record.cobraEndDate ? 'Ready to Close' : 'Active', checkedBy: clean(record.cobraUpdatedBy), finalBy: clean(record.cobraClosedBy), notes: record.cobraEndDate ? `COBRA End Date: ${clean(record.cobraEndDate)}` : 'COBRA coverage is active' }); if (record.retirementParticipation === 'participated') add('401(k)', record.retirementEndingDate, record.retirementCheckedAt && { by: record.retirementCheckedBy }, record.retirementCheckedAt && { by: record.retirementCheckedBy }); });
       sheet.getRow(1).font = { bold: true }; return await sendWorkbook(res, workbook, `Termination_All_Tasks_${new Date().toISOString().slice(0, 10)}.xlsx`);
