@@ -127,6 +127,16 @@ const requestedChangeLabels = (record: RecordItem) => {
     requested.retirement ? "401(k) Change Requested" : "",
   ].filter(Boolean);
 };
+const comparableDate = (value = "") => {
+  const trimmed = value.trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch)
+    return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`;
+  const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (usMatch)
+    return `${usMatch[3]}-${usMatch[1].padStart(2, "0")}-${usMatch[2].padStart(2, "0")}`;
+  return "";
+};
 
 export default function EmploymentChange() {
   const [records, setRecords] = useState<RecordItem[]>([]);
@@ -210,8 +220,9 @@ export default function EmploymentChange() {
             .includes(query.trim().toLowerCase())
         )
           return false;
-        if (dateFrom && record.effectiveDate < dateFrom) return false;
-        if (dateTo && record.effectiveDate > dateTo) return false;
+        const effectiveDate = comparableDate(record.effectiveDate);
+        if (dateFrom && (!effectiveDate || effectiveDate < dateFrom)) return false;
+        if (dateTo && (!effectiveDate || effectiveDate > dateTo)) return false;
         const allComplete =
           finalDone(record.tasks?.file) &&
           (!record.tasks?.payroll?.applicable ||
