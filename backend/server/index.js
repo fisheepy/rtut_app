@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -1427,9 +1427,14 @@ app.post('/call-function-add-employee', requireAdminSession, async (req, res) =>
 app.post('/call-function-delete-employee', requireAdminSession, async (req, res) => {
     const firstName = req.body.firstName;
     const lastName = req.body.lastName;
+    const terminationDate = String(req.body.terminationDate || '').trim();
 
-    // Execute the script
-    exec(`node ./backend/server/deleteEmployee.mjs "${firstName}" "${lastName}"`, (error, stdout, stderr) => {
+    if (!firstName || !lastName || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate) || Number.isNaN(Date.parse(`${terminationDate}T00:00:00Z`))) {
+        return res.status(400).send('First Name, Last Name, and a valid Termination Date are required.');
+    }
+
+    // Archive the employee using the administrator-entered effective date.
+    execFile(process.execPath, ['./backend/server/deleteEmployee.mjs', String(firstName), String(lastName), terminationDate], (error, stdout, stderr) => {
         if (error) {
             // Find the relevant error line
             const errorLines = stderr.split('\n');

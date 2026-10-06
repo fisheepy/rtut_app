@@ -27,15 +27,27 @@ const buildCandidateRegex = (normalizedValue) => {
     return new RegExp(`^\\s*${pattern}\\s*$`, 'i');
 };
 
-const deleteEmployee = async (firstName, lastName) => {
+const validDate = (value = '') => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
+const dateOnly = (value) => {
+    if (!value) return '';
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+    return String(value).slice(0, 10);
+};
+
+const deleteEmployee = async (firstName, lastName, terminationDate) => {
     const client = new MongoClient(MONGODB_URI);
 
     try {
         const normalizedFirstName = normalizeNameInput(firstName);
         const normalizedLastName = normalizeNameInput(lastName);
 
-        if (!normalizedFirstName || !normalizedLastName) {
-            throw new Error('Error during operation: First Name and Last Name are required.');
+        if (!normalizedFirstName || !normalizedLastName || !validDate(terminationDate)) {
+            throw new Error('Error during operation: First Name, Last Name, and a valid Termination Date are required.');
         }
 
         await client.connect();
@@ -63,7 +75,10 @@ const deleteEmployee = async (firstName, lastName) => {
         }
 
         const [employeeToDelete] = exactNormalizedMatches;
-        const terminationDate = new Date().toISOString().slice(0, 10);
+        const hireDate = dateOnly(employeeToDelete['Hire Date']);
+        if (hireDate && terminationDate < hireDate) {
+            throw new Error(`Error during operation: Termination Date cannot be before Hire Date (${hireDate}).`);
+        }
         const result = await collection.updateOne(
             { _id: employeeToDelete._id },
             {
@@ -91,15 +106,16 @@ const deleteEmployee = async (firstName, lastName) => {
     }
 };
 
-if (process.argv.length < 4) {
-    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName>');
+if (process.argv.length < 5) {
+    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName> <terminationDate>');
     process.exit(1);
 }
 
 const firstName = process.argv[2];
 const lastName = process.argv[3];
+const terminationDate = process.argv[4];
 
-deleteEmployee(firstName, lastName)
+deleteEmployee(firstName, lastName, terminationDate)
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error.message);

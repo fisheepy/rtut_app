@@ -62,7 +62,9 @@ const UtilitiesCenterComponent = () => {
     const [openDeleteModal, setOpenDeleteModal] = useState(false);
     const [openNewValueConfirmation, setOpenNewValueConfirmation] = useState(false);
     const [formerEmployeeWarning, setFormerEmployeeWarning] = useState(null);
-    const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '', email: '', phone: '' });
+    const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '', terminationDate: '' });
+    const [deleteAttempted, setDeleteAttempted] = useState(false);
+    const [isTerminating, setIsTerminating] = useState(false);
     const [newEmployee, setNewEmployee] = useState(emptyEmployee);
     const [referenceEmployees, setReferenceEmployees] = useState([]);
     const [referenceError, setReferenceError] = useState('');
@@ -196,12 +198,20 @@ const UtilitiesCenterComponent = () => {
     };
 
     const handleDeleteEmployeeSubmit = async () => {
+        setDeleteAttempted(true);
+        if (!cleanFilterLabel(deleteEmployee.firstName) || !cleanFilterLabel(deleteEmployee.lastName) || !deleteEmployee.terminationDate) return;
+        if (!window.confirm(`Terminate ${deleteEmployee.firstName} ${deleteEmployee.lastName} effective ${deleteEmployee.terminationDate}? The employee will move to the Termination Platform and the entered date will be used for all termination tasks and reports.`)) return;
+        setIsTerminating(true);
         try {
             await axios.post('/call-function-delete-employee', deleteEmployee);
-            setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} deleted successfully.`);
+            setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} terminated effective ${deleteEmployee.terminationDate}.`);
             setOpenDeleteModal(false);
+            setDeleteEmployee({ firstName: '', lastName: '', terminationDate: '' });
+            setDeleteAttempted(false);
         } catch (error) {
-            setExecutionStatus(`Failed to delete employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}: ${error.response?.data || 'An unexpected error occurred'}`);
+            setExecutionStatus(`Failed to terminate employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}: ${error.response?.data || 'An unexpected error occurred'}`);
+        } finally {
+            setIsTerminating(false);
         }
     };
 
@@ -210,7 +220,7 @@ const UtilitiesCenterComponent = () => {
             <h3>Execution Status</h3>
             <p>{executionStatus}</p>
             <Button variant="outlined" onClick={() => { setReferenceError(''); setOpenAddModal(true); }}>Add New Employee</Button>
-            <Button variant="outlined" color="secondary" onClick={() => setOpenDeleteModal(true)}>Delete Employee</Button>
+            <Button variant="outlined" color="secondary" onClick={() => setOpenDeleteModal(true)}>Terminate Employee</Button>
 
             <Dialog open={openAddModal} onClose={() => setOpenAddModal(false)} fullWidth maxWidth="sm">
                 <DialogTitle>Add New Employee</DialogTitle>
@@ -288,15 +298,17 @@ const UtilitiesCenterComponent = () => {
                 </DialogActions>
             </Dialog>
 
-            <Dialog open={openDeleteModal} onClose={() => setOpenDeleteModal(false)} fullWidth maxWidth="sm">
-                <DialogTitle>Delete Employee</DialogTitle>
+            <Dialog open={openDeleteModal} onClose={() => !isTerminating && setOpenDeleteModal(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Terminate Employee</DialogTitle>
                 <DialogContent>
-                    <TextField autoFocus margin="dense" name="firstName" label="First Name" fullWidth onChange={handleDeleteEmployeeChange} />
-                    <TextField margin="dense" name="lastName" label="Last Name" fullWidth onChange={handleDeleteEmployeeChange} />
+                    <Alert severity="warning" sx={{ mb: 1 }}>Enter the employee’s actual termination date. This date will be saved in Company App and used by the HR Termination Platform, filters, calendars, and reports.</Alert>
+                    <TextField autoFocus required margin="dense" name="firstName" label="First Name" fullWidth value={deleteEmployee.firstName} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !cleanFilterLabel(deleteEmployee.firstName)} helperText={deleteAttempted && !cleanFilterLabel(deleteEmployee.firstName) ? 'First Name is required.' : ''} />
+                    <TextField required margin="dense" name="lastName" label="Last Name" fullWidth value={deleteEmployee.lastName} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !cleanFilterLabel(deleteEmployee.lastName)} helperText={deleteAttempted && !cleanFilterLabel(deleteEmployee.lastName) ? 'Last Name is required.' : ''} />
+                    <TextField required margin="dense" name="terminationDate" label="Termination Date" type="date" fullWidth value={deleteEmployee.terminationDate} onChange={handleDeleteEmployeeChange} InputLabelProps={{ shrink: true }} error={deleteAttempted && !deleteEmployee.terminationDate} helperText={deleteAttempted && !deleteEmployee.terminationDate ? 'Termination Date is required.' : 'Use the employee’s actual last date of employment.'} />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setOpenDeleteModal(false)}>Cancel</Button>
-                    <Button onClick={handleDeleteEmployeeSubmit}>Delete</Button>
+                    <Button disabled={isTerminating} onClick={() => setOpenDeleteModal(false)}>Cancel</Button>
+                    <Button color="error" variant="contained" disabled={isTerminating} onClick={handleDeleteEmployeeSubmit}>{isTerminating ? 'Terminating…' : 'Review and Terminate'}</Button>
                 </DialogActions>
             </Dialog>
         </div>
