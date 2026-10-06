@@ -174,7 +174,21 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     return res.send(Buffer.from(buffer));
   }
 
-  router.get('/new-hires/reports/file-tracker.xlsx', async (_req, res) => {
+  router.get('/new-hires/reports/file-tracker.xlsx', async (req, res) => {
+    const employeeName = clean(req.query.employeeName).toLowerCase();
+    const hireDateFrom = clean(req.query.hireDateFrom);
+    const hireDateTo = clean(req.query.hireDateTo);
+    if ((hireDateFrom && !validDate(hireDateFrom)) || (hireDateTo && !validDate(hireDateTo)) || (hireDateFrom && hireDateTo && hireDateFrom > hireDateTo)) return res.status(400).json({ error: 'Select a valid Hire Date From and To.' });
+    const matchesReportFilters = employee => {
+      const firstName = clean(employee?.['First Name']);
+      const lastName = clean(employee?.['Last Name']);
+      const searchableName = `${firstName} ${lastName} ${lastName}, ${firstName}`.toLowerCase();
+      const hireDate = clean(employee?.['Hire Date']).slice(0, 10);
+      if (employeeName && !searchableName.includes(employeeName)) return false;
+      if (hireDateFrom && hireDate < hireDateFrom) return false;
+      if (hireDateTo && hireDate > hireDateTo) return false;
+      return true;
+    };
     const client = createClient();
     try {
       await client.connect();
@@ -210,10 +224,10 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         if (fields.length) fields.forEach(field => sheet.addRow({ ...base, item: clean(field.label), status: clean(tracker.responses?.[field.id]) || 'Missing' }));
         else sheet.addRow({ ...base, item: 'No checklist snapshot', status: 'Missing' });
       };
-      employees.sort((a, b) => clean(a['Last Name']).localeCompare(clean(b['Last Name']))).forEach(employee => {
+      employees.filter(matchesReportFilters).sort((a, b) => clean(a['Last Name']).localeCompare(clean(b['Last Name']))).forEach(employee => {
         appendTrackerRows(employee, byId.get(String(employee._id)) || {}, 'Current');
       });
-      historicalRecords.forEach(record => appendTrackerRows(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle'));
+      historicalRecords.filter(record => matchesReportFilters(record.employeeSnapshot || {})).forEach(record => appendTrackerRows(record.employeeSnapshot || {}, record, 'Archived Rehire Cycle'));
       styleReportSheet(sheet);
       return await sendWorkbook(res, workbook, `New_Hire_File_Tracker_History_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (error) {

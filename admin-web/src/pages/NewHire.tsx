@@ -163,6 +163,9 @@ export default function NewHire() {
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [showTrackerManager, setShowTrackerManager] = useState(false);
   const [showStatusReview, setShowStatusReview] = useState(false);
+  const [fileReportName, setFileReportName] = useState("");
+  const [fileReportHireFrom, setFileReportHireFrom] = useState("");
+  const [fileReportHireTo, setFileReportHireTo] = useState("");
   const [showActionReports, setShowActionReports] = useState(false);
   const [newTrackerLabel, setNewTrackerLabel] = useState("");
   const [newTrackerOptions, setNewTrackerOptions] = useState("Yes, No");
@@ -222,6 +225,22 @@ export default function NewHire() {
       );
     });
   }, [employees, filters, query]);
+
+  const fileReportEmployees = useMemo(() => {
+    const name = fileReportName.trim().toLowerCase();
+    return employees.filter((employee) => {
+      const hireDate = employee.hireDate.slice(0, 10);
+      if (name && !employee.name.toLowerCase().includes(name)) return false;
+      if (fileReportHireFrom && hireDate < fileReportHireFrom) return false;
+      if (fileReportHireTo && hireDate > fileReportHireTo) return false;
+      return true;
+    });
+  }, [employees, fileReportHireFrom, fileReportHireTo, fileReportName]);
+  const fileReportRangeValid = !fileReportHireFrom || !fileReportHireTo || fileReportHireFrom <= fileReportHireTo;
+  const fileReportParams = new URLSearchParams();
+  if (fileReportName.trim()) fileReportParams.set("employeeName", fileReportName.trim());
+  if (fileReportHireFrom) fileReportParams.set("hireDateFrom", fileReportHireFrom);
+  if (fileReportHireTo) fileReportParams.set("hireDateTo", fileReportHireTo);
 
   const hireDateRangeActive = Boolean(filters.hireDateFrom || filters.hireDateTo);
   const mainEmployees = filteredEmployees
@@ -1493,11 +1512,19 @@ export default function NewHire() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+            <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label><span className="text-xs font-bold uppercase tracking-wide text-emerald-900">Employee Name</span><input className="mt-1.5 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setFileReportName(event.target.value)} placeholder="Search employee name" value={fileReportName} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-emerald-900">Hire Date From</span><input className="mt-1.5 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setFileReportHireFrom(event.target.value)} type="date" value={fileReportHireFrom} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-emerald-900">Hire Date To</span><input className="mt-1.5 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2.5 text-sm" onChange={(event) => setFileReportHireTo(event.target.value)} type="date" value={fileReportHireTo} /></label>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className={`text-sm font-semibold ${fileReportRangeValid ? "text-emerald-800" : "text-red-700"}`}>{fileReportRangeValid ? `${fileReportEmployees.length} current employee${fileReportEmployees.length === 1 ? "" : "s"} match. Historical rehire cycles are included in the Excel report.` : "Hire Date From cannot be later than Hire Date To."}</p><button className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100" onClick={() => { setFileReportName(""); setFileReportHireFrom(""); setFileReportHireTo(""); }} type="button">Reset Report Filters</button></div>
+            </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {[
                 [
                   "Draft",
-                  employees.filter(
+                  fileReportEmployees.filter(
                     (employee) =>
                       !employee.fileTracker?.submittedAt &&
                       !employee.fileTracker?.finalLockedAt &&
@@ -1507,7 +1534,7 @@ export default function NewHire() {
                 ],
                 [
                   "Confirmed for Review",
-                  employees.filter(
+                  fileReportEmployees.filter(
                     (employee) =>
                       employee.fileTracker?.submittedAt &&
                       !employee.fileTracker?.finalLockedAt &&
@@ -1517,7 +1544,7 @@ export default function NewHire() {
                 ],
                 [
                   "Locked",
-                  employees.filter(
+                  fileReportEmployees.filter(
                     (employee) =>
                       employee.fileTracker?.finalLockedAt ||
                       employee.fileTracker?.confirmedAt,
@@ -1543,7 +1570,7 @@ export default function NewHire() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.flatMap((employee) => {
+                  {fileReportEmployees.flatMap((employee) => {
                     const locked =
                       employee.fileTracker?.finalLockedAt ||
                       employee.fileTracker?.confirmedAt;
@@ -1583,7 +1610,7 @@ export default function NewHire() {
               </table>
             </div>
             <div className="mt-5 flex flex-wrap justify-end gap-3">
-              <a className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800" href="/api/hr-platform/new-hires/reports/file-tracker.xlsx">
+              <a aria-disabled={!fileReportRangeValid} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white ${fileReportRangeValid ? "bg-emerald-700 hover:bg-emerald-800" : "pointer-events-none bg-slate-400"}`} href={fileReportRangeValid ? `/api/hr-platform/new-hires/reports/file-tracker.xlsx${fileReportParams.toString() ? `?${fileReportParams}` : ""}` : undefined}>
                 <Download className="h-4 w-4" />
                 Download Historical Excel
               </a>
