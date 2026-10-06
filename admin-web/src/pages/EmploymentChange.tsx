@@ -768,12 +768,13 @@ export default function EmploymentChange() {
           tone="amber"
         />
         <div className="overflow-auto">
-          <table className="min-w-[1850px] text-sm">
+          <table className="min-w-[2050px] text-sm">
             <Head
               labels={[
                 "Employee",
                 "Change Effective Date",
                 "Changes",
+                "Change Reason / Notes",
                 "Employee Folder",
                 "File Check",
                 "File Final Review",
@@ -845,6 +846,11 @@ export default function EmploymentChange() {
                           {label}
                         </div>
                       ))}
+                    </Cell>
+                    <Cell>
+                      <div className="max-w-[260px] whitespace-pre-wrap text-slate-700">
+                        {record.reason || "--"}
+                      </div>
                     </Cell>
                     <Cell>
                       <div className="flex items-center gap-2">
