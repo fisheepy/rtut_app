@@ -773,7 +773,7 @@ export default function Termination() {
               "Job Title",
               "Location",
               "Supervisor",
-              "Employee Folder *",
+              "Employee Folder (Optional)",
               "Final Payroll Date *",
               "Follow-up Issues",
               "Follow Through",
@@ -820,8 +820,8 @@ export default function Termination() {
                         </span>
                       </span>
                     ) : (
-                      <span className="font-bold text-red-700">
-                        Required - click to add
+                      <span className="font-semibold text-slate-500">
+                        Optional - click to add
                       </span>
                     )}
                   </EditableCell>
@@ -893,10 +893,7 @@ export default function Termination() {
                             "Final Pay Check",
                           )
                         }
-                        disabled={
-                          !employee.finalPayrollDate ||
-                          !employee.employeeFolderUrl
-                        }
+                        disabled={!employee.finalPayrollDate}
                       />
                     )}
                   </Cell>
@@ -1139,7 +1136,7 @@ export default function Termination() {
                   }
                 />
               </Field>
-              <Field label="Employee Folder Link">
+              <Field label="Employee Folder Link (Optional)">
                 <input
                   className="mt-1 block w-full rounded-lg border border-slate-300 p-2.5 font-normal"
                   placeholder="https://..."
