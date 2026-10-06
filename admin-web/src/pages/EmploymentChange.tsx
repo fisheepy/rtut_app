@@ -135,6 +135,13 @@ const comparableDate = (value = "") => {
   const usMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (usMatch)
     return `${usMatch[3]}-${usMatch[1].padStart(2, "0")}-${usMatch[2].padStart(2, "0")}`;
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    const day = String(parsed.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
   return "";
 };
 
