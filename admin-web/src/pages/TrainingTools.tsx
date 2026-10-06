@@ -337,7 +337,7 @@ function TrainingLogin({ onLogin }: { onLogin: () => void }) {
           <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-500/30 blur-3xl" />
           <div className="absolute -bottom-24 left-12 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
           <div className="relative">
-            <Link className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" to="/">
+            <Link className="inline-flex items-center gap-2 text-sm font-bold text-white drop-shadow-sm hover:text-emerald-100" to="/">
               <ArrowLeft className="h-4 w-4" />
               Back to HR Tools
             </Link>
@@ -1287,22 +1287,22 @@ function TrainingWorkspace({ onLogout }: { onLogout: () => void }) {
               Back to HR Tools
             </Link>
             <div className="flex flex-wrap items-center gap-3">
-              <Link className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-orange-100 hover:bg-white/15 hover:text-white" to="/work-related-injury">
+              <Link className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/15 px-3 py-2 text-sm font-bold text-white shadow-sm hover:bg-white/25" to="/work-related-injury">
                 <HardHat className="h-4 w-4" />
                 Work Related Injury / Accident
               </Link>
-              <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white" onClick={logout} type="button">
+              <button className="inline-flex items-center gap-2 text-sm font-bold text-white drop-shadow-sm hover:text-emerald-100" onClick={logout} type="button">
                 <LogOut className="h-4 w-4" />
                 Sign out
               </button>
             </div>
           </div>
-          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">
+          <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-emerald-200/50 bg-emerald-300/20 px-3 py-1.5 text-xs font-bold text-white shadow-sm">
             <GraduationCap className="h-4 w-4" />
             Training Operations
           </div>
-          <h1 className="mt-4 text-4xl font-semibold tracking-normal md:text-5xl">Training Tools</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-300">
+          <h1 className="mt-4 text-4xl font-bold tracking-normal text-white drop-shadow-md md:text-5xl">Training Tools</h1>
+          <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-white drop-shadow-sm">
             Review employee details and track Orientation Training and Monthly Training in one place.
           </p>
         </div>
