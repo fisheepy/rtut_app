@@ -831,6 +831,8 @@ export default function EmploymentChange() {
                 return (
                   <tr
                     className={`border-t ${attention ? "bg-red-100 ring-2 ring-inset ring-red-300" : ""}`}
+                    data-effective-date={record.effectiveDate}
+                    data-effective-date-key={comparableDate(record.effectiveDate)}
                     key={record.id}
                   >
                     <Sticky record={record} />
