@@ -1409,10 +1409,33 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to close Medical Leave case:', error); return res.status(500).json({ error: 'The Medical Leave case could not be closed.' }); } finally { await client.close(); }
   });
 
-  router.get('/leaves/reports/history.xlsx', async (_req, res) => {
+  function medicalLeaveReportFilter(req) {
+    const employeeName = clean(req.query.employeeName).toLowerCase();
+    const leaveStartedFrom = clean(req.query.leaveStartedFrom);
+    const leaveStartedTo = clean(req.query.leaveStartedTo);
+    const error = (leaveStartedFrom && !validDate(leaveStartedFrom))
+      || (leaveStartedTo && !validDate(leaveStartedTo))
+      || (leaveStartedFrom && leaveStartedTo && leaveStartedFrom > leaveStartedTo)
+      ? 'Select a valid Leave Started Date From and To.'
+      : '';
+    const matches = (record, employee) => {
+      const name = [clean(employee?.['First Name']), clean(employee?.['Last Name'])].filter(Boolean).join(' ').toLowerCase();
+      const start = clean(record.leaveStartedAt).slice(0, 10);
+      if (employeeName && !name.includes(employeeName)) return false;
+      if (leaveStartedFrom && (!start || start < leaveStartedFrom)) return false;
+      if (leaveStartedTo && (!start || start > leaveStartedTo)) return false;
+      return true;
+    };
+    return { error, matches };
+  }
+
+  router.get('/leaves/reports/history.xlsx', async (req, res) => {
+    const reportFilter = medicalLeaveReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient(); try {
-      await client.connect(); const db = client.db(databaseName); const records = await db.collection('employee_hr_leave').find({}).sort({ leaveStartedAt: 1, createdAt: 1 }).toArray();
+      await client.connect(); const db = client.db(databaseName); let records = await db.collection('employee_hr_leave').find({}).sort({ leaveStartedAt: 1, createdAt: 1 }).toArray();
       const ids = [...new Set(records.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))]; const employees = ids.length ? await db.collection('employees').find({ _id: { $in: ids.map(id => new ObjectId(id)) } }).toArray() : []; const byId = new Map(employees.map(employee => [String(employee._id), employee]));
+      records = records.filter(record => reportFilter.matches(record, byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}));
       const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet('Leave History');
       sheet.columns = [{ header: 'Employee', key: 'employee', width: 28 }, { header: 'Email', key: 'email', width: 32 }, { header: 'Company App Status', key: 'status', width: 22 }, { header: 'Case Status', key: 'caseStatus', width: 18 }, { header: 'Leave Start Date', key: 'start', width: 18 }, { header: 'Anticipated Return Date', key: 'anticipated', width: 24 }, { header: 'Actual Return to Work Date', key: 'actual', width: 26 }, { header: 'STD Approved Starting Date', key: 'payrollStart', width: 26 }, { header: 'STD Approved Ending Date', key: 'payrollEnd', width: 25 }, { header: 'First Payroll Date After Leave Ended', key: 'firstPayrollAfterLeave', width: 34 }, { header: 'Insurance Status', key: 'insurance', width: 24 }, { header: 'Insurance End Date', key: 'insuranceEnd', width: 22 }, { header: 'Close Requested At', key: 'closeRequestedAt', width: 24 }, { header: 'Close Requested By', key: 'closeRequestedBy', width: 30 }, { header: 'Final Approved / Closed At', key: 'closedAt', width: 28 }, { header: 'Final Approved / Closed By', key: 'closedBy', width: 30 }];
       records.forEach(record => { const employee = byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}; sheet.addRow({ employee: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '), email: clean(employee.Email), status: clean(employee['Position Status']), caseStatus: record.active === true ? 'Open' : 'Closed', start: record.leaveStartedAt || '', anticipated: clean(record.anticipatedReturnDate), actual: clean(record.actualReturnDate), payrollStart: clean(record.payrollStartDate), payrollEnd: clean(record.payrollEndDate), firstPayrollAfterLeave: clean(record.firstPayrollAfterLeaveDate), insurance: clean(record.insuranceStatus), insuranceEnd: clean(record.insuranceEndDate), closeRequestedAt: record.closeRequestedAt || '', closeRequestedBy: clean(record.closeRequestedBy), closedAt: record.closedAt || '', closedBy: clean(record.closedBy) }); });
@@ -1432,17 +1455,20 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     } catch (error) { console.error('Unable to create Medical Leave history report:', error); return res.status(500).json({ error: 'Medical Leave history report could not be created.' }); } finally { await client.close(); }
   });
 
-  router.get('/leaves/reports/file-check.xlsx', async (_req, res) => {
+  router.get('/leaves/reports/file-check.xlsx', async (req, res) => {
+    const reportFilter = medicalLeaveReportFilter(req);
+    if (reportFilter.error) return res.status(400).json({ error: reportFilter.error });
     const client = createClient();
     try {
       await client.connect();
       const db = client.db(databaseName);
-      const records = await db.collection('employee_hr_leave').find({}).sort({ leaveStartedAt: 1, createdAt: 1 }).toArray();
+      let records = await db.collection('employee_hr_leave').find({}).sort({ leaveStartedAt: 1, createdAt: 1 }).toArray();
       const ids = [...new Set(records.map(record => clean(record.employeeId)).filter(value => ObjectId.isValid(value)))];
       const employees = ids.length
         ? await db.collection('employees').find({ _id: { $in: ids.map(id => new ObjectId(id)) } }).toArray()
         : [];
       const byId = new Map(employees.map(employee => [String(employee._id), employee]));
+      records = records.filter(record => reportFilter.matches(record, byId.get(clean(record.employeeId)) || record.employeeSnapshot || {}));
       const currentCatalog = await getMedicalTrackerCatalog(db, true);
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('Medical File Check Status');

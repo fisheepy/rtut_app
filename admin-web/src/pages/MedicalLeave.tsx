@@ -125,6 +125,10 @@ export default function MedicalLeave() {
     "Complete, Missing, Not Applicable",
   );
   const [logging, setLogging] = useState<LeaveEmployee | null>(null);
+  const [reportType, setReportType] = useState<"file" | "history" | null>(null);
+  const [reportEmployeeName, setReportEmployeeName] = useState("");
+  const [reportLeaveFrom, setReportLeaveFrom] = useState("");
+  const [reportLeaveTo, setReportLeaveTo] = useState("");
 
   async function load() {
     setLoading(true);
@@ -290,8 +294,12 @@ export default function MedicalLeave() {
   }
   async function downloadHistory() {
     try {
+      const params = new URLSearchParams();
+      if (reportEmployeeName.trim()) params.set("employeeName", reportEmployeeName.trim());
+      if (reportLeaveFrom) params.set("leaveStartedFrom", reportLeaveFrom);
+      if (reportLeaveTo) params.set("leaveStartedTo", reportLeaveTo);
       const response = await api.get(
-        "/hr-platform/leaves/reports/history.xlsx",
+        `/hr-platform/leaves/reports/history.xlsx${params.toString() ? `?${params.toString()}` : ""}`,
         { responseType: "blob" },
       );
       const url = URL.createObjectURL(response.data);
@@ -300,6 +308,7 @@ export default function MedicalLeave() {
       link.download = "Medical_Leave_Current_and_History.xlsx";
       link.click();
       URL.revokeObjectURL(url);
+      setReportType(null);
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.error ||
@@ -309,8 +318,12 @@ export default function MedicalLeave() {
   }
   async function downloadMedicalFileCheckReport() {
     try {
+      const params = new URLSearchParams();
+      if (reportEmployeeName.trim()) params.set("employeeName", reportEmployeeName.trim());
+      if (reportLeaveFrom) params.set("leaveStartedFrom", reportLeaveFrom);
+      if (reportLeaveTo) params.set("leaveStartedTo", reportLeaveTo);
       const response = await api.get(
-        "/hr-platform/leaves/reports/file-check.xlsx",
+        `/hr-platform/leaves/reports/file-check.xlsx${params.toString() ? `?${params.toString()}` : ""}`,
         { responseType: "blob" },
       );
       const url = URL.createObjectURL(response.data);
@@ -319,6 +332,7 @@ export default function MedicalLeave() {
       link.download = "Medical_Leave_File_Check_Status.xlsx";
       link.click();
       URL.revokeObjectURL(url);
+      setReportType(null);
     } catch (requestError: any) {
       setError(
         requestError.response?.data?.error ||
@@ -453,14 +467,14 @@ export default function MedicalLeave() {
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
-              onClick={downloadMedicalFileCheckReport}
+              onClick={() => setReportType("file")}
             >
               <Download className="h-4 w-4" />
               Medical File Check Report
             </button>
             <button
               className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold"
-              onClick={downloadHistory}
+              onClick={() => setReportType("history")}
             >
               <Download className="h-4 w-4" />
               Current & History Report
@@ -824,6 +838,28 @@ export default function MedicalLeave() {
           remove={(logId) => deleteLog(logging, logId)}
           close={() => setLogging(null)}
         />
+      )}
+      {reportType && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-violet-100 bg-violet-50 px-6 py-5">
+              <div><h2 className="text-xl font-bold text-violet-950">{reportType === "file" ? "Medical File Check Report" : "Current & History Report"}</h2><p className="mt-1 text-sm text-violet-800">Filter by employee name, Leave Started Date range, or both.</p></div>
+              <button aria-label="Close report filters" className="rounded-lg p-2 text-slate-500 hover:bg-white" onClick={() => setReportType(null)} type="button"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-5 p-6">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label><span className="text-xs font-bold uppercase tracking-wide text-violet-900">Employee Name</span><input className="mt-1.5 w-full rounded-lg border border-violet-200 px-3 py-2.5 text-sm" onChange={(event) => setReportEmployeeName(event.target.value)} placeholder="Search employee name" value={reportEmployeeName} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-violet-900">Leave Started Date From</span><input className="mt-1.5 w-full rounded-lg border border-violet-200 px-3 py-2.5 text-sm" onChange={(event) => setReportLeaveFrom(event.target.value)} type="date" value={reportLeaveFrom} /></label>
+                <label><span className="text-xs font-bold uppercase tracking-wide text-violet-900">Leave Started Date To</span><input className="mt-1.5 w-full rounded-lg border border-violet-200 px-3 py-2.5 text-sm" onChange={(event) => setReportLeaveTo(event.target.value)} type="date" value={reportLeaveTo} /></label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-violet-50 p-4">
+                <p className={`text-sm font-semibold ${!reportLeaveFrom || !reportLeaveTo || reportLeaveFrom <= reportLeaveTo ? "text-violet-900" : "text-red-700"}`}>{!reportLeaveFrom || !reportLeaveTo || reportLeaveFrom <= reportLeaveTo ? "Leave all filters blank to include every Medical Leave case." : "Leave Started Date From cannot be later than Leave Started Date To."}</p>
+                <button className="rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm font-bold text-violet-800 hover:bg-violet-100" onClick={() => { setReportEmployeeName(""); setReportLeaveFrom(""); setReportLeaveTo(""); }} type="button">Reset Report Filters</button>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4"><button className="rounded-lg px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200" onClick={() => setReportType(null)} type="button">Cancel</button><button className="inline-flex items-center gap-2 rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white hover:bg-violet-800 disabled:bg-slate-400" disabled={Boolean(reportLeaveFrom && reportLeaveTo && reportLeaveFrom > reportLeaveTo)} onClick={reportType === "file" ? downloadMedicalFileCheckReport : downloadHistory} type="button"><Download className="h-4 w-4" />Download Excel</button></div>
+          </div>
+        </div>
       )}
     </div>
   );
