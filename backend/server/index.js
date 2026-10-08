@@ -799,13 +799,22 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         const statusOnlyRouting = changes.length === 1 && changes[0].field === 'Position Status'
             && !payroll && !insurance && !retirement
             && /^(active|leave)$/i.test(String(changes[0].to || '').trim());
-        if (!statusOnlyRouting) await db.collection('employee_hr_employment_change').insertOne({
+        if (!statusOnlyRouting) {
+            // Start each Employment Change cycle with the employee folder already
+            // recorded during New Hire. This is a one-time copy: later edits to
+            // either workflow remain independent and are never overwritten here.
+            const newHireRecord = await db.collection('employee_hr_platform').findOne(
+                { employeeId },
+                { projection: { employeeFolderUrl: 1 } },
+            );
+            const inheritedEmployeeFolderUrl = String(newHireRecord?.employeeFolderUrl || '').trim();
+            await db.collection('employee_hr_employment_change').insertOne({
                 employeeId,
                 employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),
                 employeeEmail: employeeUpdate.Email ?? existing.Email ?? '',
                 effectiveDate: String(_employmentChange.effectiveDate || '').trim(),
                 reason: String(_employmentChange.reason || '').trim(),
-                employeeFolderUrl: '', followUpIssues: false, followUpNotes: '', followUpUntil: '',
+                employeeFolderUrl: inheritedEmployeeFolderUrl, followUpIssues: false, followUpNotes: '', followUpUntil: '',
                 changes,
                 requestedTracking: { payroll, insurance, retirement },
                 tasks: {
@@ -817,6 +826,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 },
                 createdAt: new Date(), createdBy: adminSession?.email || '',
             });
+        }
         return { found: true, changed: result.modifiedCount > 0, tracked: !statusOnlyRouting, leaveRouted: statusOnlyRouting };
     } catch (error) {
         console.error('Error updating employee in database:', error);
