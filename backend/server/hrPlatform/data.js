@@ -79,20 +79,18 @@ function employeeView(employee, record) {
   };
 }
 
-function twoYearVestingStatus(hireDateValue, terminationDateValue, retirementEffectiveDateValue) {
+function twoYearVestingStatus(hireDateValue, terminationDateValue) {
   const hireDate = clean(hireDateValue).slice(0, 10);
   const terminationDate = clean(terminationDateValue).slice(0, 10);
-  const retirementEffectiveDate = clean(retirementEffectiveDateValue).slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(hireDate) || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate)) return 'Unable to Determine';
   const [year, month, day] = hireDate.split('-').map(Number);
   const lastDay = new Date(Date.UTC(year + 2, month, 0)).getUTCDate();
   const anniversary = new Date(Date.UTC(year + 2, month - 1, Math.min(day, lastDay))).toISOString().slice(0, 10);
-  if (terminationDate >= anniversary) return 'Meets 2-Year Service';
-  if (retirementEffectiveDate.startsWith('2027-')) return 'Under 2 Years — 2027 Vesting Review';
-  return 'Does Not Meet 2-Year Service';
+  if (terminationDate >= anniversary) return 'Meets 2 Years — No Forfeiture';
+  return 'Under 2 Years — Forfeiture Applies';
 }
 
-function terminationEmployeeView(employee, record = {}, newHireRecord = {}) {
+function terminationEmployeeView(employee, record = {}) {
   return {
     id: String(employee._id),
     name: [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' '),
@@ -118,8 +116,7 @@ function terminationEmployeeView(employee, record = {}, newHireRecord = {}) {
     cobraClosedBy: clean(record.cobraClosedBy),
     retirementParticipation: clean(record.retirementParticipation),
     retirementEndingDate: clean(record.retirementEndingDate),
-    retirementEffectiveDate: clean(newHireRecord.retirementEffectiveDate),
-    retirementVestingStatus: twoYearVestingStatus(employee['Hire Date'] || employee['First Day'], employee['Termination Date'], newHireRecord.retirementEffectiveDate),
+    retirementVestingStatus: twoYearVestingStatus(employee['Hire Date'] || employee['First Day'], employee['Termination Date']),
     fileTracker: record.fileTracker || {},
     payrollCheckedAt: record.payrollCheckedAt || null, payrollCheckedBy: clean(record.payrollCheckedBy),
     payrollFinalReviewedAt: record.payrollFinalReviewedAt || null, payrollFinalReviewedBy: clean(record.payrollFinalReviewedBy),
