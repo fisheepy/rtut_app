@@ -120,7 +120,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
             { $setOnInsert: { ...historicalRecord, originalRecordId, employeeSnapshot: employee, archivedAt: new Date(), archiveReason: 'Legacy onboarding cycle separated after employee reactivation', reactivationDate } },
             { upsert: true },
           );
-          const freshRecord = { employeeId: String(record.employeeId), onboardingCycleStartedAt: reactivationDate, fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } };
+          const inheritedEmployeeFolderUrl = await findExistingEmployeeFolderUrl(db, record.employeeId);
+          const freshRecord = { employeeId: String(record.employeeId), employeeFolderUrl: inheritedEmployeeFolderUrl, onboardingCycleStartedAt: reactivationDate, fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } };
           await db.collection('employee_hr_platform').replaceOne({ _id: originalRecordId }, freshRecord);
           records[index] = freshRecord;
         }
@@ -128,6 +129,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const recordsWithoutSnapshot = records.filter(record => !record.fileTracker?.fieldsSnapshot);
       const existingIds = new Set(records.map(record => String(record.employeeId)));
       const missingEmployeeIds = ids.filter(id => !existingIds.has(id));
+      const inheritedLinks = new Map(await Promise.all(missingEmployeeIds.map(async employeeId => [employeeId, await findExistingEmployeeFolderUrl(db, employeeId)])));
       const snapshotOperations = [
         ...recordsWithoutSnapshot.map(record => ({
           updateOne: {
@@ -138,14 +140,14 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         ...missingEmployeeIds.map(employeeId => ({
           updateOne: {
             filter: { employeeId },
-            update: { $setOnInsert: { employeeId, fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } } },
+            update: { $setOnInsert: { employeeId, employeeFolderUrl: inheritedLinks.get(employeeId) || '', fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } } },
             upsert: true,
           },
         })),
       ];
       if (snapshotOperations.length) await db.collection('employee_hr_platform').bulkWrite(snapshotOperations);
       recordsWithoutSnapshot.forEach(record => { record.fileTracker = { ...(record.fileTracker || {}), fieldsSnapshot: catalog }; });
-      missingEmployeeIds.forEach(employeeId => records.push({ employeeId, fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } }));
+      missingEmployeeIds.forEach(employeeId => records.push({ employeeId, employeeFolderUrl: inheritedLinks.get(employeeId) || '', fileTracker: { fieldsSnapshot: catalog, responses: {}, handbookVersion: '', comments: '' } }));
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       return res.json(employees.map(employee => employeeView(employee, byId.get(String(employee._id))))
         .sort((left, right) => left.name.localeCompare(right.name)));
