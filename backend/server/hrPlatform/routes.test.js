@@ -51,6 +51,7 @@ test('requires every File Tracker item and handbook version before confirmation'
 
 test('identifies two-year employment for the termination vesting review', () => {
   assert.equal(twoYearVestingStatus('2024-02-29', '2026-02-28'), 'Meets 2 Years — No Forfeiture');
+  assert.equal(twoYearVestingStatus('9/16/2019', '8/21/2026'), 'Meets 2 Years — No Forfeiture');
   assert.equal(twoYearVestingStatus('2026-06-01', '2027-08-01'), 'Under 2 Years — Forfeiture Applies');
   assert.equal(twoYearVestingStatus('', '2027-08-01'), 'Unable to Determine');
 });

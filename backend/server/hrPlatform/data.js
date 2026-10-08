@@ -80,9 +80,20 @@ function employeeView(employee, record) {
 }
 
 function twoYearVestingStatus(hireDateValue, terminationDateValue) {
-  const hireDate = clean(hireDateValue).slice(0, 10);
-  const terminationDate = clean(terminationDateValue).slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(hireDate) || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate)) return 'Unable to Determine';
+  const normalizeEmploymentDate = value => {
+    const text = clean(value);
+    const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    const us = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const parts = iso ? [Number(iso[1]), Number(iso[2]), Number(iso[3])] : us ? [Number(us[3]), Number(us[1]), Number(us[2])] : [];
+    if (!parts.length) return '';
+    const [year, month, day] = parts;
+    const candidate = new Date(Date.UTC(year, month - 1, day));
+    if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) return '';
+    return candidate.toISOString().slice(0, 10);
+  };
+  const hireDate = normalizeEmploymentDate(hireDateValue);
+  const terminationDate = normalizeEmploymentDate(terminationDateValue);
+  if (!hireDate || !terminationDate) return 'Unable to Determine';
   const [year, month, day] = hireDate.split('-').map(Number);
   const lastDay = new Date(Date.UTC(year + 2, month, 0)).getUTCDate();
   const anniversary = new Date(Date.UTC(year + 2, month - 1, Math.min(day, lastDay))).toISOString().slice(0, 10);
