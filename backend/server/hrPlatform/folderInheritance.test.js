@@ -38,3 +38,14 @@ test('returns a New Hire folder when no later workflow has a saved link', async 
   }), 'employee-1');
   assert.equal(url, 'https://example.com/new-hire');
 });
+
+test('uses the explicitly saved current link before workflow timestamps', async () => {
+  const url = await findExistingEmployeeFolderUrl(fakeDb({
+    employee_folder_links: [{ url: 'https://example.com/current' }],
+    employee_hr_platform: [{ employeeFolderUrl: 'https://example.com/old', updatedAt: '2027-01-01' }],
+    employee_hr_employment_change: [],
+    employee_hr_termination: [],
+    employee_hr_leave: [],
+  }), 'employee-1');
+  assert.equal(url, 'https://example.com/current');
+});

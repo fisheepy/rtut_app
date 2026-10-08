@@ -12,6 +12,9 @@ async function findExistingEmployeeFolderUrl(db, employeeId) {
   const id = clean(employeeId);
   if (!id) return '';
 
+  const current = await db.collection('employee_folder_links').findOne({ employeeId: id });
+  if (current && clean(current.url)) return clean(current.url);
+
   const [newHire, employmentChanges, termination, leaves] = await Promise.all([
     db.collection('employee_hr_platform').findOne({ employeeId: id }, { projection: { employeeFolderUrl: 1, updatedAt: 1, createdAt: 1 } }),
     db.collection('employee_hr_employment_change').find({ employeeId: id, employeeFolderUrl: { $nin: ['', null] } }).sort({ updatedAt: -1, createdAt: -1 }).limit(1).toArray(),
@@ -29,4 +32,15 @@ async function findExistingEmployeeFolderUrl(db, employeeId) {
     .sort((left, right) => savedAt(right.record) - savedAt(left.record))[0]?.url || '';
 }
 
-module.exports = { findExistingEmployeeFolderUrl };
+async function saveCurrentEmployeeFolderUrl(db, employeeId, url, source, updatedBy = '') {
+  const id = clean(employeeId);
+  const value = clean(url);
+  if (!id || !value) return;
+  await db.collection('employee_folder_links').updateOne(
+    { employeeId: id },
+    { $set: { employeeId: id, url: value, source: clean(source), updatedAt: new Date(), updatedBy: clean(updatedBy) } },
+    { upsert: true },
+  );
+}
+
+module.exports = { findExistingEmployeeFolderUrl, saveCurrentEmployeeFolderUrl };

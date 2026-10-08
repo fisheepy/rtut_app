@@ -4,7 +4,7 @@ const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
 const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, terminationEmployeeView, fileTrackerComplete, fourMonthReviewDate, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
-const { findExistingEmployeeFolderUrl } = require('./folderInheritance');
+const { findExistingEmployeeFolderUrl, saveCurrentEmployeeFolderUrl } = require('./folderInheritance');
 
 function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   const router = express.Router();
@@ -464,6 +464,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         { $set: { ...values, updatedAt: new Date(), updatedBy: req.adminSession?.email || null }, ...reviewReset, ...reviewResetAudit },
         { upsert: true },
       );
+      await saveCurrentEmployeeFolderUrl(db, employeeId, employeeFolderUrl, 'new-hire', req.adminSession?.email);
       return res.json({ ...values, ...resetResponse });
     } catch (error) {
       console.error('Unable to save HR Platform new hire:', error);
@@ -735,7 +736,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       await client.connect();
-      const collection = client.db(databaseName).collection('employee_hr_termination');
+      const db = client.db(databaseName);
+      const collection = db.collection('employee_hr_termination');
       const existing = await collection.findOne({ employeeId }) || {};
       const unset = {};
       if (clean(existing.finalPayrollDate) !== values.finalPayrollDate) Object.assign(unset, { payrollCheckedAt: '', payrollCheckedBy: '', payrollFinalReviewedAt: '', payrollFinalReviewedBy: '' });
@@ -745,6 +747,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const update = { $set: { ...values, updatedAt: new Date(), updatedBy: clean(req.adminSession?.email).toLowerCase() } };
       if (Object.keys(unset).length) update.$unset = unset;
       await collection.updateOne({ employeeId }, update, { upsert: true });
+      await saveCurrentEmployeeFolderUrl(db, employeeId, values.employeeFolderUrl, 'termination', req.adminSession?.email);
       return res.json({ ...values, reviewsReset: Object.keys(unset) });
     } catch (error) {
       console.error('Unable to save HR Platform termination:', error);
@@ -1321,6 +1324,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         Object.assign(update.$unset, { closeRequestedAt: '', closeRequestedBy: '' });
       }
       const result = await collection.updateOne({ _id: existing._id }, update);
+      await saveCurrentEmployeeFolderUrl(db, employeeId, values.medicalFolderUrl, 'medical-leave', req.adminSession?.email);
       if (!result.matchedCount) return res.status(404).json({ error: 'Open leave case not found.' }); return res.json(values);
     } catch (error) { console.error('Unable to save Medical Leave details:', error); return res.status(500).json({ error: 'Medical Leave details could not be saved.' }); }
     finally { await client.close(); }
@@ -1778,7 +1782,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     const client = createClient();
     try {
       await client.connect(); const updatedAt = new Date(); const updatedBy = clean(req.adminSession?.email).toLowerCase();
-      const collection = client.db(databaseName).collection('employee_hr_employment_change'); const existing = await collection.findOne({ _id: new ObjectId(id) });
+      const db = client.db(databaseName); const collection = db.collection('employee_hr_employment_change'); const existing = await collection.findOne({ _id: new ObjectId(id) });
       if (!existing) return res.status(404).json({ error: 'Employment change not found.' });
       const set = {
         effectiveDate: values.effectiveDate, reason: values.reason, employeeFolderUrl: values.employeeFolderUrl,
@@ -1799,6 +1803,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const update = { $set: set }; if (Object.keys(unset).length) update.$unset = unset;
       const result = await collection.updateOne({ _id: existing._id }, update);
       if (!result.matchedCount) return res.status(404).json({ error: 'Employment change not found.' });
+      await saveCurrentEmployeeFolderUrl(db, existing.employeeId, values.employeeFolderUrl, 'employment-change', updatedBy);
       return res.json({ ...values, updatedAt, updatedBy });
     } catch (error) {
       console.error('Unable to update employment change details:', error);
