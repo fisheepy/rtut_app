@@ -24,6 +24,7 @@ const { createWorkInjuryRouter } = require('./workInjury/routes');
 const { createAccidentNearMissRouter } = require('./accidentNearMiss/routes');
 const { createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
 const { createHrPlatformRouter } = require('./hrPlatform/routes');
+const { findExistingEmployeeFolderUrl } = require('./hrPlatform/folderInheritance');
 const {
     buildEarliestAcceptanceMap,
     employeeForExport,
@@ -779,11 +780,12 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
             : { modifiedCount: 0 };
         const statusChange = changes.find(change => change.field === 'Position Status');
         if (statusChange && /^leave$/i.test(statusChange.to)) {
+            const inheritedEmployeeFolderUrl = await findExistingEmployeeFolderUrl(db, employeeId);
             await db.collection('employee_hr_leave').updateOne(
                 { employeeId, active: true },
                 {
                     $set: { active: true, employeeStatus: 'Leave', lastStatusChangedAt: new Date(), lastStatusChangedBy: adminSession?.email || '', employeeSnapshot: { ...existing, ...employeeUpdate } },
-                    $setOnInsert: { employeeId, leaveStartedAt: new Date(), createdAt: new Date(), createdBy: adminSession?.email || '' },
+                    $setOnInsert: { employeeId, leaveStartedAt: new Date(), createdAt: new Date(), createdBy: adminSession?.email || '', medicalFolderUrl: inheritedEmployeeFolderUrl },
                     $unset: { returnedAt: '', returnedBy: '' },
                 },
                 { upsert: true },
@@ -803,11 +805,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
             // Start each Employment Change cycle with the employee folder already
             // recorded during New Hire. This is a one-time copy: later edits to
             // either workflow remain independent and are never overwritten here.
-            const newHireRecord = await db.collection('employee_hr_platform').findOne(
-                { employeeId },
-                { projection: { employeeFolderUrl: 1 } },
-            );
-            const inheritedEmployeeFolderUrl = String(newHireRecord?.employeeFolderUrl || '').trim();
+            const inheritedEmployeeFolderUrl = await findExistingEmployeeFolderUrl(db, employeeId);
             await db.collection('employee_hr_employment_change').insertOne({
                 employeeId,
                 employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),

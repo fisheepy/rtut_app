@@ -4,6 +4,7 @@ const ExcelJS = require('exceljs');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
 const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, terminationEmployeeView, fileTrackerComplete, fourMonthReviewDate, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
+const { findExistingEmployeeFolderUrl } = require('./folderInheritance');
 
 function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
   const router = express.Router();
@@ -690,10 +691,11 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const existingIds = new Set(records.map(record => String(record.employeeId)));
       const missingIds = ids.filter(id => !existingIds.has(id));
       if (missingIds.length) {
+        const inheritedLinks = new Map(await Promise.all(missingIds.map(async employeeId => [employeeId, await findExistingEmployeeFolderUrl(db, employeeId)])));
         await db.collection('employee_hr_termination').bulkWrite(missingIds.map(employeeId => ({
-          updateOne: { filter: { employeeId }, update: { $setOnInsert: { employeeId, createdAt: new Date(), fileTracker: { fieldsSnapshot: catalog, responses: {}, comments: '' } } }, upsert: true },
+          updateOne: { filter: { employeeId }, update: { $setOnInsert: { employeeId, employeeFolderUrl: inheritedLinks.get(employeeId) || '', createdAt: new Date(), fileTracker: { fieldsSnapshot: catalog, responses: {}, comments: '' } } }, upsert: true },
         })));
-        missingIds.forEach(employeeId => records.push({ employeeId }));
+        missingIds.forEach(employeeId => records.push({ employeeId, employeeFolderUrl: inheritedLinks.get(employeeId) || '' }));
       }
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       return res.json(employees.map(employee => terminationEmployeeView(employee, byId.get(String(employee._id))))
@@ -1190,14 +1192,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const missingIds = leaveEmployeeIds.filter(employeeId => !existingIds.has(employeeId));
       if (missingIds.length) {
         const now = new Date();
+        const inheritedLinks = new Map(await Promise.all(missingIds.map(async employeeId => [employeeId, await findExistingEmployeeFolderUrl(db, employeeId)])));
         await db.collection('employee_hr_leave').bulkWrite(missingIds.map(employeeId => ({
           updateOne: {
             filter: { employeeId, active: true },
-            update: { $setOnInsert: { employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, createdAt: now, createdBy: 'system-status-sync', medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } } },
+            update: { $setOnInsert: { employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, createdAt: now, createdBy: 'system-status-sync', medicalFolderUrl: inheritedLinks.get(employeeId) || '', medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } } },
             upsert: true,
           },
         })));
-        missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } }));
+        missingIds.forEach(employeeId => leaveRecords.push({ employeeId, active: true, employeeStatus: 'Leave', leaveStartedAt: now, medicalFolderUrl: inheritedLinks.get(employeeId) || '', medicalFileTracker: { fieldsSnapshot: medicalCatalog, responses: {}, comments: '' } }));
       }
       // Manager changes apply to every currently open case. Preserve responses
       // for unchanged item IDs while adding, renaming, or removing catalog items.
