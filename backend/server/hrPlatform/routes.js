@@ -690,6 +690,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       }).toArray();
       const ids = employees.map(employee => String(employee._id));
       const records = ids.length ? await db.collection('employee_hr_termination').find({ employeeId: { $in: ids } }).toArray() : [];
+      const newHireRecords = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }, { projection: { employeeId: 1, retirementEffectiveDate: 1 } }).toArray() : [];
       const catalog = await getTerminationTrackerCatalog(db);
       const existingIds = new Set(records.map(record => String(record.employeeId)));
       const missingIds = ids.filter(id => !existingIds.has(id));
@@ -701,7 +702,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         missingIds.forEach(employeeId => records.push({ employeeId, employeeFolderUrl: inheritedLinks.get(employeeId) || '' }));
       }
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
-      return res.json(employees.map(employee => terminationEmployeeView(employee, byId.get(String(employee._id))))
+      const newHireById = new Map(newHireRecords.map(record => [String(record.employeeId), record]));
+      return res.json(employees.map(employee => terminationEmployeeView(employee, byId.get(String(employee._id)), newHireById.get(String(employee._id))))
         .sort((left, right) => clean(right.terminationDate).localeCompare(clean(left.terminationDate)) || left.name.localeCompare(right.name)));
     } catch (error) {
       console.error('Unable to load HR Platform terminations:', error);

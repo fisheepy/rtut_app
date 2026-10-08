@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { commentAudit, employeeView, terminationEmployeeView, fileTrackerComplete, fourMonthReviewDate, payrollChangeRequestChanged, sanitizeFileTracker, validDate } = require('./data');
+const { commentAudit, employeeView, terminationEmployeeView, fileTrackerComplete, fourMonthReviewDate, payrollChangeRequestChanged, sanitizeFileTracker, twoYearVestingStatus, validDate } = require('./data');
 
 test('maps Company App employee fields into a New Hire row', () => {
   const employee = {
@@ -47,6 +47,12 @@ test('requires every File Tracker item and handbook version before confirmation'
   assert.equal(fileTrackerComplete(tracker), true);
   assert.equal(tracker.comments, 'Waiting for payroll review.');
   assert.equal(fileTrackerComplete({ ...tracker, handbookVersion: '' }), false);
+});
+
+test('identifies two-year service and flags a 2027 participant for vesting review', () => {
+  assert.equal(twoYearVestingStatus('2024-02-29', '2026-02-28', '2025-01-01'), 'Meets 2-Year Service');
+  assert.equal(twoYearVestingStatus('2026-06-01', '2027-08-01', '2027-01-01'), 'Under 2 Years — 2027 Vesting Review');
+  assert.equal(twoYearVestingStatus('2026-06-01', '2027-08-01', '2026-07-01'), 'Does Not Meet 2-Year Service');
 });
 
 test('calculates the employee referral review date four calendar months after hire', () => {

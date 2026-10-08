@@ -52,6 +52,8 @@ type Employee = {
   cobraClosedBy: string;
   retirementParticipation: string;
   retirementEndingDate: string;
+  retirementEffectiveDate: string;
+  retirementVestingStatus: string;
   payrollCheckedAt: string | null;
   payrollCheckedBy: string;
   payrollFinalReviewedAt: string | null;
@@ -1597,6 +1599,7 @@ function SimpleStatusTable({
           "Employee",
           "Participation",
           "Ending Date",
+          ...(insurance ? [] : ["Vesting Status"]),
           "Status",
           "Checked By",
           "Action",
@@ -1638,6 +1641,20 @@ function SimpleStatusTable({
                   {dateDisplay(endingDate)}
                 </span>
               </Cell>
+              {!insurance && (
+                <Cell>
+                  <div className="space-y-1">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${employee.retirementVestingStatus === "Meets 2-Year Service" ? "bg-emerald-100 text-emerald-800" : (employee.retirementVestingStatus || "").includes("2027 Vesting Review") ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>
+                      {employee.retirementVestingStatus || "Unable to Determine"}
+                    </span>
+                    {employee.retirementEffectiveDate && (
+                      <div className="text-xs font-semibold text-slate-500">
+                        401(k) Start: {dateDisplay(employee.retirementEffectiveDate)}
+                      </div>
+                    )}
+                  </div>
+                </Cell>
+              )}
               <Cell>
                 {statusPill(
                   Boolean(checkedAt),
@@ -1679,7 +1696,7 @@ function SimpleStatusTable({
             </tr>
           );
         })}
-        {!employees.length && <EmptyRow columns={6} />}
+        {!employees.length && <EmptyRow columns={insurance ? 6 : 7} />}
       </tbody>
     </table>
   );
