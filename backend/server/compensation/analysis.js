@@ -1,3 +1,5 @@
+const { SALARY_EMPLOYEES } = require('./salaryEmployees');
+
 const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
   period: Object.freeze({ start: '2025-09-30', end: '2026-09-29' }),
   generatedOn: '2026-10-14',
@@ -133,6 +135,7 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
     Object.freeze({ name: 'Ryan Russell Jr.', location: 'Grand Rapids', coveredDays: 30, reason: 'Less than 90 days of pay history in the reporting period' }),
     Object.freeze({ name: 'Dominic Sabo', location: 'Dearborn', coveredDays: 12, reason: 'Less than 90 days of pay history in the reporting period' }),
   ]),
+  salaryEmployees: SALARY_EMPLOYEES,
 });
 
 function getCompensationGrossPayAnalysis() {

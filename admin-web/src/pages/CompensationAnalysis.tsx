@@ -12,11 +12,12 @@ import {
   LogOut,
   Mail,
   RefreshCw,
+  Search,
   ShieldCheck,
 } from "lucide-react";
 import { api } from "../shared/api";
 
-function CompensationLogin({ onLogin }: { onLogin: () => void }) {
+export function CompensationLogin({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
@@ -131,7 +132,7 @@ type DistributionStats = {
   max: number;
 };
 
-type GrossPayAnalysis = {
+export type GrossPayAnalysis = {
   period: { start: string; end: string };
   generatedOn: string;
   basis: string;
@@ -142,10 +143,23 @@ type GrossPayAnalysis = {
   payTypes: Array<{ payType: "Hourly" | "Salary"; overall: DistributionStats; regularPay?: DistributionStats; locations: Array<DistributionStats & { location: string }>; jobTitles?: Array<DistributionStats & { jobTitle: string }>; jobTitlesRegularPay?: Array<DistributionStats & { jobTitle: string }> }>;
   noHistoryEmployees: Array<{ name: string; location: string; reason: string }>;
   insufficientHistory: Array<{ name: string; location: string; coveredDays: number; reason: string }>;
+  salaryEmployees: SalaryEmployee[];
 };
 
-const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const dateText = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+export type SalaryEmployee = {
+  id: string;
+  name: string;
+  jobTitle: string;
+  department: string;
+  location: string;
+  hireDate: string;
+  jobFamily: string;
+  regularPay: number | null;
+  grossPay: number;
+};
+
+export const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+export const dateText = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const salaryJobFamilies = [
   { family: "Executive Leadership", employees: 4, jobs: "CEO, COO, CFO, CLO", regular: "$210,000–$420,000", gross: "$203,415–$393,846", market: "Base: $209,000–$338,000 · Bonus/LTI: company-specific" },
   { family: "Enterprise Leadership", employees: 4, jobs: "VP Trailers, VP Aftermarket, HR Director, Procurement & IT Director", regular: "$130,000–$165,000", gross: "$128,077–$185,595", market: "Base: $146,000–$186,000 · Incentive: role-specific" },
@@ -162,6 +176,41 @@ const salaryJobFamilies = [
   { family: "Senior Service Advisory", employees: 1, jobs: "Senior Service Advisor", regular: "$75,000", gross: "$73,775", market: "Base: $65,000–$85,000" },
   { family: "Upfit, Technical & Field Support", employees: 3, jobs: "Senior Upfit Specialist, Truck Upfit Specialist, Trailer Sales Driver", regular: "$75,000–$100,000", gross: "$73,846–$127,546", market: "Base: $60,000–$105,000" },
 ] as const;
+
+export const externalBaseRanges: Record<string, { min: number; max: number; note: string }> = {
+  "Executive Leadership": { min: 209000, max: 338000, note: "Executive base reference; bonus and long-term incentives require separate review." },
+  "Enterprise Leadership": { min: 146000, max: 186000, note: "Enterprise-leadership base reference; annual incentives vary by role." },
+  "Management Level 1 · General & Business Unit Leadership": { min: 93000, max: 150000, note: "General and business-unit leadership base reference." },
+  "Management Level 2A · Service Operations Leadership": { min: 90000, max: 130000, note: "Grand Rapids truck and trailer service-leadership recruiting range." },
+  "Management Level 2B · Parts & Leasing Operations": { min: 52000, max: 100000, note: "Role-specific parts and leasing management reference." },
+  "Management Level 3A · Corporate Functional Management": { min: 100000, max: 114000, note: "Corporate functional-management base reference." },
+  "Management Level 3B · IT & Systems Management": { min: 105000, max: 141000, note: "Local operational IT-management reference; scope materially affects pay." },
+  "Management Level 3C · Warehouse Operations Leadership": { min: 65000, max: 95000, note: "Warehouse operations leadership base reference." },
+  "Capital Equipment & Trailer Sales": { min: 60000, max: 100000, note: "Base salary only. Commission and total cash opportunity require plan-level review." },
+  "Parts & Relationship Sales": { min: 43000, max: 70000, note: "Base salary only. Commission and territory economics require separate review." },
+  "Finance, Procurement & Administration": { min: 50000, max: 100000, note: "Role-specific professional base reference." },
+  "People, Safety, Marketing & Creative": { min: 50000, max: 80000, note: "Role-specific professional base reference." },
+  "Senior Service Advisory": { min: 65000, max: 85000, note: "Senior service-advisory base reference." },
+  "Upfit, Technical & Field Support": { min: 60000, max: 105000, note: "Technical and field-support base reference." },
+};
+
+export const percentile = (values: number[], value: number | null) => {
+  if (value == null || values.length === 0) return null;
+  const below = values.filter((item) => item < value).length;
+  const equal = values.filter((item) => item === value).length;
+  return Math.round(((below + equal * 0.5) / values.length) * 100);
+};
+
+export const quantile = (values: number[], point: number) => {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = (sorted.length - 1) * point;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+};
+
+export const alignment = (value: number | null, min: number, max: number) => value == null ? "Unavailable" : value < min ? "Below range" : value > max ? "Above range" : "Within range";
 
 function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
   const metrics = [
@@ -230,11 +279,20 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
   </>;
 }
 
+function IndividualSalaryTable({ employees, regularValues, grossValues, search, setSearch, period }: { employees: SalaryEmployee[]; regularValues: number[]; grossValues: number[]; search: string; setSearch: (value: string) => void; period: GrossPayAnalysis["period"] }) {
+  return <section className="overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-sm">
+    <div className="border-b border-violet-100 bg-gradient-to-r from-violet-950 to-indigo-900 px-6 py-6 text-white"><div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">Employee-level review</p><h2 className="mt-2 text-2xl font-black">Individual Salary Employee Analysis</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-violet-100">Compare each employee's current regular pay and one-year gross pay percentile, then open a detailed internal and external alignment review.</p></div><label className="relative block min-w-[280px]"><span className="sr-only">Search salary employees</span><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input className="w-full rounded-xl border border-white/20 bg-white py-2.5 pl-9 pr-3 text-sm font-semibold text-slate-950 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-violet-300" onChange={(event) => setSearch(event.target.value)} placeholder="Search name, title, department, location" value={search} /></label></div></div>
+    <div className="overflow-x-auto"><table className="min-w-[1280px] w-full text-left text-sm"><thead className="bg-violet-50 text-xs uppercase tracking-wide text-violet-950"><tr>{["Employee", "Job Title", "Location", "Regular Pay", "Regular Percentile", "Total Gross Pay", "Gross Percentile", "External Base Alignment"].map((header) => <th className="whitespace-nowrap px-4 py-3" key={header}>{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{employees.map((employee) => { const market = externalBaseRanges[employee.jobFamily]; const marketStatus = market ? alignment(employee.regularPay, market.min, market.max) : "Unavailable"; return <tr className="group hover:bg-violet-50/50" key={employee.id}><td className="sticky left-0 z-10 bg-white px-4 py-3 font-black text-indigo-800 shadow-[1px_0_0_#e2e8f0] group-hover:bg-violet-50"><Link className="inline-flex items-center gap-2 hover:underline" to={`/compensation-analysis/salary/employees/${employee.id}`}>{employee.name}<ArrowRight className="h-4 w-4" /></Link></td><td className="px-4 py-3 font-semibold text-slate-800">{employee.jobTitle}</td><td className="px-4 py-3 text-slate-600">{employee.location}</td><td className="whitespace-nowrap px-4 py-3 font-black text-slate-950">{employee.regularPay == null ? "Unavailable" : money.format(employee.regularPay)}</td><td className="whitespace-nowrap px-4 py-3"><span className="rounded-full bg-violet-100 px-3 py-1 font-black text-violet-900">{employee.regularPay == null ? "—" : `${percentile(regularValues, employee.regularPay)}th`}</span></td><td className="whitespace-nowrap px-4 py-3 font-bold text-slate-800">{money.format(employee.grossPay)}</td><td className="whitespace-nowrap px-4 py-3"><span className="rounded-full bg-slate-100 px-3 py-1 font-black text-slate-800">{percentile(grossValues, employee.grossPay)}th</span></td><td className="px-4 py-3"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${marketStatus === "Within range" ? "bg-emerald-100 text-emerald-900" : marketStatus === "Below range" ? "bg-amber-100 text-amber-900" : marketStatus === "Above range" ? "bg-blue-100 text-blue-900" : "bg-slate-100 text-slate-600"}`}>{marketStatus}</span></td></tr>; })}</tbody></table></div>
+    <div className="border-t border-violet-100 bg-slate-50 px-6 py-4 text-sm leading-6 text-slate-600">Percentiles compare Royal's current salary workforce. Gross pay covers {dateText(period.start)} – {dateText(period.end)} and may include commission, bonus, PTO, and other earnings. Alignment labels are screening indicators, not legal pay-equity conclusions.</div>
+  </section>;
+}
+
 export function CompensationPayTypeAnalysis({ payType }: { payType: "Hourly" | "Salary" }) {
   const [state, setState] = useState<"checking" | "authenticated" | "signed-out">("checking");
   const [analysis, setAnalysis] = useState<GrossPayAnalysis | null>(null);
   const [error, setError] = useState("");
   const [jobTitleBasis, setJobTitleBasis] = useState<"gross" | "regular">("gross");
+  const [employeeSearch, setEmployeeSearch] = useState("");
 
   async function load() {
     setError("");
@@ -257,6 +315,11 @@ export function CompensationPayTypeAnalysis({ payType }: { payType: "Hourly" | "
   const jobTitleRows = payType === "Salary"
     ? [...(jobTitleBasis === "regular" ? (selected?.jobTitlesRegularPay ?? []) : (selected?.jobTitles ?? []))].sort((a, b) => b.average - a.average)
     : [];
+  const salaryEmployees = analysis?.salaryEmployees ?? [];
+  const regularValues = salaryEmployees.flatMap((employee) => employee.regularPay == null ? [] : [employee.regularPay]);
+  const grossValues = salaryEmployees.map((employee) => employee.grossPay);
+  const employeeQuery = employeeSearch.trim().toLowerCase();
+  const filteredSalaryEmployees = salaryEmployees.filter((employee) => !employeeQuery || [employee.name, employee.jobTitle, employee.department, employee.location].some((value) => value.toLowerCase().includes(employeeQuery)));
   const accent = payType === "Hourly" ? "from-cyan-800 via-blue-900 to-slate-950" : "from-violet-800 via-indigo-950 to-slate-950";
   return <div className="space-y-7">
     <section className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${accent} px-7 py-8 text-white shadow-xl`}><div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" /><div className="relative"><Link className="inline-flex items-center gap-2 text-sm font-semibold text-white/80 hover:text-white" to="/compensation-analysis"><ArrowLeft className="h-4 w-4" />Back to Compensation Analysis</Link><p className="mt-7 text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Dedicated workspace</p><h1 className="mt-2 text-4xl font-black">{payType} Compensation Analysis</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-slate-200">{payType === "Salary" ? "Detailed gross pay, regular pay, and job-title analysis for current salary employees." : "Detailed pay distribution and location comparison for current hourly employees."}</p></div></section>
@@ -267,6 +330,7 @@ export function CompensationPayTypeAnalysis({ payType }: { payType: "Hourly" | "
       {payType === "Salary" && selected.regularPay && <section className="rounded-3xl border border-violet-200 bg-white p-6 shadow-sm"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-bold text-violet-700">November 1 salary rate × 24 payrolls</p><h2 className="mt-1 text-2xl font-black text-slate-950">Salary regular pay distribution</h2></div><div className="rounded-xl bg-violet-50 px-4 py-3 text-right"><p className="text-2xl font-black text-violet-950">{selected.regularPay.analyzed} / {selected.regularPay.population}</p><p className="text-xs font-bold uppercase tracking-wide text-violet-700">Rates available</p></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{[["Minimum", selected.regularPay.min], ["25th Percentile", selected.regularPay.p25], ["Median", selected.regularPay.median], ["Average", selected.regularPay.average], ["75th Percentile", selected.regularPay.p75], ["Maximum", selected.regularPay.max]].map(([label, value]) => <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4" key={label}><p className="text-xs font-bold uppercase tracking-wide text-violet-700">{label}</p><p className="mt-2 text-xl font-black text-slate-950">{money.format(value as number)}</p></div>)}</div><p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Confirmed November 1 salary updates are included, including Levi Nation at $100,000 annually.</p><p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">2 salary employees are excluded because the Pay Rate is zero or unavailable: Gary Grimes and Mark Stephens.</p></section>}
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-6 py-5"><div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-xl font-black text-slate-950">{payType === "Salary" ? "Royal Internal Salary Data by Job Title" : "Hourly analysis by location"}</h2><p className="mt-1 text-sm text-slate-500">{payType === "Salary" ? `Job-title distribution based on ${jobTitleBasis === "gross" ? "gross pay" : "regular pay"}, ranked by average from highest to lowest.` : "Location-level distribution using the same 90-day pay-history rule."}</p>{payType === "Salary" && <p className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-black ${jobTitleBasis === "gross" ? "bg-slate-100 text-slate-700" : "bg-violet-100 text-violet-800"}`}>{jobTitleBasis === "gross" ? `Data period: ${dateText(analysis.period.start)} – ${dateText(analysis.period.end)}` : "New salary effective November 1, 2026"}</p>}</div>{payType === "Salary" && <div className="inline-flex rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Job title pay basis"><button aria-selected={jobTitleBasis === "gross"} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${jobTitleBasis === "gross" ? "bg-slate-900 text-white shadow" : "text-slate-600 hover:text-slate-950"}`} onClick={() => setJobTitleBasis("gross")} role="tab" type="button">Gross Pay Distribution</button><button aria-selected={jobTitleBasis === "regular"} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${jobTitleBasis === "regular" ? "bg-violet-700 text-white shadow" : "text-slate-600 hover:text-slate-950"}`} onClick={() => setJobTitleBasis("regular")} role="tab" type="button">Regular Pay Distribution</button></div>}</div></div><div className="overflow-x-auto"><table className="min-w-[980px] w-full text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{[payType === "Salary" ? "Job Title" : "Location", "Employees", "Analyzed", "Min", "25th", "Median", "Average", "75th", "Max"].map((header) => <th className="whitespace-nowrap px-4 py-3" key={header}>{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{(payType === "Salary" ? jobTitleRows : selected.locations).map((row) => { const label = "jobTitle" in row ? row.jobTitle : row.location; return <tr className="hover:bg-indigo-50/40" key={label}><td className="px-4 py-3 font-bold text-slate-950">{label}</td><td className="px-4 py-3 text-center">{row.population}</td><td className="px-4 py-3 text-center">{row.analyzed}</td>{[row.min, row.p25, row.median, row.average, row.p75, row.max].map((value, index) => <td className={`whitespace-nowrap px-4 py-3 ${index === 3 ? "font-black text-indigo-800" : "text-slate-700"}`} key={index}>{money.format(value)}</td>)}</tr>; })}</tbody></table></div><p className="border-t border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">{payType === "Salary" && jobTitleBasis === "regular" ? "Regular Pay uses the confirmed annual salaries effective November 1, 2026, or the current Salary Pay Rate × 24 payrolls. Employees without a valid Pay Rate remain in headcount but are excluded from the statistics." : "Gross Pay includes applicable overtime, commission, bonus, PTO, and other paid earnings. It should not be interpreted as base pay alone."}</p></section>
       {payType === "Salary" && <section className="overflow-hidden rounded-3xl border border-indigo-200 bg-white shadow-sm"><div className="bg-gradient-to-r from-indigo-950 to-violet-900 px-6 py-6 text-white"><p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">Royal job architecture</p><h2 className="mt-2 text-2xl font-black">Job family and focused market analysis</h2><p className="mt-2 max-w-5xl text-sm leading-6 text-indigo-100">Salary positions are grouped by enterprise impact, decision scope, skill depth, revenue responsibility, and market scarcity. Each benchmark combines the closest available industry anchor—motor-vehicle parts or durable-goods wholesale—with Detroit/Michigan occupational data, Royal recruiting experience, and current recruiting-market checks for a Michigan truck, trailer, parts, and service employer of approximately 210 employees.</p></div><div className="grid gap-3 border-b border-indigo-100 bg-indigo-50/60 p-5 md:grid-cols-3"><div className="rounded-2xl bg-white p-4"><p className="text-xs font-black uppercase tracking-wide text-indigo-700">1 · Industry match</p><p className="mt-2 text-sm leading-6 text-slate-600">Motor Vehicle & Parts Wholesale and Durable Goods Wholesale are the closest published industry datasets.</p></div><div className="rounded-2xl bg-white p-4"><p className="text-xs font-black uppercase tracking-wide text-indigo-700">2 · Local labor market</p><p className="mt-2 text-sm leading-6 text-slate-600">Detroit–Warren–Dearborn, Michigan, and the Grand Rapids service-leadership recruiting market are used where relevant.</p></div><div className="rounded-2xl bg-white p-4"><p className="text-xs font-black uppercase tracking-wide text-indigo-700">3 · Pay-design adjustment</p><p className="mt-2 text-sm leading-6 text-slate-600">Commission, branch size, multi-site scope, specialist scarcity, and hybrid responsibilities are evaluated separately from base pay.</p></div></div><div className="overflow-x-auto"><table className="min-w-[1240px] w-full text-left text-sm"><thead className="bg-indigo-50 text-xs uppercase tracking-wide text-indigo-950"><tr>{["Job Family", "Employees", "Included Roles", "Royal Regular Pay", "Royal Gross Pay", "External Pay Reference & Structure"].map((header) => <th className="px-4 py-3" key={header}>{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{salaryJobFamilies.map((row) => <tr className="align-top hover:bg-indigo-50/40" key={row.family}><td className="px-4 py-4 font-black text-slate-950">{row.family}</td><td className="px-4 py-4 text-center font-bold text-indigo-800">{row.employees}</td><td className="max-w-xs px-4 py-4 leading-6 text-slate-600">{row.jobs}</td><td className="whitespace-nowrap px-4 py-4 font-bold text-violet-800">{row.regular}</td><td className="whitespace-nowrap px-4 py-4 font-bold text-slate-800">{row.gross}</td><td className="min-w-[250px] px-4 py-4 font-bold leading-6 text-emerald-800">{row.market}</td></tr>)}</tbody></table></div><div className="border-t border-indigo-100 bg-slate-50 p-6"><h3 className="font-black text-slate-950">External sources and limitations</h3><p className="mt-2 text-sm leading-6 text-slate-600">The industry and geographic series are complementary: BLS does not publish a statistically reliable Michigan-by-industry-by-occupation table for every Royal role. Motor-vehicle-parts wholesale figures are national industry estimates; Detroit figures cover all industries. Indeed and Salary.com are recruiting-market cross-checks, not controlled compensation surveys. ADP Workforce Compensation Benchmark uses Metro Area base-salary medians as of August 31, 2026; it does not provide full pay ranges, and only credible matches are included. The Royal-provided Grand Rapids staffing-firm report is used specifically for truck and trailer service leadership: Service Manager base pay is $90,000–$130,000, with total cash of $105,000–$155,000+. BDO and Deloitte private-company surveys confirm that executive packages commonly separate base salary, annual incentive, long-term incentive or equity, and other compensation, but company-size-specific numeric cuts are not available in the current source set. Sales commission is plan-dependent and is not separately published as a reliable dollar range in ADP or BLS. IT management is now benchmarked to local operational-manager scope rather than the broader BLS computer-and-information-systems-manager category.</p><div className="mt-4 flex flex-wrap gap-3 text-xs font-black"><a className="text-indigo-700 hover:underline" href="https://www.michigan.gov/mcda/labor-market-information/oews" rel="noreferrer" target="_blank">Michigan 2025 OEWS</a><a className="text-indigo-700 hover:underline" href="https://www.bls.gov/oes/2023/may/oes_19820.htm" rel="noreferrer" target="_blank">BLS Detroit Detailed Occupations</a><a className="text-indigo-700 hover:underline" href="https://www.bls.gov/iag/tgs/iag42.htm" rel="noreferrer" target="_blank">BLS Wholesale Trade</a><a className="text-indigo-700 hover:underline" href="https://www.bls.gov/ooh/sales/wholesale-and-manufacturing-sales-representatives.htm" rel="noreferrer" target="_blank">BLS Wholesale Sales Pay Structure</a><a className="text-indigo-700 hover:underline" href="https://www.salary.com/research/salary/benchmark/information-technology-manager-salary/grand-rapids-mi" rel="noreferrer" target="_blank">Grand Rapids IT Manager Market</a><a className="text-indigo-700 hover:underline" href="https://insights.bdo.com/Private-Company-Executive-Compensation-Survey-Insights-Report-2025.html" rel="noreferrer" target="_blank">BDO Private Company Executive Compensation</a><a className="text-indigo-700 hover:underline" href="https://www.deloitte.com/us/en/services/tax/articles/private-company-executive-compensation-survey.html" rel="noreferrer" target="_blank">Deloitte Private Company Executive Compensation</a></div></div></section>}
+      {payType === "Salary" && <IndividualSalaryTable employees={filteredSalaryEmployees} regularValues={regularValues} grossValues={grossValues} search={employeeSearch} setSearch={setEmployeeSearch} period={analysis.period} />}
     </>}
   </div>;
 }

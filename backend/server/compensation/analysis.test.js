@@ -50,3 +50,13 @@ test('gross pay percentiles are ordered for every population', () => {
     assert.ok(row.p75 <= row.max);
   }
 });
+
+test('employee-level salary data is complete and includes confirmed current salaries', () => {
+  const analysis = getCompensationGrossPayAnalysis();
+  assert.equal(analysis.salaryEmployees.length, 74);
+  assert.equal(new Set(analysis.salaryEmployees.map((employee) => employee.id)).size, 74);
+  assert.equal(analysis.salaryEmployees.filter((employee) => employee.regularPay != null).length, 72);
+  assert.ok(analysis.salaryEmployees.every((employee) => employee.jobFamily && employee.grossPay > 0));
+  assert.equal(analysis.salaryEmployees.find((employee) => employee.name === 'Levi Nation').regularPay, 100000);
+  assert.equal(analysis.salaryEmployees.find((employee) => employee.name === 'Xuan Yu').regularPay, 135000);
+});
