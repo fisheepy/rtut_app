@@ -32,6 +32,9 @@ test('hourly and salary populations reconcile to the current roster', () => {
   assert.ok(salary);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.population, 0), 74);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.analyzed, 0), 74);
+  assert.equal(salary.regularPay.population, 74);
+  assert.equal(salary.regularPay.analyzed, 71);
+  assert.equal(salary.regularPay.noHistory, 3);
 });
 
 test('gross pay percentiles are ordered for every population', () => {
