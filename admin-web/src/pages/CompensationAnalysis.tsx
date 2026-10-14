@@ -239,8 +239,7 @@ export const employeeExternalAlignment = (employee: SalaryEmployee) => {
 const isInternalLowPosition = (employee: SalaryEmployee, employees: SalaryEmployee[]) => {
   if (employee.regularPay == null) return false;
   const sameTitle = employees.filter((item) => item.id !== employee.id && item.jobTitle === employee.jobTitle);
-  const peers = sameTitle.length >= 2 ? sameTitle : employees.filter((item) => item.id !== employee.id && item.jobFamily === employee.jobFamily);
-  const values = peers.flatMap((item) => item.regularPay == null ? [] : [item.regularPay]);
+  const values = sameTitle.flatMap((item) => item.regularPay == null ? [] : [item.regularPay]);
   return values.length >= 5 && employee.regularPay < quantile(values, .25);
 };
 
