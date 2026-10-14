@@ -3,10 +3,13 @@ const assert = require('node:assert/strict');
 const {
   authorizedEmails,
   authorizedHrToolsEmails,
+  authorizedCompensationEmails,
+  createRequireCompensationSession,
   createRequireTrainingSession,
   hashTrainingCode,
   isAuthorizedTrainingEmail,
   isAuthorizedHrToolsEmail,
+  isAuthorizedCompensationEmail,
   secureCodeMatch,
 } = require('./access');
 
@@ -35,6 +38,25 @@ test('allows only Myra and Stratos into the HR Tools hub', () => {
   assert.equal(isAuthorizedHrToolsEmail('SDALLIS@royaltrailersales.com', env), true);
   assert.equal(isAuthorizedHrToolsEmail('anicholson@royaltrailersales.com', env), false);
   assert.equal(isAuthorizedHrToolsEmail('dpurrenhage@royaltrailersales.com', env), false);
+});
+
+test('allows only the four Compensation Analysis users', () => {
+  const env = {};
+  assert.deepEqual(authorizedCompensationEmails(env), [
+    'apigeon@royaltrailersales.com',
+    'jigielski@royaltrailersales.com',
+    'kbumgardner@royaltrailersales.com',
+    'myu@royaltrailersales.com',
+  ]);
+  assert.equal(isAuthorizedCompensationEmail('APIGEON@royaltrailersales.com', env), true);
+  assert.equal(isAuthorizedCompensationEmail('sdallis@royaltrailersales.com', env), false);
+});
+
+test('rejects a non-Compensation session', () => {
+  const middleware = createRequireCompensationSession(() => ({ email: 'sdallis@royaltrailersales.com' }), {});
+  let statusCode;
+  middleware({}, { status(code) { statusCode = code; return this; }, json() { return this; } }, () => assert.fail('next should not be called'));
+  assert.equal(statusCode, 401);
 });
 
 test('supports a future comma-separated allowlist', () => {

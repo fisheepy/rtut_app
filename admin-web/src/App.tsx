@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, BriefcaseBusiness, FileSpreadsheet, GraduationCap, HardHat, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, BarChart3, BriefcaseBusiness, FileSpreadsheet, GraduationCap, HardHat, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
@@ -13,6 +13,7 @@ import Termination from './pages/Termination'
 import EmploymentChange from './pages/EmploymentChange'
 import MedicalLeave from './pages/MedicalLeave'
 import WorkRelatedInjury from './pages/WorkRelatedInjury'
+import CompensationAnalysis from './pages/CompensationAnalysis'
 
 type AdminUser = {
   firstName?: string
@@ -31,6 +32,14 @@ function HrToolShell({ children }: { children: React.ReactNode }) {
 }
 
 const hrTools = [
+  {
+    title: 'Compensation Analysis Platform',
+    description: 'Secure compensation analysis, internal equity review, pay planning, and leadership reporting.',
+    to: '/compensation-analysis',
+    icon: BarChart3,
+    tone: 'from-indigo-700 to-fuchsia-500',
+    badge: 'Compensation',
+  },
   {
     title: 'Payroll Verification',
     description: 'Compare HR commission references against payroll COM earnings and open issue-first HTML and Excel reports.',
@@ -214,6 +223,14 @@ function HrToolsHub() {
 }
 
 function HrToolsHubContent({ onLogout }: { onLogout: () => void }) {
+  const [compensationAccess, setCompensationAccess] = useState(false)
+
+  useEffect(() => {
+    api.get('/compensation-auth/me')
+      .then(() => setCompensationAccess(true))
+      .catch(() => setCompensationAccess(false))
+  }, [])
+
   async function logout() {
     await api.post('/hr-tools-auth/logout').catch(() => {})
     onLogout()
@@ -245,7 +262,7 @@ function HrToolsHubContent({ onLogout }: { onLogout: () => void }) {
       </section>
 
       <section className="grid gap-5 md:grid-cols-2">
-        {hrTools.map((tool) => {
+        {hrTools.filter((tool) => tool.to !== '/compensation-analysis' || compensationAccess).map((tool) => {
           const Icon = tool.icon
           const card = (
             <article className={`group h-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${tool.to ? 'transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg' : ''}`}>
@@ -313,6 +330,7 @@ export default function App() {
           <Route path="/payroll-verification" element={<PayrollVerification />} />
           <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
           <Route path="/commission-roster" element={<CommissionRoster />} />
+          <Route path="/compensation-analysis" element={<CompensationAnalysis />} />
           <Route path="/training" element={<TrainingTools />} />
           <Route path="/work-related-injury" element={<WorkRelatedInjury />} />
           <Route path="/work-related-injury/cases/:caseId" element={<WorkRelatedInjury />} />

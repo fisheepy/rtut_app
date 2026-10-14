@@ -10,6 +10,12 @@ const DEFAULT_HR_TOOLS_EMAILS = [
   'myu@royaltrailersales.com',
   'sdallis@royaltrailersales.com',
 ];
+const DEFAULT_COMPENSATION_EMAILS = [
+  'apigeon@royaltrailersales.com',
+  'jigielski@royaltrailersales.com',
+  'kbumgardner@royaltrailersales.com',
+  'myu@royaltrailersales.com',
+];
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -37,6 +43,18 @@ function authorizedHrToolsEmails(env = process.env) {
 
 function isAuthorizedHrToolsEmail(email, env = process.env) {
   return authorizedHrToolsEmails(env).includes(normalizeEmail(email));
+}
+
+function authorizedCompensationEmails(env = process.env) {
+  const configured = String(env.COMPENSATION_AUTHORIZED_EMAILS || '')
+    .split(',')
+    .map(normalizeEmail)
+    .filter(Boolean);
+  return configured.length ? configured : DEFAULT_COMPENSATION_EMAILS;
+}
+
+function isAuthorizedCompensationEmail(email, env = process.env) {
+  return authorizedCompensationEmails(env).includes(normalizeEmail(email));
 }
 
 function hashTrainingCode(email, code, secret) {
@@ -73,14 +91,28 @@ function createRequireHrToolsSession(getSessionFromRequest, env = process.env) {
   };
 }
 
+function createRequireCompensationSession(getSessionFromRequest, env = process.env) {
+  return (req, res, next) => {
+    const session = getSessionFromRequest(req);
+    if (!session || !isAuthorizedCompensationEmail(session.email, env)) {
+      return res.status(401).json({ error: 'Compensation Analysis authentication required' });
+    }
+    req.adminSession = session;
+    return next();
+  };
+}
+
 module.exports = {
   authorizedEmails,
   authorizedHrToolsEmails,
+  authorizedCompensationEmails,
+  createRequireCompensationSession,
   createRequireTrainingSession,
   createRequireHrToolsSession,
   hashTrainingCode,
   isAuthorizedTrainingEmail,
   isAuthorizedHrToolsEmail,
+  isAuthorizedCompensationEmail,
   normalizeEmail,
   secureCodeMatch,
 };

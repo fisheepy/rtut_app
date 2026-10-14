@@ -22,7 +22,7 @@ const { createTrainingRouter } = require('./training/routes');
 const { createTrainingAuthRouter } = require('./training/authRoutes');
 const { createWorkInjuryRouter } = require('./workInjury/routes');
 const { createAccidentNearMissRouter } = require('./accidentNearMiss/routes');
-const { createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedHrToolsEmail } = require('./training/access');
+const { createRequireCompensationSession, createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedCompensationEmail, isAuthorizedHrToolsEmail } = require('./training/access');
 const { createHrPlatformRouter } = require('./hrPlatform/routes');
 const { findExistingEmployeeFolderUrl } = require('./hrPlatform/folderInheritance');
 const {
@@ -1229,6 +1229,7 @@ app.use('/api/commission-roster', createCommissionRosterRouter({
 }));
 const requireTrainingSession = createRequireTrainingSession(getSessionFromRequest);
 const requireHrToolsSession = createRequireHrToolsSession(getSessionFromRequest);
+const requireCompensationSession = createRequireCompensationSession(getSessionFromRequest);
 const loginCodeSecret = process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-login-secret';
 app.use('/api/training-auth', createTrainingAuthRouter({
   uri,
@@ -1252,6 +1253,26 @@ app.use('/api/hr-tools-auth', createTrainingAuthRouter({
   toolName: 'RTUT HR Tools',
   sessionType: 'hr-tools',
 }));
+app.use('/api/compensation-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: loginCodeSecret,
+  isAuthorizedEmail: isAuthorizedCompensationEmail,
+  collectionName: 'compensation_login_codes',
+  toolName: 'RTUT Compensation Analysis Platform',
+  sessionType: 'compensation-analysis',
+}));
+app.get('/api/compensation/overview', requireCompensationSession, (req, res) => {
+  res.json({
+    ready: true,
+    email: req.adminSession.email,
+    platform: 'Compensation Analysis Platform',
+  });
+});
 app.use('/api/training', createTrainingRouter({
   uri,
   databaseName: database_name,
@@ -1936,7 +1957,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/training', '/hr-tools/work-related-injury', '/hr-tools/work-related-injury/cases/:caseId', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change', '/hr-tools/hr-platform/medical-leave'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/compensation-analysis', '/hr-tools/training', '/hr-tools/work-related-injury', '/hr-tools/work-related-injury/cases/:caseId', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change', '/hr-tools/hr-platform/medical-leave'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
