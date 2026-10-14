@@ -33,7 +33,7 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
     Object.freeze({
       payType: 'Salary',
       overall: Object.freeze({ population: 74, analyzed: 74, noHistory: 0, min: 22506.25, p25: 74213.01, median: 100930.7, average: 127195.19, p75: 148644.07, max: 393845.76 }),
-      regularPay: Object.freeze({ population: 74, analyzed: 71, noHistory: 3, min: 42000, p25: 69999.84, median: 94999.92, average: 104249.98, p75: 120000, max: 399999.6 }),
+      regularPay: Object.freeze({ population: 74, analyzed: 72, noHistory: 2, min: 42000, p25: 70000.08, median: 97500, average: 105892.35, p75: 120000, max: 399999.6 }),
       locations: Object.freeze([
         Object.freeze({ location: 'Dearborn', population: 10, analyzed: 10, noHistory: 0, min: 22506.25, p25: 74212.58, median: 96896.24, average: 98894.06, p75: 112079.19, max: 242090.39 }),
         Object.freeze({ location: 'Gaylord', population: 3, analyzed: 3, noHistory: 0, min: 62716.41, p25: 65904.08, median: 69091.76, average: 69040.38, p75: 72202.36, max: 75312.97 }),
