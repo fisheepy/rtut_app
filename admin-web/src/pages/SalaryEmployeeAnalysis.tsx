@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, RefreshCw, UsersRound } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../shared/api";
-import { CompensationLogin, dateText, employeeExternalAlignment, externalBaseRanges, money, percentile, quantile } from "./CompensationAnalysis";
+import { CompensationLogin, dateText, employeeExternalAlignment, employeeInternalAlignment, externalBaseRanges, money, percentile, quantile } from "./CompensationAnalysis";
 import type { GrossPayAnalysis } from "./CompensationAnalysis";
 
 export default function SalaryEmployeeAnalysis() {
@@ -26,7 +26,7 @@ export default function SalaryEmployeeAnalysis() {
   const peerRegular = peers.flatMap((item) => item.regularPay == null ? [] : [item.regularPay]);
   const peerGross = peers.map((item) => item.grossPay);
   const limitedPeerSample = peerRegular.length < 5;
-  const internalStatus = employee.regularPay == null ? "Missing Regular Pay" : !peerRegular.length ? "Insufficient Peer Data" : limitedPeerSample ? "Limited Peer Data" : employee.regularPay < quantile(peerRegular, .25) ? "Peer Review Suggested" : employee.regularPay > quantile(peerRegular, .75) ? "Peer Leading" : "Peer Aligned";
+  const internalStatus = employeeInternalAlignment(employee, analysis.salaryEmployees);
   const market = externalBaseRanges[employee.jobFamily];
   const externalStatus = employeeExternalAlignment(employee);
   const reviewStatus = externalStatus;
