@@ -36,9 +36,9 @@ export default function SalaryEmployeeAnalysis() {
       : internalStatus === "Peer Review Suggested" || externalStatus === "Market Review Suggested"
         ? "Compensation review recommended"
         : internalStatus === "Limited Peer Data" && externalStatus === "Market Aligned"
-          ? "Market aligned; internal peer sample is limited"
+          ? "Market Aligned"
           : internalStatus === "Limited Peer Data" && externalStatus === "Market Leading"
-            ? "Market leading; internal peer sample is limited"
+            ? "Market Leading"
             : internalStatus === "Limited Peer Data"
               ? "Internal and external data review needed"
               : "No immediate base-pay alignment flag";
