@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
+  ArrowRight,
   BarChart3,
   Building2,
   CircleDollarSign,
@@ -147,7 +148,6 @@ const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD
 const dateText = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
-  const [activePayType, setActivePayType] = useState<"Hourly" | "Salary">("Hourly");
   const metrics = [
     ["Minimum", analysis.overall.min],
     ["25th Percentile", analysis.overall.p25],
@@ -157,7 +157,6 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
     ["Maximum", analysis.overall.max],
   ] as const;
   const maxLocationAverage = Math.max(...analysis.locations.map((row) => row.average));
-  const selectedPayType = analysis.payTypes.find((row) => row.payType === activePayType) ?? analysis.payTypes[0];
   const locationAdjustments = [
     { location: "Dearborn", evidence: "Wayne County baseline", recommendation: "100%", note: "Reference location" },
     { location: "Warren", evidence: "About 3% above Wayne County basic-needs benchmark", recommendation: "100%–103%", note: "Same Detroit labor market" },
@@ -189,17 +188,11 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
       </div>
     </section>
 
-    <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 px-6 py-5">
-        <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-indigo-700">Pay type analysis</p><h2 className="mt-1 text-xl font-bold text-slate-950">Hourly and salary distributions</h2><p className="mt-1 text-sm text-slate-500">Compare each employee population separately using the same 90-day history rule.</p></div>
-        <div className="inline-flex rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Pay type analysis">{(["Hourly", "Salary"] as const).map((payType) => <button aria-selected={activePayType === payType} className={`rounded-lg px-5 py-2.5 text-sm font-bold transition ${activePayType === payType ? "bg-indigo-700 text-white shadow-sm" : "text-slate-600 hover:text-slate-950"}`} key={payType} onClick={() => setActivePayType(payType)} role="tab" type="button">{payType}</button>)}</div>
+    <section className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm md:p-7">
+      <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-indigo-700">Detailed analysis workspaces</p><h2 className="mt-1 text-xl font-bold text-slate-950">Choose an employee pay group</h2><p className="mt-1 text-sm text-slate-500">Open a separate workspace for detailed hourly or salary analysis.</p></div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        {analysis.payTypes.map((row) => <Link className={`group rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-lg ${row.payType === "Hourly" ? "border-cyan-200 bg-gradient-to-br from-cyan-50 to-white" : "border-violet-200 bg-gradient-to-br from-violet-50 to-white"}`} key={row.payType} to={`/compensation-analysis/${row.payType.toLowerCase()}`}><div className="flex items-center justify-between gap-4"><div><p className={`text-xs font-bold uppercase tracking-[0.15em] ${row.payType === "Hourly" ? "text-cyan-700" : "text-violet-700"}`}>{row.payType} workforce</p><h3 className="mt-2 text-2xl font-black text-slate-950">{row.payType} Analysis</h3><p className="mt-2 text-sm text-slate-600">{row.overall.analyzed} analyzed of {row.overall.population} current employees</p></div><span className={`grid h-12 w-12 place-items-center rounded-full text-white ${row.payType === "Hourly" ? "bg-cyan-700" : "bg-violet-700"}`}><ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" /></span></div><p className="mt-5 text-sm font-bold text-indigo-800">Open detailed {row.payType.toLowerCase()} analysis</p></Link>)}
       </div>
-      {selectedPayType && <div className="p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-2xl font-black text-slate-950">{selectedPayType.payType} employees</h3><p className="mt-1 text-sm text-slate-500">{selectedPayType.overall.analyzed} analyzed of {selectedPayType.overall.population} current employees</p></div>{selectedPayType.overall.noHistory > 0 && <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-900">{selectedPayType.overall.noHistory} excluded for insufficient or unavailable history</span>}</div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{[["Minimum", selectedPayType.overall.min], ["25th Percentile", selectedPayType.overall.p25], ["Median", selectedPayType.overall.median], ["Average", selectedPayType.overall.average], ["75th Percentile", selectedPayType.overall.p75], ["Maximum", selectedPayType.overall.max]].map(([label, value]) => <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4" key={label}><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-xl font-black text-slate-950">{money.format(value as number)}</p></div>)}</div>
-        <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200"><table className="min-w-[980px] w-full text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{["Location", "Employees", "Analyzed", "Min", "25th", "Median", "Average", "75th", "Max"].map((header) => <th className="whitespace-nowrap px-4 py-3" key={header}>{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{selectedPayType.locations.map((row) => <tr className="hover:bg-indigo-50/40" key={row.location}><td className="px-4 py-3 font-bold text-slate-950">{row.location}</td><td className="px-4 py-3 text-center">{row.population}</td><td className="px-4 py-3 text-center">{row.analyzed}</td>{[row.min, row.p25, row.median, row.average, row.p75, row.max].map((value, index) => <td className={`whitespace-nowrap px-4 py-3 ${index === 3 ? "font-black text-indigo-800" : "text-slate-700"}`} key={index}>{money.format(value)}</td>)}</tr>)}</tbody></table></div>
-        <p className="mt-4 text-sm leading-6 text-slate-500">Gross Pay includes applicable overtime, commission, bonus, PTO, and other paid earnings. It should not be interpreted as base pay alone.</p>
-      </div>}
     </section>
 
     <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
@@ -219,4 +212,39 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
       </div>
     </section>
   </>;
+}
+
+export function CompensationPayTypeAnalysis({ payType }: { payType: "Hourly" | "Salary" }) {
+  const [state, setState] = useState<"checking" | "authenticated" | "signed-out">("checking");
+  const [analysis, setAnalysis] = useState<GrossPayAnalysis | null>(null);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setError("");
+    try {
+      const response = await api.get<GrossPayAnalysis>("/compensation/gross-pay-analysis");
+      setAnalysis(response.data);
+    } catch {
+      setError(`${payType} analysis could not be loaded.`);
+    }
+  }
+
+  useEffect(() => {
+    api.get("/compensation/overview").then(async () => { setState("authenticated"); await load(); }).catch(() => setState("signed-out"));
+  }, [payType]);
+
+  if (state === "checking") return <div className="grid min-h-64 place-items-center rounded-2xl bg-white shadow-sm"><RefreshCw className="h-7 w-7 animate-spin text-indigo-700" /></div>;
+  if (state === "signed-out") return <CompensationLogin onLogin={() => { setState("authenticated"); void load(); }} />;
+
+  const selected = analysis?.payTypes.find((row) => row.payType === payType);
+  const accent = payType === "Hourly" ? "from-cyan-800 via-blue-900 to-slate-950" : "from-violet-800 via-indigo-950 to-slate-950";
+  return <div className="space-y-7">
+    <section className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${accent} px-7 py-8 text-white shadow-xl`}><div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" /><div className="relative"><Link className="inline-flex items-center gap-2 text-sm font-semibold text-white/80 hover:text-white" to="/compensation-analysis"><ArrowLeft className="h-4 w-4" />Back to Compensation Analysis</Link><p className="mt-7 text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Dedicated workspace</p><h1 className="mt-2 text-4xl font-black">{payType} Compensation Analysis</h1><p className="mt-3 max-w-2xl text-sm leading-7 text-slate-200">Detailed pay distribution and location comparison for current {payType.toLowerCase()} employees.</p></div></section>
+    {error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{error}</div>}
+    {!analysis && !error && <div className="grid min-h-48 place-items-center rounded-2xl bg-white shadow-sm"><RefreshCw className="h-7 w-7 animate-spin text-indigo-700" /></div>}
+    {analysis && selected && <>
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm font-bold text-indigo-700">{dateText(analysis.period.start)} – {dateText(analysis.period.end)}</p><h2 className="mt-1 text-2xl font-black text-slate-950">{payType} gross pay distribution</h2></div><div className="rounded-xl bg-slate-100 px-4 py-3 text-right"><p className="text-2xl font-black text-slate-950">{selected.overall.analyzed} / {selected.overall.population}</p><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Analyzed employees</p></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{[["Minimum", selected.overall.min], ["25th Percentile", selected.overall.p25], ["Median", selected.overall.median], ["Average", selected.overall.average], ["75th Percentile", selected.overall.p75], ["Maximum", selected.overall.max]].map(([label, value]) => <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4" key={label}><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-xl font-black text-slate-950">{money.format(value as number)}</p></div>)}</div>{selected.overall.noHistory > 0 && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">{selected.overall.noHistory} employees are retained in headcount but excluded because sufficient pay history is unavailable.</p>}</section>
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-6 py-5"><h2 className="text-xl font-black text-slate-950">{payType} analysis by location</h2><p className="mt-1 text-sm text-slate-500">Location-level distribution using the same 90-day pay-history rule.</p></div><div className="overflow-x-auto"><table className="min-w-[980px] w-full text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{["Location", "Employees", "Analyzed", "Min", "25th", "Median", "Average", "75th", "Max"].map((header) => <th className="whitespace-nowrap px-4 py-3" key={header}>{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{selected.locations.map((row) => <tr className="hover:bg-indigo-50/40" key={row.location}><td className="px-4 py-3 font-bold text-slate-950">{row.location}</td><td className="px-4 py-3 text-center">{row.population}</td><td className="px-4 py-3 text-center">{row.analyzed}</td>{[row.min, row.p25, row.median, row.average, row.p75, row.max].map((value, index) => <td className={`whitespace-nowrap px-4 py-3 ${index === 3 ? "font-black text-indigo-800" : "text-slate-700"}`} key={index}>{money.format(value)}</td>)}</tr>)}</tbody></table></div><p className="border-t border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">Gross Pay includes applicable overtime, commission, bonus, PTO, and other paid earnings. It should not be interpreted as base pay alone.</p></section>
+    </>}
+  </div>;
 }

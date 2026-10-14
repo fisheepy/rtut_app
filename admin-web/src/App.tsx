@@ -13,7 +13,7 @@ import Termination from './pages/Termination'
 import EmploymentChange from './pages/EmploymentChange'
 import MedicalLeave from './pages/MedicalLeave'
 import WorkRelatedInjury from './pages/WorkRelatedInjury'
-import CompensationAnalysis from './pages/CompensationAnalysis'
+import CompensationAnalysis, { CompensationPayTypeAnalysis } from './pages/CompensationAnalysis'
 
 type AdminUser = {
   firstName?: string
@@ -331,6 +331,8 @@ export default function App() {
           <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
           <Route path="/commission-roster" element={<CommissionRoster />} />
           <Route path="/compensation-analysis" element={<CompensationAnalysis />} />
+          <Route path="/compensation-analysis/hourly" element={<CompensationPayTypeAnalysis payType="Hourly" />} />
+          <Route path="/compensation-analysis/salary" element={<CompensationPayTypeAnalysis payType="Salary" />} />
           <Route path="/training" element={<TrainingTools />} />
           <Route path="/work-related-injury" element={<WorkRelatedInjury />} />
           <Route path="/work-related-injury/cases/:caseId" element={<WorkRelatedInjury />} />
