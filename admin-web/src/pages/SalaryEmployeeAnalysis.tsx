@@ -29,21 +29,7 @@ export default function SalaryEmployeeAnalysis() {
   const internalStatus = employee.regularPay == null ? "Missing Regular Pay" : !peerRegular.length ? "Insufficient Peer Data" : limitedPeerSample ? "Limited Peer Data" : employee.regularPay < quantile(peerRegular, .25) ? "Peer Review Suggested" : employee.regularPay > quantile(peerRegular, .75) ? "Peer Leading" : "Peer Aligned";
   const market = externalBaseRanges[employee.jobFamily];
   const externalStatus = employeeExternalAlignment(employee);
-  const reviewStatus = employee.regularPay == null
-    ? "Review needed — missing regular pay"
-    : internalStatus === "Peer Review Suggested" && externalStatus === "Market Review Suggested"
-      ? "Priority compensation review"
-      : internalStatus === "Peer Review Suggested" || externalStatus === "Market Review Suggested"
-        ? "Compensation review recommended"
-        : externalStatus === "Scope Adjustment Needed"
-          ? "Scope-Adjusted Benchmark Needed"
-        : internalStatus === "Limited Peer Data" && externalStatus === "Market Aligned"
-          ? "Market Aligned"
-          : internalStatus === "Limited Peer Data" && externalStatus === "Market Leading"
-            ? "Market Leading"
-            : internalStatus === "Limited Peer Data"
-              ? "Internal and external data review needed"
-              : "No immediate base-pay alignment flag";
+  const reviewStatus = externalStatus;
   const cards = [["Current Regular Pay", employee.regularPay == null ? "Unavailable" : money.format(employee.regularPay)], ["Regular Pay Percentile", employee.regularPay == null ? "—" : `${percentile(allRegular, employee.regularPay)}th of salary employees`], ["Total Gross Pay", money.format(employee.grossPay)], ["Gross Pay Percentile", `${percentile(allGross, employee.grossPay)}th of salary employees`]];
 
   return <div className="space-y-7">
