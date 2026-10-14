@@ -13,7 +13,7 @@ import Termination from './pages/Termination'
 import EmploymentChange from './pages/EmploymentChange'
 import MedicalLeave from './pages/MedicalLeave'
 import WorkRelatedInjury from './pages/WorkRelatedInjury'
-import CompensationAnalysis, { CompensationPayTypeAnalysis } from './pages/CompensationAnalysis'
+import CompensationAnalysis, { CompensationPayTypeAnalysis, SalaryIndividualDirectory } from './pages/CompensationAnalysis'
 import SalaryEmployeeAnalysis from './pages/SalaryEmployeeAnalysis'
 
 type AdminUser = {
@@ -334,6 +334,7 @@ export default function App() {
           <Route path="/compensation-analysis" element={<CompensationAnalysis />} />
           <Route path="/compensation-analysis/hourly" element={<CompensationPayTypeAnalysis payType="Hourly" />} />
           <Route path="/compensation-analysis/salary" element={<CompensationPayTypeAnalysis payType="Salary" />} />
+          <Route path="/compensation-analysis/salary/individual" element={<SalaryIndividualDirectory />} />
           <Route path="/compensation-analysis/salary/employees/:employeeId" element={<SalaryEmployeeAnalysis />} />
           <Route path="/training" element={<TrainingTools />} />
           <Route path="/work-related-injury" element={<WorkRelatedInjury />} />
