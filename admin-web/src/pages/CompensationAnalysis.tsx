@@ -188,13 +188,6 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
       </div>
     </section>
 
-    <section className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm md:p-7">
-      <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-indigo-700">Detailed analysis workspaces</p><h2 className="mt-1 text-xl font-bold text-slate-950">Choose an employee pay group</h2><p className="mt-1 text-sm text-slate-500">Open a separate workspace for detailed hourly or salary analysis.</p></div>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {analysis.payTypes.map((row) => <Link className={`group rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-lg ${row.payType === "Hourly" ? "border-cyan-200 bg-gradient-to-br from-cyan-50 to-white" : "border-violet-200 bg-gradient-to-br from-violet-50 to-white"}`} key={row.payType} to={`/compensation-analysis/${row.payType.toLowerCase()}`}><div className="flex items-center justify-between gap-4"><div><p className={`text-xs font-bold uppercase tracking-[0.15em] ${row.payType === "Hourly" ? "text-cyan-700" : "text-violet-700"}`}>{row.payType} workforce</p><h3 className="mt-2 text-2xl font-black text-slate-950">{row.payType} Analysis</h3><p className="mt-2 text-sm text-slate-600">{row.overall.analyzed} analyzed of {row.overall.population} current employees</p></div><span className={`grid h-12 w-12 place-items-center rounded-full text-white ${row.payType === "Hourly" ? "bg-cyan-700" : "bg-violet-700"}`}><ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" /></span></div><p className="mt-5 text-sm font-bold text-indigo-800">Open detailed {row.payType.toLowerCase()} analysis</p></Link>)}
-      </div>
-    </section>
-
     <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
       <div className="border-b border-slate-200 bg-gradient-to-r from-indigo-950 to-slate-900 px-6 py-6 text-white">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Dearborn = 100%</p>
@@ -209,6 +202,13 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
       </div>
       <div className="border-t border-slate-200 bg-slate-50 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="font-bold text-slate-950">Sources and limitation</h3><p className="mt-2 text-sm leading-6 text-slate-600">Based on U.S. Bureau of Economic Analysis Regional Price Parities and MIT Living Wage Calculator county benchmarks. Cost of living is only one pay factor; job market competition, performance, experience, commission, and overtime must be reviewed separately.</p><div className="mt-3 flex flex-wrap gap-3 text-xs font-bold"><a className="text-indigo-700 hover:underline" href="https://www.bea.gov/data/prices-inflation/regional-price-parities-state-and-metro-area" rel="noreferrer" target="_blank">BEA Regional Price Parities</a><a className="text-indigo-700 hover:underline" href="https://livingwage.mit.edu/" rel="noreferrer" target="_blank">MIT Living Wage Calculator</a></div></div>
+      </div>
+    </section>
+
+    <section className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm md:p-7">
+      <div><p className="text-xs font-bold uppercase tracking-[0.15em] text-indigo-700">Detailed analysis workspaces</p><h2 className="mt-1 text-xl font-bold text-slate-950">Choose an employee pay group</h2><p className="mt-1 text-sm text-slate-500">Open a separate workspace for detailed hourly or salary analysis.</p></div>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        {analysis.payTypes.map((row) => <Link className={`group rounded-2xl border p-5 transition hover:-translate-y-0.5 hover:shadow-lg ${row.payType === "Hourly" ? "border-cyan-200 bg-gradient-to-br from-cyan-50 to-white" : "border-violet-200 bg-gradient-to-br from-violet-50 to-white"}`} key={row.payType} to={`/compensation-analysis/${row.payType.toLowerCase()}`}><div className="flex items-center justify-between gap-4"><div><p className={`text-xs font-bold uppercase tracking-[0.15em] ${row.payType === "Hourly" ? "text-cyan-700" : "text-violet-700"}`}>{row.payType} workforce</p><h3 className="mt-2 text-2xl font-black text-slate-950">{row.payType} Analysis</h3><p className="mt-2 text-sm text-slate-600">{row.overall.analyzed} analyzed of {row.overall.population} current employees</p></div><span className={`grid h-12 w-12 place-items-center rounded-full text-white ${row.payType === "Hourly" ? "bg-cyan-700" : "bg-violet-700"}`}><ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" /></span></div><p className="mt-5 text-sm font-bold text-indigo-800">Open detailed {row.payType.toLowerCase()} analysis</p></Link>)}
       </div>
     </section>
   </>;
