@@ -26,9 +26,9 @@ export default function SalaryEmployeeAnalysis() {
   const peerRegular = peers.flatMap((item) => item.regularPay == null ? [] : [item.regularPay]);
   const peerGross = peers.map((item) => item.grossPay);
   const limitedPeerSample = peerRegular.length < 5;
-  const internalStatus = employee.regularPay == null || !peerRegular.length ? "Data Review Needed" : limitedPeerSample ? "Limited Peer Data" : employee.regularPay < quantile(peerRegular, .25) ? "Peer Review Suggested" : employee.regularPay > quantile(peerRegular, .75) ? "Peer Leading" : "Peer Aligned";
+  const internalStatus = employee.regularPay == null ? "Missing Regular Pay" : !peerRegular.length ? "Insufficient Peer Data" : limitedPeerSample ? "Limited Peer Data" : employee.regularPay < quantile(peerRegular, .25) ? "Peer Review Suggested" : employee.regularPay > quantile(peerRegular, .75) ? "Peer Leading" : "Peer Aligned";
   const market = externalBaseRanges[employee.jobFamily];
-  const externalStatus = market ? alignment(employee.regularPay, market.min, market.max) : "Data Review Needed";
+  const externalStatus = market ? alignment(employee.regularPay, market.min, market.max) : "External Benchmark Unavailable";
   const reviewStatus = employee.regularPay == null
     ? "Review needed — missing regular pay"
     : internalStatus === "Peer Review Suggested" && externalStatus === "Market Review Suggested"
