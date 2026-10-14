@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import {
   ArrowLeft,
   BarChart3,
+  Building2,
+  CircleDollarSign,
+  Info,
   KeyRound,
   LockKeyhole,
   LogOut,
@@ -71,9 +74,24 @@ function CompensationLogin({ onLogin }: { onLogin: () => void }) {
 
 export default function CompensationAnalysis() {
   const [state, setState] = useState<"checking" | "authenticated" | "signed-out">("checking");
+  const [analysis, setAnalysis] = useState<GrossPayAnalysis | null>(null);
+  const [analysisError, setAnalysisError] = useState("");
+
+  async function loadAnalysis() {
+    setAnalysisError("");
+    try {
+      const response = await api.get<GrossPayAnalysis>("/compensation/gross-pay-analysis");
+      setAnalysis(response.data);
+    } catch {
+      setAnalysisError("Gross pay analysis could not be loaded.");
+    }
+  }
 
   useEffect(() => {
-    api.get("/compensation/overview").then(() => setState("authenticated")).catch(() => setState("signed-out"));
+    api.get("/compensation/overview").then(async () => {
+      setState("authenticated");
+      await loadAnalysis();
+    }).catch(() => setState("signed-out"));
   }, []);
 
   async function logout() {
@@ -82,7 +100,7 @@ export default function CompensationAnalysis() {
   }
 
   if (state === "checking") return <div className="grid min-h-64 place-items-center rounded-2xl bg-white shadow-sm"><div className="text-center"><RefreshCw className="mx-auto h-7 w-7 animate-spin text-indigo-700" /><p className="mt-3 text-sm font-semibold text-slate-600">Checking Compensation access...</p></div></div>;
-  if (state === "signed-out") return <CompensationLogin onLogin={() => setState("authenticated")} />;
+  if (state === "signed-out") return <CompensationLogin onLogin={() => { setState("authenticated"); void loadAnalysis(); }} />;
 
   return (
     <div className="space-y-7">
@@ -93,9 +111,66 @@ export default function CompensationAnalysis() {
           <button className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white" onClick={logout} type="button"><LogOut className="h-4 w-4" />Sign out</button>
         </div>
       </section>
-      <section className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-        {["Compensation Data", "Internal Equity", "Pay Planning", "Analysis & Reports"].map((title, index) => <article className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm" key={title}><span className="grid h-9 w-9 place-items-center rounded-lg bg-indigo-50 text-sm font-black text-indigo-700">{index + 1}</span><h2 className="mt-4 text-lg font-bold text-slate-950">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-500">Platform module ready for detailed workflow requirements.</p><span className="mt-5 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">Configuration Pending</span></article>)}
-      </section>
+      {analysisError && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{analysisError}</div>}
+      {!analysis && !analysisError && <div className="grid min-h-48 place-items-center rounded-2xl bg-white shadow-sm"><RefreshCw className="h-7 w-7 animate-spin text-indigo-700" /></div>}
+      {analysis && <GrossPayDashboard analysis={analysis} />}
     </div>
   );
+}
+
+type DistributionStats = {
+  population: number;
+  analyzed: number;
+  noHistory: number;
+  min: number;
+  p25: number;
+  median: number;
+  average: number;
+  p75: number;
+  max: number;
+};
+
+type GrossPayAnalysis = {
+  period: { start: string; end: string };
+  generatedOn: string;
+  basis: string;
+  overall: DistributionStats;
+  locations: Array<DistributionStats & { location: string }>;
+  noHistoryEmployees: Array<{ name: string; location: string; reason: string }>;
+};
+
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const dateText = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
+  const metrics = [
+    ["Minimum", analysis.overall.min],
+    ["25th Percentile", analysis.overall.p25],
+    ["Median", analysis.overall.median],
+    ["Average", analysis.overall.average],
+    ["75th Percentile", analysis.overall.p75],
+    ["Maximum", analysis.overall.max],
+  ] as const;
+  const maxLocationAverage = Math.max(...analysis.locations.map((row) => row.average));
+
+  return <>
+    <section className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm md:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><div className="flex items-center gap-2 text-sm font-bold text-indigo-700"><CircleDollarSign className="h-5 w-5" />Actual Gross Pay Distribution</div><h2 className="mt-2 text-2xl font-bold text-slate-950">Company overview</h2><p className="mt-2 text-sm text-slate-500">Most current one-year history: {dateText(analysis.period.start)} – {dateText(analysis.period.end)}</p></div>
+        <div className="flex gap-3"><div className="rounded-xl bg-indigo-50 px-4 py-3 text-center"><p className="text-2xl font-black text-indigo-950">{analysis.overall.population}</p><p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Current Employees</p></div><div className="rounded-xl bg-emerald-50 px-4 py-3 text-center"><p className="text-2xl font-black text-emerald-950">{analysis.overall.analyzed}</p><p className="text-xs font-bold uppercase tracking-wide text-emerald-700">With Pay History</p></div></div>
+      </div>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{metrics.map(([label, value]) => <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4" key={label}><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-xl font-black text-slate-950">{money.format(value)}</p></div>)}</div>
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><p>Statistics use actual Gross Pay and are not annualized. {analysis.overall.noHistory} employees hired or rehired after the reporting period are included in current headcount but excluded from the distribution. Minimum values can reflect partial-year employment.</p></div>
+    </section>
+
+    <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+      <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-700"><Building2 className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Gross pay by location</h2><p className="text-sm text-slate-500">Current roster locations with actual one-year Gross Pay distributions.</p></div></div>
+      <div className="overflow-x-auto">
+        <table className="min-w-[1120px] w-full text-left text-sm">
+          <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{["Location", "Employees", "Analyzed", "Min", "25th", "Median", "Average", "75th", "Max", "Average comparison"].map((header) => <th className="whitespace-nowrap px-4 py-3" key={header}>{header}</th>)}</tr></thead>
+          <tbody className="divide-y divide-slate-100">{analysis.locations.map((row) => <tr className="hover:bg-indigo-50/40" key={row.location}><td className="px-4 py-3 font-bold text-slate-950">{row.location}</td><td className="px-4 py-3 text-center">{row.population}</td><td className="px-4 py-3 text-center">{row.analyzed}{row.noHistory ? <span className="ml-1 text-xs font-bold text-amber-700">({row.noHistory} no history)</span> : null}</td>{[row.min, row.p25, row.median, row.average, row.p75, row.max].map((value, index) => <td className={`whitespace-nowrap px-4 py-3 ${index === 3 ? "font-black text-indigo-800" : "text-slate-700"}`} key={index}>{money.format(value)}</td>)}<td className="w-44 px-4 py-3"><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${Math.max(5, (row.average / maxLocationAverage) * 100)}%` }} /></div></td></tr>)}</tbody>
+        </table>
+      </div>
+    </section>
+  </>;
 }

@@ -1273,6 +1273,10 @@ app.get('/api/compensation/overview', requireCompensationSession, (req, res) => 
     platform: 'Compensation Analysis Platform',
   });
 });
+app.get('/api/compensation/gross-pay-analysis', requireCompensationSession, (req, res) => {
+  const { getCompensationGrossPayAnalysis } = require('./compensation/analysis');
+  res.json(getCompensationGrossPayAnalysis());
+});
 app.use('/api/training', createTrainingRouter({
   uri,
   databaseName: database_name,
