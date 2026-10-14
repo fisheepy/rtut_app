@@ -29,7 +29,19 @@ export default function SalaryEmployeeAnalysis() {
   const internalStatus = employee.regularPay == null || !peerRegular.length ? "Data Review Needed" : limitedPeerSample ? "Limited Peer Data" : employee.regularPay < quantile(peerRegular, .25) ? "Peer Review Suggested" : employee.regularPay > quantile(peerRegular, .75) ? "Peer Leading" : "Peer Aligned";
   const market = externalBaseRanges[employee.jobFamily];
   const externalStatus = market ? alignment(employee.regularPay, market.min, market.max) : "Data Review Needed";
-  const reviewStatus = employee.regularPay == null ? "Review needed — missing regular pay" : internalStatus === "Peer Review Suggested" && externalStatus === "Market Review Suggested" ? "Priority compensation review" : internalStatus === "Peer Review Suggested" || externalStatus === "Market Review Suggested" ? "Compensation review recommended" : internalStatus === "Limited Peer Data" ? "External benchmark review recommended" : "No immediate base-pay alignment flag";
+  const reviewStatus = employee.regularPay == null
+    ? "Review needed — missing regular pay"
+    : internalStatus === "Peer Review Suggested" && externalStatus === "Market Review Suggested"
+      ? "Priority compensation review"
+      : internalStatus === "Peer Review Suggested" || externalStatus === "Market Review Suggested"
+        ? "Compensation review recommended"
+        : internalStatus === "Limited Peer Data" && externalStatus === "Market Aligned"
+          ? "Market aligned; internal peer sample is limited"
+          : internalStatus === "Limited Peer Data" && externalStatus === "Market Leading"
+            ? "Market leading; internal peer sample is limited"
+            : internalStatus === "Limited Peer Data"
+              ? "Internal and external data review needed"
+              : "No immediate base-pay alignment flag";
   const cards = [["Current Regular Pay", employee.regularPay == null ? "Unavailable" : money.format(employee.regularPay)], ["Regular Pay Percentile", employee.regularPay == null ? "—" : `${percentile(allRegular, employee.regularPay)}th of salary employees`], ["Total Gross Pay", money.format(employee.grossPay)], ["Gross Pay Percentile", `${percentile(allGross, employee.grossPay)}th of salary employees`]];
 
   return <div className="space-y-7">
