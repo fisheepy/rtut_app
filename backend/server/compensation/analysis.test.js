@@ -19,6 +19,17 @@ test('annualized gross pay analysis identifies its estimation method', () => {
   assert.equal(analysis.overall.average, 83003.45);
 });
 
+test('hourly and salary populations reconcile to the current roster', () => {
+  const analysis = getCompensationGrossPayAnalysis();
+  assert.deepEqual(analysis.payTypes.map((row) => row.payType), ['Hourly', 'Salary']);
+  assert.equal(analysis.payTypes.reduce((sum, row) => sum + row.overall.population, 0), 208);
+  assert.equal(analysis.payTypes.reduce((sum, row) => sum + row.overall.analyzed, 0), 203);
+  for (const payType of analysis.payTypes) {
+    assert.equal(payType.locations.reduce((sum, row) => sum + row.population, 0), payType.overall.population);
+    assert.equal(payType.locations.reduce((sum, row) => sum + row.analyzed, 0), payType.overall.analyzed);
+  }
+});
+
 test('gross pay percentiles are ordered for every population', () => {
   const analysis = getCompensationGrossPayAnalysis();
   for (const row of [analysis.overall, ...analysis.locations]) {
