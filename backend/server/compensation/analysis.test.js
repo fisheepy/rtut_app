@@ -28,6 +28,10 @@ test('hourly and salary populations reconcile to the current roster', () => {
     assert.equal(payType.locations.reduce((sum, row) => sum + row.population, 0), payType.overall.population);
     assert.equal(payType.locations.reduce((sum, row) => sum + row.analyzed, 0), payType.overall.analyzed);
   }
+  const salary = analysis.payTypes.find((row) => row.payType === 'Salary');
+  assert.ok(salary);
+  assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.population, 0), 74);
+  assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.analyzed, 0), 74);
 });
 
 test('gross pay percentiles are ordered for every population', () => {
