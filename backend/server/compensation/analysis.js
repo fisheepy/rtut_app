@@ -1,11 +1,12 @@
 const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
   period: Object.freeze({ start: '2025-09-30', end: '2026-09-29' }),
   generatedOn: '2026-10-14',
-  basis: 'Estimated annual gross pay for current employees. Actual gross pay is annualized by covered employment days for employees hired or rehired during the reporting period.',
-  annualizedEmployees: 16,
-  overall: Object.freeze({ population: 208, analyzed: 205, noHistory: 3, min: 9125, p25: 50449.82, median: 67648.24, average: 82357.5, p75: 88231, max: 393845.76 }),
+  basis: 'Estimated annual gross pay for current employees. Actual gross pay is annualized by covered employment days for employees hired or rehired during the reporting period, after at least one 14-day payroll cycle.',
+  annualizedEmployees: 15,
+  insufficientHistoryEmployees: 1,
+  overall: Object.freeze({ population: 208, analyzed: 204, noHistory: 4, min: 13287.78, p25: 50476.46, median: 67668.14, average: 82716.49, p75: 88327.1, max: 393845.76 }),
   locations: Object.freeze([
-    Object.freeze({ location: 'Dearborn', population: 57, analyzed: 56, noHistory: 1, min: 9125, p25: 44357.83, median: 55773.62, average: 62495.2, p75: 71567.68, max: 242090.39 }),
+    Object.freeze({ location: 'Dearborn', population: 57, analyzed: 55, noHistory: 2, min: 22506.25, p25: 45852.96, median: 56608.48, average: 63465.57, p75: 71969.71, max: 242090.39 }),
     Object.freeze({ location: 'Gaylord', population: 7, analyzed: 7, noHistory: 0, min: 41138.51, p25: 56288.43, median: 63190.78, average: 61334.65, p75: 68561.7, max: 75312.97 }),
     Object.freeze({ location: 'Grand Rapids', population: 41, analyzed: 41, noHistory: 0, min: 14685, p25: 58497.44, median: 76728.43, average: 91475.22, p75: 91115.15, max: 281995.18 }),
     Object.freeze({ location: 'Hudsonville', population: 28, analyzed: 28, noHistory: 0, min: 13287.78, p25: 58790.86, median: 68853.07, average: 73585.81, p75: 79072.16, max: 153942.3 }),
@@ -18,6 +19,9 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
     Object.freeze({ name: 'Noah Haase', location: 'Dearborn', reason: 'Hired after the reporting period ended' }),
     Object.freeze({ name: 'William McCullough', location: 'Ohio Cleveland', reason: 'Hired after the reporting period ended' }),
     Object.freeze({ name: 'Mark Nash', location: 'Warren', reason: 'Rehired after the reporting period ended' }),
+  ]),
+  insufficientHistory: Object.freeze([
+    Object.freeze({ name: 'Dominic Sabo', location: 'Dearborn', coveredDays: 12, reason: 'Less than one 14-day payroll cycle in the reporting period' }),
   ]),
 });
 
