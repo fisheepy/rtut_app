@@ -155,6 +155,16 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
     ["Maximum", analysis.overall.max],
   ] as const;
   const maxLocationAverage = Math.max(...analysis.locations.map((row) => row.average));
+  const locationAdjustments = [
+    { location: "Dearborn", evidence: "Wayne County baseline", recommendation: "100%", note: "Reference location" },
+    { location: "Warren", evidence: "About 3% above Wayne County basic-needs benchmark", recommendation: "100%–103%", note: "Same Detroit labor market" },
+    { location: "Northville", evidence: "Wayne/Oakland County boundary; up to about 8% higher", recommendation: "100%–105%", note: "Confirm the applicable worksite county" },
+    { location: "Wixom", evidence: "Oakland County basic-needs benchmark is about 8% higher", recommendation: "103%–105%", note: "Keep within the Detroit pay market" },
+    { location: "Grand Rapids", evidence: "BEA metro prices about 5% lower; MIT basic needs about 14% higher", recommendation: "100%–105%", note: "Use recruiting data before applying a premium" },
+    { location: "Hudsonville", evidence: "Ottawa County basic-needs benchmark is about 9% higher", recommendation: "103%–105%", note: "Review with Grand Rapids market data" },
+    { location: "Gaylord", evidence: "Otsego County basic-needs benchmark is about 2% higher", recommendation: "100%–102%", note: "No material COLA indicated" },
+    { location: "Ohio Cleveland", evidence: "BEA and MIT both indicate lower costs than Dearborn", recommendation: "100%", note: "Do not reduce current employee pay" },
+  ];
 
   return <>
     <section className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm md:p-7">
@@ -173,6 +183,24 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
           <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{["Location", "Employees", "Analyzed", "Min", "25th", "Median", "Average", "75th", "Max", "Average comparison"].map((header) => <th className="whitespace-nowrap px-4 py-3" key={header}>{header}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">{analysis.locations.map((row) => <tr className="hover:bg-indigo-50/40" key={row.location}><td className="px-4 py-3 font-bold text-slate-950">{row.location}</td><td className="px-4 py-3 text-center">{row.population}</td><td className="px-4 py-3 text-center">{row.analyzed}{row.noHistory ? <span className="ml-1 text-xs font-bold text-amber-700">({row.noHistory} no history)</span> : null}</td>{[row.min, row.p25, row.median, row.average, row.p75, row.max].map((value, index) => <td className={`whitespace-nowrap px-4 py-3 ${index === 3 ? "font-black text-indigo-800" : "text-slate-700"}`} key={index}>{money.format(value)}</td>)}<td className="w-44 px-4 py-3"><div className="h-2.5 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${Math.max(5, (row.average / maxLocationAverage) * 100)}%` }} /></div></td></tr>)}</tbody>
         </table>
+      </div>
+    </section>
+
+    <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+      <div className="border-b border-slate-200 bg-gradient-to-r from-indigo-950 to-slate-900 px-6 py-6 text-white">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-cyan-200">Dearborn = 100%</p>
+        <h2 className="mt-2 text-2xl font-bold">Cost of living adjustment analysis</h2>
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-300">Government regional price data and current county-level living-wage research do not support large automatic location adjustments. Recommended ranges are planning guides, not automatic employee pay changes.</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-[980px] w-full text-left text-sm">
+          <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-700"><tr>{["Location", "External data signal", "Recommended index", "Management guidance"].map((header) => <th className="px-5 py-3" key={header}>{header}</th>)}</tr></thead>
+          <tbody className="divide-y divide-slate-100">{locationAdjustments.map((row) => <tr className="hover:bg-indigo-50/40" key={row.location}><td className="px-5 py-4 font-bold text-slate-950">{row.location}</td><td className="px-5 py-4 text-slate-600">{row.evidence}</td><td className="px-5 py-4"><span className="inline-flex rounded-full bg-indigo-100 px-3 py-1 font-black text-indigo-900">{row.recommendation}</span></td><td className="px-5 py-4 text-slate-600">{row.note}</td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="grid gap-4 border-t border-slate-200 bg-slate-50 p-6 lg:grid-cols-[1.3fr_1fr]">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><h3 className="font-bold text-emerald-950">Recommendation</h3><p className="mt-2 text-sm leading-6 text-emerald-950">Keep Dearborn as the 100% baseline. Use the same core pay bands across the Detroit labor market. Limit any provisional Grand Rapids, Hudsonville, Northville, or Wixom premium to 5%, and validate it with job-specific recruiting and market-pay data before implementation. Do not apply negative adjustments to current employees.</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="font-bold text-slate-950">Sources and limitation</h3><p className="mt-2 text-sm leading-6 text-slate-600">Based on U.S. Bureau of Economic Analysis Regional Price Parities and MIT Living Wage Calculator county benchmarks. Cost of living is only one pay factor; job market competition, performance, experience, commission, and overtime must be reviewed separately.</p><div className="mt-3 flex flex-wrap gap-3 text-xs font-bold"><a className="text-indigo-700 hover:underline" href="https://www.bea.gov/data/prices-inflation/regional-price-parities-state-and-metro-area" rel="noreferrer" target="_blank">BEA Regional Price Parities</a><a className="text-indigo-700 hover:underline" href="https://livingwage.mit.edu/" rel="noreferrer" target="_blank">MIT Living Wage Calculator</a></div></div>
       </div>
     </section>
   </>;
