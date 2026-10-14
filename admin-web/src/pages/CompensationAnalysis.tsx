@@ -134,6 +134,7 @@ type GrossPayAnalysis = {
   period: { start: string; end: string };
   generatedOn: string;
   basis: string;
+  annualizedEmployees: number;
   overall: DistributionStats;
   locations: Array<DistributionStats & { location: string }>;
   noHistoryEmployees: Array<{ name: string; location: string; reason: string }>;
@@ -156,15 +157,15 @@ function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
   return <>
     <section className="rounded-3xl border border-indigo-100 bg-white p-6 shadow-sm md:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><div className="flex items-center gap-2 text-sm font-bold text-indigo-700"><CircleDollarSign className="h-5 w-5" />Actual Gross Pay Distribution</div><h2 className="mt-2 text-2xl font-bold text-slate-950">Company overview</h2><p className="mt-2 text-sm text-slate-500">Most current one-year history: {dateText(analysis.period.start)} – {dateText(analysis.period.end)}</p></div>
+        <div><div className="flex items-center gap-2 text-sm font-bold text-indigo-700"><CircleDollarSign className="h-5 w-5" />Estimated Annual Gross Pay Distribution</div><h2 className="mt-2 text-2xl font-bold text-slate-950">Company overview</h2><p className="mt-2 text-sm text-slate-500">Based on the most current one-year history: {dateText(analysis.period.start)} – {dateText(analysis.period.end)}</p></div>
         <div className="flex gap-3"><div className="rounded-xl bg-indigo-50 px-4 py-3 text-center"><p className="text-2xl font-black text-indigo-950">{analysis.overall.population}</p><p className="text-xs font-bold uppercase tracking-wide text-indigo-600">Current Employees</p></div><div className="rounded-xl bg-emerald-50 px-4 py-3 text-center"><p className="text-2xl font-black text-emerald-950">{analysis.overall.analyzed}</p><p className="text-xs font-bold uppercase tracking-wide text-emerald-700">With Pay History</p></div></div>
       </div>
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{metrics.map(([label, value]) => <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4" key={label}><p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-xl font-black text-slate-950">{money.format(value)}</p></div>)}</div>
-      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><p>Statistics use actual Gross Pay and are not annualized. {analysis.overall.noHistory} employees hired or rehired after the reporting period are included in current headcount but excluded from the distribution. Minimum values can reflect partial-year employment.</p></div>
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /><p>{analysis.annualizedEmployees} employees hired or rehired during the reporting period are annualized using actual Gross Pay ÷ covered employment days × 365. {analysis.overall.noHistory} employees hired or rehired after the reporting period are included in current headcount but excluded from the distribution.</p></div>
     </section>
 
     <section className="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-700"><Building2 className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Gross pay by location</h2><p className="text-sm text-slate-500">Current roster locations with actual one-year Gross Pay distributions.</p></div></div>
+      <div className="flex items-center gap-3 border-b border-slate-200 px-6 py-5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-50 text-indigo-700"><Building2 className="h-5 w-5" /></span><div><h2 className="text-xl font-bold text-slate-950">Estimated annual gross pay by location</h2><p className="text-sm text-slate-500">Current roster locations with full-year estimates for partial-period employees.</p></div></div>
       <div className="overflow-x-auto">
         <table className="min-w-[1120px] w-full text-left text-sm">
           <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{["Location", "Employees", "Analyzed", "Min", "25th", "Median", "Average", "75th", "Max", "Average comparison"].map((header) => <th className="whitespace-nowrap px-4 py-3" key={header}>{header}</th>)}</tr></thead>
