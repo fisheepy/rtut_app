@@ -1277,6 +1277,64 @@ app.get('/api/compensation/gross-pay-analysis', requireCompensationSession, (req
   const { getCompensationGrossPayAnalysis } = require('./compensation/analysis');
   res.json(getCompensationGrossPayAnalysis());
 });
+app.post('/api/compensation/hourly-employee-report.xlsx', requireCompensationSession, async (req, res) => {
+  try {
+    const ExcelJS = require('exceljs');
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows.slice(0, 500) : [];
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Royal Truck and Utility Trailer';
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet('Hourly Employee Analysis', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheet.columns = [
+      { header: 'Employee', key: 'employee', width: 28 },
+      { header: 'Job Title', key: 'jobTitle', width: 34 },
+      { header: 'Location', key: 'location', width: 20 },
+      { header: 'Hourly Rate', key: 'hourlyRate', width: 16 },
+      { header: 'Hourly Rate Percentile', key: 'hourlyRatePercentile', width: 24 },
+      { header: 'Annual Gross Pay', key: 'annualGrossPay', width: 20 },
+      { header: 'Gross Pay Percentile', key: 'grossPayPercentile', width: 22 },
+      { header: 'Internal Benchmark', key: 'internalBenchmark', width: 52 },
+      { header: 'External Benchmark', key: 'externalBenchmark', width: 38 },
+    ];
+    rows.forEach((row) => sheet.addRow({
+      employee: String(row.employee || ''),
+      jobTitle: String(row.jobTitle || ''),
+      location: String(row.location || ''),
+      hourlyRate: Number.isFinite(Number(row.hourlyRate)) ? Number(row.hourlyRate) : null,
+      hourlyRatePercentile: Number.isFinite(Number(row.hourlyRatePercentile)) ? Number(row.hourlyRatePercentile) / 100 : null,
+      annualGrossPay: row.annualGrossPay != null && Number.isFinite(Number(row.annualGrossPay)) ? Number(row.annualGrossPay) : null,
+      grossPayPercentile: row.grossPayPercentile != null && Number.isFinite(Number(row.grossPayPercentile)) ? Number(row.grossPayPercentile) / 100 : null,
+      internalBenchmark: String(row.internalBenchmark || ''),
+      externalBenchmark: String(row.externalBenchmark || ''),
+    }));
+    const header = sheet.getRow(1);
+    header.height = 26;
+    header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF164E63' } };
+    header.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    sheet.autoFilter = { from: 'A1', to: 'I1' };
+    sheet.getColumn('hourlyRate').numFmt = '$0.00';
+    sheet.getColumn('annualGrossPay').numFmt = '$#,##0.00';
+    sheet.getColumn('hourlyRatePercentile').numFmt = '0%';
+    sheet.getColumn('grossPayPercentile').numFmt = '0%';
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1) {
+        row.alignment = { vertical: 'top', wrapText: true };
+        if (rowNumber % 2 === 0) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDFA' } };
+      }
+      row.eachCell((cell) => { cell.border = { bottom: { style: 'thin', color: { argb: 'FFD7E5E7' } } }; });
+    });
+    const payPeriod = req.body?.payPeriod || {};
+    sheet.headerFooter.oddFooter = `Gross pay period: ${String(payPeriod.start || '')} - ${String(payPeriod.end || '')}`;
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Royal_Hourly_Employee_Compensation_Report_${new Date().toISOString().slice(0, 10)}.xlsx"`);
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error('Unable to create hourly employee compensation report:', error);
+    res.status(500).json({ error: 'The hourly employee compensation report could not be created.' });
+  }
+});
 app.use('/api/training', createTrainingRouter({
   uri,
   databaseName: database_name,

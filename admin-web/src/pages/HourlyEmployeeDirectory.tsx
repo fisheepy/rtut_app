@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download, RefreshCw, Search } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../shared/api";
 import { CompensationLogin, dateText, hourlyExternalBenchmark, hourlyInternalBenchmark, hourlyMoney, percentile } from "./CompensationAnalysis";
@@ -17,6 +17,7 @@ export default function HourlyEmployeeDirectory() {
   const [internalBenchmarks, setInternalBenchmarks] = useState<string[]>(params.getAll("internal"));
   const [externalBenchmarks, setExternalBenchmarks] = useState<string[]>(params.getAll("external"));
   const [sort, setSort] = useState(params.get("sort") ?? "name");
+  const [downloading, setDownloading] = useState(false);
   const topScroll = useRef<HTMLDivElement>(null);
   const tableScroll = useRef<HTMLDivElement>(null);
 
@@ -57,6 +58,33 @@ export default function HourlyEmployeeDirectory() {
   };
   const benchmarkTone = (status: string) => status.includes("Unavailable") || status.includes("Insufficient") ? "bg-slate-100 text-slate-700" : status.includes("Low Position") || status.includes("Below 50th") ? "bg-amber-100 text-amber-950" : "bg-emerald-100 text-emerald-950";
   const returnSearch = params.toString();
+  async function downloadExcel() {
+    setDownloading(true);
+    try {
+      const rows = sorted.map((employee) => ({
+        employee: employee.name,
+        jobTitle: employee.jobTitle,
+        location: employee.location,
+        hourlyRate: employee.hourlyRate,
+        hourlyRatePercentile: percentile(rateValues, employee.hourlyRate),
+        annualGrossPay: employee.grossPay,
+        grossPayPercentile: employee.grossPay == null ? null : percentile(grossValues, employee.grossPay),
+        internalBenchmark: hourlyInternalBenchmark(employee, employees),
+        externalBenchmark: hourlyExternalBenchmark(employee),
+      }));
+      const response = await api.post("/compensation/hourly-employee-report.xlsx", { rows, payPeriod: analysis!.period }, { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Royal_Hourly_Employee_Compensation_Report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return <div className="space-y-7">
     <section className="rounded-3xl bg-gradient-to-br from-cyan-950 via-slate-950 to-indigo-950 px-7 py-8 text-white shadow-xl"><Link className="inline-flex items-center gap-2 text-sm font-bold text-cyan-200 hover:text-white" to="/compensation-analysis/hourly"><ArrowLeft className="h-4 w-4" />Back to Hourly Analysis</Link><p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">Employee-level workspace</p><h1 className="mt-2 text-4xl font-black">Hourly Employee Group Table</h1><p className="mt-3 max-w-4xl text-sm leading-7 text-slate-200">Hourly-rate and annual-gross-pay percentiles, same-job internal hourly-rate comparison, and job-family external total-pay comparison.</p></section>
@@ -71,7 +99,7 @@ export default function HourlyEmployeeDirectory() {
         <label className="min-w-[210px] flex-1"><span className="mb-1.5 block text-xs font-black uppercase tracking-wide text-cyan-900">Sort Order</span><select className="w-full rounded-xl border border-cyan-200 bg-white px-3 py-2.5 text-sm font-bold shadow-sm" onChange={(event) => setSort(event.target.value)} value={sort}><option value="name">Employee</option><option value="title-asc">Job title: A to Z</option><option value="location-asc">Location: A to Z</option><option value="internal-asc">Internal benchmark</option><option value="external-asc">External benchmark</option><option value="rate-desc">Hourly rate: High to low</option><option value="rate-asc">Hourly rate: Low to high</option><option value="gross-desc">Gross pay: High to low</option><option value="gross-asc">Gross pay: Low to high</option></select></label>
         <button className="rounded-xl border border-cyan-300 bg-white px-4 py-2.5 text-sm font-black text-cyan-900 shadow-sm transition hover:bg-cyan-100" onClick={() => { setSearch(""); setTitles([]); setLocations([]); setInternalBenchmarks([]); setExternalBenchmarks([]); setSort("name"); }} type="button">Reset Filters</button>
       </div>
-      <p className="mt-3 text-sm font-semibold text-slate-600">Showing <span className="font-black text-cyan-900">{sorted.length}</span> of {employees.length} hourly employees</p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-semibold text-slate-600">Showing <span className="font-black text-cyan-900">{sorted.length}</span> of {employees.length} hourly employees</p><button className="inline-flex items-center gap-2 rounded-xl bg-cyan-800 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-cyan-900 disabled:cursor-wait disabled:bg-slate-400" disabled={downloading || sorted.length === 0} onClick={() => void downloadExcel()} type="button"><Download className="h-4 w-4" />{downloading ? "Preparing Excel…" : "Download Excel Report"}</button></div>
     </div>
       <div className="border-b border-cyan-100 bg-slate-50 px-1 pt-2"><p className="px-3 pb-1 text-xs font-bold text-slate-500">Drag horizontally to view all columns</p><div className="overflow-x-auto" onScroll={(event) => { if (tableScroll.current) tableScroll.current.scrollLeft = event.currentTarget.scrollLeft; }} ref={topScroll}><div className="h-1 min-w-[1180px]" /></div></div>
       <div className="overflow-x-auto" onScroll={(event) => { if (topScroll.current) topScroll.current.scrollLeft = event.currentTarget.scrollLeft; }} ref={tableScroll}><table className="min-w-[1180px] w-full text-left text-sm"><thead className="bg-slate-900 text-[11px] uppercase tracking-wide text-white"><tr><th className="px-3 py-3">{sortHeader("Employee", "name")}</th><th className="px-3 py-3">{sortHeader("Job Title", "title")}</th><th className="px-3 py-3">{sortHeader("Location", "location")}</th><th className="px-3 py-3">{sortHeader("Hourly Rate", "rate")}</th><th className="px-3 py-3">{sortHeader("Annual Gross Pay", "gross")}<span className="mt-1 block whitespace-nowrap text-[9px] font-semibold normal-case tracking-normal text-slate-300">{dateText(analysis.period.start)} – {dateText(analysis.period.end)}</span></th><th className="px-3 py-3">{sortHeader("Internal Benchmark", "internal")}</th><th className="px-3 py-3">{sortHeader("External Benchmark", "external")}</th></tr></thead><tbody className="divide-y divide-slate-100">{sorted.map((employee) => { const internalStatus = hourlyInternalBenchmark(employee, employees); const externalStatus = hourlyExternalBenchmark(employee); return <tr className="group hover:bg-cyan-50/60" key={employee.id}><td className="sticky left-0 bg-white px-3 py-3 font-black text-cyan-900 group-hover:bg-cyan-50"><Link className="inline-flex items-center gap-1.5 hover:underline" to={`/compensation-analysis/hourly/employees/${employee.id}${returnSearch ? `?${returnSearch}` : ""}`}>{employee.name}<ArrowRight className="h-3.5 w-3.5" /></Link></td><td className="max-w-[180px] px-3 py-3 font-semibold leading-5">{employee.jobTitle}</td><td className="whitespace-nowrap px-3 py-3 text-slate-600">{employee.location}</td><td className="whitespace-nowrap px-3 py-3"><span className="font-black">{hourlyMoney.format(employee.hourlyRate)}</span><span className="mt-1 block text-[11px] font-bold text-cyan-800">{percentile(rateValues, employee.hourlyRate)}th percentile</span></td><td className="whitespace-nowrap px-3 py-3"><span className="font-bold">{employee.grossPay == null ? "Unavailable" : grossMoney.format(employee.grossPay)}</span><span className="mt-1 block text-[11px] font-bold text-cyan-800">{employee.grossPay == null ? "—" : `${percentile(grossValues, employee.grossPay)}th percentile`}</span></td><td className="max-w-[220px] px-3 py-3">{internalStatus ? <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black leading-4 ${benchmarkTone(internalStatus)}`}>{internalStatus}</span> : null}</td><td className="max-w-[220px] px-3 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black leading-4 ${benchmarkTone(externalStatus)}`}>{externalStatus}</span></td></tr>; })}</tbody></table></div>
