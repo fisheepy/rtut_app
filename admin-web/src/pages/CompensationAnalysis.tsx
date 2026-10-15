@@ -222,7 +222,7 @@ export const quantile = (values: number[], point: number) => {
 export const alignment = (value: number | null, min: number, max: number) => {
   if (value == null) return "Missing Regular Pay";
   const tolerance = 0.05;
-  if (value < min * (1 - tolerance)) return "Market Review Suggested";
+  if (value < min * (1 + tolerance)) return "External Low Position";
   if (value > max * (1 + tolerance)) return "Base Pay Leading";
   return "Market Aligned";
 };
@@ -238,17 +238,22 @@ export const employeeExternalAlignment = (employee: SalaryEmployee) => {
 
 const isInternalLowPosition = (employee: SalaryEmployee, employees: SalaryEmployee[]) => {
   if (employee.regularPay == null) return false;
-  const sameTitle = employees.filter((item) => item.id !== employee.id && item.jobTitle === employee.jobTitle);
+  const sameTitle = employees.filter((item) => item.jobTitle === employee.jobTitle);
   const values = sameTitle.flatMap((item) => item.regularPay == null ? [] : [item.regularPay]);
-  return values.length >= 5 && employee.regularPay < quantile(values, .25);
+  return values.length >= 5 && employee.regularPay < quantile(values, .5);
 };
 
 export const employeeBaseAlignment = (employee: SalaryEmployee, employees: SalaryEmployee[]) => {
-  const external = employeeExternalAlignment(employee);
-  if (!isInternalLowPosition(employee, employees)) return external;
-  return external === "Market Aligned"
-    ? "Internal Low Position but Market Aligned"
-    : `Internal Low Position and ${external}`;
+  if (employee.regularPay == null) return "Missing Regular Pay";
+  const market = externalBaseRanges[employee.jobFamily];
+  if (!market) return "External Benchmark Unavailable";
+  const internalLow = isInternalLowPosition(employee, employees);
+  const externalLow = employee.regularPay < market.min * 1.05;
+  const scopeAdjustment = scopeAdjustedEmployeeIds.has(employee.id);
+  const findings = [internalLow && "Internal Low Position", externalLow && "External Low Position"].filter(Boolean) as string[];
+  if (scopeAdjustment) findings.push("Scope Adjustment Needed");
+  if (findings.length) return findings.join(" and ");
+  return alignment(employee.regularPay, market.min, market.max);
 };
 
 function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
@@ -325,7 +330,7 @@ function CheckboxFilter({ label, options, selected, onChange }: { label: string;
   return <details className="group relative min-w-[190px] flex-1"><summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-violet-200 bg-white px-3 py-3 text-sm font-bold text-slate-800 shadow-sm transition hover:border-violet-400"><span>{selected.length ? `${label} (${selected.length})` : `All ${label}`}</span><span className="ml-3 text-violet-600 transition group-open:rotate-180">⌄</span></summary><div className="absolute left-0 z-40 mt-2 max-h-72 min-w-full overflow-y-auto rounded-2xl border border-violet-200 bg-white p-3 shadow-2xl"><div className="mb-2 flex items-center justify-between border-b border-violet-100 pb-2"><span className="text-xs font-black uppercase tracking-wide text-violet-950">{label}</span>{selected.length > 0 && <button className="text-xs font-bold text-violet-700 hover:underline" onClick={() => onChange([])} type="button">Clear</button>}</div>{options.map((option) => <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-violet-50" key={option}><input checked={selected.includes(option)} className="h-4 w-4 accent-violet-700" onChange={() => onChange(selected.includes(option) ? selected.filter((value) => value !== option) : [...selected, option])} type="checkbox" /><span>{option}</span></label>)}</div></details>;
 }
 
-function IndividualSalaryTable({ employees, allEmployees, regularValues, grossValues, search, setSearch, sortBy, setSortBy, period, filters, filterOptions, setFilter, resetFilters, totalEmployees }: { employees: SalaryEmployee[]; allEmployees: SalaryEmployee[]; regularValues: number[]; grossValues: number[]; search: string; setSearch: (value: string) => void; sortBy: string; setSortBy: (value: string) => void; period: GrossPayAnalysis["period"]; filters: SalaryFilters; filterOptions: { titles: string[]; departments: string[]; locations: string[] }; setFilter: (key: SalaryFilterKey, value: string[]) => void; resetFilters: () => void; totalEmployees: number }) {
+function IndividualSalaryTable({ employees, allEmployees, regularValues, grossValues, search, setSearch, sortBy, setSortBy, period, filters, filterOptions, setFilter, resetFilters, totalEmployees }: { employees: SalaryEmployee[]; allEmployees: SalaryEmployee[]; regularValues: number[]; grossValues: number[]; search: string; setSearch: (value: string) => void; sortBy: string; setSortBy: (value: string) => void; period: GrossPayAnalysis["period"]; filters: SalaryFilters; filterOptions: { titles: string[]; departments: string[]; locations: string[]; alignments: string[] }; setFilter: (key: SalaryFilterKey, value: string[]) => void; resetFilters: () => void; totalEmployees: number }) {
   const sortHeader = (label: string, key: "name" | "title" | "location" | "regular" | "gross") => {
     const active = sortBy.startsWith(`${key}-`);
     const direction = active ? sortBy.split("-")[1] : null;
@@ -340,7 +345,7 @@ function IndividualSalaryTable({ employees, allEmployees, regularValues, grossVa
           ["Job Title", "title", filterOptions.titles],
           ["Department", "department", filterOptions.departments],
           ["Location", "location", filterOptions.locations],
-          ["Base Alignment", "externalAlignment", ["Internal Low Position but Market Aligned", "Internal Low Position and Scope Adjustment Needed", "Internal Low Position and Market Review Suggested", "Scope Adjustment Needed", "Market Review Suggested", "Market Aligned", "Base Pay Leading", "Missing Regular Pay", "External Benchmark Unavailable"]],
+          ["Base Alignment", "externalAlignment", filterOptions.alignments],
         ] as const).map(([label, key, options]) => <CheckboxFilter key={key} label={label} options={[...options]} selected={filters[key]} onChange={(values) => setFilter(key, values)} />)}
         <button className="rounded-xl border border-violet-200 bg-white px-4 py-2.5 text-sm font-black text-violet-800 transition hover:bg-violet-100" onClick={resetFilters} type="button">Reset Filters</button>
       </div>
@@ -369,6 +374,7 @@ export function SalaryIndividualDirectory() {
     titles: [...new Set(employees.map((employee) => employee.jobTitle))].sort((a, b) => a.localeCompare(b)),
     departments: [...new Set(employees.map((employee) => employee.department))].sort((a, b) => a.localeCompare(b)),
     locations: [...new Set(employees.map((employee) => employee.location))].sort((a, b) => a.localeCompare(b)),
+    alignments: [...new Set(employees.map((employee) => employeeBaseAlignment(employee, employees)))].sort((a, b) => a.localeCompare(b)),
   };
   const filtered = employees.filter((employee) => {
     const marketStatus = employeeBaseAlignment(employee, employees);
