@@ -222,7 +222,7 @@ export const quantile = (values: number[], point: number) => {
 export const alignment = (value: number | null, min: number, max: number) => {
   if (value == null) return "Missing Regular Pay";
   const tolerance = 0.05;
-  if (value < min * (1 + tolerance)) return "External Low Position";
+  if (value < min * (1 + tolerance)) return "External Base Pay Low Position";
   if (value > max * (1 + tolerance)) return "Base Pay Leading";
   return "Market Aligned";
 };
@@ -250,7 +250,7 @@ export const employeeBaseAlignment = (employee: SalaryEmployee, employees: Salar
   const internalLow = isInternalLowPosition(employee, employees);
   const externalLow = employee.regularPay < market.min * 1.05;
   const scopeAdjustment = scopeAdjustedEmployeeIds.has(employee.id);
-  const findings = [internalLow && "Internal Low Position", externalLow && "External Low Position"].filter(Boolean) as string[];
+  const findings = [internalLow && "Internal Base Pay Low Position", externalLow && "External Base Pay Low Position"].filter(Boolean) as string[];
   if (scopeAdjustment) findings.push("Scope Adjustment Needed");
   if (findings.length) return findings.join(" and ");
   return alignment(employee.regularPay, market.min, market.max);
