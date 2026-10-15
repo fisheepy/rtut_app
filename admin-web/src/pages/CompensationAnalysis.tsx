@@ -225,19 +225,17 @@ function HourlyJobArchitecture() {
     </div>
     <div className="border-b border-cyan-100 bg-white px-1 pt-2">
       <div className="overflow-x-auto" onScroll={() => syncHorizontalScroll("top")} ref={topScrollRef}>
-        <div className="h-1 min-w-[1580px]" />
+        <div className="h-1 min-w-[1480px]" />
       </div>
-      <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Scroll horizontally here or below the table · First three columns stay visible</p>
+      <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Scroll horizontally here or below the table · First two columns stay visible</p>
     </div>
-    <div className="overflow-x-auto" onScroll={() => syncHorizontalScroll("table")} ref={tableScrollRef}><table className="min-w-[1580px] w-full table-fixed text-left text-sm"><thead className="bg-cyan-50 text-xs uppercase tracking-wide text-cyan-950"><tr>
-      <th className="sticky left-0 z-30 w-[300px] border-r border-cyan-100 bg-cyan-50 px-4 py-3">Job Family / Level</th>
-      <th className="sticky left-[300px] z-30 w-[100px] border-r border-cyan-100 bg-cyan-50 px-4 py-3">Employees</th>
-      <th className="sticky left-[400px] z-30 w-[320px] border-r-2 border-cyan-200 bg-cyan-50 px-4 py-3 shadow-[8px_0_12px_-12px_rgba(15,23,42,0.7)]">Included Royal Roles</th>
+    <div className="overflow-x-auto" onScroll={() => syncHorizontalScroll("table")} ref={tableScrollRef}><table className="min-w-[1480px] w-full table-fixed text-left text-sm"><thead className="bg-cyan-50 text-xs uppercase tracking-wide text-cyan-950"><tr>
+      <th className="sticky left-0 z-30 w-[300px] border-r border-cyan-100 bg-cyan-50 px-4 py-3">Job Family / Level / Employees</th>
+      <th className="sticky left-[300px] z-30 w-[320px] border-r-2 border-cyan-200 bg-cyan-50 px-4 py-3 shadow-[8px_0_12px_-12px_rgba(15,23,42,0.7)]">Included Royal Roles</th>
       <th className="w-[300px] px-4 py-3">Classification Basis</th><th className="w-[280px] px-4 py-3">Royal Internal Pay</th><th className="w-[280px] px-4 py-3">External Market Pay</th>
     </tr></thead><tbody className="divide-y divide-slate-100">{hourlyJobFamilies.map((row) => <tr className="group align-top hover:bg-cyan-50/50" key={row.family}>
-      <td className="sticky left-0 z-20 w-[300px] border-r border-slate-100 bg-white px-4 py-4 group-hover:bg-cyan-50"><p className="font-black text-slate-950">{row.family}</p><p className="mt-1.5 text-xs font-bold uppercase tracking-wide text-cyan-800">{row.level}</p></td>
-      <td className="sticky left-[300px] z-20 w-[100px] border-r border-slate-100 bg-white px-4 py-4 text-center font-black text-cyan-800 group-hover:bg-cyan-50">{row.employees}</td>
-      <td className="sticky left-[400px] z-20 w-[320px] border-r-2 border-cyan-100 bg-white px-4 py-4 leading-6 text-slate-600 shadow-[8px_0_12px_-12px_rgba(15,23,42,0.7)] group-hover:bg-cyan-50">{row.jobs}</td>
+      <td className="sticky left-0 z-20 w-[300px] border-r border-slate-100 bg-white px-4 py-4 group-hover:bg-cyan-50"><p className="font-black text-slate-950">{row.family}</p><p className="mt-1.5 text-xs font-bold uppercase tracking-wide text-cyan-800">{row.level}</p><p className="mt-2 inline-flex rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-black text-cyan-900">{row.employees} employees</p></td>
+      <td className="sticky left-[300px] z-20 w-[320px] border-r-2 border-cyan-100 bg-white px-4 py-4 leading-6 text-slate-600 shadow-[8px_0_12px_-12px_rgba(15,23,42,0.7)] group-hover:bg-cyan-50">{row.jobs}</td>
       <td className="w-[300px] px-4 py-4 leading-6 text-slate-600">{row.profile}</td><td className="w-[280px] px-4 py-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Hourly rate</p><p className="mt-1 font-bold text-slate-900">{row.royalRate}</p><p className="mt-3 text-xs font-black uppercase tracking-wide text-indigo-500">Annual gross pay</p><p className="mt-1 font-bold text-indigo-800">{row.royalGross}</p></td><td className="w-[280px] px-4 py-4"><p className="text-xs font-black uppercase tracking-wide text-emerald-600">Base hourly rate</p><p className="mt-1 font-black text-emerald-800">{row.marketRate}</p><p className="mt-3 text-xs font-black uppercase tracking-wide text-teal-600">Estimated total pay</p><p className="mt-1 font-black text-teal-800">{row.marketTotal}</p></td>
     </tr>)}</tbody></table></div>
     <div className="border-t border-cyan-100 bg-slate-50 p-6">
