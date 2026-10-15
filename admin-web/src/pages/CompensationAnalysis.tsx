@@ -227,12 +227,10 @@ export const alignment = (value: number | null, min: number, max: number) => {
   return "Market Aligned";
 };
 
-const scopeAdjustedEmployeeIds = new Set(["cooperted", "chapmanzachary", "eurichjohn", "klinekeith"]);
 export const employeeExternalAlignment = (employee: SalaryEmployee) => {
   if (employee.regularPay == null) return "Missing Regular Pay";
   const market = externalBaseRanges[employee.jobFamily];
   if (!market) return "External Benchmark Unavailable";
-  if (scopeAdjustedEmployeeIds.has(employee.id)) return "Scope Adjustment Needed";
   return alignment(employee.regularPay, market.min, market.max);
 };
 
@@ -249,9 +247,7 @@ export const employeeBaseAlignment = (employee: SalaryEmployee, employees: Salar
   if (!market) return "External Benchmark Unavailable";
   const internalLow = isInternalLowPosition(employee, employees);
   const externalLow = employee.regularPay < market.min * 1.05;
-  const scopeAdjustment = scopeAdjustedEmployeeIds.has(employee.id);
   const findings = [internalLow && "Internal Base Pay Low Position", externalLow && "External Base Pay Low Position"].filter(Boolean) as string[];
-  if (scopeAdjustment) findings.push("Scope Adjustment Needed");
   if (findings.length) return findings.join(" and ");
   return alignment(employee.regularPay, market.min, market.max);
 };
