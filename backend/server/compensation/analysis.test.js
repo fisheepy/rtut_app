@@ -19,11 +19,11 @@ test('annualized gross pay analysis identifies its estimation method', () => {
   assert.equal(analysis.overall.average, 83003.45);
 });
 
-test('hourly and salary populations reconcile to the current roster', () => {
+test('hourly and salary populations reconcile after the approved hourly exclusion', () => {
   const analysis = getCompensationGrossPayAnalysis();
   assert.deepEqual(analysis.payTypes.map((row) => row.payType), ['Hourly', 'Salary']);
-  assert.equal(analysis.payTypes.reduce((sum, row) => sum + row.overall.population, 0), 208);
-  assert.equal(analysis.payTypes.reduce((sum, row) => sum + row.overall.analyzed, 0), 203);
+  assert.equal(analysis.payTypes.reduce((sum, row) => sum + row.overall.population, 0), 207);
+  assert.equal(analysis.payTypes.reduce((sum, row) => sum + row.overall.analyzed, 0), 202);
   for (const payType of analysis.payTypes) {
     assert.equal(payType.locations.reduce((sum, row) => sum + row.population, 0), payType.overall.population);
     assert.equal(payType.locations.reduce((sum, row) => sum + row.analyzed, 0), payType.overall.analyzed);
@@ -31,16 +31,21 @@ test('hourly and salary populations reconcile to the current roster', () => {
   const salary = analysis.payTypes.find((row) => row.payType === 'Salary');
   const hourly = analysis.payTypes.find((row) => row.payType === 'Hourly');
   assert.ok(hourly);
-  assert.equal(hourly.hourlyRate.population, 134);
+  assert.equal(hourly.overall.population, 133);
+  assert.equal(hourly.overall.analyzed, 128);
+  assert.equal(hourly.overall.max, 106495.28);
+  assert.equal(hourly.hourlyRate.population, 133);
   assert.equal(hourly.hourlyRate.analyzed, 131);
-  assert.equal(hourly.hourlyRate.noHistory, 3);
+  assert.equal(hourly.hourlyRate.noHistory, 2);
   assert.equal(hourly.hourlyRate.median, 25);
   assert.equal(hourly.hourlyRate.average, 25.05);
   assert.equal(hourly.hourlyRate.max, 32);
-  assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.population, 0), 134);
+  assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.population, 0), 133);
   assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.analyzed, 0), 131);
-  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.population, 0), 134);
-  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.analyzed, 0), 129);
+  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.population, 0), 133);
+  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.analyzed, 0), 128);
+  assert.equal(hourly.jobTitlesHourlyRate.some((row) => row.jobTitle === 'Project Manager'), false);
+  assert.equal(hourly.jobTitlesAnnualGross.some((row) => row.jobTitle === 'Project Manager'), false);
   assert.equal(hourly.jobTitlesHourlyRate.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').median, 27);
   assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').average, 66843.36);
   assert.ok(salary);

@@ -20,8 +20,8 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
   payTypes: Object.freeze([
     Object.freeze({
       payType: 'Hourly',
-      overall: Object.freeze({ population: 134, analyzed: 129, noHistory: 5, min: 13287.78, p25: 45835.1, median: 58497.44, average: 57653.15, p75: 69124.43, max: 125653.81 }),
-      hourlyRate: Object.freeze({ population: 134, analyzed: 131, noHistory: 3, min: 15, p25: 23, median: 25, average: 25.05, p75: 27.75, max: 32 }),
+      overall: Object.freeze({ population: 133, analyzed: 128, noHistory: 5, min: 13287.78, p25: 45783.44, median: 58123.78, average: 57121.9, p75: 68717.39, max: 106495.28 }),
+      hourlyRate: Object.freeze({ population: 133, analyzed: 131, noHistory: 2, min: 15, p25: 23, median: 25, average: 25.05, p75: 27.75, max: 32 }),
       jobTitlesHourlyRate: Object.freeze([
         Object.freeze({ jobTitle: 'Project Specialist', population: 2, analyzed: 2, noHistory: 0, min: 30, p25: 30, median: 30, average: 30, p75: 30, max: 30 }),
         Object.freeze({ jobTitle: 'Sales Coordinator', population: 1, analyzed: 1, noHistory: 0, min: 30, p25: 30, median: 30, average: 30, p75: 30, max: 30 }),
@@ -49,10 +49,8 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
         Object.freeze({ jobTitle: 'Warehouse Associate / Parts Driver', population: 15, analyzed: 15, noHistory: 0, min: 18, p25: 19.5, median: 21, average: 21.43, p75: 23, max: 26 }),
         Object.freeze({ jobTitle: 'Corporate Buyer Trainee', population: 1, analyzed: 1, noHistory: 0, min: 20, p25: 20, median: 20, average: 20, p75: 20, max: 20 }),
         Object.freeze({ jobTitle: 'Sr. Service Advisor', population: 1, analyzed: 1, noHistory: 0, min: 15, p25: 15, median: 15, average: 15, p75: 15, max: 15 }),
-        Object.freeze({ jobTitle: 'Project Manager', population: 1, analyzed: 0, noHistory: 1, min: null, p25: null, median: null, average: null, p75: null, max: null }),
       ]),
       jobTitlesAnnualGross: Object.freeze([
-        Object.freeze({ jobTitle: 'Project Manager', population: 1, analyzed: 1, noHistory: 0, min: 125653.81, p25: 125653.81, median: 125653.81, average: 125653.81, p75: 125653.81, max: 125653.81 }),
         Object.freeze({ jobTitle: 'Project Specialist', population: 2, analyzed: 2, noHistory: 0, min: 72842.54, p25: 75652.31, median: 78462.08, average: 78462.08, p75: 81271.85, max: 84081.62 }),
         Object.freeze({ jobTitle: 'Service Shop Supervisor', population: 3, analyzed: 3, noHistory: 0, min: 75493.77, p25: 75725.14, median: 75956.5, average: 76850.43, p75: 77528.76, max: 79101.01 }),
         Object.freeze({ jobTitle: 'Truck Upfit Specialist', population: 7, analyzed: 6, noHistory: 1, min: 52439.13, p25: 63849.33, median: 74658.95, average: 73725.23, p75: 83756.5, max: 93559.24 }),
@@ -85,7 +83,7 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
         Object.freeze({ location: 'Gaylord', population: 4, analyzed: 4, noHistory: 0, min: 41138.51, p25: 47679.97, median: 56525.62, average: 55555.35, p75: 64400.99, max: 68031.64 }),
         Object.freeze({ location: 'Grand Rapids', population: 24, analyzed: 23, noHistory: 1, min: 14685, p25: 52824.54, median: 60935.95, average: 60559.56, p75: 72716.01, max: 93559.24 }),
         Object.freeze({ location: 'Hudsonville', population: 23, analyzed: 23, noHistory: 0, min: 13287.78, p25: 51280.86, median: 67688.04, average: 62781.76, p75: 73037.81, max: 106495.28 }),
-        Object.freeze({ location: 'Northville', population: 7, analyzed: 7, noHistory: 0, min: 13554.6, p25: 40186.88, median: 47202.8, average: 51873.97, p75: 48166.4, max: 125653.81 }),
+        Object.freeze({ location: 'Northville', population: 6, analyzed: 6, noHistory: 0, min: 13554.6, p25: 36983.44, median: 46898.28, average: 39577.32, p75: 47696, max: 48472.4 }),
         Object.freeze({ location: 'Ohio Cleveland', population: 5, analyzed: 4, noHistory: 1, min: 52439.13, p25: 56119.08, median: 58457.74, average: 61327.78, p75: 63666.44, max: 75956.5 }),
         Object.freeze({ location: 'Warren', population: 17, analyzed: 16, noHistory: 1, min: 22805.08, p25: 45783.44, median: 62642.54, average: 59700.16, p75: 70510.17, max: 87952.1 }),
         Object.freeze({ location: 'Wixom', population: 7, analyzed: 7, noHistory: 0, min: 21425, p25: 28882.5, median: 35896.6, average: 44698.2, p75: 59349.88, max: 79101.01 }),
