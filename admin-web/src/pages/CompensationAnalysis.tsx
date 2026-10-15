@@ -250,7 +250,7 @@ export function hourlyInternalBenchmark(employee: HourlyEmployee, employees: Hou
   const sameTitle = employees.filter((item) => item.jobTitle === employee.jobTitle && Number.isFinite(item.hourlyRate));
   const titleMedian = sameTitle.length >= 5 ? quantile(sameTitle.map((item) => item.hourlyRate), 0.5) : null;
   if (titleMedian == null) return "";
-  return employee.hourlyRate < titleMedian ? "Hourly Rate Below 50th Percentile" : "";
+  return employee.hourlyRate < titleMedian ? "Hourly Rate Below the 50th Percentile for the Same Position" : "";
 }
 
 export function hourlyExternalBenchmark(employee: HourlyEmployee) {
