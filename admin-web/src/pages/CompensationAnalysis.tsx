@@ -263,7 +263,7 @@ export function hourlyExternalBenchmark(employee: HourlyEmployee) {
   const externalMetric = usesTotalPay ? "Total Pay" : "Hourly Rate";
   const externalLow = externalValue != null && market && externalValue < market.min;
   const result = externalLow ? `External ${externalMetric} Low Position` : `External ${externalMetric} Market Aligned`;
-  return usesHourlyFallback ? `Hourly Rate Benchmark Used — Gross Pay Unavailable; ${result}` : result;
+  return result;
 }
 
 function HourlyJobArchitecture() {
