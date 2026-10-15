@@ -247,9 +247,12 @@ export const employeeBaseAlignment = (employee: SalaryEmployee, employees: Salar
   if (!market) return "External Benchmark Unavailable";
   const internalLow = isInternalLowPosition(employee, employees);
   const externalLow = employee.regularPay < market.min * 1.05;
-  const findings = [internalLow && "Internal Base Pay Low Position", externalLow && "External Base Pay Low Position"].filter(Boolean) as string[];
-  if (findings.length) return findings.join(" and ");
-  return alignment(employee.regularPay, market.min, market.max);
+  const external = alignment(employee.regularPay, market.min, market.max);
+  if (internalLow && externalLow) return "Internal Base Pay Low Position and External Base Pay Low Position";
+  if (internalLow && external === "Market Aligned") return "Internal Base Pay Low Position, External Market Aligned";
+  if (internalLow) return `Internal Base Pay Low Position and ${external}`;
+  if (externalLow) return "External Base Pay Low Position";
+  return external;
 };
 
 function GrossPayDashboard({ analysis }: { analysis: GrossPayAnalysis }) {
