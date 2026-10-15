@@ -46,6 +46,12 @@ test('hourly and salary populations reconcile after the approved hourly exclusio
   assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.analyzed, 0), 128);
   assert.equal(hourly.jobTitlesHourlyRate.some((row) => row.jobTitle === 'Project Manager'), false);
   assert.equal(hourly.jobTitlesAnnualGross.some((row) => row.jobTitle === 'Project Manager'), false);
+  assert.equal(hourly.jobTitlesHourlyRate.some((row) => row.jobTitle === 'Yard Associate'), false);
+  assert.equal(hourly.jobTitlesAnnualGross.some((row) => row.jobTitle === 'Yard Associate'), false);
+  assert.equal(hourly.jobTitlesHourlyRate.find((row) => row.jobTitle === 'Warehouse Associate').population, 11);
+  assert.equal(hourly.jobTitlesHourlyRate.find((row) => row.jobTitle === 'Warehouse Associate').average, 21.64);
+  assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Warehouse Associate').population, 11);
+  assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Warehouse Associate').average, 45380.86);
   assert.equal(hourly.jobTitlesHourlyRate.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').median, 27);
   assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').average, 66843.36);
   assert.ok(salary);
