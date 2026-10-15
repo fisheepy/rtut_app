@@ -249,8 +249,8 @@ export function hourlyAlignment(employee: HourlyEmployee, employees: HourlyEmplo
 export function hourlyInternalBenchmark(employee: HourlyEmployee, employees: HourlyEmployee[]) {
   const sameTitle = employees.filter((item) => item.jobTitle === employee.jobTitle && Number.isFinite(item.hourlyRate));
   const titleMedian = sameTitle.length >= 5 ? quantile(sameTitle.map((item) => item.hourlyRate), 0.5) : null;
-  if (titleMedian == null) return "Insufficient Same-Title Sample";
-  return employee.hourlyRate < titleMedian ? "Hourly Rate Below 50th Percentile" : "Hourly Rate At or Above 50th Percentile";
+  if (titleMedian == null) return "";
+  return employee.hourlyRate < titleMedian ? "Hourly Rate Below 50th Percentile" : "";
 }
 
 export function hourlyExternalBenchmark(employee: HourlyEmployee) {
