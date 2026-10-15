@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -199,6 +199,19 @@ const hourlyJobFamilies = [
 ] as const;
 
 function HourlyJobArchitecture() {
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const syncingScrollRef = useRef(false);
+
+  function syncHorizontalScroll(source: "top" | "table") {
+    if (syncingScrollRef.current) return;
+    syncingScrollRef.current = true;
+    const sourceElement = source === "top" ? topScrollRef.current : tableScrollRef.current;
+    const targetElement = source === "top" ? tableScrollRef.current : topScrollRef.current;
+    if (sourceElement && targetElement) targetElement.scrollLeft = sourceElement.scrollLeft;
+    requestAnimationFrame(() => { syncingScrollRef.current = false; });
+  }
+
   return <section className="overflow-hidden rounded-3xl border border-cyan-200 bg-white shadow-sm">
     <div className="bg-gradient-to-r from-cyan-950 via-slate-900 to-indigo-950 px-6 py-6 text-white">
       <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-200">Royal hourly job architecture</p>
@@ -210,7 +223,25 @@ function HourlyJobArchitecture() {
       <div className="rounded-2xl bg-white p-4"><p className="text-xs font-black uppercase tracking-wide text-cyan-800">2 · Market scarcity</p><p className="mt-2 text-sm leading-6 text-slate-600">Michigan recruiting supply, required experience or credentials, and the difficulty of replacing productive employees.</p></div>
       <div className="rounded-2xl bg-white p-4"><p className="text-xs font-black uppercase tracking-wide text-cyan-800">3 · Enterprise impact</p><p className="mt-2 text-sm leading-6 text-slate-600">Effect on safety, service throughput, revenue, customer retention, inventory availability, and financial control.</p></div>
     </div>
-    <div className="overflow-x-auto"><table className="min-w-[1740px] w-full text-left text-sm"><thead className="bg-cyan-50 text-xs uppercase tracking-wide text-cyan-950"><tr>{["Job Family", "Level", "Employees", "Included Royal Roles", "Classification Basis", "Royal Current Hourly Rate", "Royal Annual Gross Pay", "External Base Hourly Rate", "External Estimated Total Pay"].map((header) => <th className="px-4 py-3" key={header}>{header}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{hourlyJobFamilies.map((row) => <tr className="align-top hover:bg-cyan-50/50" key={row.family}><td className="px-4 py-4 font-black text-slate-950">{row.family}</td><td className="min-w-[150px] px-4 py-4 font-bold text-cyan-900">{row.level}</td><td className="px-4 py-4 text-center font-black text-cyan-800">{row.employees}</td><td className="max-w-xs px-4 py-4 leading-6 text-slate-600">{row.jobs}</td><td className="min-w-[300px] px-4 py-4 leading-6 text-slate-600">{row.profile}</td><td className="min-w-[210px] px-4 py-4 font-bold text-slate-900">{row.royalRate}</td><td className="min-w-[230px] px-4 py-4 font-bold text-indigo-800">{row.royalGross}</td><td className="min-w-[210px] px-4 py-4 font-black text-emerald-800">{row.marketRate}</td><td className="min-w-[210px] px-4 py-4 font-black text-teal-800">{row.marketTotal}</td></tr>)}</tbody></table></div>
+    <div className="border-b border-cyan-100 bg-white px-1 pt-2">
+      <div className="overflow-x-auto" onScroll={() => syncHorizontalScroll("top")} ref={topScrollRef}>
+        <div className="h-1 min-w-[1980px]" />
+      </div>
+      <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Scroll horizontally here or below the table · First four columns stay visible</p>
+    </div>
+    <div className="overflow-x-auto" onScroll={() => syncHorizontalScroll("table")} ref={tableScrollRef}><table className="min-w-[1980px] w-full table-fixed text-left text-sm"><thead className="bg-cyan-50 text-xs uppercase tracking-wide text-cyan-950"><tr>
+      <th className="sticky left-0 z-30 w-[260px] border-r border-cyan-100 bg-cyan-50 px-4 py-3">Job Family</th>
+      <th className="sticky left-[260px] z-30 w-[170px] border-r border-cyan-100 bg-cyan-50 px-4 py-3">Level</th>
+      <th className="sticky left-[430px] z-30 w-[100px] border-r border-cyan-100 bg-cyan-50 px-4 py-3">Employees</th>
+      <th className="sticky left-[530px] z-30 w-[320px] border-r-2 border-cyan-200 bg-cyan-50 px-4 py-3 shadow-[8px_0_12px_-12px_rgba(15,23,42,0.7)]">Included Royal Roles</th>
+      <th className="w-[300px] px-4 py-3">Classification Basis</th><th className="w-[210px] px-4 py-3">Royal Current Hourly Rate</th><th className="w-[230px] px-4 py-3">Royal Annual Gross Pay</th><th className="w-[210px] px-4 py-3">External Base Hourly Rate</th><th className="w-[210px] px-4 py-3">External Estimated Total Pay</th>
+    </tr></thead><tbody className="divide-y divide-slate-100">{hourlyJobFamilies.map((row) => <tr className="group align-top hover:bg-cyan-50/50" key={row.family}>
+      <td className="sticky left-0 z-20 w-[260px] border-r border-slate-100 bg-white px-4 py-4 font-black text-slate-950 group-hover:bg-cyan-50">{row.family}</td>
+      <td className="sticky left-[260px] z-20 w-[170px] border-r border-slate-100 bg-white px-4 py-4 font-bold text-cyan-900 group-hover:bg-cyan-50">{row.level}</td>
+      <td className="sticky left-[430px] z-20 w-[100px] border-r border-slate-100 bg-white px-4 py-4 text-center font-black text-cyan-800 group-hover:bg-cyan-50">{row.employees}</td>
+      <td className="sticky left-[530px] z-20 w-[320px] border-r-2 border-cyan-100 bg-white px-4 py-4 leading-6 text-slate-600 shadow-[8px_0_12px_-12px_rgba(15,23,42,0.7)] group-hover:bg-cyan-50">{row.jobs}</td>
+      <td className="w-[300px] px-4 py-4 leading-6 text-slate-600">{row.profile}</td><td className="w-[210px] px-4 py-4 font-bold text-slate-900">{row.royalRate}</td><td className="w-[230px] px-4 py-4 font-bold text-indigo-800">{row.royalGross}</td><td className="w-[210px] px-4 py-4 font-black text-emerald-800">{row.marketRate}</td><td className="w-[210px] px-4 py-4 font-black text-teal-800">{row.marketTotal}</td>
+    </tr>)}</tbody></table></div>
     <div className="border-t border-cyan-100 bg-slate-50 p-6">
       <h3 className="font-black text-slate-950">External sources and limitations</h3>
       <p className="mt-2 text-sm leading-6 text-slate-600">Royal Annual Gross Pay is the employee-level gross-pay range for Sep. 30, 2025–Sep. 29, 2026. Employees with at least 90 days but less than a full year are annualized; employees with less than 90 days are excluded. External base figures are practical hourly reference ranges, not a single survey's percentile band. External Estimated Total Pay converts the base range to full-time annual pay and adds market-supported typical overtime or variable-pay opportunity where applicable. It is a comparison range—not a guaranteed earnings range. Official Michigan and Detroit occupational data are the primary anchors. Current Indeed postings and salary pages test recruiting reality, including Michigan trailer-technician, technician overtime, parts, service-writer, and warehouse data. ADP Metro Area median benchmarks as of August 31, 2026 provide a second check for credible role matches. NTDA trailer-dealer compensation references add industry context, but its publicly available detailed guide is older and national, so it is used only as secondary validation. Role scope, CDL requirements, certifications, shift premiums, incentive plans, and actual overtime can materially change total pay.</p>
