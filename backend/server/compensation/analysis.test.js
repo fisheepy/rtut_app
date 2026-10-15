@@ -37,6 +37,12 @@ test('hourly and salary populations reconcile to the current roster', () => {
   assert.equal(hourly.hourlyRate.median, 25);
   assert.equal(hourly.hourlyRate.average, 25.05);
   assert.equal(hourly.hourlyRate.max, 32);
+  assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.population, 0), 134);
+  assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.analyzed, 0), 131);
+  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.population, 0), 134);
+  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.analyzed, 0), 129);
+  assert.equal(hourly.jobTitlesHourlyRate.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').median, 27);
+  assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').average, 66843.36);
   assert.ok(salary);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.population, 0), 74);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.analyzed, 0), 74);
