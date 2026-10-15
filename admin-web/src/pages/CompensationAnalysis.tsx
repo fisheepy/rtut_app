@@ -243,20 +243,26 @@ export function hourlyJobFamily(jobTitle: string) {
 }
 
 export function hourlyAlignment(employee: HourlyEmployee, employees: HourlyEmployee[]) {
+  return `${hourlyInternalBenchmark(employee, employees)}; ${hourlyExternalBenchmark(employee)}`;
+}
+
+export function hourlyInternalBenchmark(employee: HourlyEmployee, employees: HourlyEmployee[]) {
   const sameTitle = employees.filter((item) => item.jobTitle === employee.jobTitle && Number.isFinite(item.hourlyRate));
   const titleMedian = sameTitle.length >= 5 ? quantile(sameTitle.map((item) => item.hourlyRate), 0.5) : null;
-  const internalLow = titleMedian != null && employee.hourlyRate < titleMedian;
+  if (titleMedian == null) return "Insufficient Same-Title Sample";
+  return employee.hourlyRate < titleMedian ? "Hourly Rate Below 50th Percentile" : "Hourly Rate At or Above 50th Percentile";
+}
+
+export function hourlyExternalBenchmark(employee: HourlyEmployee) {
   const family = hourlyJobFamily(employee.jobTitle);
   const usesTotalPay = totalPayComparisonTitles.has(employee.jobTitle);
   const market = usesTotalPay ? hourlyMarketTotalRanges[family] : hourlyMarketRateRanges[family];
   const externalValue = usesTotalPay ? employee.grossPay : employee.hourlyRate;
   const externalMetric = usesTotalPay ? "Total Pay" : "Hourly Rate";
   const externalLow = externalValue != null && market && externalValue < market.min;
-  if (usesTotalPay && employee.grossPay == null) return internalLow ? "Internal Hourly Rate Low Position; Gross Pay Data Unavailable" : "Gross Pay Data Unavailable";
-  if (internalLow && externalLow) return `Internal Hourly Rate Low Position; External ${externalMetric} Low Position`;
-  if (internalLow) return `Internal Hourly Rate Low Position; External ${externalMetric} Market Aligned`;
+  if (usesTotalPay && employee.grossPay == null) return "Gross Pay Data Unavailable";
   if (externalLow) return `External ${externalMetric} Low Position`;
-  return `Internal Hourly Rate and External ${externalMetric} Market Aligned`;
+  return `External ${externalMetric} Market Aligned`;
 }
 
 function HourlyJobArchitecture() {
