@@ -21,6 +21,7 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
     Object.freeze({
       payType: 'Hourly',
       overall: Object.freeze({ population: 134, analyzed: 129, noHistory: 5, min: 13287.78, p25: 45835.1, median: 58497.44, average: 57653.15, p75: 69124.43, max: 125653.81 }),
+      hourlyRate: Object.freeze({ population: 134, analyzed: 131, noHistory: 3, min: 15, p25: 23, median: 25, average: 25.05, p75: 27.75, max: 32 }),
       locations: Object.freeze([
         Object.freeze({ location: 'Dearborn', population: 47, analyzed: 45, noHistory: 2, min: 27097.8, p25: 44641.52, median: 53590.46, average: 55592.58, p75: 65418.49, max: 94274.16 }),
         Object.freeze({ location: 'Gaylord', population: 4, analyzed: 4, noHistory: 0, min: 41138.51, p25: 47679.97, median: 56525.62, average: 55555.35, p75: 64400.99, max: 68031.64 }),

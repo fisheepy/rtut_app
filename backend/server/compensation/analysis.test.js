@@ -29,6 +29,14 @@ test('hourly and salary populations reconcile to the current roster', () => {
     assert.equal(payType.locations.reduce((sum, row) => sum + row.analyzed, 0), payType.overall.analyzed);
   }
   const salary = analysis.payTypes.find((row) => row.payType === 'Salary');
+  const hourly = analysis.payTypes.find((row) => row.payType === 'Hourly');
+  assert.ok(hourly);
+  assert.equal(hourly.hourlyRate.population, 134);
+  assert.equal(hourly.hourlyRate.analyzed, 131);
+  assert.equal(hourly.hourlyRate.noHistory, 3);
+  assert.equal(hourly.hourlyRate.median, 25);
+  assert.equal(hourly.hourlyRate.average, 25.05);
+  assert.equal(hourly.hourlyRate.max, 32);
   assert.ok(salary);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.population, 0), 74);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.analyzed, 0), 74);
