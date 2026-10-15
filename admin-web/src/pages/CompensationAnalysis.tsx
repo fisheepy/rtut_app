@@ -255,14 +255,15 @@ export function hourlyInternalBenchmark(employee: HourlyEmployee, employees: Hou
 
 export function hourlyExternalBenchmark(employee: HourlyEmployee) {
   const family = hourlyJobFamily(employee.jobTitle);
-  const usesTotalPay = totalPayComparisonTitles.has(employee.jobTitle);
+  const prefersTotalPay = totalPayComparisonTitles.has(employee.jobTitle);
+  const usesHourlyFallback = prefersTotalPay && employee.grossPay == null;
+  const usesTotalPay = prefersTotalPay && !usesHourlyFallback;
   const market = usesTotalPay ? hourlyMarketTotalRanges[family] : hourlyMarketRateRanges[family];
   const externalValue = usesTotalPay ? employee.grossPay : employee.hourlyRate;
   const externalMetric = usesTotalPay ? "Total Pay" : "Hourly Rate";
   const externalLow = externalValue != null && market && externalValue < market.min;
-  if (usesTotalPay && employee.grossPay == null) return "Gross Pay Data Unavailable";
-  if (externalLow) return `External ${externalMetric} Low Position`;
-  return `External ${externalMetric} Market Aligned`;
+  const result = externalLow ? `External ${externalMetric} Low Position` : `External ${externalMetric} Market Aligned`;
+  return usesHourlyFallback ? `Hourly Rate Benchmark Used — Gross Pay Unavailable; ${result}` : result;
 }
 
 function HourlyJobArchitecture() {
