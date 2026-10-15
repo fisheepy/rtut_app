@@ -216,6 +216,17 @@ export const hourlyMarketTotalRanges: Record<string, { min: number; max: number 
   return [row.family, { min: values[0] ?? 0, max: values[1] ?? 0 }];
 }));
 
+export const hourlyMarketRateRanges: Record<string, { min: number; max: number }> = Object.fromEntries(hourlyJobFamilies.map((row) => {
+  const values = row.marketRate.match(/[\d,.]+/g)?.map((value) => Number(value.replace(/,/g, ""))).filter(Number.isFinite) ?? [];
+  return [row.family, { min: values[0] ?? 0, max: values[1] ?? 0 }];
+}));
+
+const totalPayComparisonTitles = new Set(["Trailer Mechanic / Technician", "Truck Upfit Specialist", "Van Upfitter", "Apprentice Service Technician", "Service Shop Supervisor"]);
+
+export function hourlyExternalBasis(jobTitle: string) {
+  return totalPayComparisonTitles.has(jobTitle) ? "Total Pay vs External Estimated Total Pay" : "Hourly Rate vs External Base Hourly Rate";
+}
+
 const hourlyTitlesByFamily: Record<string, string[]> = {
   "Skilled Trailer Service & Upfit": ["Trailer Mechanic / Technician", "Truck Upfit Specialist", "Van Upfitter"],
   "Service Technician Development": ["Apprentice Service Technician"],
@@ -235,13 +246,17 @@ export function hourlyAlignment(employee: HourlyEmployee, employees: HourlyEmplo
   const sameTitle = employees.filter((item) => item.jobTitle === employee.jobTitle && Number.isFinite(item.hourlyRate));
   const titleMedian = sameTitle.length >= 5 ? quantile(sameTitle.map((item) => item.hourlyRate), 0.5) : null;
   const internalLow = titleMedian != null && employee.hourlyRate < titleMedian;
-  const market = hourlyMarketTotalRanges[hourlyJobFamily(employee.jobTitle)];
-  const externalLow = employee.grossPay != null && market && employee.grossPay < market.min;
-  if (employee.grossPay == null) return internalLow ? "Internal Hourly Rate Low Position; Gross Pay Data Unavailable" : "Gross Pay Data Unavailable";
-  if (internalLow && externalLow) return "Internal Hourly Rate Low Position; External Total Pay Low Position";
-  if (internalLow) return "Internal Hourly Rate Low Position; External Total Pay Market Aligned";
-  if (externalLow) return "External Total Pay Low Position";
-  return "Internal Hourly Rate and External Total Pay Market Aligned";
+  const family = hourlyJobFamily(employee.jobTitle);
+  const usesTotalPay = totalPayComparisonTitles.has(employee.jobTitle);
+  const market = usesTotalPay ? hourlyMarketTotalRanges[family] : hourlyMarketRateRanges[family];
+  const externalValue = usesTotalPay ? employee.grossPay : employee.hourlyRate;
+  const externalMetric = usesTotalPay ? "Total Pay" : "Hourly Rate";
+  const externalLow = externalValue != null && market && externalValue < market.min;
+  if (usesTotalPay && employee.grossPay == null) return internalLow ? "Internal Hourly Rate Low Position; Gross Pay Data Unavailable" : "Gross Pay Data Unavailable";
+  if (internalLow && externalLow) return `Internal Hourly Rate Low Position; External ${externalMetric} Low Position`;
+  if (internalLow) return `Internal Hourly Rate Low Position; External ${externalMetric} Market Aligned`;
+  if (externalLow) return `External ${externalMetric} Low Position`;
+  return `Internal Hourly Rate and External ${externalMetric} Market Aligned`;
 }
 
 function HourlyJobArchitecture() {
