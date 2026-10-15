@@ -250,6 +250,7 @@ export const employeeBaseAlignment = (employee: SalaryEmployee, employees: Salar
   const external = alignment(employee.regularPay, market.min, market.max);
   if (internalLow && externalLow) return "Internal Base Pay Low Position; External Base Pay Low Position";
   if (internalLow && external === "Market Aligned") return "Internal Base Pay Low Position, External Market Aligned";
+  if (external === "External Market Base Pay Leading") return external;
   if (internalLow) return `Internal Base Pay Low Position; ${external}`;
   if (externalLow) return "External Base Pay Low Position";
   return external;
