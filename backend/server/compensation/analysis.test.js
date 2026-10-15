@@ -85,3 +85,13 @@ test('employee-level salary data is complete and includes confirmed current sala
   assert.equal(analysis.salaryEmployees.find((employee) => employee.name === 'Levi Nation').regularPay, 100000);
   assert.equal(analysis.salaryEmployees.find((employee) => employee.name === 'Xuan Yu').regularPay, 135000);
 });
+
+test('employee-level hourly data supports unique individual analysis', () => {
+  const analysis = getCompensationGrossPayAnalysis();
+  assert.equal(analysis.hourlyEmployees.length, 131);
+  assert.equal(new Set(analysis.hourlyEmployees.map((employee) => employee.id)).size, 131);
+  assert.equal(analysis.hourlyEmployees.filter((employee) => employee.grossPay != null).length, 128);
+  assert.ok(analysis.hourlyEmployees.every((employee) => employee.hourlyRate > 0 && employee.jobTitle));
+  assert.equal(analysis.hourlyEmployees.some((employee) => employee.name === 'Brian Trombley'), false);
+  assert.equal(analysis.hourlyEmployees.some((employee) => employee.jobTitle === 'Yard Associate'), false);
+});

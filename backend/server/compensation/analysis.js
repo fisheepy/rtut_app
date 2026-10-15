@@ -1,4 +1,5 @@
 const { SALARY_EMPLOYEES } = require('./salaryEmployees');
+const { HOURLY_EMPLOYEES } = require('./hourlyEmployees');
 
 const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
   period: Object.freeze({ start: '2025-09-30', end: '2026-09-29' }),
@@ -191,6 +192,7 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
     Object.freeze({ name: 'Dominic Sabo', location: 'Dearborn', coveredDays: 12, reason: 'Less than 90 days of pay history in the reporting period' }),
   ]),
   salaryEmployees: SALARY_EMPLOYEES,
+  hourlyEmployees: HOURLY_EMPLOYEES,
 });
 
 function getCompensationGrossPayAnalysis() {
