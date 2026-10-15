@@ -261,7 +261,7 @@ export function hourlyExternalBenchmark(employee: HourlyEmployee) {
   const market = usesTotalPay ? hourlyMarketTotalRanges[family] : hourlyMarketRateRanges[family];
   const externalValue = usesTotalPay ? employee.grossPay : employee.hourlyRate;
   const externalMetric = usesTotalPay ? "Total Pay" : "Hourly Rate";
-  const externalLow = externalValue != null && market && externalValue < market.min;
+  const externalLow = externalValue != null && market && externalValue < market.min * 1.05;
   const result = externalLow ? `External ${externalMetric} Low Position` : `External ${externalMetric} Market Aligned`;
   return result;
 }
