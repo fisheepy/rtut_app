@@ -1566,7 +1566,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const terminatedEmployeeIds = new Set(employees.filter(employee => /^terminated$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']))).map(employee => String(employee._id)));
       return res.json(records.filter(record => !terminatedEmployeeIds.has(clean(record.employeeId))).map(record => ({
         id: String(record._id), employeeId: clean(record.employeeId), employeeName: clean(record.employeeName),
-        employeeEmail: clean(record.employeeEmail), payCategory: clean(record.payCategory) || clean(employeesById.get(clean(record.employeeId))?.['Pay Category']), effectiveDate: clean(record.effectiveDate), reason: clean(record.reason),
+        employeeEmail: clean(record.employeeEmail), payCategory: clean(employeesById.get(clean(record.employeeId))?.['Pay Category']) || clean(record.payCategory), effectiveDate: clean(record.effectiveDate), reason: clean(record.reason),
         employeeFolderUrl: clean(record.employeeFolderUrl), followUpIssues: record.followUpIssues === true,
         followUpNotes: clean(record.followUpNotes), followUpUntil: clean(record.followUpUntil),
         changes: Array.isArray(record.changes) ? record.changes : [], requestedTracking: employmentTrackingSelections(record), tasks: { ...(record.tasks || {}), followUp: record.tasks?.followUp || record.tasks?.other || {} },
