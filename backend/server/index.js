@@ -810,6 +810,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 employeeId,
                 employeeName: [employeeUpdate['First Name'] ?? existing['First Name'], employeeUpdate['Last Name'] ?? existing['Last Name']].filter(Boolean).join(' '),
                 employeeEmail: employeeUpdate.Email ?? existing.Email ?? '',
+                payCategory: employeeUpdate['Pay Category'] ?? existing['Pay Category'] ?? '',
                 effectiveDate: String(_employmentChange.effectiveDate || '').trim(),
                 reason: String(_employmentChange.reason || '').trim(),
                 employeeFolderUrl: inheritedEmployeeFolderUrl, followUpIssues: false, followUpNotes: '', followUpUntil: '',

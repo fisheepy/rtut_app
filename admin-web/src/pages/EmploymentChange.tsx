@@ -50,6 +50,7 @@ type RecordItem = {
   employeeId: string;
   employeeName: string;
   employeeEmail: string;
+  payCategory: string;
   effectiveDate: string;
   reason: string;
   employeeFolderUrl: string;
@@ -799,10 +800,11 @@ export default function EmploymentChange() {
           tone="amber"
         />
         <div className="overflow-auto">
-          <table className="min-w-[2050px] text-sm">
+          <table className="min-w-[2140px] text-sm">
             <Head
               labels={[
                 "Employee",
+                "Pay Type",
                 "Change Effective Date",
                 "Changes",
                 "Change Reason / Notes",
@@ -835,6 +837,7 @@ export default function EmploymentChange() {
                     key={record.id}
                   >
                     <Sticky record={record} />
+                    <Cell>{record.payCategory || "--"}</Cell>
                     <Cell>
                       {record.effectiveDate ? (
                         <button
@@ -1039,7 +1042,7 @@ export default function EmploymentChange() {
                   </tr>
                 );
               })}
-              {!payrollRows.length && <Empty columns={13} />}
+              {!payrollRows.length && <Empty columns={15} />}
             </tbody>
           </table>
         </div>
@@ -1568,7 +1571,7 @@ function StatusWindow({
       />
       <div className="max-h-[520px] overflow-auto">
         <table className="min-w-full text-sm">
-          <Head labels={["Employee", "Change Date", "Status", "Checked By"]} />
+          <Head labels={["Employee", "Pay Type", "Change Date", "Status", "Checked By"]} />
           <tbody>
             {records.map((record) => {
               const value = record.tasks[task] || {};
@@ -1576,6 +1579,7 @@ function StatusWindow({
               return (
                 <tr className="border-t" key={record.id}>
                   <Sticky record={record} />
+                  <Cell>{record.payCategory || "--"}</Cell>
                   <Cell>{dateDisplay(value.actionDate)}</Cell>
                   <Cell>
                     {complete ? (
@@ -1593,7 +1597,7 @@ function StatusWindow({
                 </tr>
               );
             })}
-            {!records.length && <Empty columns={4} />}
+            {!records.length && <Empty columns={5} />}
           </tbody>
         </table>
       </div>
