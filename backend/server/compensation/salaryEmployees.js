@@ -211,11 +211,11 @@ const SALARY_EMPLOYEES = Object.freeze([
   {
     "id": "veltrichristopher",
     "name": "Christopher Veltri",
-    "jobTitle": "Truck Upfit Specialist",
+    "jobTitle": "Equipment Sales",
     "department": "Grand Rapids Parts",
     "location": "Grand Rapids",
     "hireDate": "2018-07-23",
-    "jobFamily": "Upfit, Technical & Field Support",
+    "jobFamily": "Capital Equipment & Trailer Sales",
     "regularPay": 74999.76,
     "grossPay": 127545.73
   },

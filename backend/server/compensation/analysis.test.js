@@ -85,6 +85,8 @@ test('employee-level salary data is complete and includes confirmed current sala
   assert.equal(analysis.salaryEmployees.find((employee) => employee.name === 'Levi Nation').regularPay, 100000);
   assert.equal(analysis.salaryEmployees.find((employee) => employee.name === 'Xuan Yu').regularPay, 135000);
   assert.equal(analysis.salaryEmployees.find((employee) => employee.id === 'rootjeffrey').jobFamily, 'Capital Equipment & Trailer Sales');
+  assert.equal(analysis.salaryEmployees.find((employee) => employee.id === 'veltrichristopher').jobTitle, 'Equipment Sales');
+  assert.equal(analysis.salaryEmployees.find((employee) => employee.id === 'veltrichristopher').jobFamily, 'Capital Equipment & Trailer Sales');
 });
 
 test('employee-level hourly data supports unique individual analysis', () => {

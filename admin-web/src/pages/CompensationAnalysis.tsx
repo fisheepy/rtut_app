@@ -192,12 +192,12 @@ const salaryJobFamilies = [
   { family: "Management Level 3A · Corporate Functional Management", employees: 3, jobs: "Accounting Manager, Human Resources Manager, Safety and Compliance Manager", regular: "$88,000–$110,000", gross: "$100,646–$108,385", market: "Base: $100,000–$114,000" },
   { family: "Management Level 3B · IT & Systems Management", employees: 2, jobs: "IT Managers", regular: "$95,000–$100,000", gross: "$88,615–$95,038", market: "Base: $105,000–$141,000 · Scope-sensitive" },
   { family: "Management Level 3C · Warehouse Operations Leadership", employees: 1, jobs: "Warehouse Lead", regular: "$95,000", gross: "$96,896", market: "Base: $65,000–$95,000" },
-  { family: "Capital Equipment & Trailer Sales", employees: 17, jobs: "Trailer sales manager, trailer sales, equipment sales, trailer & equipment sales, equipment design consultant", regular: "$60,000–$200,000", gross: "$84,199–$302,089", market: "Base: $60,000–$100,000 · Commission: plan-dependent" },
+  { family: "Capital Equipment & Trailer Sales", employees: 18, jobs: "Trailer sales manager, trailer sales, equipment sales, trailer & equipment sales, equipment design consultant", regular: "$60,000–$200,000", gross: "$84,199–$302,089", market: "Base: $60,000–$100,000 · Commission: plan-dependent" },
   { family: "Parts & Relationship Sales", employees: 13, jobs: "Outside parts sales, inside parts sales, aftermarket liaison", regular: "$42,000–$80,000", gross: "$22,506–$87,233", market: "Base: $43,000–$70,000 · Commission: plan-dependent" },
   { family: "Finance, Procurement & Administration", employees: 4, jobs: "Corporate Buyers, Staff Accountant, Office Administrator", regular: "$65,000–$90,000", gross: "$64,500–$91,115", market: "Base: $50,000–$100,000" },
   { family: "People, Safety, Marketing & Creative", employees: 3, jobs: "HR and Safety Specialist, Marketing Coordinator, Graphic Designer", regular: "$55,000–$75,000", gross: "$53,793–$70,423", market: "Base: $50,000–$80,000" },
   { family: "Senior Service Advisory", employees: 1, jobs: "Senior Service Advisor", regular: "$75,000", gross: "$73,775", market: "Base: $65,000–$85,000" },
-  { family: "Upfit, Technical & Field Support", employees: 3, jobs: "Senior Upfit Specialist, Truck Upfit Specialist, Trailer Sales Driver", regular: "$75,000–$100,000", gross: "$73,846–$127,546", market: "Base: $60,000–$105,000" },
+  { family: "Upfit, Technical & Field Support", employees: 2, jobs: "Senior Upfit Specialist, Trailer Sales Driver", regular: "$75,000–$100,000", gross: "$73,846–$119,218", market: "Base: $60,000–$105,000" },
 ] as const;
 
 const hourlyJobFamilies = [
@@ -336,7 +336,6 @@ const crossPayTypeJobTitles = [
   { title: "Office Administrator", salary: "Yvonne Witham", hourly: "Andrea Babikian" },
   { title: "Sales Driver - Trailer", salary: "John Robbins", hourly: "Christopher Walters" },
   { title: "Sr. Service Advisor", salary: "Robert Pelkey", hourly: "John Fell" },
-  { title: "Truck Upfit Specialist", salary: "Christopher Veltri", hourly: "Timothy Lee; William McCullough; Jeff Puetz; David Robertson; Ryan Russell; Charlie Ulven; Charles Vogel" },
   { title: "Warehouse Lead", salary: "Michael Griffiths", hourly: "Stephan Kaser" },
 ];
 
