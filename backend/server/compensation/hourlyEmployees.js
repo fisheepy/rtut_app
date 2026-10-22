@@ -552,7 +552,7 @@ const HOURLY_EMPLOYEES = Object.freeze([
   {
     "id": "chapmangavin",
     "name": "Gavin Chapman",
-    "jobTitle": "Trailer Mechanic / Technician",
+    "jobTitle": "Apprentice Service Technician",
     "department": "Warren Service",
     "location": "Warren",
     "hireDate": "2026-06-15",
