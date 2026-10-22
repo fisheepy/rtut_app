@@ -40,9 +40,9 @@ test('hourly and salary populations reconcile after the approved hourly exclusio
   assert.equal(hourly.hourlyRate.median, 25);
   assert.equal(hourly.hourlyRate.average, 25.05);
   assert.equal(hourly.hourlyRate.max, 32);
-  assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.population, 0), 132);
+  assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.population, 0), 133);
   assert.equal(hourly.jobTitlesHourlyRate.reduce((sum, row) => sum + row.analyzed, 0), 131);
-  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.population, 0), 132);
+  assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.population, 0), 133);
   assert.equal(hourly.jobTitlesAnnualGross.reduce((sum, row) => sum + row.analyzed, 0), 128);
   assert.equal(hourly.jobTitlesHourlyRate.some((row) => row.jobTitle === 'Project Manager'), false);
   assert.equal(hourly.jobTitlesAnnualGross.some((row) => row.jobTitle === 'Project Manager'), false);
@@ -53,9 +53,7 @@ test('hourly and salary populations reconcile after the approved hourly exclusio
   assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Warehouse Associate').population, 11);
   assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Warehouse Associate').average, 45380.86);
   assert.equal(hourly.jobTitlesHourlyRate.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').median, 27);
-  assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').average, 68008.89);
-  assert.equal(hourly.jobTitlesHourlyRate.find((row) => row.jobTitle === 'Apprentice Service Technician').median, 23);
-  assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Apprentice Service Technician').average, 47494.61);
+  assert.equal(hourly.jobTitlesAnnualGross.find((row) => row.jobTitle === 'Trailer Mechanic / Technician').average, 66843.36);
   assert.ok(salary);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.population, 0), 74);
   assert.equal(salary.jobTitles.reduce((sum, row) => sum + row.analyzed, 0), 74);
@@ -97,5 +95,4 @@ test('employee-level hourly data supports unique individual analysis', () => {
   assert.ok(analysis.hourlyEmployees.every((employee) => employee.hourlyRate > 0 && employee.jobTitle));
   assert.equal(analysis.hourlyEmployees.some((employee) => employee.name === 'Brian Trombley'), false);
   assert.equal(analysis.hourlyEmployees.some((employee) => employee.jobTitle === 'Yard Associate'), false);
-  assert.equal(analysis.hourlyEmployees.find((employee) => employee.id === 'chapmangavin').jobTitle, 'Apprentice Service Technician');
 });
