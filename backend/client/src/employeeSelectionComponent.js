@@ -340,8 +340,10 @@ function EmployeeSelectionComponent() {
         const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(canonicalEmployee?.[field] || '').trim());
         const trackingOnlyRequest = changeDetails.payroll || changeDetails.insurance || changeDetails.retirement;
         if (!changedFields.length && !trackingOnlyRequest) return setEditError('Select at least one employee information change or choose Payroll, Insurance, or 401(k) tracking.');
-        const statusOnlyRouting = changedFields.length === 1 && changedFields[0] === 'Position Status'
+        const employmentChangedFields = changedFields.filter(field => field !== 'Phone');
+        const statusOnlyRouting = employmentChangedFields.length === 1 && employmentChangedFields[0] === 'Position Status'
             && !changeDetails.payroll && !changeDetails.insurance && !changeDetails.retirement;
+        const phoneOnlyRouting = changedFields.length > 0 && employmentChangedFields.length === 0 && !trackingOnlyRequest;
         const review = changedFields.length
             ? changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} → ${selectedEmployee[field] || '(blank)'}`).join('\n')
             : 'Company App employee information: No changes';
@@ -350,6 +352,10 @@ function EmployeeSelectionComponent() {
             ? 'No Company App employee information will be changed. The selected Payroll, Insurance, or 401(k) work will be sent to Employment Change on HR Platform for the admin to complete.'
             : statusOnlyRouting
             ? 'Company App information will be updated immediately. This status-only change will be sent to FMLA / ADA / Medical Leave and will not create an Employment Change record.'
+            : phoneOnlyRouting
+            ? 'The phone number will be updated immediately in Company App and Training. It will not create an Employment Change record.'
+            : employmentChangedFields.length === 0 && trackingOnlyRequest
+            ? 'The phone number will be updated immediately in Company App and Training. Only the selected Payroll, Insurance, or 401(k) work will be sent to Employment Change.'
             : 'Company App information will be updated immediately. This change record will automatically be sent to Employment Change on HR Platform.';
         if (!window.confirm(`Review the following employee changes:\n\n${review}${newValueWarning}\n\n${routingMessage}`)) return;
         try {
@@ -752,7 +758,7 @@ function EmployeeSelectionComponent() {
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked }))} />} label="Payroll change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
-                            <Grid item xs={12}><Alert severity="info">Status-only Active/Leave changes go to FMLA / ADA / Medical Leave. All other employee changes go to Employment Change. Action dates and follow-up details are entered on HR Platform.</Alert></Grid>
+                            <Grid item xs={12}><Alert severity="info">Phone-only changes update Company App and Training without creating an Employment Change record. Status-only Active/Leave changes go to FMLA / ADA / Medical Leave. Other employee changes go to Employment Change. Action dates and follow-up details are entered on HR Platform.</Alert></Grid>
                         </Grid>
                     )}
                 </DialogContent>

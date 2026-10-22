@@ -772,6 +772,9 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
             .filter(field => String(existing[field] || '').trim() !== String(employeeUpdate[field] || '').trim())
             .map(field => ({ field, from: existing[field] || '', to: employeeUpdate[field] || '' }));
         if (!changes.length && !trackingOnlyRequest) return { found: true, changed: false, error: 'The selected information has not changed.' };
+        // Phone is live roster/contact information. It updates Company App and is
+        // therefore reflected in Training, but it is not an HR employment-change task.
+        const employmentChanges = changes.filter(change => change.field !== 'Phone');
         const result = changes.length
             ? await collection.updateOne(
                 { _id: new ObjectId(employeeId) },
@@ -798,10 +801,11 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 { $set: { employeeStatus: 'Active', returnedAt: new Date(), returnedBy: adminSession?.email || '', lastStatusChangedAt: new Date(), lastStatusChangedBy: adminSession?.email || '' } },
             );
         }
-        const statusOnlyRouting = changes.length === 1 && changes[0].field === 'Position Status'
+        const statusOnlyRouting = employmentChanges.length === 1 && employmentChanges[0].field === 'Position Status'
             && !payroll && !insurance && !retirement
-            && /^(active|leave)$/i.test(String(changes[0].to || '').trim());
-        if (!statusOnlyRouting) {
+            && /^(active|leave)$/i.test(String(employmentChanges[0].to || '').trim());
+        const createEmploymentChange = !statusOnlyRouting && (employmentChanges.length > 0 || trackingOnlyRequest);
+        if (createEmploymentChange) {
             // Start each Employment Change cycle with the employee folder already
             // recorded during New Hire. This is a one-time copy: later edits to
             // either workflow remain independent and are never overwritten here.
@@ -814,7 +818,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 effectiveDate: String(_employmentChange.effectiveDate || '').trim(),
                 reason: String(_employmentChange.reason || '').trim(),
                 employeeFolderUrl: inheritedEmployeeFolderUrl, followUpIssues: false, followUpNotes: '', followUpUntil: '',
-                changes,
+                changes: employmentChanges,
                 requestedTracking: { payroll, insurance, retirement },
                 tasks: {
                     file: { required: true, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },
@@ -826,7 +830,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 createdAt: new Date(), createdBy: adminSession?.email || '',
             });
         }
-        return { found: true, changed: result.modifiedCount > 0, tracked: !statusOnlyRouting, leaveRouted: statusOnlyRouting };
+        return { found: true, changed: result.modifiedCount > 0, tracked: createEmploymentChange, leaveRouted: statusOnlyRouting };
     } catch (error) {
         console.error('Error updating employee in database:', error);
         throw error;
