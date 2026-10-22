@@ -177,6 +177,136 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     return res.send(Buffer.from(buffer));
   }
 
+  function monthlyReportPeriod(value) {
+    const selected = clean(value);
+    const fallback = new Date().toISOString().slice(0, 7);
+    const month = /^\d{4}-(0[1-9]|1[0-2])$/.test(selected) ? selected : fallback;
+    const [year, monthNumber] = month.split('-').map(Number);
+    const lastDay = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+    return { month, from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, '0')}` };
+  }
+
+  function reportDate(value) {
+    if (!value) return '';
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+    const raw = clean(value);
+    const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (iso) return iso[1];
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+  }
+
+  function employeeName(employee = {}) {
+    return [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ') || clean(employee.Name);
+  }
+
+  function isCurrentEmployee(employee = {}) {
+    const positionStatus = clean(employee['Position Status']).toLowerCase();
+    const accountStatus = clean(employee['Account Active']).toLowerCase();
+    return !['inactive', 'terminated'].includes(positionStatus)
+      && accountStatus !== 'inactive'
+      && !reportDate(employee['Termination Date']);
+  }
+
+  function styleMonthlyHeader(row, color = 'FF0F766E') {
+    row.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+      cell.alignment = { vertical: 'middle' };
+    });
+    row.height = 24;
+  }
+
+  router.get('/reports/monthly-summary.xlsx', async (req, res) => {
+    const period = monthlyReportPeriod(req.query.month);
+    if (clean(req.query.month) && period.month !== clean(req.query.month)) return res.status(400).json({ error: 'Select a valid report month.' });
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const [employees, newHireRecords, terminationRecords, changeRecords, leaveRecords, injuryRecords] = await Promise.all([
+        db.collection('employees').find({}).toArray(),
+        db.collection('employee_hr_platform').find({}).toArray(),
+        db.collection('employee_hr_termination').find({}).toArray(),
+        db.collection('employee_hr_employment_change').find({}).toArray(),
+        db.collection('employee_hr_leave').find({}).toArray(),
+        db.collection('work_injury_cases').find({}).toArray(),
+      ]);
+      const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
+      const inPeriod = value => {
+        const date = reportDate(value);
+        return date && date >= period.from && date <= period.to;
+      };
+      const currentEmployees = employees.filter(isCurrentEmployee);
+      const locationCounts = [...currentEmployees.reduce((counts, employee) => {
+        const location = clean(employee.Location) || 'Not Assigned';
+        counts.set(location, (counts.get(location) || 0) + 1);
+        return counts;
+      }, new Map()).entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+
+      const newHires = employees.filter(employee => inPeriod(employee['Hire Date'])).map(employee => {
+        const record = newHireRecords.find(item => clean(item.employeeId) === String(employee._id)) || {};
+        return { employee: employeeName(employee), date: reportDate(employee['Hire Date']), location: clean(employee.Location), department: clean(employee.Department), jobTitle: clean(employee['Job Title']), status: clean(employee['Position Status']), detail: record.fileTracker?.finalLockedAt ? 'File Tracker Final Reviewed' : record.fileTracker?.submittedAt ? 'Final Review Needed' : 'Onboarding In Progress' };
+      });
+      const terminations = employees.filter(employee => inPeriod(employee['Termination Date'])).map(employee => {
+        const record = terminationRecords.find(item => clean(item.employeeId) === String(employee._id)) || {};
+        return { employee: employeeName(employee), date: reportDate(employee['Termination Date']), location: clean(employee.Location), department: clean(employee.Department), jobTitle: clean(employee['Job Title']), status: clean(employee['Pay Category']), detail: record.fileTracker?.finalLockedAt ? 'File Tracker Final Reviewed' : 'Termination Follow-up In Progress' };
+      });
+      const employmentChanges = changeRecords.filter(record => inPeriod(record.effectiveDate)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.effectiveDate), location: clean(employeeById.get(clean(record.employeeId))?.Location), department: clean(employeeById.get(clean(record.employeeId))?.Department), jobTitle: clean(employeeById.get(clean(record.employeeId))?.['Job Title']), status: clean(record.reason), detail: employmentChangeSummary(record) }));
+      const leaves = leaveRecords.filter(record => inPeriod(record.leaveStartedAt || record.createdAt)).map(record => {
+        const employee = employeeById.get(clean(record.employeeId)) || record.employeeSnapshot || {};
+        return { employee: employeeName(employee), date: reportDate(record.leaveStartedAt || record.createdAt), location: clean(employee.Location), department: clean(employee.Department), jobTitle: clean(employee['Job Title']), status: record.active === true ? 'Open' : 'Closed', detail: clean(record.anticipatedReturnDate) ? `Anticipated return: ${clean(record.anticipatedReturnDate)}` : '' };
+      });
+      const injuries = injuryRecords.filter(record => inPeriod(record.injuryDateTime)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.injuryDateTime), location: clean(record.location), department: clean(record.department), jobTitle: clean(record.jobTitle), status: record.closedAt ? 'Closed' : 'Open', detail: clean(record.injuryDescription) }));
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Royal Truck & Utility Trailer HR Platform';
+      workbook.created = new Date();
+      const summary = workbook.addWorksheet('Monthly Summary', { views: [{ state: 'frozen', ySplit: 7 }] });
+      summary.properties.defaultRowHeight = 20;
+      summary.columns = [{ width: 34 }, { width: 22 }, { width: 3 }, { width: 34 }, { width: 22 }];
+      summary.mergeCells('A1:E1'); summary.getCell('A1').value = 'Monthly HR & Safety Summary'; summary.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FF0F172A' } };
+      summary.mergeCells('A2:E2'); summary.getCell('A2').value = `Report Month: ${period.month}  |  Generated: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}`; summary.getCell('A2').font = { italic: true, color: { argb: 'FF475569' } };
+      summary.getCell('A4').value = 'Current Employee Headcount'; summary.getCell('B4').value = currentEmployees.length;
+      summary.getCell('A4').font = { bold: true, color: { argb: 'FFFFFFFF' } }; summary.getCell('B4').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+      ['A4', 'B4'].forEach(address => { summary.getCell(address).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' } }; });
+      summary.getCell('A7').value = 'Current Headcount by Location'; summary.getCell('B7').value = 'Employees';
+      summary.getCell('D7').value = `${period.month} Activity Summary`; summary.getCell('E7').value = 'Employees / Cases';
+      styleMonthlyHeader(summary.getRow(7), 'FF0F766E');
+      const activityCounts = [['New Hires', newHires.length], ['Terminations', terminations.length], ['Employment Changes', employmentChanges.length], ['FMLA / ADA / Medical Leave', leaves.length], ['Work-Related Injuries', injuries.length]];
+      const summaryRows = Math.max(locationCounts.length, activityCounts.length);
+      for (let index = 0; index < summaryRows; index += 1) {
+        if (locationCounts[index]) { summary.getCell(8 + index, 1).value = locationCounts[index][0]; summary.getCell(8 + index, 2).value = locationCounts[index][1]; }
+        if (activityCounts[index]) { summary.getCell(8 + index, 4).value = activityCounts[index][0]; summary.getCell(8 + index, 5).value = activityCounts[index][1]; }
+      }
+      summary.getColumn(2).numFmt = '0'; summary.getColumn(5).numFmt = '0';
+
+      const addDetailSheet = (name, rows, dateHeader, color) => {
+        const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
+        sheet.columns = [
+          { header: 'Employee', key: 'employee', width: 28 }, { header: dateHeader, key: 'date', width: 17 },
+          { header: 'Location', key: 'location', width: 20 }, { header: 'Department', key: 'department', width: 24 },
+          { header: 'Job Title', key: 'jobTitle', width: 30 }, { header: 'Status / Reason', key: 'status', width: 28 },
+          { header: 'Summary', key: 'detail', width: 58 },
+        ];
+        if (rows.length) rows.sort((left, right) => left.date.localeCompare(right.date) || left.employee.localeCompare(right.employee)).forEach(row => sheet.addRow(row));
+        else sheet.addRow({ employee: `No ${name.toLowerCase()} records for ${period.month}.` });
+        styleMonthlyHeader(sheet.getRow(1), color);
+        sheet.autoFilter = { from: 'A1', to: 'G1' };
+        sheet.getColumn('detail').alignment = { wrapText: true, vertical: 'top' };
+      };
+      addDetailSheet('New Hires', newHires, 'Hire Date', 'FF047857');
+      addDetailSheet('Terminations', terminations, 'Termination Date', 'FFBE123C');
+      addDetailSheet('Employment Changes', employmentChanges, 'Effective Date', 'FF2563EB');
+      addDetailSheet('Medical Leave', leaves, 'Leave Start Date', 'FF7C3AED');
+      addDetailSheet('Injuries', injuries, 'Injury Date', 'FFC2410C');
+      return await sendWorkbook(res, workbook, `Monthly_HR_Safety_Summary_${period.month}.xlsx`);
+    } catch (error) {
+      console.error('Unable to create monthly HR and Safety summary:', error);
+      return res.status(500).json({ error: 'The monthly HR and Safety summary could not be created.' });
+    } finally { await client.close(); }
+  });
+
   function newHireReportFilter(req) {
     const employeeName = clean(req.query.employeeName).toLowerCase();
     const hireDateFrom = clean(req.query.hireDateFrom);

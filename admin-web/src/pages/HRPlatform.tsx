@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, BriefcaseBusiness, HeartPulse, RefreshCw, Repeat2, UserMinus, UserPlus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, CalendarDays, Download, HeartPulse, RefreshCw, Repeat2, UserMinus, UserPlus } from 'lucide-react'
 import { api } from '../shared/api'
 
 const workflows = [
@@ -12,6 +12,10 @@ const workflows = [
 
 export default function HRPlatform() {
   const [access, setAccess] = useState<'checking' | 'allowed' | 'denied'>('checking')
+  const [reportMonth, setReportMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
 
   useEffect(() => {
     api.get('/hr-tools-auth/me').then(() => setAccess('allowed')).catch(() => setAccess('denied'))
@@ -41,6 +45,21 @@ export default function HRPlatform() {
           <div className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-amber-100"><BriefcaseBusiness className="h-4 w-4" />Employee Lifecycle Management</div>
           <h1 className="mt-5 text-4xl font-semibold tracking-normal md:text-5xl">HR Platform</h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">One secure place to manage employee lifecycle changes and leave records.</p>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-emerald-50 shadow-sm">
+        <div className="grid gap-5 p-6 md:grid-cols-[1fr_auto] md:items-center md:p-7">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-blue-800"><CalendarDays className="h-4 w-4" />Monthly Reporting</div>
+            <h2 className="mt-3 text-2xl font-semibold text-slate-950">Monthly HR & Safety Summary</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Download current employee headcount and location breakout, plus the selected month’s New Hire, Termination, Employment Change, Medical Leave, and Injury summaries.</p>
+          </div>
+          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:min-w-72">
+            <label className="text-xs font-bold uppercase tracking-wide text-slate-600" htmlFor="monthly-report-month">Report month</label>
+            <input className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" id="monthly-report-month" onChange={(event) => setReportMonth(event.target.value)} type="month" value={reportMonth} />
+            <a className={`mt-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white transition ${reportMonth ? 'bg-blue-700 hover:bg-blue-800' : 'pointer-events-none bg-slate-400'}`} href={reportMonth ? `/api/hr-platform/reports/monthly-summary.xlsx?month=${encodeURIComponent(reportMonth)}` : undefined}><Download className="h-4 w-4" />Download Monthly Report</a>
+          </div>
         </div>
       </section>
 
