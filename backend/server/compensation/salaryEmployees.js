@@ -325,7 +325,7 @@ const SALARY_EMPLOYEES = Object.freeze([
     "department": "Trailer Sales",
     "location": "Grand Rapids",
     "hireDate": "1997-03-27",
-    "jobFamily": "Management Level 1 · General & Business Unit Leadership",
+    "jobFamily": "Capital Equipment & Trailer Sales",
     "regularPay": 120000,
     "grossPay": 281995.18
   },
