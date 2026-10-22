@@ -253,11 +253,13 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         return { employee: employeeName(employee), date: reportDate(employee['Termination Date']), location: clean(employee.Location), department: clean(employee.Department), jobTitle: clean(employee['Job Title']), status: clean(employee['Pay Category']), detail: record.fileTracker?.finalLockedAt ? 'File Tracker Final Reviewed' : 'Termination Follow-up In Progress' };
       });
       const employmentChanges = changeRecords.filter(record => inPeriod(record.effectiveDate)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.effectiveDate), location: clean(employeeById.get(clean(record.employeeId))?.Location), department: clean(employeeById.get(clean(record.employeeId))?.Department), jobTitle: clean(employeeById.get(clean(record.employeeId))?.['Job Title']), status: clean(record.reason), detail: employmentChangeSummary(record) }));
-      const leaves = leaveRecords.filter(record => inPeriod(record.leaveStartedAt || record.createdAt)).map(record => {
+      const leaves = leaveRecords.filter(record => record.active === true || inPeriod(record.leaveStartedAt || record.createdAt)).map(record => {
         const employee = employeeById.get(clean(record.employeeId)) || record.employeeSnapshot || {};
-        return { employee: employeeName(employee), date: reportDate(record.leaveStartedAt || record.createdAt), location: clean(employee.Location), department: clean(employee.Department), jobTitle: clean(employee['Job Title']), status: record.active === true ? 'Open' : 'Closed', detail: clean(record.anticipatedReturnDate) ? `Anticipated return: ${clean(record.anticipatedReturnDate)}` : '' };
+        const startDate = record.leaveStartedAt || record.createdAt;
+        const status = record.active === true ? (inPeriod(startDate) ? 'Open - Started This Month' : 'Open - Ongoing from Prior Month') : 'Closed';
+        return { employee: employeeName(employee), date: reportDate(startDate), location: clean(employee.Location), department: clean(employee.Department), jobTitle: clean(employee['Job Title']), status, detail: clean(record.anticipatedReturnDate) ? `Anticipated return: ${clean(record.anticipatedReturnDate)}` : '' };
       });
-      const injuries = injuryRecords.filter(record => inPeriod(record.injuryDateTime)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.injuryDateTime), location: clean(record.location), department: clean(record.department), jobTitle: clean(record.jobTitle), status: record.closedAt ? 'Closed' : 'Open', detail: clean(record.injuryDescription) }));
+      const injuries = injuryRecords.filter(record => !record.closedAt || inPeriod(record.injuryDateTime)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.injuryDateTime), location: clean(record.location), department: clean(record.department), jobTitle: clean(record.jobTitle), status: record.closedAt ? 'Closed' : inPeriod(record.injuryDateTime) ? 'Open - Started This Month' : 'Open - Ongoing from Prior Month', detail: clean(record.injuryDescription) }));
 
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'Royal Truck & Utility Trailer HR Platform';
@@ -273,7 +275,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       summary.getCell('A7').value = 'Current Headcount by Location'; summary.getCell('B7').value = 'Employees';
       summary.getCell('D7').value = `${period.month} Activity Summary`; summary.getCell('E7').value = 'Employees / Cases';
       styleMonthlyHeader(summary.getRow(7), 'FF0F766E');
-      const activityCounts = [['New Hires', newHires.length], ['Terminations', terminations.length], ['Employment Changes', employmentChanges.length], ['FMLA / ADA / Medical Leave', leaves.length], ['Work-Related Injuries', injuries.length]];
+      const activityCounts = [['New Hires', newHires.length], ['Terminations', terminations.length], ['Employment Changes', employmentChanges.length], ['Medical Leave (Month + Ongoing)', leaves.length], ['Injuries (Month + Ongoing)', injuries.length]];
       const summaryRows = Math.max(locationCounts.length, activityCounts.length);
       for (let index = 0; index < summaryRows; index += 1) {
         if (locationCounts[index]) { summary.getCell(8 + index, 1).value = locationCounts[index][0]; summary.getCell(8 + index, 2).value = locationCounts[index][1]; }

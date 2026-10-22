@@ -53,7 +53,7 @@ export default function HRPlatform() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-blue-800"><CalendarDays className="h-4 w-4" />Monthly Reporting</div>
             <h2 className="mt-3 text-2xl font-semibold text-slate-950">Monthly HR & Safety Summary</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Download current employee headcount and location breakout, plus the selected month’s New Hire, Termination, Employment Change, Medical Leave, and Injury summaries.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Download current employee headcount and location breakout, plus the selected month’s New Hire, Termination, and Employment Change summaries. Medical Leave and Injury include both selected-month cases and all earlier cases that remain open.</p>
           </div>
           <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:min-w-72">
             <label className="text-xs font-bold uppercase tracking-wide text-slate-600" htmlFor="monthly-report-month">Report month</label>
