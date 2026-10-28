@@ -39,7 +39,7 @@ const dateOnly = (value) => {
     return String(value).slice(0, 10);
 };
 
-const deleteEmployee = async (firstName, lastName, terminationDate) => {
+const deleteEmployee = async (firstName, lastName, terminationDate, newManagerFirstName = '', newManagerLastName = '') => {
     const client = new MongoClient(MONGODB_URI);
 
     try {
@@ -79,23 +79,64 @@ const deleteEmployee = async (firstName, lastName, terminationDate) => {
         if (hireDate && terminationDate < hireDate) {
             throw new Error(`Error during operation: Termination Date cannot be before Hire Date (${hireDate}).`);
         }
-        const result = await collection.updateOne(
-            { _id: employeeToDelete._id },
-            {
-                $set: {
-                    'Termination Date': terminationDate,
-                    'Position Status': 'Terminated',
-                    'Account Active': 'Inactive',
-                    'HR Platform Termination At': new Date(),
-                },
-            },
-        );
+        const directReportFilter = {
+            'Supervisor First Name': { $regex: buildCandidateRegex(normalizeNameInput(employeeToDelete['First Name'])) },
+            'Supervisor Last Name': { $regex: buildCandidateRegex(normalizeNameInput(employeeToDelete['Last Name'])) },
+            'Account Active': 'Active',
+            _id: { $ne: employeeToDelete._id },
+        };
+        const directReportCount = await collection.countDocuments(directReportFilter);
+        let replacementManager = null;
+        if (directReportCount > 0) {
+            const normalizedManagerFirst = normalizeNameInput(newManagerFirstName);
+            const normalizedManagerLast = normalizeNameInput(newManagerLastName);
+            if (!normalizedManagerFirst || !normalizedManagerLast) {
+                throw new Error(`Error during operation: This employee manages ${directReportCount} active employee(s). A new manager is required.`);
+            }
+            replacementManager = await collection.findOne({
+                'First Name': { $regex: buildCandidateRegex(normalizedManagerFirst) },
+                'Last Name': { $regex: buildCandidateRegex(normalizedManagerLast) },
+                'Account Active': 'Active',
+                _id: { $ne: employeeToDelete._id },
+            });
+            if (!replacementManager) throw new Error('Error during operation: The selected replacement manager is not an active employee.');
+        }
+
+        let result;
+        const session = client.startSession();
+        try {
+            await session.withTransaction(async () => {
+                if (replacementManager) {
+                    await collection.updateMany(directReportFilter, { $set: {
+                        'Supervisor First Name': replacementManager['First Name'],
+                        'Supervisor Last Name': replacementManager['Last Name'],
+                        'Supervisor Reassigned Date': new Date(),
+                    } }, { session });
+                }
+                result = await collection.updateOne(
+                    { _id: employeeToDelete._id },
+                    { $set: {
+                        'Termination Date': terminationDate,
+                        'Position Status': 'Terminated',
+                        'Account Active': 'Inactive',
+                        'HR Platform Termination At': new Date(),
+                        'Termination Replacement Manager First Name': replacementManager?.['First Name'] || '',
+                        'Termination Replacement Manager Last Name': replacementManager?.['Last Name'] || '',
+                        'Termination Reassigned Direct Reports': directReportCount,
+                    } },
+                    { session },
+                );
+            });
+        } finally {
+            await session.endSession();
+        }
 
         if (result.matchedCount === 0) {
             throw new Error('Error during operation: Employee not found.');
         }
 
         console.log(`Employee archived as terminated effective ${terminationDate}.`);
+        console.log(`TERMINATION_RESULT:${JSON.stringify({ success: true, terminationDate, reassignedDirectReports: directReportCount, replacementManager: replacementManager ? `${replacementManager['First Name']} ${replacementManager['Last Name']}` : null })}`);
         return result;
     } catch (error) {
         console.error('Error during operation:', error.message);
@@ -114,8 +155,10 @@ if (process.argv.length < 5) {
 const firstName = process.argv[2];
 const lastName = process.argv[3];
 const terminationDate = process.argv[4];
+const newManagerFirstName = process.argv[5] || '';
+const newManagerLastName = process.argv[6] || '';
 
-deleteEmployee(firstName, lastName, terminationDate)
+deleteEmployee(firstName, lastName, terminationDate, newManagerFirstName, newManagerLastName)
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error.message);

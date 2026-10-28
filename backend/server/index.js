@@ -1524,13 +1524,15 @@ app.post('/call-function-delete-employee', requireAdminSession, async (req, res)
     const firstName = req.body.firstName;
     const lastName = req.body.lastName;
     const terminationDate = String(req.body.terminationDate || '').trim();
+    const newManagerFirstName = String(req.body.newManagerFirstName || '').trim();
+    const newManagerLastName = String(req.body.newManagerLastName || '').trim();
 
     if (!firstName || !lastName || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate) || Number.isNaN(Date.parse(`${terminationDate}T00:00:00Z`))) {
         return res.status(400).send('First Name, Last Name, and a valid Termination Date are required.');
     }
 
     // Archive the employee using the administrator-entered effective date.
-    execFile(process.execPath, ['./backend/server/deleteEmployee.mjs', String(firstName), String(lastName), terminationDate], (error, stdout, stderr) => {
+    execFile(process.execPath, ['./backend/server/deleteEmployee.mjs', String(firstName), String(lastName), terminationDate, newManagerFirstName, newManagerLastName], (error, stdout, stderr) => {
         if (error) {
             // Find the relevant error line
             const errorLines = stderr.split('\n');
@@ -1545,7 +1547,8 @@ app.post('/call-function-delete-employee', requireAdminSession, async (req, res)
             }
             return;
         }
-        res.status(200).send(stdout.trim());
+        const resultMatch = stdout.match(/TERMINATION_RESULT:(\{.*\})/);
+        res.status(200).json(resultMatch ? JSON.parse(resultMatch[1]) : { success: true, reassignedDirectReports: 0 });
     });
 });
 
