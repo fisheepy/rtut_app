@@ -39,7 +39,7 @@ const dateOnly = (value) => {
     return String(value).slice(0, 10);
 };
 
-const deleteEmployee = async (firstName, lastName, terminationDate) => {
+const deleteEmployee = async (firstName, lastName, terminationDate, replacementSupervisorFirstName = '', replacementSupervisorLastName = '') => {
     const client = new MongoClient(MONGODB_URI);
 
     try {
@@ -79,6 +79,33 @@ const deleteEmployee = async (firstName, lastName, terminationDate) => {
         if (hireDate && terminationDate < hireDate) {
             throw new Error(`Error during operation: Termination Date cannot be before Hire Date (${hireDate}).`);
         }
+
+        const directReportFilter = {
+            'Supervisor First Name': { $regex: buildCandidateRegex(normalizedFirstName) },
+            'Supervisor Last Name': { $regex: buildCandidateRegex(normalizedLastName) },
+            $and: [
+                { 'Position Status': { $not: /^(inactive|terminated)$/i } },
+                { 'Account Active': { $not: /^inactive$/i } },
+            ],
+        };
+        const directReports = await collection.find(directReportFilter).toArray();
+        let replacementSupervisor = null;
+        if (directReports.length > 0) {
+            const replacementFirst = normalizeNameInput(replacementSupervisorFirstName);
+            const replacementLast = normalizeNameInput(replacementSupervisorLastName);
+            if (!replacementFirst || !replacementLast) {
+                throw new Error(`Error during operation: This employee manages ${directReports.length} active employee${directReports.length === 1 ? '' : 's'}. Select a new manager before termination.`);
+            }
+            replacementSupervisor = await collection.findOne({
+                'First Name': { $regex: buildCandidateRegex(replacementFirst) },
+                'Last Name': { $regex: buildCandidateRegex(replacementLast) },
+                'Position Status': { $not: /^(inactive|terminated)$/i },
+                'Account Active': { $not: /^inactive$/i },
+            });
+            if (!replacementSupervisor || String(replacementSupervisor._id) === String(employeeToDelete._id)) {
+                throw new Error('Error during operation: Select a valid active employee as the new manager.');
+            }
+        }
         const result = await collection.updateOne(
             { _id: employeeToDelete._id },
             {
@@ -95,6 +122,17 @@ const deleteEmployee = async (firstName, lastName, terminationDate) => {
             throw new Error('Error during operation: Employee not found.');
         }
 
+        if (replacementSupervisor) {
+            await collection.updateMany(directReportFilter, {
+                $set: {
+                    'Supervisor First Name': replacementSupervisor['First Name'],
+                    'Supervisor Last Name': replacementSupervisor['Last Name'],
+                    'Supervisor Reassigned At': new Date(),
+                    'Supervisor Reassigned Due To Termination': `${employeeToDelete['First Name']} ${employeeToDelete['Last Name']}`,
+                },
+            });
+        }
+
         console.log(`Employee archived as terminated effective ${terminationDate}.`);
         return result;
     } catch (error) {
@@ -107,15 +145,17 @@ const deleteEmployee = async (firstName, lastName, terminationDate) => {
 };
 
 if (process.argv.length < 5) {
-    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName> <terminationDate>');
+    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName> <terminationDate> [replacementSupervisorFirstName] [replacementSupervisorLastName]');
     process.exit(1);
 }
 
 const firstName = process.argv[2];
 const lastName = process.argv[3];
 const terminationDate = process.argv[4];
+const replacementSupervisorFirstName = process.argv[5] || '';
+const replacementSupervisorLastName = process.argv[6] || '';
 
-deleteEmployee(firstName, lastName, terminationDate)
+deleteEmployee(firstName, lastName, terminationDate, replacementSupervisorFirstName, replacementSupervisorLastName)
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error.message);

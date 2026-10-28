@@ -62,7 +62,7 @@ const UtilitiesCenterComponent = () => {
     const [openDeleteModal, setOpenDeleteModal] = useState(false);
     const [openNewValueConfirmation, setOpenNewValueConfirmation] = useState(false);
     const [formerEmployeeWarning, setFormerEmployeeWarning] = useState(null);
-    const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '', terminationDate: '' });
+    const [deleteEmployee, setDeleteEmployee] = useState({ firstName: '', lastName: '', terminationDate: '', replacementSupervisor: '' });
     const [deleteAttempted, setDeleteAttempted] = useState(false);
     const [isTerminating, setIsTerminating] = useState(false);
     const [newEmployee, setNewEmployee] = useState(emptyEmployee);
@@ -72,7 +72,7 @@ const UtilitiesCenterComponent = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (!openAddModal) return;
+        if (!openAddModal && !openDeleteModal) return;
         let active = true;
         axios.get('/employees').then(response => {
             if (active) setReferenceEmployees(response.data || []);
@@ -80,7 +80,37 @@ const UtilitiesCenterComponent = () => {
             if (active) setReferenceError('Existing employee values could not be loaded. Please close and try again.');
         });
         return () => { active = false; };
-    }, [openAddModal]);
+    }, [openAddModal, openDeleteModal]);
+
+    const terminatingEmployee = useMemo(() => referenceEmployees.find(employee =>
+        normalizeFilterValue(employee['First Name']) === normalizeFilterValue(deleteEmployee.firstName)
+        && normalizeFilterValue(employee['Last Name']) === normalizeFilterValue(deleteEmployee.lastName)
+    ), [referenceEmployees, deleteEmployee.firstName, deleteEmployee.lastName]);
+
+    const directReports = useMemo(() => {
+        if (!terminatingEmployee) return [];
+        const first = normalizeFilterValue(terminatingEmployee['First Name']);
+        const last = normalizeFilterValue(terminatingEmployee['Last Name']);
+        return referenceEmployees.filter(employee => {
+            const status = normalizeFilterValue(employee['Position Status'] || employee['Account Active']);
+            return !['inactive', 'terminated'].includes(status)
+                && normalizeFilterValue(employee['Supervisor First Name']) === first
+                && normalizeFilterValue(employee['Supervisor Last Name']) === last;
+        });
+    }, [referenceEmployees, terminatingEmployee]);
+
+    const replacementManagers = useMemo(() => referenceEmployees
+        .filter(employee => {
+            const status = normalizeFilterValue(employee['Position Status'] || employee['Account Active']);
+            return !['inactive', 'terminated'].includes(status)
+                && String(employee._id) !== String(terminatingEmployee?._id);
+        })
+        .map(employee => ({
+            value: `${cleanFilterLabel(employee['First Name'])}|${cleanFilterLabel(employee['Last Name'])}`,
+            label: `${cleanFilterLabel(employee['First Name'])} ${cleanFilterLabel(employee['Last Name'])}`,
+        }))
+        .filter(option => option.value !== '|')
+        .sort((a, b) => a.label.localeCompare(b.label)), [referenceEmployees, terminatingEmployee]);
 
     const referenceMaps = useMemo(() => Object.fromEntries(referenceFields.map(field => [
         field.form,
@@ -194,19 +224,26 @@ const UtilitiesCenterComponent = () => {
 
     const handleDeleteEmployeeChange = event => {
         const { name, value } = event.target;
-        setDeleteEmployee(previous => ({ ...previous, [name]: value }));
+        setDeleteEmployee(previous => ({
+            ...previous,
+            [name]: value,
+            ...(['firstName', 'lastName'].includes(name) ? { replacementSupervisor: '' } : {}),
+        }));
     };
 
     const handleDeleteEmployeeSubmit = async () => {
         setDeleteAttempted(true);
-        if (!cleanFilterLabel(deleteEmployee.firstName) || !cleanFilterLabel(deleteEmployee.lastName) || !deleteEmployee.terminationDate) return;
-        if (!window.confirm(`Terminate ${deleteEmployee.firstName} ${deleteEmployee.lastName} effective ${deleteEmployee.terminationDate}? The employee will move to the Termination Platform and the entered date will be used for all termination tasks and reports.`)) return;
+        if (!cleanFilterLabel(deleteEmployee.firstName) || !cleanFilterLabel(deleteEmployee.lastName) || !deleteEmployee.terminationDate || (directReports.length > 0 && !deleteEmployee.replacementSupervisor)) return;
+        const reassignmentMessage = directReports.length > 0
+            ? ` ${directReports.length} direct report${directReports.length === 1 ? '' : 's'} will be reassigned to ${deleteEmployee.replacementSupervisor.replace('|', ' ')}.`
+            : '';
+        if (!window.confirm(`Terminate ${deleteEmployee.firstName} ${deleteEmployee.lastName} effective ${deleteEmployee.terminationDate}?${reassignmentMessage} The employee will move to the Termination Platform and the entered date will be used for all termination tasks and reports.`)) return;
         setIsTerminating(true);
         try {
             await axios.post('/call-function-delete-employee', deleteEmployee);
             setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} terminated effective ${deleteEmployee.terminationDate}.`);
             setOpenDeleteModal(false);
-            setDeleteEmployee({ firstName: '', lastName: '', terminationDate: '' });
+            setDeleteEmployee({ firstName: '', lastName: '', terminationDate: '', replacementSupervisor: '' });
             setDeleteAttempted(false);
         } catch (error) {
             setExecutionStatus(`Failed to terminate employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}: ${error.response?.data || 'An unexpected error occurred'}`);
@@ -305,6 +342,14 @@ const UtilitiesCenterComponent = () => {
                     <TextField autoFocus required margin="dense" name="firstName" label="First Name" fullWidth value={deleteEmployee.firstName} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !cleanFilterLabel(deleteEmployee.firstName)} helperText={deleteAttempted && !cleanFilterLabel(deleteEmployee.firstName) ? 'First Name is required.' : ''} />
                     <TextField required margin="dense" name="lastName" label="Last Name" fullWidth value={deleteEmployee.lastName} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !cleanFilterLabel(deleteEmployee.lastName)} helperText={deleteAttempted && !cleanFilterLabel(deleteEmployee.lastName) ? 'Last Name is required.' : ''} />
                     <TextField required margin="dense" name="terminationDate" label="Termination Date" type="date" fullWidth value={deleteEmployee.terminationDate} onChange={handleDeleteEmployeeChange} InputLabelProps={{ shrink: true }} error={deleteAttempted && !deleteEmployee.terminationDate} helperText={deleteAttempted && !deleteEmployee.terminationDate ? 'Termination Date is required.' : 'Use the employee’s actual last date of employment.'} />
+                    {terminatingEmployee && directReports.length > 0 ? <>
+                        <Alert severity="info" sx={{ mt: 2 }}>
+                            This employee currently manages {directReports.length} active employee{directReports.length === 1 ? '' : 's'}. Select their new manager before termination.
+                        </Alert>
+                        <TextField select required margin="dense" name="replacementSupervisor" label="New Manager for Direct Reports" fullWidth value={deleteEmployee.replacementSupervisor} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !deleteEmployee.replacementSupervisor} helperText={deleteAttempted && !deleteEmployee.replacementSupervisor ? 'A new manager is required because this employee has active direct reports.' : `${directReports.length} employee${directReports.length === 1 ? '' : 's'} will be reassigned.`}>
+                            {replacementManagers.map(option => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
+                        </TextField>
+                    </> : terminatingEmployee ? <Alert severity="success" sx={{ mt: 2 }}>No active direct reports were found for this employee.</Alert> : null}
                 </DialogContent>
                 <DialogActions>
                     <Button disabled={isTerminating} onClick={() => setOpenDeleteModal(false)}>Cancel</Button>
