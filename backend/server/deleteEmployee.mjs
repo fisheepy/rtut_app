@@ -39,15 +39,15 @@ const dateOnly = (value) => {
     return String(value).slice(0, 10);
 };
 
-const deleteEmployee = async (firstName, lastName, terminationDate, newManagerFirstName = '', newManagerLastName = '') => {
+const deleteEmployee = async (firstName, lastName, terminationDate, terminationType, newManagerFirstName = '', newManagerLastName = '') => {
     const client = new MongoClient(MONGODB_URI);
 
     try {
         const normalizedFirstName = normalizeNameInput(firstName);
         const normalizedLastName = normalizeNameInput(lastName);
 
-        if (!normalizedFirstName || !normalizedLastName || !validDate(terminationDate)) {
-            throw new Error('Error during operation: First Name, Last Name, and a valid Termination Date are required.');
+        if (!normalizedFirstName || !normalizedLastName || !validDate(terminationDate) || !['Voluntary', 'Involuntary'].includes(terminationType)) {
+            throw new Error('Error during operation: Employee, a valid Termination Date, and a Voluntary or Involuntary Termination Type are required.');
         }
 
         await client.connect();
@@ -117,6 +117,7 @@ const deleteEmployee = async (firstName, lastName, terminationDate, newManagerFi
                     { _id: employeeToDelete._id },
                     { $set: {
                         'Termination Date': terminationDate,
+                        'Termination Type': terminationType,
                         'Position Status': 'Terminated',
                         'Account Active': 'Inactive',
                         'HR Platform Termination At': new Date(),
@@ -135,8 +136,8 @@ const deleteEmployee = async (firstName, lastName, terminationDate, newManagerFi
             throw new Error('Error during operation: Employee not found.');
         }
 
-        console.log(`Employee archived as terminated effective ${terminationDate}.`);
-        console.log(`TERMINATION_RESULT:${JSON.stringify({ success: true, terminationDate, reassignedDirectReports: directReportCount, replacementManager: replacementManager ? `${replacementManager['First Name']} ${replacementManager['Last Name']}` : null })}`);
+        console.log(`Employee archived as ${terminationType.toLowerCase()} termination effective ${terminationDate}.`);
+        console.log(`TERMINATION_RESULT:${JSON.stringify({ success: true, terminationDate, terminationType, reassignedDirectReports: directReportCount, replacementManager: replacementManager ? `${replacementManager['First Name']} ${replacementManager['Last Name']}` : null })}`);
         return result;
     } catch (error) {
         console.error('Error during operation:', error.message);
@@ -147,18 +148,19 @@ const deleteEmployee = async (firstName, lastName, terminationDate, newManagerFi
     }
 };
 
-if (process.argv.length < 5) {
-    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName> <terminationDate>');
+if (process.argv.length < 6) {
+    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName> <terminationDate> <terminationType> [newManagerFirstName] [newManagerLastName]');
     process.exit(1);
 }
 
 const firstName = process.argv[2];
 const lastName = process.argv[3];
 const terminationDate = process.argv[4];
-const newManagerFirstName = process.argv[5] || '';
-const newManagerLastName = process.argv[6] || '';
+const terminationType = process.argv[5] || '';
+const newManagerFirstName = process.argv[6] || '';
+const newManagerLastName = process.argv[7] || '';
 
-deleteEmployee(firstName, lastName, terminationDate, newManagerFirstName, newManagerLastName)
+deleteEmployee(firstName, lastName, terminationDate, terminationType, newManagerFirstName, newManagerLastName)
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error.message);

@@ -65,7 +65,7 @@ const UtilitiesCenterComponent = () => {
     const [openNewValueConfirmation, setOpenNewValueConfirmation] = useState(false);
     const [formerEmployeeWarning, setFormerEmployeeWarning] = useState(null);
     const [deleteEmployee, setDeleteEmployee] = useState({
-        firstName: '', lastName: '', terminationDate: '',
+        firstName: '', lastName: '', terminationDate: '', terminationType: '',
         newManagerFirstName: '', newManagerLastName: '',
     });
     const [deleteAttempted, setDeleteAttempted] = useState(false);
@@ -222,19 +222,19 @@ const UtilitiesCenterComponent = () => {
 
     const handleDeleteEmployeeSubmit = async () => {
         setDeleteAttempted(true);
-        if (!cleanFilterLabel(deleteEmployee.firstName) || !cleanFilterLabel(deleteEmployee.lastName) || !deleteEmployee.terminationDate) return;
+        if (!cleanFilterLabel(deleteEmployee.firstName) || !cleanFilterLabel(deleteEmployee.lastName) || !deleteEmployee.terminationDate || !deleteEmployee.terminationType) return;
         if (directReports.length > 0 && !selectedNewManager) return;
         const reassignment = directReports.length > 0
             ? ` ${directReports.length} direct report(s) will be reassigned to ${selectedNewManager['First Name']} ${selectedNewManager['Last Name']}.`
             : '';
-        if (!window.confirm(`Terminate ${deleteEmployee.firstName} ${deleteEmployee.lastName} effective ${deleteEmployee.terminationDate}?${reassignment} The employee will move to the Termination Platform and the entered date will be used for all termination tasks and reports.`)) return;
+        if (!window.confirm(`Terminate ${deleteEmployee.firstName} ${deleteEmployee.lastName} effective ${deleteEmployee.terminationDate} as ${deleteEmployee.terminationType}?${reassignment} The employee will move to the Termination Platform and the entered date and termination type will be used for termination tasks and reports.`)) return;
         setIsTerminating(true);
         try {
             const response = await axios.post('/call-function-delete-employee', deleteEmployee);
             const reassigned = response.data?.reassignedDirectReports || 0;
-            setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} terminated effective ${deleteEmployee.terminationDate}.${reassigned ? ` ${reassigned} direct report(s) were moved to the new manager.` : ''}`);
+            setExecutionStatus(`Employee ${deleteEmployee.firstName} ${deleteEmployee.lastName} terminated effective ${deleteEmployee.terminationDate} (${deleteEmployee.terminationType}).${reassigned ? ` ${reassigned} direct report(s) were moved to the new manager.` : ''}`);
             setOpenDeleteModal(false);
-            setDeleteEmployee({ firstName: '', lastName: '', terminationDate: '', newManagerFirstName: '', newManagerLastName: '' });
+            setDeleteEmployee({ firstName: '', lastName: '', terminationDate: '', terminationType: '', newManagerFirstName: '', newManagerLastName: '' });
             setDeleteAttempted(false);
         } catch (error) {
             setExecutionStatus(`Failed to terminate employee ${deleteEmployee.firstName} ${deleteEmployee.lastName}: ${error.response?.data || 'An unexpected error occurred'}`);
@@ -339,12 +339,17 @@ const UtilitiesCenterComponent = () => {
                             ...previous,
                             firstName: employee?.['First Name'] || '',
                             lastName: employee?.['Last Name'] || '',
+                            terminationType: '',
                             newManagerFirstName: '',
                             newManagerLastName: '',
                         }))}
                         renderInput={params => <TextField {...params} autoFocus required margin="dense" label="Employee to Terminate" error={deleteAttempted && !selectedTerminationEmployee} helperText={deleteAttempted && !selectedTerminationEmployee ? 'Select an employee.' : ''} />}
                     />
                     <TextField required margin="dense" name="terminationDate" label="Termination Date" type="date" fullWidth value={deleteEmployee.terminationDate} onChange={handleDeleteEmployeeChange} InputLabelProps={{ shrink: true }} error={deleteAttempted && !deleteEmployee.terminationDate} helperText={deleteAttempted && !deleteEmployee.terminationDate ? 'Termination Date is required.' : 'Use the employee’s actual last date of employment.'} />
+                    <TextField select required margin="dense" name="terminationType" label="Termination Type" fullWidth value={deleteEmployee.terminationType} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !deleteEmployee.terminationType} helperText={deleteAttempted && !deleteEmployee.terminationType ? 'Select Voluntary or Involuntary.' : 'This selection will be shown as the termination reason in HR reports.'}>
+                        <MenuItem value="Voluntary">Voluntary</MenuItem>
+                        <MenuItem value="Involuntary">Involuntary</MenuItem>
+                    </TextField>
                     {selectedTerminationEmployee && directReports.length === 0 ? <Alert severity="info" sx={{ mt: 2 }}>This employee has no active direct reports in Company App.</Alert> : null}
                     {directReports.length > 0 ? <Box sx={{ mt: 2 }}>
                         <Alert severity="warning" sx={{ mb: 1 }}>This employee manages {directReports.length} active employee(s). A new manager is required before termination.</Alert>
@@ -365,7 +370,7 @@ const UtilitiesCenterComponent = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button disabled={isTerminating} onClick={() => setOpenDeleteModal(false)}>Cancel</Button>
-                    <Button color="error" variant="contained" disabled={isTerminating || (directReports.length > 0 && !selectedNewManager)} onClick={handleDeleteEmployeeSubmit}>{isTerminating ? 'Terminating…' : 'Review and Terminate'}</Button>
+                    <Button color="error" variant="contained" disabled={isTerminating || !deleteEmployee.terminationType || (directReports.length > 0 && !selectedNewManager)} onClick={handleDeleteEmployeeSubmit}>{isTerminating ? 'Terminating…' : 'Review and Terminate'}</Button>
                 </DialogActions>
             </Dialog>
         </div>

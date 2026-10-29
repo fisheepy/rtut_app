@@ -1524,15 +1524,16 @@ app.post('/call-function-delete-employee', requireAdminSession, async (req, res)
     const firstName = req.body.firstName;
     const lastName = req.body.lastName;
     const terminationDate = String(req.body.terminationDate || '').trim();
+    const terminationType = String(req.body.terminationType || '').trim();
     const newManagerFirstName = String(req.body.newManagerFirstName || '').trim();
     const newManagerLastName = String(req.body.newManagerLastName || '').trim();
 
-    if (!firstName || !lastName || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate) || Number.isNaN(Date.parse(`${terminationDate}T00:00:00Z`))) {
-        return res.status(400).send('First Name, Last Name, and a valid Termination Date are required.');
+    if (!firstName || !lastName || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate) || Number.isNaN(Date.parse(`${terminationDate}T00:00:00Z`)) || !['Voluntary', 'Involuntary'].includes(terminationType)) {
+        return res.status(400).send('Employee, a valid Termination Date, and a Voluntary or Involuntary Termination Type are required.');
     }
 
     // Archive the employee using the administrator-entered effective date.
-    execFile(process.execPath, ['./backend/server/deleteEmployee.mjs', String(firstName), String(lastName), terminationDate, newManagerFirstName, newManagerLastName], (error, stdout, stderr) => {
+    execFile(process.execPath, ['./backend/server/deleteEmployee.mjs', String(firstName), String(lastName), terminationDate, terminationType, newManagerFirstName, newManagerLastName], (error, stdout, stderr) => {
         if (error) {
             // Find the relevant error line
             const errorLines = stderr.split('\n');
