@@ -200,11 +200,11 @@ const SALARY_EMPLOYEES = Object.freeze([
   {
     "id": "lynchcherie",
     "name": "Cherie Lynch",
-    "jobTitle": "Marketing & Events Coordinator",
+    "jobTitle": "Director of Marketing",
     "department": "OFFICE/ADMIN",
     "location": "Northville",
     "hireDate": "2024-12-02",
-    "jobFamily": "People, Safety, Marketing & Creative",
+    "jobFamily": "Enterprise Leadership",
     "regularPay": 75000,
     "grossPay": 70423.15
   },
