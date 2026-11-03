@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { compensationRecord, employmentChangeIncomplete, findEmployeeMatches, findLocationMatch, locationEmployeeDetails } = require('./routes');
-const { EXECUTIVE_TOOLS, extractOutputText } = require('./smartAi');
+const { EXECUTIVE_TOOLS, createToolResolver, extractOutputText } = require('./smartAi');
 
 test('matches an employee full name without partial last-name collisions', () => {
   const employees = [
@@ -53,4 +53,15 @@ test('uses strict read-only tool schemas', () => {
 
 test('extracts text from a Responses API result', () => {
   assert.equal(extractOutputText({ output: [{ content: [{ type: 'output_text', text: 'Verified answer' }] }] }), 'Verified answer');
+});
+
+test('keeps location filters exact instead of merging Dearborn Warehouse into Dearborn', async () => {
+  const employees = [
+    { 'First Name': 'A', 'Last Name': 'One', Location: 'Dearborn', 'Position Status': 'Active' },
+    { 'First Name': 'B', 'Last Name': 'Two', Location: 'Dearborn Warehouse', 'Position Status': 'Active' },
+  ];
+  const resolve = createToolResolver({ db: {}, employees, compensationRecord: () => null, employmentChangeIncomplete: () => false });
+  const result = await resolve('search_employees', { name: null, location: 'Dearborn', department: null, jobTitle: null, manager: null, status: null, payType: null, limit: 100 });
+  assert.equal(result.count, 1);
+  assert.equal(result.employees[0].name, 'A One');
 });

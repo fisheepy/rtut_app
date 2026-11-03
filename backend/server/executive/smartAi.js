@@ -71,6 +71,10 @@ function match(value, requested) {
   return !requested || normalize(value).includes(normalize(requested));
 }
 
+function exactMatch(value, requested) {
+  return !requested || normalize(value) === normalize(requested);
+}
+
 function safeEmployee(employee) {
   return {
     name: employeeName(employee),
@@ -111,12 +115,12 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
   return async (name, args = {}) => {
     if (name === 'search_employees') {
       const matches = activeEmployees.filter(employee => match(employeeName(employee), args.name)
-        && match(employee.Location, args.location)
-        && match(employee['Home Department'] || employee.Department, args.department)
+        && exactMatch(employee.Location, args.location)
+        && exactMatch(employee['Home Department'] || employee.Department, args.department)
         && match(employee['Job Title'], args.jobTitle)
         && match(employee['Reports To'] || employee.Supervisor || employee.Manager, args.manager)
-        && match(employee['Position Status'], args.status)
-        && match(employee['Pay Category'], args.payType));
+        && exactMatch(employee['Position Status'], args.status)
+        && exactMatch(employee['Pay Category'], args.payType));
       return { count: matches.length, employees: matches.slice(0, args.limit || 50).map(safeEmployee), truncated: matches.length > (args.limit || 50) };
     }
     if (name === 'get_workforce_summary') {
