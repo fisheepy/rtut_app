@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { compensationRecord, employmentChangeIncomplete, findEmployeeMatches, findLocationMatch, locationEmployeeDetails } = require('./routes');
+const { EXECUTIVE_TOOLS, extractOutputText } = require('./smartAi');
 
 test('matches an employee full name without partial last-name collisions', () => {
   const employees = [
@@ -40,4 +41,16 @@ test('formats the location employee list with useful executive details', () => {
     'Pay Category': 'Salary',
   });
   assert.equal(detail, 'Alex Example — Service Manager | Service | Active | Salary');
+});
+
+test('uses strict read-only tool schemas', () => {
+  for (const tool of EXECUTIVE_TOOLS) {
+    assert.equal(tool.strict, true);
+    assert.equal(tool.parameters.additionalProperties, false);
+    assert.deepEqual(new Set(tool.parameters.required), new Set(Object.keys(tool.parameters.properties)));
+  }
+});
+
+test('extracts text from a Responses API result', () => {
+  assert.equal(extractOutputText({ output: [{ content: [{ type: 'output_text', text: 'Verified answer' }] }] }), 'Verified answer');
 });

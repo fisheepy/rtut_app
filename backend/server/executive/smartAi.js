@@ -1,0 +1,200 @@
+const clean = value => value == null ? '' : String(value).trim();
+const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
+const isTerminated = employee => /^(terminated|inactive)$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']));
+
+const nullableString = { type: ['string', 'null'] };
+
+const EXECUTIVE_TOOLS = [
+  {
+    type: 'function',
+    name: 'search_employees',
+    description: 'Search the current Company App employee roster using one or more workforce filters. Use this for lists such as employees at a location or in a department.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        name: nullableString, location: nullableString, department: nullableString,
+        jobTitle: nullableString, manager: nullableString, status: nullableString,
+        payType: nullableString, limit: { type: 'integer', minimum: 1, maximum: 100 },
+      },
+      required: ['name', 'location', 'department', 'jobTitle', 'manager', 'status', 'payType', 'limit'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_employee_profile',
+    description: 'Get a read-only executive profile for one employee, including current structured pay information and the latest structured payroll change.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { employeeName: { type: 'string', minLength: 2 } },
+      required: ['employeeName'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_workforce_summary',
+    description: 'Count current active or leave-status employees and break the count out by a selected business dimension.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { groupBy: { type: 'string', enum: ['location', 'department', 'status', 'payType'] } },
+      required: ['groupBy'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_open_case_summary',
+    description: 'Get counts for open HR or Safety workflows. This returns counts only and never exposes medical details.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { category: { type: 'string', enum: ['leave', 'injury', 'employment_change', 'all'] } },
+      required: ['category'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'request_clarification',
+    description: 'Use when the question cannot be answered safely without one missing detail.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { missingDetail: { type: 'string', minLength: 2 } },
+      required: ['missingDetail'],
+    },
+  },
+];
+
+function match(value, requested) {
+  return !requested || normalize(value).includes(normalize(requested));
+}
+
+function safeEmployee(employee) {
+  return {
+    name: employeeName(employee),
+    jobTitle: clean(employee['Job Title']) || 'Not recorded',
+    location: clean(employee.Location) || 'Not recorded',
+    department: clean(employee['Home Department'] || employee.Department) || 'Not recorded',
+    manager: clean(employee['Reports To'] || employee.Supervisor || employee.Manager) || 'Not recorded',
+    status: clean(employee['Position Status']) || 'Not recorded',
+    payType: clean(employee['Pay Category']) || 'Not recorded',
+    hireDate: clean(employee['Hire Date']) || 'Not recorded',
+  };
+}
+
+function extractOutputText(response = {}) {
+  if (clean(response.output_text)) return clean(response.output_text);
+  return (response.output || []).flatMap(item => item.content || [])
+    .filter(item => item.type === 'output_text' && clean(item.text))
+    .map(item => clean(item.text)).join('\n').trim();
+}
+
+async function callResponsesApi(payload, apiKey, timeoutMs = 20000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`OpenAI Responses API returned ${response.status}`);
+    return response.json();
+  } finally { clearTimeout(timeout); }
+}
+
+function createToolResolver({ db, employees, compensationRecord, employmentChangeIncomplete }) {
+  const activeEmployees = employees.filter(employee => !isTerminated(employee));
+  return async (name, args = {}) => {
+    if (name === 'search_employees') {
+      const matches = activeEmployees.filter(employee => match(employeeName(employee), args.name)
+        && match(employee.Location, args.location)
+        && match(employee['Home Department'] || employee.Department, args.department)
+        && match(employee['Job Title'], args.jobTitle)
+        && match(employee['Reports To'] || employee.Supervisor || employee.Manager, args.manager)
+        && match(employee['Position Status'], args.status)
+        && match(employee['Pay Category'], args.payType));
+      return { count: matches.length, employees: matches.slice(0, args.limit || 50).map(safeEmployee), truncated: matches.length > (args.limit || 50) };
+    }
+    if (name === 'get_workforce_summary') {
+      const field = { location: 'Location', department: 'Home Department', status: 'Position Status', payType: 'Pay Category' }[args.groupBy];
+      const groups = activeEmployees.reduce((result, employee) => {
+        const value = clean(employee[field] || (args.groupBy === 'department' ? employee.Department : '')) || 'Not Recorded';
+        result[value] = (result[value] || 0) + 1; return result;
+      }, {});
+      return { total: activeEmployees.length, groupBy: args.groupBy, groups: Object.entries(groups).sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count })) };
+    }
+    if (name === 'get_open_case_summary') {
+      const result = {};
+      if (['leave', 'all'].includes(args.category)) result.openLeaveCases = await db.collection('employee_hr_leave').countDocuments({ active: true });
+      if (['injury', 'all'].includes(args.category)) {
+        const injuries = await db.collection('work_injury_cases').find({ closedAt: { $in: [null, ''] } }, { projection: { oshaRecordable: 1 } }).toArray();
+        result.openInjuryCases = injuries.length;
+        result.oshaRecordable = injuries.filter(record => /^yes$/i.test(clean(record.oshaRecordable))).length;
+      }
+      if (['employment_change', 'all'].includes(args.category)) {
+        const changes = await db.collection('employee_hr_employment_change').find({}).toArray();
+        result.unfinishedEmploymentChanges = changes.filter(employmentChangeIncomplete).length;
+      }
+      return result;
+    }
+    if (name === 'get_employee_profile') {
+      const requested = normalize(args.employeeName);
+      const matches = employees.filter(employee => normalize(employeeName(employee)) === requested);
+      if (matches.length !== 1) return { matchCount: matches.length, message: matches.length ? 'More than one exact employee matched.' : 'No exact employee matched.' };
+      const employee = matches[0];
+      const employeeId = String(employee._id);
+      const [onboarding, changes] = await Promise.all([
+        db.collection('employee_hr_platform').findOne({ employeeId }),
+        db.collection('employee_hr_employment_change').find({ employeeId }).sort({ effectiveDate: -1, createdAt: -1 }).toArray(),
+      ]);
+      const comp = compensationRecord(employeeName(employee));
+      const payrollChange = changes.find(record => record.requestedTracking?.payroll === true || (record.changes || []).some(change => /pay|salary|rate/i.test(clean(change.field))));
+      return {
+        matchCount: 1, employee: safeEmployee(employee),
+        currentPay: {
+          payType: clean(onboarding?.payRateType) || comp?.payType || clean(employee['Pay Category']) || 'Not recorded',
+          rate: clean(onboarding?.payRate) || (comp?.rate != null ? comp.rate : null),
+          source: onboarding?.payRate ? 'HR Platform onboarding record' : comp?.source || 'No structured current-pay source',
+        },
+        latestPayrollChange: payrollChange ? {
+          effectiveDate: clean(payrollChange.effectiveDate || payrollChange.tasks?.payroll?.actionDate) || 'Not recorded',
+          reason: clean(payrollChange.reason) || 'Not recorded',
+          previousRateOrIncrease: 'Not recorded in this structured change record',
+        } : null,
+      };
+    }
+    if (name === 'request_clarification') return { clarificationNeeded: args.missingDetail };
+    throw new Error(`Unsupported executive tool: ${name}`);
+  };
+}
+
+async function answerWithSmartAi({ question, db, employees, compensationRecord, employmentChangeIncomplete }) {
+  const apiKey = clean(process.env.OPENAI_API_KEY);
+  if (!apiKey) return null;
+  const model = clean(process.env.OPENAI_EXECUTIVE_MODEL || process.env.OPENAI_MODEL) || 'gpt-6.1-sol';
+  const instructions = 'You are Royal Executive Intelligence, a concise read-only business data assistant. Always use exactly one provided tool before answering. Never guess, calculate missing pay history, expose personal contact information, or provide medical details. Treat tool results as the only source of truth.';
+  const first = await callResponsesApi({ model, instructions, input: question, tools: EXECUTIVE_TOOLS, tool_choice: 'required', parallel_tool_calls: false, store: false }, apiKey);
+  const calls = (first.output || []).filter(item => item.type === 'function_call');
+  if (!calls.length) throw new Error('Smart AI did not select a read-only data tool.');
+  const resolveTool = createToolResolver({ db, employees, compensationRecord, employmentChangeIncomplete });
+  const toolResults = [];
+  for (const call of calls.slice(0, 2)) {
+    let args = {};
+    try { args = JSON.parse(call.arguments || '{}'); } catch { throw new Error('Smart AI returned invalid tool arguments.'); }
+    toolResults.push({ tool: call.name, result: await resolveTool(call.name, args) });
+  }
+  const final = await callResponsesApi({
+    model, store: false,
+    instructions: 'Answer the executive question only from the verified Royal tool results supplied below. Be concise and direct. If clarification is needed, ask one precise question. Do not infer missing facts. Do not mention internal tool names. Return plain text, using short bullets only when useful.',
+    input: `Executive question:\n${question}\n\nVerified Royal data:\n${JSON.stringify(toolResults)}`,
+  }, apiKey);
+  const answer = extractOutputText(final);
+  if (!answer) throw new Error('Smart AI returned an empty answer.');
+  return { answer, details: [], sources: ['Royal Company App and authorized HR/Safety records'], dataAsOf: new Date(), assistantMode: 'smart-ai', model, toolsUsed: toolResults.map(item => item.tool) };
+}
+
+module.exports = { EXECUTIVE_TOOLS, answerWithSmartAi, createToolResolver, extractOutputText };

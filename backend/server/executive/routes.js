@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const { SALARY_EMPLOYEES } = require('../compensation/salaryEmployees');
 const { HOURLY_EMPLOYEES } = require('../compensation/hourlyEmployees');
+const { answerWithSmartAi } = require('./smartAi');
 
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -91,6 +92,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         openLeaveCases: leaves.length,
         openInjuryCases: injuries.length,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
+        smartAiEnabled: Boolean(clean(process.env.OPENAI_API_KEY)),
       });
     } catch (error) {
       console.error('Unable to load Executive Intelligence overview:', error);
@@ -110,8 +112,20 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const q = normalize(question);
       const location = findLocationMatch(activeEmployees, question);
       let response;
+      let smartAiError = '';
 
-      if (location && /employee|people|staff|headcount|team|who works|who is|list|show/.test(q)) {
+      if (clean(process.env.OPENAI_API_KEY)) {
+        try {
+          response = await answerWithSmartAi({ question, db, employees, compensationRecord, employmentChangeIncomplete });
+        } catch (error) {
+          smartAiError = clean(error?.message).slice(0, 180);
+          console.error('Smart AI unavailable; using guided assistant fallback:', smartAiError);
+        }
+      }
+
+      if (response) {
+        // Smart AI already produced a source-backed response.
+      } else if (location && /employee|people|staff|headcount|team|who works|who is|list|show/.test(q)) {
         const locationEmployees = activeEmployees
           .filter(employee => normalize(employee.Location) === normalize(location))
           .sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
@@ -175,7 +189,9 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
 
       await db.collection('executive_assistant_audit').insertOne({
         askedBy: clean(req.adminSession?.email).toLowerCase(), question, responseType: response.employeeId ? 'employee' : 'summary', employeeId: response.employeeId || '', sources: response.sources, askedAt: new Date(), readOnly: true,
+        assistantMode: response.assistantMode || 'guided-fallback', model: response.model || '', toolsUsed: response.toolsUsed || [], smartAiError,
       });
+      response.assistantMode = response.assistantMode || 'guided-fallback';
       return res.json(response);
     } catch (error) {
       console.error('Unable to answer Executive Intelligence question:', error);
