@@ -45,6 +45,22 @@ function findEmployeeMatches(employees, question) {
   });
 }
 
+function findLocationMatch(employees, question) {
+  const normalizedQuestion = ` ${normalize(question)} `;
+  const locations = [...new Set(employees.map(employee => clean(employee.Location)).filter(Boolean))];
+  const matches = locations.filter(location => normalizedQuestion.includes(` ${normalize(location)} `));
+  if (!matches.length) return '';
+  return matches.sort((a, b) => normalize(b).length - normalize(a).length)[0];
+}
+
+function locationEmployeeDetails(employee) {
+  const jobTitle = clean(employee['Job Title']) || 'Job title not recorded';
+  const department = clean(employee['Home Department'] || employee.Department) || 'Department not recorded';
+  const status = clean(employee['Position Status']) || 'Status not recorded';
+  const payType = clean(employee['Pay Category']) || 'Pay type not recorded';
+  return `${employeeName(employee)} — ${jobTitle} | ${department} | ${status} | ${payType}`;
+}
+
 function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
   const router = express.Router();
   const createClient = () => new MongoClient(uri, { serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true } });
@@ -92,9 +108,20 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const employees = await db.collection('employees').find({}).toArray();
       const activeEmployees = employees.filter(employee => !isTerminated(employee));
       const q = normalize(question);
+      const location = findLocationMatch(activeEmployees, question);
       let response;
 
-      if (/headcount|how many employees|employee count|total employees/.test(q)) {
+      if (location && /employee|people|staff|headcount|team|who works|who is|list|show/.test(q)) {
+        const locationEmployees = activeEmployees
+          .filter(employee => normalize(employee.Location) === normalize(location))
+          .sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
+        response = {
+          answer: `${location} currently has ${locationEmployees.length} active or leave-status employees.`,
+          details: locationEmployees.map(locationEmployeeDetails),
+          sources: ['Company App employee roster'],
+          dataAsOf: new Date(),
+        };
+      } else if (/headcount|how many employees|employee count|total employees/.test(q)) {
         const locationCounts = Object.entries(activeEmployees.reduce((result, employee) => {
           const location = clean(employee.Location) || 'Not Recorded'; result[location] = (result[location] || 0) + 1; return result;
         }, {})).sort((a, b) => b[1] - a[1]);
@@ -159,4 +186,4 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
   return router;
 }
 
-module.exports = { compensationRecord, createExecutiveRouter, employmentChangeIncomplete, findEmployeeMatches };
+module.exports = { compensationRecord, createExecutiveRouter, employmentChangeIncomplete, findEmployeeMatches, findLocationMatch, locationEmployeeDetails };
