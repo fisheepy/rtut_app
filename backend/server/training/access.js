@@ -16,6 +16,12 @@ const DEFAULT_COMPENSATION_EMAILS = [
   'kbumgardner@royaltrailersales.com',
   'myu@royaltrailersales.com',
 ];
+const DEFAULT_EXECUTIVE_EMAILS = [
+  'apigeon@royaltrailersales.com',
+  'jigielski@royaltrailersales.com',
+  'kbumgardner@royaltrailersales.com',
+  'myu@royaltrailersales.com',
+];
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -55,6 +61,18 @@ function authorizedCompensationEmails(env = process.env) {
 
 function isAuthorizedCompensationEmail(email, env = process.env) {
   return authorizedCompensationEmails(env).includes(normalizeEmail(email));
+}
+
+function authorizedExecutiveEmails(env = process.env) {
+  const configured = String(env.EXECUTIVE_AUTHORIZED_EMAILS || '')
+    .split(',')
+    .map(normalizeEmail)
+    .filter(Boolean);
+  return configured.length ? configured : DEFAULT_EXECUTIVE_EMAILS;
+}
+
+function isAuthorizedExecutiveEmail(email, env = process.env) {
+  return authorizedExecutiveEmails(env).includes(normalizeEmail(email));
 }
 
 function hashTrainingCode(email, code, secret) {
@@ -102,17 +120,31 @@ function createRequireCompensationSession(getSessionFromRequest, env = process.e
   };
 }
 
+function createRequireExecutiveSession(getSessionFromRequest, env = process.env) {
+  return (req, res, next) => {
+    const session = getSessionFromRequest(req);
+    if (!session || !isAuthorizedExecutiveEmail(session.email, env)) {
+      return res.status(401).json({ error: 'Executive Intelligence authentication required' });
+    }
+    req.adminSession = session;
+    return next();
+  };
+}
+
 module.exports = {
   authorizedEmails,
   authorizedHrToolsEmails,
   authorizedCompensationEmails,
+  authorizedExecutiveEmails,
   createRequireCompensationSession,
+  createRequireExecutiveSession,
   createRequireTrainingSession,
   createRequireHrToolsSession,
   hashTrainingCode,
   isAuthorizedTrainingEmail,
   isAuthorizedHrToolsEmail,
   isAuthorizedCompensationEmail,
+  isAuthorizedExecutiveEmail,
   normalizeEmail,
   secureCodeMatch,
 };

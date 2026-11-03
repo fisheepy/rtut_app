@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { ArrowRight, BarChart3, BriefcaseBusiness, FileSpreadsheet, GraduationCap, HardHat, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, UsersRound } from 'lucide-react'
+import { ArrowRight, BarChart3, BriefcaseBusiness, FileSpreadsheet, GraduationCap, HardHat, KeyRound, LogOut, Mail, ReceiptText, RefreshCw, ShieldCheck, Sparkles, UsersRound } from 'lucide-react'
 import { api } from './shared/api'
 import AdminLogin from './pages/AdminLogin'
 import InsuranceBreakout from './pages/InsuranceBreakout'
@@ -17,6 +17,7 @@ import CompensationAnalysis, { CompensationPayTypeAnalysis, SalaryIndividualDire
 import HourlyEmployeeDirectory from './pages/HourlyEmployeeDirectory'
 import HourlyEmployeeAnalysis from './pages/HourlyEmployeeAnalysis'
 import SalaryEmployeeAnalysis from './pages/SalaryEmployeeAnalysis'
+import ExecutiveIntelligence from './pages/ExecutiveIntelligence'
 
 type AdminUser = {
   firstName?: string
@@ -35,6 +36,14 @@ function HrToolShell({ children }: { children: React.ReactNode }) {
 }
 
 const hrTools = [
+  {
+    title: 'C-Suite Executive Intelligence',
+    description: 'Ask source-backed, read-only questions across connected workforce data and review executive operating indicators.',
+    to: '/executive-intelligence',
+    icon: Sparkles,
+    tone: 'from-slate-950 to-indigo-600',
+    badge: 'C-Suite',
+  },
   {
     title: 'Compensation Analysis Platform',
     description: 'Secure compensation analysis, internal equity review, pay planning, and leadership reporting.',
@@ -330,6 +339,7 @@ export default function App() {
       <HrToolShell>
         <Routes>
           <Route path="/" element={<HrToolsHub />} />
+          <Route path="/executive-intelligence" element={<ExecutiveIntelligence />} />
           <Route path="/payroll-verification" element={<PayrollVerification />} />
           <Route path="/insurance-breakout" element={<InsuranceBreakout />} />
           <Route path="/commission-roster" element={<CommissionRoster />} />

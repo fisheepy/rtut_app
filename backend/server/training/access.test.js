@@ -4,12 +4,15 @@ const {
   authorizedEmails,
   authorizedHrToolsEmails,
   authorizedCompensationEmails,
+  authorizedExecutiveEmails,
   createRequireCompensationSession,
+  createRequireExecutiveSession,
   createRequireTrainingSession,
   hashTrainingCode,
   isAuthorizedTrainingEmail,
   isAuthorizedHrToolsEmail,
   isAuthorizedCompensationEmail,
+  isAuthorizedExecutiveEmail,
   secureCodeMatch,
 } = require('./access');
 
@@ -50,6 +53,25 @@ test('allows only the four Compensation Analysis users', () => {
   ]);
   assert.equal(isAuthorizedCompensationEmail('APIGEON@royaltrailersales.com', env), true);
   assert.equal(isAuthorizedCompensationEmail('sdallis@royaltrailersales.com', env), false);
+});
+
+test('allows only the four Executive Intelligence users', () => {
+  const env = {};
+  assert.deepEqual(authorizedExecutiveEmails(env), [
+    'apigeon@royaltrailersales.com',
+    'jigielski@royaltrailersales.com',
+    'kbumgardner@royaltrailersales.com',
+    'myu@royaltrailersales.com',
+  ]);
+  assert.equal(isAuthorizedExecutiveEmail('KBUMGARDNER@royaltrailersales.com', env), true);
+  assert.equal(isAuthorizedExecutiveEmail('sdallis@royaltrailersales.com', env), false);
+});
+
+test('rejects a non-Executive session', () => {
+  const middleware = createRequireExecutiveSession(() => ({ email: 'sdallis@royaltrailersales.com' }), {});
+  let statusCode;
+  middleware({}, { status(code) { statusCode = code; return this; }, json() { return this; } }, () => assert.fail('next should not be called'));
+  assert.equal(statusCode, 401);
 });
 
 test('rejects a non-Compensation session', () => {

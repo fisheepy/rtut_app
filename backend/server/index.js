@@ -22,7 +22,8 @@ const { createTrainingRouter } = require('./training/routes');
 const { createTrainingAuthRouter } = require('./training/authRoutes');
 const { createWorkInjuryRouter } = require('./workInjury/routes');
 const { createAccidentNearMissRouter } = require('./accidentNearMiss/routes');
-const { createRequireCompensationSession, createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedCompensationEmail, isAuthorizedHrToolsEmail } = require('./training/access');
+const { createExecutiveRouter } = require('./executive/routes');
+const { createRequireCompensationSession, createRequireExecutiveSession, createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedCompensationEmail, isAuthorizedExecutiveEmail, isAuthorizedHrToolsEmail } = require('./training/access');
 const { createHrPlatformRouter } = require('./hrPlatform/routes');
 const { findExistingEmployeeFolderUrl } = require('./hrPlatform/folderInheritance');
 const {
@@ -1235,6 +1236,7 @@ app.use('/api/commission-roster', createCommissionRosterRouter({
 const requireTrainingSession = createRequireTrainingSession(getSessionFromRequest);
 const requireHrToolsSession = createRequireHrToolsSession(getSessionFromRequest);
 const requireCompensationSession = createRequireCompensationSession(getSessionFromRequest);
+const requireExecutiveSession = createRequireExecutiveSession(getSessionFromRequest);
 const loginCodeSecret = process.env.ADMIN_SESSION_SECRET || process.env.MONGODB_PASSWORD || 'dev-only-login-secret';
 app.use('/api/training-auth', createTrainingAuthRouter({
   uri,
@@ -1270,6 +1272,24 @@ app.use('/api/compensation-auth', createTrainingAuthRouter({
   collectionName: 'compensation_login_codes',
   toolName: 'RTUT Compensation Analysis Platform',
   sessionType: 'compensation-analysis',
+}));
+app.use('/api/executive-auth', createTrainingAuthRouter({
+  uri,
+  databaseName: database_name,
+  sendEmail,
+  setSessionCookie,
+  clearSessionCookie,
+  getSessionFromRequest,
+  codeSecret: loginCodeSecret,
+  isAuthorizedEmail: isAuthorizedExecutiveEmail,
+  collectionName: 'executive_login_codes',
+  toolName: 'RTUT C-Suite Executive Intelligence Platform',
+  sessionType: 'executive-intelligence',
+}));
+app.use('/api/executive', createExecutiveRouter({
+  uri,
+  databaseName: database_name,
+  requireExecutiveSession,
 }));
 app.get('/api/compensation/overview', requireCompensationSession, (req, res) => {
   res.json({
@@ -2028,7 +2048,7 @@ app.get('/admin/*', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/hr-tools', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/compensation-analysis', '/hr-tools/compensation-analysis/hourly', '/hr-tools/compensation-analysis/hourly/individual', '/hr-tools/compensation-analysis/hourly/employees/:employeeId', '/hr-tools/compensation-analysis/salary', '/hr-tools/compensation-analysis/salary/individual', '/hr-tools/compensation-analysis/salary/employees/:employeeId', '/hr-tools/training', '/hr-tools/work-related-injury', '/hr-tools/work-related-injury/cases/:caseId', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change', '/hr-tools/hr-platform/medical-leave'], (req, res) => {
+app.get(['/hr-tools', '/hr-tools/executive-intelligence', '/hr-tools/payroll-verification', '/hr-tools/insurance-breakout', '/hr-tools/commission-roster', '/hr-tools/compensation-analysis', '/hr-tools/compensation-analysis/hourly', '/hr-tools/compensation-analysis/hourly/individual', '/hr-tools/compensation-analysis/hourly/employees/:employeeId', '/hr-tools/compensation-analysis/salary', '/hr-tools/compensation-analysis/salary/individual', '/hr-tools/compensation-analysis/salary/employees/:employeeId', '/hr-tools/training', '/hr-tools/work-related-injury', '/hr-tools/work-related-injury/cases/:caseId', '/hr-tools/hr-platform', '/hr-tools/hr-platform/new-hire', '/hr-tools/hr-platform/termination', '/hr-tools/hr-platform/employment-change', '/hr-tools/hr-platform/medical-leave'], (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
