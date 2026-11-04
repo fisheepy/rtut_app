@@ -667,6 +667,20 @@ export async function addNewEmployee(newEmployee) {
 
     const cleanValue = value => String(value || '').trim().replace(/\s+/g, ' ').replace(/\s*\/\s*/g, '/');
     const normalizedValue = value => cleanValue(value).toLocaleLowerCase();
+    const payRate = cleanValue(newEmployee.payRate);
+    const payRateType = cleanValue(newEmployee.payRateType);
+    if (!['Hourly Rate', 'Annual Salary'].includes(payRateType)) {
+      throw new Error('Error during operation: Select Hourly Rate or Annual Salary.');
+    }
+    if (!/^\d+(\.\d{1,2})?$/.test(payRate) || Number(payRate) <= 0) {
+      throw new Error('Error during operation: Enter a valid positive Pay Rate with no more than two decimal places.');
+    }
+    if (/hourly/i.test(cleanValue(newEmployee.payCategory)) && payRateType !== 'Hourly Rate') {
+      throw new Error('Error during operation: Hourly Pay Category requires an Hourly Rate.');
+    }
+    if (/salary/i.test(cleanValue(newEmployee.payCategory)) && payRateType !== 'Annual Salary') {
+      throw new Error('Error during operation: Salary Pay Category requires an Annual Salary.');
+    }
     const referenceFields = [
       ['homeDepartment', 'Home Department', 'Home Department'],
       ['jobTitle', 'Job Title', 'Job Title'],
@@ -676,7 +690,9 @@ export async function addNewEmployee(newEmployee) {
       ['payCategory', 'Pay Category', 'Pay Category'],
     ];
     const allEmployees = await collection.find({}).toArray();
-    const referenceEmployees = allEmployees.filter(employee => String(employee['Account Active'] || '').toLocaleLowerCase() === 'active');
+    const referenceEmployees = allEmployees.filter(employee => String(employee['Account Active'] || '').toLocaleLowerCase() === 'active'
+      && !['terminated', 'inactive'].includes(String(employee['Position Status'] || '').toLocaleLowerCase())
+      && !employee['Termination Date']);
     const newInformation = [];
 
     for (const [formField, databaseField, label] of referenceFields) {
@@ -691,17 +707,14 @@ export async function addNewEmployee(newEmployee) {
 
     const supervisorFirstName = cleanValue(newEmployee.supervisorFirstName);
     const supervisorLastName = cleanValue(newEmployee.supervisorLastName);
-    const supervisor = referenceEmployees.flatMap(employee => [
-      [employee['Supervisor First Name'], employee['Supervisor Last Name']],
-      [employee['First Name'], employee['Last Name']],
-    ]).find(([first, last]) => normalizedValue(first) === normalizedValue(supervisorFirstName) && normalizedValue(last) === normalizedValue(supervisorLastName));
+    const supervisorEmployee = referenceEmployees.find(employee => normalizedValue(employee['First Name']) === normalizedValue(supervisorFirstName)
+      && normalizedValue(employee['Last Name']) === normalizedValue(supervisorLastName));
+    const supervisor = supervisorEmployee ? [supervisorEmployee['First Name'], supervisorEmployee['Last Name']] : null;
     if (supervisor) {
       newEmployee.supervisorFirstName = cleanValue(supervisor[0]);
       newEmployee.supervisorLastName = cleanValue(supervisor[1]);
     } else {
-      newEmployee.supervisorFirstName = supervisorFirstName;
-      newEmployee.supervisorLastName = supervisorLastName;
-      newInformation.push(`Supervisor: ${supervisorFirstName} ${supervisorLastName}`);
+      throw new Error('Error during operation: Supervisor must be a current Active or Leave employee.');
     }
 
     newEmployee.firstName = cleanValue(newEmployee.firstName);
@@ -767,6 +780,9 @@ export async function addNewEmployee(newEmployee) {
               "Phone": newEmployee.phone,
               "Worker Category": newEmployee.workCategory,
               "Pay Category": newEmployee.payCategory,
+              "Pay Rate Type": payRateType,
+              "Pay Rate": Number(payRate),
+              "Pay Rate Updated At": new Date(),
               "EEOC Establishment": newEmployee.eeoc,
               "Account Active": "Active",
               "Reactivation Date": new Date(),
@@ -822,6 +838,9 @@ export async function addNewEmployee(newEmployee) {
       "Phone": newEmployee.phone,
       "Worker Category": newEmployee.workCategory,
       "Pay Category": newEmployee.payCategory,
+      "Pay Rate Type": payRateType,
+      "Pay Rate": Number(payRate),
+      "Pay Rate Updated At": new Date(),
       "EEOC Establishment": newEmployee.eeoc,
       "isActivated": 'false',
       "Account Active": "Active",
@@ -834,7 +853,7 @@ export async function addNewEmployee(newEmployee) {
     };
 
     const result = await collection.insertOne(employeeDocument);
-    console.log('New employee added:', employeeDocument);
+    console.log(`New employee added: ${employeeDocument['First Name']} ${employeeDocument['Last Name']}`);
 
     // Update the new employee to Novu subscriber
     await updateEmployeeToNovuSubscriber({

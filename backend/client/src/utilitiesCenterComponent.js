@@ -26,7 +26,7 @@ const emptyEmployee = () => ({
     firstName: '', lastName: '', email: '', phone: '',
     hireDate: new Date().toISOString().split('T')[0],
     homeDepartment: '', jobTitle: '', location: '', supervisorFirstName: '', supervisorLastName: '',
-    eeoc: '', workCategory: '', payCategory: '',
+    eeoc: '', workCategory: '', payCategory: '', payRateType: '', payRate: '',
     isRehire: '', previousHireDate: '', previousTerminationDate: '',
 });
 
@@ -45,7 +45,10 @@ const requiredFields = [
     ['location', 'Location'], ['supervisorFirstName', 'Supervisor First Name'],
     ['supervisorLastName', 'Supervisor Last Name'], ['eeoc', 'EEOC'],
     ['workCategory', 'Employment Category'], ['payCategory', 'Pay Category'],
+    ['payRateType', 'Pay Rate Basis'], ['payRate', 'Pay Rate'],
 ];
+
+const OTHER_OPTION = '__other__';
 
 const canonicalMap = (values) => {
     const result = new Map();
@@ -75,6 +78,7 @@ const UtilitiesCenterComponent = () => {
     const [referenceError, setReferenceError] = useState('');
     const [attemptedSubmit, setAttemptedSubmit] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [addOtherFields, setAddOtherFields] = useState({});
 
     useEffect(() => {
         if (!openAddModal && !openDeleteModal) return;
@@ -92,21 +96,20 @@ const UtilitiesCenterComponent = () => {
         canonicalMap(referenceEmployees.map(employee => employee[field.database])),
     ])), [referenceEmployees]);
 
+    const activeSupervisorOptions = useMemo(() => referenceEmployees.filter(employee => {
+        const status = cleanFilterLabel(employee['Position Status']).toLowerCase();
+        return !employee['Termination Date'] && !['terminated', 'inactive'].includes(status);
+    }).sort((a, b) => `${a['Last Name']} ${a['First Name']}`.localeCompare(`${b['Last Name']} ${b['First Name']}`)), [referenceEmployees]);
+
     const supervisorMap = useMemo(() => {
         const map = new Map();
-        referenceEmployees.forEach(employee => {
-            const pairs = [
-                [employee['Supervisor First Name'], employee['Supervisor Last Name']],
-                [employee['First Name'], employee['Last Name']],
-            ];
-            pairs.forEach(([first, last]) => {
-                const cleanFirst = cleanFilterLabel(first);
-                const cleanLast = cleanFilterLabel(last);
-                if (cleanFirst && cleanLast) map.set(`${normalizeFilterValue(cleanFirst)}|${normalizeFilterValue(cleanLast)}`, [cleanFirst, cleanLast]);
-            });
+        activeSupervisorOptions.forEach(employee => {
+            const cleanFirst = cleanFilterLabel(employee['First Name']);
+            const cleanLast = cleanFilterLabel(employee['Last Name']);
+            if (cleanFirst && cleanLast) map.set(`${normalizeFilterValue(cleanFirst)}|${normalizeFilterValue(cleanLast)}`, [cleanFirst, cleanLast]);
         });
         return map;
-    }, [referenceEmployees]);
+    }, [activeSupervisorOptions]);
 
     const newReferenceValues = useMemo(() => {
         const entries = referenceFields.flatMap(field => {
@@ -115,13 +118,8 @@ const UtilitiesCenterComponent = () => {
                 ? [{ field: field.form, label: field.label, value }]
                 : [];
         });
-        const first = cleanFilterLabel(newEmployee.supervisorFirstName);
-        const last = cleanFilterLabel(newEmployee.supervisorLastName);
-        if (first && last && !supervisorMap.has(`${normalizeFilterValue(first)}|${normalizeFilterValue(last)}`)) {
-            entries.push({ field: 'supervisor', label: 'Supervisor', value: `${first} ${last}` });
-        }
         return entries;
-    }, [newEmployee, referenceMaps, supervisorMap]);
+    }, [newEmployee, referenceMaps]);
     const missingFields = requiredFields.filter(([field]) => !cleanFilterLabel(newEmployee[field]));
     const missingRehireFields = !newEmployee.isRehire
         || (newEmployee.isRehire === 'yes' && (!newEmployee.previousHireDate || !newEmployee.previousTerminationDate));
@@ -155,8 +153,33 @@ const UtilitiesCenterComponent = () => {
         setNewEmployee(previous => ({
             ...previous,
             [field]: nextValue,
+            ...(field === 'payCategory' && /hourly/i.test(String(value)) ? { payRateType: 'Hourly Rate' } : {}),
+            ...(field === 'payCategory' && /salary/i.test(String(value)) ? { payRateType: 'Annual Salary' } : {}),
             ...(field === 'isRehire' && value === 'no' ? { previousHireDate: '', previousTerminationDate: '' } : {}),
         }));
+    };
+
+    const selectReferenceValue = (field, value) => {
+        if (value === OTHER_OPTION) {
+            setAddOtherFields(current => ({ ...current, [field.form]: true }));
+            handleAddEmployeeChange(field.form, '');
+            return;
+        }
+        setAddOtherFields(current => ({ ...current, [field.form]: false }));
+        handleAddEmployeeChange(field.form, value);
+    };
+
+    const renderReferenceField = field => {
+        const options = [...(referenceMaps[field.form]?.values() || [])].sort((a, b) => a.localeCompare(b));
+        const isOther = addOtherFields[field.form] === true;
+        const missing = attemptedSubmit && !cleanFilterLabel(newEmployee[field.form]);
+        return <React.Fragment key={field.form}>
+            <TextField select margin="dense" fullWidth required label={field.label} value={isOther ? OTHER_OPTION : newEmployee[field.form]} onChange={event => selectReferenceValue(field, event.target.value)} error={missing} helperText={missing ? `${field.label} is required.` : 'Select an existing value or choose Other to add a new option.'}>
+                {options.map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+                <MenuItem value={OTHER_OPTION}>Other — Add New Option</MenuItem>
+            </TextField>
+            {isOther ? <TextField autoFocus {...fieldProps(field.form, `New ${field.label}`)} /> : null}
+        </React.Fragment>;
     };
 
     const fieldProps = (field, label, type = 'text') => ({
@@ -201,6 +224,7 @@ const UtilitiesCenterComponent = () => {
             setOpenNewValueConfirmation(false);
             setOpenAddModal(false);
             setNewEmployee(emptyEmployee());
+            setAddOtherFields({});
             setAttemptedSubmit(false);
         } catch (error) {
             const errorMessage = error.response?.data || 'An unexpected error occurred';
@@ -275,14 +299,20 @@ const UtilitiesCenterComponent = () => {
                         {attemptedSubmit && !newEmployee.previousTerminationDate ? <Typography color="error" variant="caption" display="block">Previous Termination Date is required.</Typography> : null}
                         {invalidRehireDates ? <Alert severity="error" sx={{ mt: 1 }}>Previous employment dates must be in order and the Previous Termination Date cannot be after the current Hire Date.</Alert> : null}
                     </> : null}
-                    <TextField {...fieldProps('homeDepartment', 'Home Department')} />
-                    <TextField {...fieldProps('jobTitle', 'Job Title')} />
-                    <TextField {...fieldProps('location', 'Location')} />
-                    <TextField {...fieldProps('supervisorFirstName', 'Supervisor First Name')} error={(attemptedSubmit && !newEmployee.supervisorFirstName) || newFieldNames.has('supervisor')} helperText={newFieldNames.has('supervisor') ? 'New information: this supervisor name is not currently used in the database.' : attemptedSubmit && !newEmployee.supervisorFirstName ? 'Supervisor First Name is required.' : ''} />
-                    <TextField {...fieldProps('supervisorLastName', 'Supervisor Last Name')} error={(attemptedSubmit && !newEmployee.supervisorLastName) || newFieldNames.has('supervisor')} helperText={newFieldNames.has('supervisor') ? 'Confirm this new supervisor before submitting.' : attemptedSubmit && !newEmployee.supervisorLastName ? 'Supervisor Last Name is required.' : ''} />
-                    <TextField {...fieldProps('eeoc', 'EEOC')} />
-                    <TextField {...fieldProps('workCategory', 'Employment Category')} />
-                    <TextField {...fieldProps('payCategory', 'Pay Category')} />
+                    {referenceFields.filter(field => ['homeDepartment', 'jobTitle', 'location'].includes(field.form)).map(renderReferenceField)}
+                    <Autocomplete
+                        options={activeSupervisorOptions}
+                        getOptionLabel={employeeLabel}
+                        value={activeSupervisorOptions.find(employee => employee['First Name'] === newEmployee.supervisorFirstName && employee['Last Name'] === newEmployee.supervisorLastName) || null}
+                        onChange={(_event, employee) => setNewEmployee(previous => ({ ...previous, supervisorFirstName: employee?.['First Name'] || '', supervisorLastName: employee?.['Last Name'] || '' }))}
+                        renderInput={params => <TextField {...params} margin="dense" required label="Supervisor" error={attemptedSubmit && (!newEmployee.supervisorFirstName || !newEmployee.supervisorLastName)} helperText={attemptedSubmit && (!newEmployee.supervisorFirstName || !newEmployee.supervisorLastName) ? 'Select an active or leave-status employee.' : 'Only current Active or Leave employees can be selected.'} />}
+                    />
+                    {referenceFields.filter(field => ['eeoc', 'workCategory', 'payCategory'].includes(field.form)).map(renderReferenceField)}
+                    <TextField select margin="dense" fullWidth required label="Pay Rate Basis" value={newEmployee.payRateType} onChange={event => handleAddEmployeeChange('payRateType', event.target.value)} error={attemptedSubmit && !newEmployee.payRateType} helperText="Hourly employees use an hourly rate; salary employees use annual salary.">
+                        <MenuItem value="Hourly Rate">Hourly Rate</MenuItem>
+                        <MenuItem value="Annual Salary">Annual Salary</MenuItem>
+                    </TextField>
+                    <TextField {...fieldProps('payRate', newEmployee.payRateType === 'Annual Salary' ? 'Annual Salary Amount' : newEmployee.payRateType === 'Hourly Rate' ? 'Hourly Rate' : 'Pay Rate')} type="number" inputProps={{ min: '0.01', step: '0.01' }} helperText={attemptedSubmit && !newEmployee.payRate ? 'Pay Rate is required.' : 'Stored securely for HR, Compensation Analysis, and Executive Intelligence. It will not appear on Company App Console.'} />
                     {newReferenceValues.length ? (
                         <Alert severity="error" sx={{ mt: 2 }}>
                             <Typography fontWeight={700}>New database information detected:</Typography>

@@ -8,7 +8,8 @@ test('maps Company App employee fields into a New Hire row', () => {
     'First Name': 'Myra', 'Last Name': 'Yu', Email: 'myu@example.com', Phone: '555',
     'Hire Date': '2026-08-01', 'Home Department': 'Office/Admin', 'Job Title': 'HR', Location: 'Dearborn',
     'Supervisor First Name': 'Sam', 'Supervisor Last Name': 'Dallis', 'EEOC Establishment': 'Dearborn',
-    'Worker Category': 'Office', 'Pay Category': 'Salary', 'Position Status': 'Active', 'Account Active': 'Active', isActivated: 'false',
+    'Worker Category': 'Office', 'Pay Category': 'Salary', 'Pay Rate Type': 'Annual Salary', 'Pay Rate': 135000,
+    'Position Status': 'Active', 'Account Active': 'Active', isActivated: 'false',
   };
   const result = employeeView(employee, { firstPayrollDate: '2026-08-07', payrollCheckedAt: new Date('2026-08-08'), insuranceCheckedBy: 'admin@example.com', insuranceNotApplicable: true, retirementEffectiveDate: '2026-09-01', payRateChangePending: true, payrollChangeDate: '2026-08-15', payrollChangeReason: 'Promotion' });
   assert.equal(result.name, 'Myra Yu');
@@ -19,6 +20,8 @@ test('maps Company App employee fields into a New Hire row', () => {
   assert.equal(result.payRateChangePending, true);
   assert.equal(result.payrollChangeDate, '2026-08-15');
   assert.equal(result.payrollChangeReason, 'Promotion');
+  assert.equal(result.payRateType, 'Annual Salary');
+  assert.equal(result.payRate, '135000');
   assert.equal(result.insuranceNotApplicable, true);
   assert.equal(result.retirementNotApplicable, false);
   assert.equal(result.retirementEffectiveDate, '2026-09-01');

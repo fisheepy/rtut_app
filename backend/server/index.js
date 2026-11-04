@@ -761,25 +761,75 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
         const payroll = _employmentChange.payroll === true;
         const insurance = _employmentChange.insurance === true;
         const retirement = _employmentChange.retirement === true;
+        const newPayRateType = String(_employmentChange.payRateType || '').trim();
+        const newPayRate = String(_employmentChange.newPayRate || '').trim();
         const trackingOnlyRequest = payroll || insurance || retirement;
         if (!selectedFields.length && !trackingOnlyRequest) return { found: false, error: 'Select at least one employee information change or choose Payroll, Insurance, or 401(k) tracking.' };
+        if (payroll && !['Hourly Rate', 'Annual Salary'].includes(newPayRateType)) {
+            return { found: true, error: 'Payroll Change Needed requires Hourly Rate or Annual Salary.' };
+        }
+        if (payroll && (!/^\d+(\.\d{1,2})?$/.test(newPayRate) || Number(newPayRate) <= 0)) {
+            return { found: true, error: 'Payroll Change Needed requires a valid positive new Pay Rate with no more than two decimal places.' };
+        }
         const existing = await collection.findOne({ _id: new ObjectId(employeeId) });
         if (!existing) return { found: false };
         const employeeUpdate = Object.fromEntries(selectedFields.map(field => [field, submittedEmployee[field] == null ? '' : String(submittedEmployee[field]).trim()]));
+        if (selectedFields.includes('Supervisor First Name') || selectedFields.includes('Supervisor Last Name')) {
+            const supervisorFirstName = employeeUpdate['Supervisor First Name'] ?? String(existing['Supervisor First Name'] || '').trim();
+            const supervisorLastName = employeeUpdate['Supervisor Last Name'] ?? String(existing['Supervisor Last Name'] || '').trim();
+            const supervisor = await collection.findOne({
+                _id: { $ne: new ObjectId(employeeId) },
+                'First Name': { $regex: `^${supervisorFirstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+                'Last Name': { $regex: `^${supervisorLastName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+                'Account Active': /^active$/i,
+                'Position Status': { $not: /^(terminated|inactive)$/i },
+                $or: [{ 'Termination Date': { $exists: false } }, { 'Termination Date': '' }, { 'Termination Date': null }],
+            });
+            if (!supervisor) return { found: true, error: 'Supervisor must be another current Active or Leave employee.' };
+            employeeUpdate['Supervisor First Name'] = String(supervisor['First Name'] || '').trim();
+            employeeUpdate['Supervisor Last Name'] = String(supervisor['Last Name'] || '').trim();
+        }
         if (selectedFields.includes('Position Status') && !/^(active|leave)$/i.test(employeeUpdate['Position Status'])) {
             return { found: true, error: 'Status can only be changed to Active or Leave here. Use Terminate Employee for employee separations.' };
+        }
+        const resultingPayCategory = String(employeeUpdate['Pay Category'] ?? existing['Pay Category'] ?? '').trim();
+        if (payroll && /hourly/i.test(resultingPayCategory) && newPayRateType !== 'Hourly Rate') {
+            return { found: true, error: 'Hourly Pay Category requires the new rate to use Hourly Rate.' };
+        }
+        if (payroll && /salary/i.test(resultingPayCategory) && newPayRateType !== 'Annual Salary') {
+            return { found: true, error: 'Salary Pay Category requires the new rate to use Annual Salary.' };
         }
         const changes = selectedFields
             .filter(field => String(existing[field] || '').trim() !== String(employeeUpdate[field] || '').trim())
             .map(field => ({ field, from: existing[field] || '', to: employeeUpdate[field] || '' }));
+        if (payroll) {
+            const currentRate = Number(existing['Pay Rate']);
+            const currentType = String(existing['Pay Rate Type'] || existing['Pay Category'] || '').trim();
+            const formatRate = (type, rate) => {
+                if (!Number.isFinite(Number(rate)) || Number(rate) <= 0) return 'Not recorded';
+                return `${type || 'Pay Rate'}: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(rate))}`;
+            };
+            if (currentType !== newPayRateType || currentRate !== Number(newPayRate)) {
+                changes.push({ field: 'Pay Rate', from: formatRate(currentType, currentRate), to: formatRate(newPayRateType, newPayRate) });
+            }
+        }
         if (!changes.length && !trackingOnlyRequest) return { found: true, changed: false, error: 'The selected information has not changed.' };
         // Phone is live roster/contact information. It updates Company App and is
         // therefore reflected in Training, but it is not an HR employment-change task.
         const employmentChanges = changes.filter(change => change.field !== 'Phone');
+        const databaseUpdate = {
+            ...employeeUpdate,
+            ...(payroll ? {
+                'Pay Rate Type': newPayRateType,
+                'Pay Rate': Number(newPayRate),
+                'Pay Rate Updated At': new Date(),
+                'Pay Rate Updated By': adminSession?.email || '',
+            } : {}),
+        };
         const result = changes.length
             ? await collection.updateOne(
                 { _id: new ObjectId(employeeId) },
-                { $set: employeeUpdate }
+                { $set: databaseUpdate }
             )
             : { modifiedCount: 0 };
         const statusChange = changes.find(change => change.field === 'Position Status');
@@ -820,6 +870,7 @@ async function updateEmployeeInDatabase(employeeId, updatedEmployee, adminSessio
                 reason: String(_employmentChange.reason || '').trim(),
                 employeeFolderUrl: inheritedEmployeeFolderUrl, followUpIssues: false, followUpNotes: '', followUpUntil: '',
                 changes: employmentChanges,
+                requestedPayRate: payroll ? { type: newPayRateType, amount: Number(newPayRate) } : null,
                 requestedTracking: { payroll, insurance, retirement },
                 tasks: {
                     file: { required: true, checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '' },

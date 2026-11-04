@@ -27,7 +27,7 @@ const addEmployee = async (tempFilePath) => {
         const newEmployeeJSON = fs.readFileSync(tempFilePath, 'utf-8');
         const newEmployee = JSON.parse(newEmployeeJSON);
 
-        const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'hireDate', 'homeDepartment', 'jobTitle', 'location', 'supervisorFirstName', 'supervisorLastName', 'eeoc', 'workCategory', 'payCategory'];
+        const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'hireDate', 'homeDepartment', 'jobTitle', 'location', 'supervisorFirstName', 'supervisorLastName', 'eeoc', 'workCategory', 'payCategory', 'payRateType', 'payRate'];
         const missingFields = requiredFields.filter(field => !String(newEmployee[field] || '').trim());
         if (missingFields.length) throw new Error(`Error during operation: All employee fields are required. Missing: ${missingFields.join(', ')}`);
 
@@ -42,8 +42,6 @@ const addEmployee = async (tempFilePath) => {
         }
 
         Object.assign(newEmployee, validatePreviousEmployment(newEmployee));
-
-        console.log('Formatted new employee data:', newEmployee);
 
         // Add the new employee to the database
         const result = await addNewEmployee(newEmployee);

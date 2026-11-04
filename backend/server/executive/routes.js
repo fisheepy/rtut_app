@@ -161,8 +161,8 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
             db.collection('employee_hr_employment_change').find({ employeeId: id }).sort({ effectiveDate: -1, createdAt: -1 }).toArray(),
           ]);
           const comp = compensationRecord(employeeName(employee));
-          const payRate = clean(onboarding?.payRate) || (comp?.rate != null ? String(comp.rate) : '');
-          const payType = clean(onboarding?.payRateType) || comp?.payType || clean(employee['Pay Category']);
+          const payRate = clean(onboarding?.payRate || employee['Pay Rate']) || (comp?.rate != null ? String(comp.rate) : '');
+          const payType = clean(onboarding?.payRateType || employee['Pay Rate Type']) || comp?.payType || clean(employee['Pay Category']);
           const lastPayrollChange = changes.find(record => record.requestedTracking?.payroll === true || (record.changes || []).some(change => /pay|salary|rate/i.test(clean(change.field))));
           const details = [
             `Job Title: ${clean(employee['Job Title']) || 'Not recorded'}`,
@@ -181,6 +181,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           }
           const sources = ['Company App employee roster'];
           if (onboarding?.payRate) sources.push('HR Platform onboarding record');
+          else if (employee['Pay Rate']) sources.push('Company App restricted compensation record');
           if (comp) sources.push(comp.source);
           if (lastPayrollChange) sources.push('HR Platform employment change history');
           response = { answer: `${employeeName(employee)} — executive employee summary`, details, sources, dataAsOf: new Date(), employeeId: id };

@@ -30,8 +30,16 @@ test('does not export the misleading import date or legacy field', () => {
     _id: 'employee-1',
     'Activation Date': '2024-11-15T04:03:18Z',
     activationDate: '2025-01-02T12:00:00Z',
+    'Pay Rate': 100000,
+    'Pay Rate Type': 'Annual Salary',
+    'Pay Rate Updated At': '2026-11-04T12:00:00Z',
+    'Pay Rate Updated By': 'admin@example.com',
   }, new Date('2025-01-02T12:00:00Z'));
   assert.equal(exported['Activation Date'], undefined);
   assert.equal(exported.activationDate, undefined);
+  assert.equal(exported['Pay Rate'], undefined);
+  assert.equal(exported['Pay Rate Type'], undefined);
+  assert.equal(exported['Pay Rate Updated At'], undefined);
+  assert.equal(exported['Pay Rate Updated By'], undefined);
   assert.equal(exported['App Registration Date'].toISOString(), '2025-01-02T12:00:00.000Z');
 });

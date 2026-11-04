@@ -25,6 +25,7 @@ import {
     Stack,
     Typography,
     FormControlLabel,
+    MenuItem,
 } from '@mui/material';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import SearchIcon from '@mui/icons-material/Search';
@@ -72,6 +73,7 @@ const editableEmployeeFields = [
 ];
 
 const editReferenceFields = [
+    { database: 'Home Department', label: 'Home Department' },
     { database: 'Job Title', label: 'Job Title' },
     { database: 'Location', label: 'Location' },
     { database: 'EEOC Establishment', label: 'EEOC' },
@@ -104,7 +106,7 @@ function EmployeeSelectionComponent() {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
     const [originalEmployee, setOriginalEmployee] = useState(null);
-    const [changeDetails, setChangeDetails] = useState({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false });
+    const [changeDetails, setChangeDetails] = useState({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false, payRateType: '', newPayRate: '' });
     const [editError, setEditError] = useState('');
     const [employeeSearch, setEmployeeSearch] = useState('');
     const [showMoreFilters, setShowMoreFilters] = useState(false);
@@ -113,15 +115,19 @@ function EmployeeSelectionComponent() {
         field.database,
         employeeCanonicalMap(employees.map(employee => employee[field.database])),
     ])), [employees]);
+    const editSupervisorOptions = useMemo(() => employees.filter(employee => {
+        const status = cleanFilterLabel(employee['Position Status']).toLowerCase();
+        return !employee['Termination Date'] && !['terminated', 'inactive'].includes(status) && employee._id !== selectedEmployee?._id;
+    }).sort((a, b) => `${a['Last Name']} ${a['First Name']}`.localeCompare(`${b['Last Name']} ${b['First Name']}`)), [employees, selectedEmployee?._id]);
     const editSupervisorMap = useMemo(() => {
         const map = new Map();
-        employees.forEach(employee => {
-            const first = cleanFilterLabel(employee['Supervisor First Name']);
-            const last = cleanFilterLabel(employee['Supervisor Last Name']);
+        editSupervisorOptions.forEach(employee => {
+            const first = cleanFilterLabel(employee['First Name']);
+            const last = cleanFilterLabel(employee['Last Name']);
             if (first && last) map.set(`${normalizeFilterValue(first)}|${normalizeFilterValue(last)}`, [first, last]);
         });
         return map;
-    }, [employees]);
+    }, [editSupervisorOptions]);
     const newEditReferenceValues = useMemo(() => {
         if (!selectedEmployee) return [];
         const entries = editReferenceFields.flatMap(field => {
@@ -130,11 +136,8 @@ function EmployeeSelectionComponent() {
                 ? [{ field: field.database, label: field.label, value }]
                 : [];
         });
-        const first = cleanFilterLabel(selectedEmployee['Supervisor First Name']);
-        const last = cleanFilterLabel(selectedEmployee['Supervisor Last Name']);
-        if (first && last && !editSupervisorMap.has(`${normalizeFilterValue(first)}|${normalizeFilterValue(last)}`)) entries.push({ field: 'Supervisor', label: 'Supervisor', value: `${first} ${last}` });
         return entries;
-    }, [selectedEmployee, editReferenceMaps, editSupervisorMap]);
+    }, [selectedEmployee, editReferenceMaps]);
     const newEditFieldNames = new Set(newEditReferenceValues.map(entry => entry.field));
 
     useEffect(() => {
@@ -310,7 +313,7 @@ function EmployeeSelectionComponent() {
     const openEmployeeEditor = (employee) => {
         setOriginalEmployee(employee);
         setSelectedEmployee({ ...employee });
-        setChangeDetails({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false });
+        setChangeDetails({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false, payRateType: '', newPayRate: '' });
         setEditError('');
         setIsEditModalOpen(true);
     };
@@ -340,13 +343,17 @@ function EmployeeSelectionComponent() {
         const changedFields = editableEmployeeFields.filter(field => String(originalEmployee?.[field] || '').trim() !== String(canonicalEmployee?.[field] || '').trim());
         const trackingOnlyRequest = changeDetails.payroll || changeDetails.insurance || changeDetails.retirement;
         if (!changedFields.length && !trackingOnlyRequest) return setEditError('Select at least one employee information change or choose Payroll, Insurance, or 401(k) tracking.');
+        if (changeDetails.payroll && !['Hourly Rate', 'Annual Salary'].includes(changeDetails.payRateType)) return setEditError('Select Hourly Rate or Annual Salary for the payroll change.');
+        if (changeDetails.payroll && (!/^\d+(\.\d{1,2})?$/.test(changeDetails.newPayRate) || Number(changeDetails.newPayRate) <= 0)) return setEditError('Enter a valid positive new Pay Rate with no more than two decimal places.');
         const employmentChangedFields = changedFields.filter(field => field !== 'Phone');
         const statusOnlyRouting = employmentChangedFields.length === 1 && employmentChangedFields[0] === 'Position Status'
             && !changeDetails.payroll && !changeDetails.insurance && !changeDetails.retirement;
         const phoneOnlyRouting = changedFields.length > 0 && employmentChangedFields.length === 0 && !trackingOnlyRequest;
-        const review = changedFields.length
+        const employeeReview = changedFields.length
             ? changedFields.map(field => `${field}: ${originalEmployee[field] || '(blank)'} → ${selectedEmployee[field] || '(blank)'}`).join('\n')
             : 'Company App employee information: No changes';
+        const payRateReview = changeDetails.payroll ? `\nNew Pay Rate: ${changeDetails.payRateType} — ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(changeDetails.newPayRate))}` : '';
+        const review = `${employeeReview}${payRateReview}`;
         const newValueWarning = newEditReferenceValues.length ? `\n\nNEW DATABASE INFORMATION:\n${newEditReferenceValues.map(entry => `${entry.label}: ${entry.value}`).join('\n')}\nConfirm that these values are intentionally new and correctly spelled.` : '';
         const routingMessage = !changedFields.length && trackingOnlyRequest
             ? 'No Company App employee information will be changed. The selected Payroll, Insurance, or 401(k) work will be sent to Employment Change on HR Platform for the admin to complete.'
@@ -658,26 +665,13 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                 />
                             </Grid>
-                            <Grid item xs={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Supervisor First Name"
-                                    name="Supervisor First Name"
-                                    value={selectedEmployee['Supervisor First Name']}
-                                    onChange={handleInputChange}
-                                    error={newEditFieldNames.has('Supervisor')}
-                                    helperText={newEditFieldNames.has('Supervisor') ? 'New information: this supervisor is not currently used in the database.' : ''}
-                                />
-                            </Grid>
-                            <Grid item xs={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Supervisor Last Name"
-                                    name="Supervisor Last Name"
-                                    value={selectedEmployee['Supervisor Last Name']}
-                                    onChange={handleInputChange}
-                                    error={newEditFieldNames.has('Supervisor')}
-                                    helperText={newEditFieldNames.has('Supervisor') ? 'Confirm that this new supervisor is intentionally new and correctly spelled.' : ''}
+                            <Grid item xs={12}>
+                                <Autocomplete
+                                    options={editSupervisorOptions}
+                                    getOptionLabel={employee => `${employee['Last Name']}, ${employee['First Name']}${employee['Job Title'] ? ` — ${employee['Job Title']}` : ''}`}
+                                    value={editSupervisorOptions.find(employee => employee['First Name'] === selectedEmployee['Supervisor First Name'] && employee['Last Name'] === selectedEmployee['Supervisor Last Name']) || null}
+                                    onChange={(_event, employee) => setSelectedEmployee(current => ({ ...current, 'Supervisor First Name': employee?.['First Name'] || '', 'Supervisor Last Name': employee?.['Last Name'] || '' }))}
+                                    renderInput={params => <TextField {...params} fullWidth required label="Supervisor" helperText="Only another current Active or Leave employee can be selected." />}
                                 />
                             </Grid>
                             <Grid item xs={12}>
@@ -755,9 +749,13 @@ function EmployeeSelectionComponent() {
                             </Grid>
                             {newEditReferenceValues.length ? <Grid item xs={12}><Alert severity="error"><Typography fontWeight={700}>New database information detected:</Typography>{newEditReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}<Typography sx={{ mt: 1 }}>You may proceed, but the final confirmation will ask you to approve these new values.</Typography></Alert></Grid> : null}
                             <Grid item xs={12}><Typography variant="h6">Other Changes</Typography><Typography variant="body2" color="text.secondary">Select one or more related payroll or benefit changes below, or leave all unchecked when none apply. A change only between Active and Leave is routed to FMLA / ADA / Medical Leave instead of Employment Change.</Typography></Grid>
-                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked }))} />} label="Payroll change needed" /></Grid>
+                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked, payRateType: event.target.checked ? (/salary/i.test(selectedEmployee['Pay Category']) ? 'Annual Salary' : /hourly/i.test(selectedEmployee['Pay Category']) ? 'Hourly Rate' : '') : '', newPayRate: event.target.checked ? current.newPayRate : '' }))} />} label="Payroll change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
+                            {changeDetails.payroll ? <>
+                                <Grid item xs={12} sm={6}><TextField select fullWidth required label="New Pay Rate Basis" value={changeDetails.payRateType} onChange={event => setChangeDetails(current => ({ ...current, payRateType: event.target.value }))} helperText="The current rate is intentionally hidden on Company App Console."><MenuItem value="Hourly Rate">Hourly Rate</MenuItem><MenuItem value="Annual Salary">Annual Salary</MenuItem></TextField></Grid>
+                                <Grid item xs={12} sm={6}><TextField fullWidth required type="number" label={changeDetails.payRateType === 'Annual Salary' ? 'New Annual Salary Amount' : changeDetails.payRateType === 'Hourly Rate' ? 'New Hourly Rate' : 'New Pay Rate'} value={changeDetails.newPayRate} onChange={event => setChangeDetails(current => ({ ...current, newPayRate: event.target.value }))} inputProps={{ min: '0.01', step: '0.01' }} helperText="Enter only the new rate. It will be sent to Employment Change." /></Grid>
+                            </> : null}
                             <Grid item xs={12}><Alert severity="info">Phone-only changes update Company App and Training without creating an Employment Change record. Status-only Active/Leave changes go to FMLA / ADA / Medical Leave. Other employee changes go to Employment Change. Action dates and follow-up details are entered on HR Platform.</Alert></Grid>
                         </Grid>
                     )}

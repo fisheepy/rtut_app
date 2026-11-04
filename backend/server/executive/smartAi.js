@@ -160,9 +160,9 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
       return {
         matchCount: 1, employee: safeEmployee(employee),
         currentPay: {
-          payType: clean(onboarding?.payRateType) || comp?.payType || clean(employee['Pay Category']) || 'Not recorded',
-          rate: clean(onboarding?.payRate) || (comp?.rate != null ? comp.rate : null),
-          source: onboarding?.payRate ? 'HR Platform onboarding record' : comp?.source || 'No structured current-pay source',
+          payType: clean(onboarding?.payRateType || employee['Pay Rate Type']) || comp?.payType || clean(employee['Pay Category']) || 'Not recorded',
+          rate: clean(onboarding?.payRate || employee['Pay Rate']) || (comp?.rate != null ? comp.rate : null),
+          source: onboarding?.payRate ? 'HR Platform onboarding record' : employee['Pay Rate'] ? 'Company App restricted compensation record' : comp?.source || 'No structured current-pay source',
         },
         latestPayrollChange: payrollChange ? {
           effectiveDate: clean(payrollChange.effectiveDate || payrollChange.tasks?.payroll?.actionDate) || 'Not recorded',

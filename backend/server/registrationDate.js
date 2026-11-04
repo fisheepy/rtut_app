@@ -32,6 +32,13 @@ function employeeForExport(employee, registrationDate) {
   const {
     'Activation Date': _legacyImportDate,
     activationDate: _legacyRegistrationDate,
+    // Compensation fields are deliberately omitted from Company App Console
+    // responses. HR, Compensation, and Executive Intelligence read them through
+    // their own restricted server routes.
+    'Pay Rate': _restrictedPayRate,
+    'Pay Rate Type': _restrictedPayRateType,
+    'Pay Rate Updated At': _restrictedPayRateUpdatedAt,
+    'Pay Rate Updated By': _restrictedPayRateUpdatedBy,
     ...exported
   } = employee;
   return {
