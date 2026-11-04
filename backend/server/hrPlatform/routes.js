@@ -254,15 +254,23 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       });
       const employmentChanges = changeRecords.filter(record => inPeriod(record.effectiveDate)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.effectiveDate), location: clean(employeeById.get(clean(record.employeeId))?.Location), department: clean(employeeById.get(clean(record.employeeId))?.['Home Department']), jobTitle: clean(employeeById.get(clean(record.employeeId))?.['Job Title']), status: clean(record.reason), detail: employmentChangeSummary(record) }));
       const leaves = leaveRecords.filter(record => {
-        const startedThisMonth = inPeriod(record.leaveStartedAt || record.createdAt);
-        const ongoingWithoutReturnDate = !reportDate(record.actualReturnDate) && !record.closedAt;
-        return startedThisMonth || ongoingWithoutReturnDate;
+        const startDate = reportDate(record.leaveStartedAt || record.createdAt);
+        const endDate = reportDate(record.actualReturnDate || record.closedAt);
+        return startDate && startDate <= period.to && (!endDate || endDate >= period.from);
       }).map(record => {
         const employee = employeeById.get(clean(record.employeeId)) || record.employeeSnapshot || {};
         const startDate = record.leaveStartedAt || record.createdAt;
-        const ongoingWithoutReturnDate = !reportDate(record.actualReturnDate) && !record.closedAt;
-        const status = ongoingWithoutReturnDate ? (inPeriod(startDate) ? 'Open - Started This Month' : 'Open - Ongoing from Prior Month') : 'Closed / Returned to Work';
-        return { employee: employeeName(employee), date: reportDate(startDate), location: clean(employee.Location), department: clean(employee['Home Department']), jobTitle: clean(employee['Job Title']), status, detail: clean(record.anticipatedReturnDate) ? `Anticipated return: ${clean(record.anticipatedReturnDate)}` : '' };
+        const endDate = reportDate(record.actualReturnDate || record.closedAt);
+        const status = endDate && inPeriod(endDate)
+          ? 'Ended This Month'
+          : inPeriod(startDate)
+            ? 'Open - Started This Month'
+            : 'Open - Ongoing from Prior Month';
+        const details = [];
+        if (clean(record.anticipatedReturnDate)) details.push(`Anticipated return: ${clean(record.anticipatedReturnDate)}`);
+        if (reportDate(record.actualReturnDate)) details.push(`Return to work: ${reportDate(record.actualReturnDate)}`);
+        else if (record.closedAt) details.push(`Case closed: ${reportDate(record.closedAt)}`);
+        return { employee: employeeName(employee), date: reportDate(startDate), location: clean(employee.Location), department: clean(employee['Home Department']), jobTitle: clean(employee['Job Title']), status, detail: details.join(' | ') };
       });
       const injuries = injuryRecords.filter(record => !record.closedAt || inPeriod(record.injuryDateTime)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.injuryDateTime), location: clean(record.location), department: clean(record.department), jobTitle: clean(record.jobTitle), status: record.closedAt ? 'Closed' : inPeriod(record.injuryDateTime) ? 'Open - Started This Month' : 'Open - Ongoing from Prior Month', detail: clean(record.injuryDescription) }));
 
