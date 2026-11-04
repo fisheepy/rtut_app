@@ -261,15 +261,23 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         const employee = employeeById.get(clean(record.employeeId)) || record.employeeSnapshot || {};
         const startDate = record.leaveStartedAt || record.createdAt;
         const endDate = reportDate(record.actualReturnDate || record.closedAt);
-        const status = endDate && inPeriod(endDate)
+        const terminationDate = reportDate(employee['Termination Date']);
+        const dataReview = terminationDate && !endDate
+          ? `Data Review Needed: employee was terminated on ${terminationDate}, but the Medical Leave ending date is missing. Enter an ending date or close the case.`
+          : terminationDate && endDate && terminationDate < endDate
+            ? `Data Review Needed: Termination Date ${terminationDate} is earlier than the Medical Leave ending date ${endDate}. Please verify both dates.`
+            : '';
+        const baseStatus = endDate && inPeriod(endDate)
           ? 'Ended This Month'
           : inPeriod(startDate)
             ? 'Open - Started This Month'
             : 'Open - Ongoing from Prior Month';
+        const status = dataReview ? `Data Review Needed — ${baseStatus}` : baseStatus;
         const details = [];
         if (clean(record.anticipatedReturnDate)) details.push(`Anticipated return: ${clean(record.anticipatedReturnDate)}`);
         if (reportDate(record.actualReturnDate)) details.push(`Return to work: ${reportDate(record.actualReturnDate)}`);
         else if (record.closedAt) details.push(`Case closed: ${reportDate(record.closedAt)}`);
+        if (dataReview) details.push(dataReview);
         return { employee: employeeName(employee), date: reportDate(startDate), location: clean(employee.Location), department: clean(employee['Home Department']), jobTitle: clean(employee['Job Title']), status, detail: details.join(' | ') };
       });
       const injuries = injuryRecords.filter(record => !record.closedAt || inPeriod(record.injuryDateTime)).map(record => ({ employee: clean(record.employeeName), date: reportDate(record.injuryDateTime), location: clean(record.location), department: clean(record.department), jobTitle: clean(record.jobTitle), status: record.closedAt ? 'Closed' : inPeriod(record.injuryDateTime) ? 'Open - Started This Month' : 'Open - Ongoing from Prior Month', detail: clean(record.injuryDescription) }));
@@ -308,6 +316,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         else sheet.addRow({ employee: `No ${name.toLowerCase()} records for ${period.month}.` });
         styleMonthlyHeader(sheet.getRow(1), color);
         sheet.autoFilter = { from: 'A1', to: 'G1' };
+        sheet.getColumn('status').alignment = { wrapText: true, vertical: 'top' };
         sheet.getColumn('detail').alignment = { wrapText: true, vertical: 'top' };
       };
       addDetailSheet('New Hires', newHires, 'Hire Date', 'FF047857');
