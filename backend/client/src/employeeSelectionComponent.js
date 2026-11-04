@@ -76,10 +76,12 @@ const editReferenceFields = [
     { database: 'Home Department', label: 'Home Department' },
     { database: 'Job Title', label: 'Job Title' },
     { database: 'Location', label: 'Location' },
-    { database: 'EEOC Establishment', label: 'EEOC' },
+    { database: 'EEOC Establishment', label: 'EEOC Category' },
     { database: 'Worker Category', label: 'Employment Category' },
-    { database: 'Pay Category', label: 'Pay Category' },
+    { database: 'Pay Category', label: 'Pay Type' },
 ];
+
+const EDIT_OTHER_OPTION = '__other__';
 
 const employeeCanonicalMap = (values) => {
     const map = new Map();
@@ -108,6 +110,7 @@ function EmployeeSelectionComponent() {
     const [originalEmployee, setOriginalEmployee] = useState(null);
     const [changeDetails, setChangeDetails] = useState({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false, payRateType: '', newPayRate: '' });
     const [editError, setEditError] = useState('');
+    const [editOtherFields, setEditOtherFields] = useState({});
     const [employeeSearch, setEmployeeSearch] = useState('');
     const [showMoreFilters, setShowMoreFilters] = useState(false);
 
@@ -138,7 +141,6 @@ function EmployeeSelectionComponent() {
         });
         return entries;
     }, [selectedEmployee, editReferenceMaps]);
-    const newEditFieldNames = new Set(newEditReferenceValues.map(entry => entry.field));
 
     useEffect(() => {
         applyFilters();
@@ -315,6 +317,7 @@ function EmployeeSelectionComponent() {
         setSelectedEmployee({ ...employee });
         setChangeDetails({ effectiveDate: '', reason: '', payroll: false, insurance: false, retirement: false, trackOther: false, payRateType: '', newPayRate: '' });
         setEditError('');
+        setEditOtherFields({});
         setIsEditModalOpen(true);
     };
 
@@ -322,6 +325,7 @@ function EmployeeSelectionComponent() {
         setIsEditModalOpen(false);
         setSelectedEmployee(null);
         setOriginalEmployee(null);
+        setEditOtherFields({});
     };
 
     const handleInputChange = (e) => {
@@ -332,8 +336,48 @@ function EmployeeSelectionComponent() {
         }));
     };
 
+    const renderEditReferenceField = field => {
+        const options = [...(editReferenceMaps[field.database]?.values() || [])]
+            .sort((a, b) => a.localeCompare(b));
+        const isOther = Boolean(editOtherFields[field.database]);
+        return (
+            <Grid item xs={12} sm={6} key={field.database}>
+                <TextField
+                    fullWidth
+                    select
+                    required
+                    label={field.label}
+                    value={isOther ? EDIT_OTHER_OPTION : (selectedEmployee?.[field.database] || '')}
+                    onChange={event => {
+                        const useOther = event.target.value === EDIT_OTHER_OPTION;
+                        setEditOtherFields(current => ({ ...current, [field.database]: useOther }));
+                        setSelectedEmployee(current => ({ ...current, [field.database]: useOther ? '' : event.target.value }));
+                    }}
+                    helperText={isOther ? `Enter the new ${field.label} below.` : 'Select an existing option, or choose Other to add a new option.'}
+                >
+                    {options.map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+                    <MenuItem value={EDIT_OTHER_OPTION}>Other — Add New Option</MenuItem>
+                </TextField>
+                {isOther ? <TextField
+                    fullWidth
+                    required
+                    sx={{ mt: 1 }}
+                    label={`New ${field.label}`}
+                    name={field.database}
+                    value={selectedEmployee?.[field.database] || ''}
+                    onChange={handleInputChange}
+                    error={!cleanFilterLabel(selectedEmployee?.[field.database])}
+                    helperText={`This creates a new ${field.label} option after confirmation.`}
+                /> : null}
+            </Grid>
+        );
+    };
+
     const handleSaveChanges = async () => {
         const canonicalEmployee = { ...selectedEmployee };
+        const missingReferenceField = editReferenceFields.find(field => !cleanFilterLabel(canonicalEmployee[field.database]));
+        if (missingReferenceField) return setEditError(`Select or enter ${missingReferenceField.label}.`);
+        if (!cleanFilterLabel(canonicalEmployee['Supervisor First Name']) || !cleanFilterLabel(canonicalEmployee['Supervisor Last Name'])) return setEditError('Select a Supervisor.');
         editReferenceFields.forEach(field => {
             const value = cleanFilterLabel(canonicalEmployee[field.database]);
             canonicalEmployee[field.database] = editReferenceMaps[field.database]?.get(normalizeFilterValue(value)) || value;
@@ -656,16 +700,8 @@ function EmployeeSelectionComponent() {
                                     <option value="Leave">Leave</option>
                                 </TextField>
                             </Grid>
-                            <Grid item xs={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Home Department"
-                                    name="Home Department"
-                                    value={selectedEmployee['Home Department']}
-                                    onChange={handleInputChange}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
+                            {editReferenceFields.filter(field => field.database === 'Home Department').map(renderEditReferenceField)}
+                            <Grid item xs={12} sm={6}>
                                 <Autocomplete
                                     options={editSupervisorOptions}
                                     getOptionLabel={employee => `${employee['Last Name']}, ${employee['First Name']}${employee['Job Title'] ? ` — ${employee['Job Title']}` : ''}`}
@@ -674,28 +710,7 @@ function EmployeeSelectionComponent() {
                                     renderInput={params => <TextField {...params} fullWidth required label="Supervisor" helperText="Only another current Active or Leave employee can be selected." />}
                                 />
                             </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="Job Title"
-                                    name="Job Title"
-                                    value={selectedEmployee['Job Title']}
-                                    onChange={handleInputChange}
-                                    error={newEditFieldNames.has('Job Title')}
-                                    helperText={newEditFieldNames.has('Job Title') ? 'New information: this Job Title is not currently used in the database.' : ''}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="Location"
-                                    name="Location"
-                                    value={selectedEmployee['Location']}
-                                    onChange={handleInputChange}
-                                    error={newEditFieldNames.has('Location')}
-                                    helperText={newEditFieldNames.has('Location') ? 'New information: this Location is not currently used in the database.' : ''}
-                                />
-                            </Grid>
+                            {editReferenceFields.filter(field => ['Job Title', 'Location'].includes(field.database)).map(renderEditReferenceField)}
                             <Grid item xs={12}>
                                 <TextField
                                     fullWidth
@@ -714,39 +729,7 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                 />
                             </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="EEOC Establishment"
-                                    name="EEOC Establishment"
-                                    value={selectedEmployee['EEOC Establishment']}
-                                    onChange={handleInputChange}
-                                    error={newEditFieldNames.has('EEOC Establishment')}
-                                    helperText={newEditFieldNames.has('EEOC Establishment') ? 'New information: this EEOC value is not currently used in the database.' : ''}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="Employment Category"
-                                    name="Worker Category"
-                                    value={selectedEmployee['Worker Category']}
-                                    onChange={handleInputChange}
-                                    error={newEditFieldNames.has('Worker Category')}
-                                    helperText={newEditFieldNames.has('Worker Category') ? 'New information: this Employment Category is not currently used in the database.' : ''}
-                                />
-                            </Grid>
-                            <Grid item xs={12}>
-                                <TextField
-                                    fullWidth
-                                    label="Pay Category"
-                                    name="Pay Category"
-                                    value={selectedEmployee['Pay Category']}
-                                    onChange={handleInputChange}
-                                    error={newEditFieldNames.has('Pay Category')}
-                                    helperText={newEditFieldNames.has('Pay Category') ? 'New information: this Pay Category is not currently used in the database.' : ''}
-                                />
-                            </Grid>
+                            {editReferenceFields.filter(field => ['EEOC Establishment', 'Worker Category', 'Pay Category'].includes(field.database)).map(renderEditReferenceField)}
                             {newEditReferenceValues.length ? <Grid item xs={12}><Alert severity="error"><Typography fontWeight={700}>New database information detected:</Typography>{newEditReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}<Typography sx={{ mt: 1 }}>You may proceed, but the final confirmation will ask you to approve these new values.</Typography></Alert></Grid> : null}
                             <Grid item xs={12}><Typography variant="h6">Other Changes</Typography><Typography variant="body2" color="text.secondary">Select one or more related payroll or benefit changes below, or leave all unchecked when none apply. A change only between Active and Leave is routed to FMLA / ADA / Medical Leave instead of Employment Change.</Typography></Grid>
                             <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked, payRateType: event.target.checked ? (/salary/i.test(selectedEmployee['Pay Category']) ? 'Annual Salary' : /hourly/i.test(selectedEmployee['Pay Category']) ? 'Hourly Rate' : '') : '', newPayRate: event.target.checked ? current.newPayRate : '' }))} />} label="Payroll change needed" /></Grid>
