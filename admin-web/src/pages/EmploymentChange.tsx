@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Download,
@@ -151,6 +151,8 @@ const comparableDate = (value = "") => {
 };
 
 export default function EmploymentChange() {
+  const payrollTopScroll = useRef<HTMLDivElement | null>(null);
+  const payrollTableScroll = useRef<HTMLDivElement | null>(null);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -799,7 +801,31 @@ export default function EmploymentChange() {
           count={payrollRows.length}
           tone="amber"
         />
-        <div className="overflow-auto">
+        <div className="border-b border-amber-100 bg-amber-50/70 px-3 pt-2">
+          <p className="pb-1 text-xs font-bold text-amber-900">
+            Scroll horizontally to view all payroll and follow-up columns
+          </p>
+          <div
+            className="overflow-x-auto"
+            onScroll={(event) => {
+              if (payrollTableScroll.current) {
+                payrollTableScroll.current.scrollLeft = event.currentTarget.scrollLeft;
+              }
+            }}
+            ref={payrollTopScroll}
+          >
+            <div className="h-2 min-w-[2140px]" />
+          </div>
+        </div>
+        <div
+          className="overflow-auto"
+          onScroll={(event) => {
+            if (payrollTopScroll.current) {
+              payrollTopScroll.current.scrollLeft = event.currentTarget.scrollLeft;
+            }
+          }}
+          ref={payrollTableScroll}
+        >
           <table className="min-w-[2140px] text-sm">
             <Head
               labels={[
