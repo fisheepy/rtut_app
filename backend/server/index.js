@@ -1232,6 +1232,93 @@ app.post('/call-function-send-onboarding', requireAdminSession, async (req, res)
     });
 });
 
+app.post('/call-function-reset-login-credentials', requireAdminSession, async (req, res) => {
+    const employeeId = String(req.body?.employeeId || '').trim();
+    let resetClient;
+    let employee;
+    try {
+        if (!ObjectId.isValid(employeeId)) {
+            return res.status(400).json({ message: 'Select a valid employee.' });
+        }
+
+        resetClient = new MongoClient(uri);
+        await resetClient.connect();
+        const collection = resetClient.db(database_name).collection('employees');
+        employee = await collection.findOne({ _id: new ObjectId(employeeId) });
+
+        if (!employee) {
+            return res.status(404).json({ message: 'Employee account not found.' });
+        }
+        if (!employee.username) {
+            return res.status(400).json({ message: 'This employee does not have a Company App username.' });
+        }
+        const phoneDigits = String(employee.Phone || '').replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+        if (phoneDigits.length !== 10) {
+            return res.status(400).json({ message: 'This employee does not have a valid 10-digit phone number on file.' });
+        }
+
+        const resetScript = path.join(__dirname, 'forgetPassword.mjs');
+        await new Promise((resolve, reject) => {
+            execFile(
+                process.execPath,
+                [resetScript, employee.username, uri, database_name],
+                { windowsHide: true },
+                (error, stdout, stderr) => {
+                    if (stdout) console.log(stdout.trim());
+                    if (stderr) console.error(stderr.trim());
+                    if (error) return reject(error);
+                    resolve();
+                },
+            );
+        });
+
+        const resetAt = new Date();
+        await collection.updateOne(
+            { _id: employee._id },
+            { $set: {
+                loginCredentialsResetAt: resetAt,
+                loginCredentialsResetBy: req.adminSession.email,
+            } },
+        );
+        await logOperationToDatabase({
+            action: 'reset_login_credentials',
+            adminUser: req.adminSession,
+            selectedEmployees: [{
+                _id: employee._id,
+                'First Name': employee['First Name'],
+                'Last Name': employee['Last Name'],
+                username: employee.username,
+            }],
+            payloadSummary: { delivery: 'sms', phoneLast4: phoneDigits.slice(-4) },
+            status: 'success',
+        });
+
+        return res.status(200).json({
+            message: `A new temporary password was sent to ${employee['First Name']} ${employee['Last Name']} by SMS.`,
+        });
+    } catch (error) {
+        console.error('Admin credential reset failed:', error.message);
+        await logOperationToDatabase({
+            action: 'reset_login_credentials',
+            adminUser: req.adminSession,
+            selectedEmployees: employee ? [{
+                _id: employee._id,
+                'First Name': employee['First Name'],
+                'Last Name': employee['Last Name'],
+                username: employee.username,
+            }] : [],
+            payloadSummary: { delivery: 'sms' },
+            status: 'failed',
+            errorMessage: error.message,
+        }).catch(() => {});
+        return res.status(500).json({
+            message: 'The temporary password could not be sent. The employee’s existing password was preserved.',
+        });
+    } finally {
+        if (resetClient) await resetClient.close().catch(() => {});
+    }
+});
+
 const getOperatorDisplayName = (adminUser) => {
     if (!adminUser) return 'unknown';
     if (typeof adminUser === 'string') return adminUser;

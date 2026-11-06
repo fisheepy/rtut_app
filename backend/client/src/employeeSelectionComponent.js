@@ -32,6 +32,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import TuneIcon from '@mui/icons-material/Tune';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined';
 import { canonicalizeEmployeeFilters, cleanFilterLabel, normalizeFilterValue } from './employeeFilterUtils';
 
 const parseEmployeeDate = (value) => {
@@ -113,6 +114,8 @@ function EmployeeSelectionComponent() {
     const [editOtherFields, setEditOtherFields] = useState({});
     const [employeeSearch, setEmployeeSearch] = useState('');
     const [showMoreFilters, setShowMoreFilters] = useState(false);
+    const [resettingEmployeeId, setResettingEmployeeId] = useState('');
+    const [credentialResetMessage, setCredentialResetMessage] = useState(null);
 
     const editReferenceMaps = useMemo(() => Object.fromEntries(editReferenceFields.map(field => [
         field.database,
@@ -424,9 +427,24 @@ function EmployeeSelectionComponent() {
         }
     };
 
+    const resetLoginCredentials = async (employee) => {
+        const employeeName = [employee['First Name'], employee['Last Name']].filter(Boolean).join(' ');
+        if (!window.confirm(`Reset Company App login credentials for ${employeeName}?\n\nA new temporary password will be sent by SMS to the phone number on file. The password will not be displayed to the administrator.`)) return;
+        setResettingEmployeeId(employee._id);
+        setCredentialResetMessage(null);
+        try {
+            const response = await axios.post('/call-function-reset-login-credentials', { employeeId: employee._id });
+            setCredentialResetMessage({ severity: 'success', text: response.data?.message || 'Temporary password sent successfully.' });
+        } catch (error) {
+            setCredentialResetMessage({ severity: 'error', text: error.response?.data?.message || 'The temporary password could not be sent.' });
+        } finally {
+            setResettingEmployeeId('');
+        }
+    };
+
     const columns = [
         { id: 'Name', label: 'Name', filter: true, sticky: true },
-        { id: 'edit', label: 'Edit Employee', filter: false },
+        { id: 'edit', label: 'Employee Actions', filter: false },
         { id: 'Hire Date', label: 'Hire Date', filter: false },
         { id: 'Position Status', label: 'Status', filter: true },
         { id: 'Home Department', label: 'Home Department', filter: true },
@@ -515,6 +533,7 @@ function EmployeeSelectionComponent() {
                     <Chip label={`${selectedVisibleCount} selected`} color="primary" size="small" />
                 </Stack>
             </Box>
+            {credentialResetMessage ? <Alert severity={credentialResetMessage.severity} sx={{ mb: 2 }} onClose={() => setCredentialResetMessage(null)}>{credentialResetMessage.text}</Alert> : null}
             <Paper
                 elevation={0}
                 sx={{
@@ -626,7 +645,19 @@ function EmployeeSelectionComponent() {
                             >
                                 {columns.map((column) => (
                                     <TableCell key={column.id} className={column.sticky ? 'employee-name-cell' : ''}>
-                                        {column.id === 'edit' ? <Button startIcon={<EditOutlinedIcon />} onClick={() => openEmployeeEditor(employee)} size="small" variant="outlined">Edit</Button> : column.id === 'select' ? (
+                                        {column.id === 'edit' ? <Stack direction="row" spacing={1}>
+                                            <Button startIcon={<EditOutlinedIcon />} onClick={() => openEmployeeEditor(employee)} size="small" variant="outlined">Edit</Button>
+                                            <Button
+                                                color="warning"
+                                                disabled={resettingEmployeeId === employee._id}
+                                                startIcon={<LockResetOutlinedIcon />}
+                                                onClick={() => resetLoginCredentials(employee)}
+                                                size="small"
+                                                variant="outlined"
+                                            >
+                                                {resettingEmployeeId === employee._id ? 'Sending…' : 'Reset Login'}
+                                            </Button>
+                                        </Stack> : column.id === 'select' ? (
                                             <Checkbox
                                                 checked={isEmployeeSelected(employee)}
                                                 onChange={() => handleCheckboxChange(employee)}
