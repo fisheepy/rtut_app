@@ -1904,7 +1904,10 @@ app.post('/api/forget-password', async (req, res) => {
     const phone = String(req.body?.phone || '');
     let resetClient;
     try {
-        const digits = phone.replace(/\D/g, '');
+        let digits = phone.replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('1')) {
+            digits = digits.slice(1);
+        }
         if (digits.length !== 10) {
             return res.status(400).json({
                 message: 'Please enter a valid 10-digit phone number.',
