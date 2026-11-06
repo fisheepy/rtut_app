@@ -1901,16 +1901,19 @@ app.post('/api/reset-password',
 
 // API endpoint to handle forget-password requests
 app.post('/api/forget-password', async (req, res) => {
-    const { phone } = req.body;
+    const phone = String(req.body?.phone || '');
+    let resetClient;
     try {
         const digits = phone.replace(/\D/g, '');
         if (digits.length !== 10) {
-            throw new Error('Invalid phone number format. Must contain 10 digits.');
+            return res.status(400).json({
+                message: 'Please enter a valid 10-digit phone number.',
+            });
         }
-        const Phone = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-        console.log(`Formatted phone: ${Phone}`);
-        await client.connect();
-        const db = client.db(database_name);
+
+        resetClient = new MongoClient(uri);
+        await resetClient.connect();
+        const db = resetClient.db(database_name);
         const collection = db.collection('employees');
 
         // Construct regex pattern
@@ -1923,31 +1926,40 @@ app.post('/api/forget-password', async (req, res) => {
         console.log(user);
 
         if (!user) {
-            console.error('User not found');
-            res.status(404).json({ message: 'User not found' });
-            return;
-        }
-        else {
-            const userId = user.username;
-            console.log(userId);
-
-            // Execute the MJS script with necessary parameters
-            exec(`node ./backend/server/forgetPassword.mjs "${userId}" "${uri}" "${database_name}"`, (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`Error executing script: ${error.message}`);
-                    res.status(500).send(`Internal Server Error: ${error.message}`);
-                    return;
-                }
-
-                console.log(stdout);
-                res.status(200).json({ message: 'Password reset successful' });
+            return res.status(404).json({
+                message: 'No employee account was found for that phone number. Please contact HR.',
             });
         }
+
+        const userId = user.username;
+        const resetScript = path.join(__dirname, 'forgetPassword.mjs');
+
+        await new Promise((resolve, reject) => {
+            execFile(
+                process.execPath,
+                [resetScript, userId, uri, database_name],
+                { windowsHide: true },
+                (error, stdout, stderr) => {
+                    if (stdout) console.log(stdout.trim());
+                    if (stderr) console.error(stderr.trim());
+                    if (error) return reject(error);
+                    resolve();
+                },
+            );
+        });
+
+        return res.status(200).json({
+            message: 'A new temporary password has been sent to the phone number on file.',
+        });
     } catch (error) {
         console.error('Error handling forget password:', error.message);
-        res.status(500).send('Internal Server Error');
+        return res.status(500).json({
+            message: 'The password could not be reset or delivered. Please contact HR or try again later.',
+        });
     } finally {
-        await client.close();
+        if (resetClient) {
+            await resetClient.close().catch(() => {});
+        }
     }
 });
 

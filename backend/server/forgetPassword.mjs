@@ -60,6 +60,8 @@ const main = async () => {
         // Generate a new password and update the user
         const newPassword = generateRandomCode();
 
+        const oldPassword = user.password;
+
         await collection.updateOne(
             { username: userId },
             {
@@ -68,12 +70,19 @@ const main = async () => {
             },
         );
         // Send notification
-        const response = await sendNotification(user, newPassword);
-        if (response.success) {
+        try {
+            const response = await sendNotification(user, newPassword);
+            if (!response.success) {
+                throw new Error(response.error || 'Notification provider rejected the message');
+            }
             console.log('Notification sent successfully:', response.messageId, response.transactionId);
-        } else {
-            console.error('Failed to send notification:', response.error);
-            process.exit(1);
+        } catch (notificationError) {
+            // Do not leave the employee locked out with a password they never received.
+            await collection.updateOne(
+                { username: userId },
+                { $set: { password: oldPassword } },
+            );
+            throw notificationError;
         }
     } catch (error) {
         console.error('Error:', error.message);
