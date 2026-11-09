@@ -85,12 +85,13 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
-      const [employees, leaves, injuries, changes, newHireRecords] = await Promise.all([
+      const [employees, leaves, injuries, changes, newHireRecords, terminationRecords] = await Promise.all([
         db.collection('employees').find({}).toArray(),
         db.collection('employee_hr_leave').find({ active: true }).toArray(),
         db.collection('work_injury_cases').find({ closedAt: { $in: [null, ''] } }).toArray(),
         db.collection('employee_hr_employment_change').find({}).toArray(),
         db.collection('employee_hr_platform').find({}).toArray(),
+        db.collection('employee_hr_termination').find({}).toArray(),
       ]);
       const activeEmployees = employees.filter(employee => !isTerminated(employee));
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
@@ -112,6 +113,24 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           };
         })
         .sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name));
+      const terminationByEmployeeId = new Map(terminationRecords.map(record => [clean(record.employeeId), record]));
+      const currentMonthTerminations = employees
+        .filter(employee => dateOnly(employee['Termination Date']).slice(0, 7) === currentMonth)
+        .map(employee => {
+          const record = terminationByEmployeeId.get(String(employee._id)) || {};
+          const tracker = record.fileTracker || {};
+          return {
+            id: String(employee._id),
+            name: employeeName(employee) || 'Name Not Recorded',
+            terminationDate: dateOnly(employee['Termination Date']),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+            department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+            location: clean(employee.Location) || 'Not Recorded',
+            terminationType: clean(employee['Termination Type'] || record.terminationType) || 'Not Recorded',
+            terminationStatus: tracker.finalLockedAt || tracker.confirmedAt ? 'Completed' : tracker.submittedAt ? 'Final Review Needed' : 'In Progress',
+          };
+        })
+        .sort((a, b) => a.terminationDate.localeCompare(b.terminationDate) || a.name.localeCompare(b.name));
       const locations = Object.entries(activeEmployees.reduce((result, employee) => {
         const location = clean(employee.Location) || 'Not Recorded';
         result[location] = (result[location] || 0) + 1;
@@ -134,6 +153,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           .sort((a, b) => a.name.localeCompare(b.name)),
         currentMonth,
         currentMonthNewHires,
+        currentMonthTerminations,
         openLeaveCases: leaves.length,
         openInjuryCases: injuries.length,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
