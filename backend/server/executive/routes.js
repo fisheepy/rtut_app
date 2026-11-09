@@ -428,7 +428,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows, events: ytdTurnoverEvents },
           excluded: {
             leave: 'Leave-status employees remain in the employee denominator and are not counted as turnover.',
-            retiredOrDeceased: 'Retired and deceased employees are excluded from turnover events.',
+            retiredOrDeceased: 'Retired and deceased employees are excluded from turnover.',
             preEmployment: 'Employees terminated before their Hire Date are excluded.',
           },
           excludedEmployees: {
