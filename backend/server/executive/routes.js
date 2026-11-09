@@ -41,6 +41,19 @@ function employmentChangeIncomplete(record = {}) {
     || taskIncomplete(record.tasks?.followUp || record.tasks?.other, true);
 }
 
+function employmentChangeDetails(record = {}) {
+  const details = (Array.isArray(record.changes) ? record.changes : []).map(change => {
+    const field = clean(change?.field) || 'Employee Information';
+    const from = clean(change?.from);
+    const to = clean(change?.to);
+    return from && to ? `${field}: ${from} → ${to}` : to ? `${field}: ${to}` : field;
+  });
+  if (record.requestedTracking?.payroll === true) details.push('Payroll Change Requested');
+  if (record.requestedTracking?.insurance === true) details.push('Insurance Change Requested');
+  if (record.requestedTracking?.retirement === true) details.push('401(k) Change Requested');
+  return [...new Set(details)].join(' | ') || 'Change details not recorded';
+}
+
 function compensationRecord(name) {
   const key = normalize(name);
   const salary = SALARY_EMPLOYEES.find(employee => normalize(employee.name) === key);
@@ -99,6 +112,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         db.collection('employee_hr_termination').find({}).toArray(),
       ]);
       const activeEmployees = employees.filter(employee => !isTerminated(employee));
+      const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
       const currentMonth = easternMonthKey();
       const currentMonthNewHires = employees
@@ -132,6 +146,23 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           };
         })
         .sort((a, b) => a.terminationDate.localeCompare(b.terminationDate) || a.name.localeCompare(b.name));
+      const currentMonthEmploymentChanges = changes
+        .filter(record => dateOnly(record.effectiveDate).slice(0, 7) === currentMonth)
+        .map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || {};
+          return {
+            id: String(record._id),
+            employeeId: clean(record.employeeId),
+            name: clean(record.employeeName) || employeeName(employee) || 'Name Not Recorded',
+            effectiveDate: dateOnly(record.effectiveDate),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+            department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+            location: clean(employee.Location) || 'Not Recorded',
+            changes: employmentChangeDetails(record),
+            reason: clean(record.reason) || 'Not Recorded',
+          };
+        })
+        .sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate) || a.name.localeCompare(b.name));
       const locations = Object.entries(activeEmployees.reduce((result, employee) => {
         const location = clean(employee.Location) || 'Not Recorded';
         result[location] = (result[location] || 0) + 1;
@@ -155,6 +186,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         currentMonth,
         currentMonthNewHires,
         currentMonthTerminations,
+        currentMonthEmploymentChanges,
         openLeaveCases: leaves.length,
         openInjuryCases: injuries.length,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
