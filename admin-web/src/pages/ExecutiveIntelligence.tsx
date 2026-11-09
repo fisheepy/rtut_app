@@ -226,7 +226,7 @@ export default function ExecutiveIntelligence() {
       if (!card || !clickedText.includes('employees')) return
       const cardText = card.textContent || ''
       period = cardText.includes('Year to Date') ? 'ytd' : cardText.includes('Q3 2026') ? 'q3' : ''
-      const metricText = target.parentElement?.textContent || clickedText
+      const metricText = target.closest('div.rounded-xl')?.textContent || ''
       if (metricText.includes('Involuntary')) type = 'Involuntary'
       else if (metricText.includes('Voluntary')) type = 'Voluntary'
     }
