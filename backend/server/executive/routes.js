@@ -204,6 +204,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const ytdTurnoverByLocation = new Map(TURNOVER_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
       for (const employee of currentTurnoverEmployees) {
         const location = canonicalTurnoverLocation(employee.Location);
+        if (location === 'Not Recorded') continue;
         const row = ytdTurnoverByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
         row.denominator += 1;
         ytdTurnoverByLocation.set(location, row);
@@ -214,12 +215,13 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         const terminationDate = dateOnly(employee['Termination Date']);
         if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > easternDateKey() || (hireDate && terminationDate < hireDate)) continue;
         if (/^(retired|deceased|dead)$/i.test(clean(employee['Position Status']))) continue;
+        const location = canonicalTurnoverLocation(employee.Location);
+        if (location === 'Not Recorded') continue;
         const terminationType = clean(employee['Termination Type'] || terminationByEmployeeId.get(String(employee._id))?.terminationType);
         if (!['Voluntary', 'Involuntary'].includes(terminationType)) {
           unclassifiedTurnovers.push(employeeName(employee) || 'Name Not Recorded');
           continue;
         }
-        const location = canonicalTurnoverLocation(employee.Location);
         const row = ytdTurnoverByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
         row.denominator += 1;
         row[terminationType.toLowerCase()] += 1;
