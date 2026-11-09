@@ -65,6 +65,47 @@ const TURNOVER_Q3_2026_EVENTS = [
   ['Steven Chapman II', 'Voluntary', 'Warren'], ['Vincent Lisowski', 'Voluntary', 'Warren'],
   ['Brian Trombley', 'Voluntary', 'Corporate'],
 ].map(([name, type, location]) => ({ name, type, location, terminationDate: '', period: 'Q3 2026 baseline' }));
+const PARTS_SERVICE_Q3_2026 = [
+  { location: 'Cleveland', denominator: 5, voluntary: 0, involuntary: 0 },
+  { location: 'Dearborn', denominator: 63, voluntary: 5, involuntary: 4 },
+  { location: 'Gaylord', denominator: 8, voluntary: 2, involuntary: 0 },
+  { location: 'Grand Rapids', denominator: 34, voluntary: 4, involuntary: 1 },
+  { location: 'Hudsonville', denominator: 31, voluntary: 2, involuntary: 1 },
+  { location: 'Warren', denominator: 24, voluntary: 2, involuntary: 1 },
+  { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1 },
+];
+const PARTS_SERVICE_Q3_2026_EVENTS = [
+  ['Zachary Ghadieh', 'Involuntary', 'Dearborn', 'Trailer Mechanic / Technician'],
+  ['Sean Matatall', 'Involuntary', 'Dearborn', 'Trailer Mechanic / Technician'],
+  ['Harold Tackett', 'Involuntary', 'Dearborn', 'Trailer Mechanic / Technician'],
+  ['Gary Melletat', 'Involuntary', 'Dearborn', 'Service Writer'],
+  ['Sean Cullen', 'Involuntary', 'Grand Rapids', 'Truck Upfit Specialist'],
+  ['Tristen Kuprienko', 'Involuntary', 'Hudsonville', 'Apprentice Service Technician'],
+  ['Cordell Wyatt', 'Involuntary', 'Wixom', 'Apprentice Service Technician'],
+  ['David Schoenherr', 'Involuntary', 'Warren', 'General Manager'],
+  ['Nathan Alda', 'Voluntary', 'Dearborn', 'Warehouse Associate'],
+  ['Joshua Rapley', 'Voluntary', 'Dearborn', 'Inside Parts Sales'],
+  ['Wala Baha', 'Voluntary', 'Dearborn', 'Trailer Mechanic / Technician'],
+  ['Jeffrey Ouellette', 'Voluntary', 'Dearborn', 'Trailer Mechanic / Technician'],
+  ['Taylor Flamard', 'Voluntary', 'Dearborn', 'Trailer Mechanic / Technician'],
+  ['Michael Dewater', 'Voluntary', 'Gaylord', 'Warehouse Associate / Parts Driver'],
+  ['Amanda Weber', 'Voluntary', 'Gaylord', 'Service Writer'],
+  ['Timothy Leys Jr', 'Voluntary', 'Grand Rapids', 'Truck Upfit Specialist'],
+  ['Tyler Revard', 'Voluntary', 'Grand Rapids', 'Project Specialist'],
+  ['Robert Bright', 'Voluntary', 'Grand Rapids', 'Truck Upfit Specialist'],
+  ['Nathan Woods', 'Voluntary', 'Grand Rapids', 'Truck Upfit Specialist'],
+  ['James Ray McFarland', 'Voluntary', 'Hudsonville', 'Trailer Mechanic / Technician'],
+  ['Matthew Hough', 'Voluntary', 'Hudsonville', 'Trailer Mechanic / Technician'],
+  ['Steven Chapman II', 'Voluntary', 'Warren', 'Apprentice Service Technician'],
+  ['Vincent Lisowski', 'Voluntary', 'Warren', 'Apprentice Service Technician'],
+].map(([name, type, location, jobTitle]) => ({ name, type, location, jobTitle, terminationDate: '', period: 'Q3 2026 baseline' }));
+const PARTS_SERVICE_FACILITIES = new Set(['Cleveland', 'Dearborn', 'Gaylord', 'Grand Rapids', 'Hudsonville', 'Warren', 'Wixom']);
+const isPartsServiceFacilityEmployee = employee => {
+  const location = canonicalTurnoverLocation(employee.Location || employee.location);
+  if (!PARTS_SERVICE_FACILITIES.has(location)) return false;
+  const jobTitle = normalize(employee['Job Title'] || employee.jobTitle);
+  return !['outside parts sales', 'outside parts sales manager', 'equipment sales', 'equipment design consultant', 'trailer sales', 'trailer sales manager', 'trailer & equipment sales', 'vp of trailers'].includes(jobTitle);
+};
 const canonicalTurnoverLocation = value => {
   const key = normalize(value);
   if (['corporate', 'northville'].includes(key)) return 'Corporate';
@@ -229,15 +270,22 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         return !dateOnly(employee['Termination Date']) && ['active', 'leave'].includes(status);
       });
       const ytdTurnoverByLocation = new Map(TURNOVER_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
+      const partsServiceYtdByLocation = new Map(PARTS_SERVICE_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
       for (const employee of currentTurnoverEmployees) {
         const location = canonicalTurnoverLocation(employee.Location);
         if (location === 'Not Recorded') continue;
         const row = ytdTurnoverByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
         row.denominator += 1;
         ytdTurnoverByLocation.set(location, row);
+        if (isPartsServiceFacilityEmployee(employee)) {
+          const partsRow = partsServiceYtdByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
+          partsRow.denominator += 1;
+          partsServiceYtdByLocation.set(location, partsRow);
+        }
       }
       const unclassifiedTurnovers = [];
       const ytdTurnoverEvents = TURNOVER_Q3_2026_EVENTS.map(event => ({ ...event }));
+      const partsServiceYtdEvents = PARTS_SERVICE_Q3_2026_EVENTS.map(event => ({ ...event }));
       const turnoverYear = Number(easternDateKey().slice(0, 4));
       const excludedTurnoverEmployees = {
         deceased: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.deceased : []),
@@ -276,10 +324,20 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         row.denominator += 1;
         row[terminationType.toLowerCase()] += 1;
         ytdTurnoverByLocation.set(location, row);
-        ytdTurnoverEvents.push({ name: employeeName(employee) || 'Name Not Recorded', type: terminationType, location, terminationDate, period: 'After Q3 2026' });
+        const event = { name: employeeName(employee) || 'Name Not Recorded', type: terminationType, location, jobTitle: clean(employee['Job Title']) || 'Not Recorded', terminationDate, period: 'After Q3 2026' };
+        ytdTurnoverEvents.push(event);
+        if (isPartsServiceFacilityEmployee(employee)) {
+          const partsRow = partsServiceYtdByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
+          partsRow.denominator += 1;
+          partsRow[terminationType.toLowerCase()] += 1;
+          partsServiceYtdByLocation.set(location, partsRow);
+          partsServiceYtdEvents.push(event);
+        }
       }
       const q3TurnoverRows = turnoverRowsWithRates(TURNOVER_Q3_2026);
       const ytdTurnoverRows = turnoverRowsWithRates([...ytdTurnoverByLocation.values()].sort((a, b) => a.location.localeCompare(b.location)));
+      const partsServiceQ3Rows = turnoverRowsWithRates(PARTS_SERVICE_Q3_2026);
+      const partsServiceYtdRows = turnoverRowsWithRates([...partsServiceYtdByLocation.values()].sort((a, b) => a.location.localeCompare(b.location)));
       const currentMonthEmploymentChanges = changes
         .filter(record => dateOnly(record.effectiveDate).slice(0, 7) === currentMonth)
         .map(record => {
@@ -426,6 +484,10 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows, events: TURNOVER_Q3_2026_EVENTS },
           q4: { status: easternDateKey() >= '2026-12-31' ? 'Ready for Review' : 'Pending Quarter End', label: 'Q4 2026' },
           ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows, events: ytdTurnoverEvents },
+          partsService: {
+            q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(partsServiceQ3Rows), locations: partsServiceQ3Rows, events: PARTS_SERVICE_Q3_2026_EVENTS },
+            ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(partsServiceYtdRows), locations: partsServiceYtdRows, events: partsServiceYtdEvents },
+          },
           excluded: {
             leave: 'Leave-status employees remain in the employee denominator and are not counted as turnover.',
             retiredOrDeceased: 'Retired and deceased employees are excluded from turnover.',
