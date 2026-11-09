@@ -22,6 +22,11 @@ const easternMonthKey = () => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
   return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}`;
 };
+const isPreEmploymentCancellation = employee => {
+  const hireDate = dateOnly(employee?.['Hire Date']);
+  const terminationDate = dateOnly(employee?.['Termination Date']);
+  return Boolean(hireDate && terminationDate && terminationDate < hireDate);
+};
 
 function taskIncomplete(task = {}, finalRequired = false) {
   if (task.required !== true && task.applicable !== true) return false;
@@ -97,7 +102,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
       const currentMonth = easternMonthKey();
       const currentMonthNewHires = employees
-        .filter(employee => dateOnly(employee['Hire Date']).slice(0, 7) === currentMonth)
+        .filter(employee => !isPreEmploymentCancellation(employee) && dateOnly(employee['Hire Date']).slice(0, 7) === currentMonth)
         .map(employee => {
           const record = newHireByEmployeeId.get(String(employee._id)) || {};
           const tracker = record.fileTracker || {};
@@ -114,7 +119,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         })
         .sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name));
       const currentMonthTerminations = employees
-        .filter(employee => dateOnly(employee['Termination Date']).slice(0, 7) === currentMonth)
+        .filter(employee => !isPreEmploymentCancellation(employee) && dateOnly(employee['Termination Date']).slice(0, 7) === currentMonth)
         .map(employee => {
           return {
             id: String(employee._id),
