@@ -46,3 +46,24 @@ textarea {
   border-color: #f97316;
   box-shadow: 0 0 0 3px rgb(255 237 213);
 }
+
+.executive-dashboard > section:nth-of-type(4) table thead th:nth-child(n + 2):nth-child(-n + 5) {
+  background: #3730a3;
+}
+
+.executive-dashboard > section:nth-of-type(4) table thead th:nth-child(n + 6) {
+  background: #0f766e;
+}
+
+.executive-dashboard > section:nth-of-type(4) table th:nth-child(6),
+.executive-dashboard > section:nth-of-type(4) table td:nth-child(6) {
+  border-left: 4px solid #5eead4;
+}
+
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(n + 2):nth-child(-n + 5) {
+  background: rgb(238 242 255 / 45%);
+}
+
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(n + 6) {
+  background: rgb(240 253 250 / 72%);
+}

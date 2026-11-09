@@ -45,6 +45,10 @@ const TURNOVER_Q3_2026_INCLUDED_NAMES = new Set([
   'timothy leys jr', 'tyler revard', 'robert bright', 'nathan woods', 'james ray mcfarland', 'matthew hough',
   'steven chapman ii', 'vincent lisowski', 'brian trombley',
 ].map(normalize));
+const TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES = {
+  deceased: ['Dale Day'],
+  retired: ['Daniel Savat', 'Kenneth Allen', 'Leslie Carder', 'Mark Duimstra'],
+};
 const canonicalTurnoverLocation = value => {
   const key = normalize(value);
   if (['corporate', 'northville'].includes(key)) return 'Corporate';
@@ -217,15 +221,27 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         ytdTurnoverByLocation.set(location, row);
       }
       const unclassifiedTurnovers = [];
+      const excludedTurnoverEmployees = {
+        deceased: new Set(TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.deceased),
+        retired: new Set(TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.retired),
+      };
       for (const employee of employees) {
         const hireDate = dateOnly(employee['Hire Date']);
         const terminationDate = dateOnly(employee['Termination Date']);
         if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > easternDateKey() || (hireDate && terminationDate < hireDate)) continue;
         if (TURNOVER_Q3_2026_INCLUDED_NAMES.has(normalize(employeeName(employee)))) continue;
-        if (/^(retired|deceased|dead)$/i.test(clean(employee['Position Status']))) continue;
+        const terminationType = clean(employee['Termination Type'] || terminationByEmployeeId.get(String(employee._id))?.terminationType);
+        const exclusionType = normalize(terminationType || employee['Position Status']);
+        if (['deceased', 'dead'].includes(exclusionType)) {
+          excludedTurnoverEmployees.deceased.add(employeeName(employee) || 'Name Not Recorded');
+          continue;
+        }
+        if (exclusionType === 'retired') {
+          excludedTurnoverEmployees.retired.add(employeeName(employee) || 'Name Not Recorded');
+          continue;
+        }
         const location = canonicalTurnoverLocation(employee.Location);
         if (location === 'Not Recorded') continue;
-        const terminationType = clean(employee['Termination Type'] || terminationByEmployeeId.get(String(employee._id))?.terminationType);
         if (!['Voluntary', 'Involuntary'].includes(terminationType)) {
           unclassifiedTurnovers.push(employeeName(employee) || 'Name Not Recorded');
           continue;
@@ -386,6 +402,10 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
             leave: 'Leave-status employees remain in the employee denominator and are not counted as turnover.',
             retiredOrDeceased: 'Retired and deceased employees are excluded from turnover events.',
             preEmployment: 'Employees terminated before their Hire Date are excluded.',
+          },
+          excludedEmployees: {
+            deceased: [...excludedTurnoverEmployees.deceased].sort((a, b) => a.localeCompare(b)),
+            retired: [...excludedTurnoverEmployees.retired].sort((a, b) => a.localeCompare(b)),
           },
           unclassifiedTurnovers,
         },

@@ -376,9 +376,11 @@ const UtilitiesCenterComponent = () => {
                         renderInput={params => <TextField {...params} autoFocus required margin="dense" label="Employee to Terminate" error={deleteAttempted && !selectedTerminationEmployee} helperText={deleteAttempted && !selectedTerminationEmployee ? 'Select an employee.' : ''} />}
                     />
                     <TextField required margin="dense" name="terminationDate" label="Termination Date" type="date" fullWidth value={deleteEmployee.terminationDate} onChange={handleDeleteEmployeeChange} InputLabelProps={{ shrink: true }} error={deleteAttempted && !deleteEmployee.terminationDate} helperText={deleteAttempted && !deleteEmployee.terminationDate ? 'Termination Date is required.' : 'Use the employee’s actual last date of employment.'} />
-                    <TextField select required margin="dense" name="terminationType" label="Termination Type" fullWidth value={deleteEmployee.terminationType} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !deleteEmployee.terminationType} helperText={deleteAttempted && !deleteEmployee.terminationType ? 'Select Voluntary or Involuntary.' : 'This selection will be shown as the termination reason in HR reports.'}>
+                    <TextField select required margin="dense" name="terminationType" label="Termination Type" fullWidth value={deleteEmployee.terminationType} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !deleteEmployee.terminationType} helperText={deleteAttempted && !deleteEmployee.terminationType ? 'Select a termination type.' : 'Deceased and Retired employees move to the Termination Platform but are excluded from turnover.'}>
                         <MenuItem value="Voluntary">Voluntary</MenuItem>
                         <MenuItem value="Involuntary">Involuntary</MenuItem>
+                        <MenuItem value="Deceased">Deceased</MenuItem>
+                        <MenuItem value="Retired">Retired</MenuItem>
                     </TextField>
                     {selectedTerminationEmployee && directReports.length === 0 ? <Alert severity="info" sx={{ mt: 2 }}>This employee has no active direct reports in Company App.</Alert> : null}
                     {directReports.length > 0 ? <Box sx={{ mt: 2 }}>

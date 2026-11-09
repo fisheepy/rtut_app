@@ -1736,8 +1736,8 @@ app.post('/call-function-delete-employee', requireAdminSession, async (req, res)
     const newManagerFirstName = String(req.body.newManagerFirstName || '').trim();
     const newManagerLastName = String(req.body.newManagerLastName || '').trim();
 
-    if (!firstName || !lastName || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate) || Number.isNaN(Date.parse(`${terminationDate}T00:00:00Z`)) || !['Voluntary', 'Involuntary'].includes(terminationType)) {
-        return res.status(400).send('Employee, a valid Termination Date, and a Voluntary or Involuntary Termination Type are required.');
+    if (!firstName || !lastName || !/^\d{4}-\d{2}-\d{2}$/.test(terminationDate) || Number.isNaN(Date.parse(`${terminationDate}T00:00:00Z`)) || !['Voluntary', 'Involuntary', 'Deceased', 'Retired'].includes(terminationType)) {
+        return res.status(400).send('Employee, a valid Termination Date, and a valid Termination Type are required.');
     }
 
     // Archive the employee using the administrator-entered effective date.

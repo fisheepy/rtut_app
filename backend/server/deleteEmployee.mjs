@@ -38,6 +38,7 @@ const dateOnly = (value) => {
     if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
     return String(value).slice(0, 10);
 };
+const TERMINATION_TYPES = ['Voluntary', 'Involuntary', 'Deceased', 'Retired'];
 
 const deleteEmployee = async (firstName, lastName, terminationDate, terminationType, newManagerFirstName = '', newManagerLastName = '') => {
     const client = new MongoClient(MONGODB_URI);
@@ -46,8 +47,8 @@ const deleteEmployee = async (firstName, lastName, terminationDate, terminationT
         const normalizedFirstName = normalizeNameInput(firstName);
         const normalizedLastName = normalizeNameInput(lastName);
 
-        if (!normalizedFirstName || !normalizedLastName || !validDate(terminationDate) || !['Voluntary', 'Involuntary'].includes(terminationType)) {
-            throw new Error('Error during operation: Employee, a valid Termination Date, and a Voluntary or Involuntary Termination Type are required.');
+        if (!normalizedFirstName || !normalizedLastName || !validDate(terminationDate) || !TERMINATION_TYPES.includes(terminationType)) {
+            throw new Error('Error during operation: Employee, a valid Termination Date, and a valid Termination Type are required.');
         }
 
         await client.connect();
@@ -118,7 +119,7 @@ const deleteEmployee = async (firstName, lastName, terminationDate, terminationT
                     { $set: {
                         'Termination Date': terminationDate,
                         'Termination Type': terminationType,
-                        'Position Status': 'Terminated',
+                        'Position Status': ['Deceased', 'Retired'].includes(terminationType) ? terminationType : 'Terminated',
                         'Account Active': 'Inactive',
                         'HR Platform Termination At': new Date(),
                         'Termination Replacement Manager First Name': replacementManager?.['First Name'] || '',
@@ -149,7 +150,7 @@ const deleteEmployee = async (firstName, lastName, terminationDate, terminationT
 };
 
 if (process.argv.length < 6) {
-    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName> <terminationDate> <terminationType> [newManagerFirstName] [newManagerLastName]');
+    console.error('Usage: node deleteEmployee.mjs <firstName> <lastName> <terminationDate> <terminationType: Voluntary|Involuntary|Deceased|Retired> [newManagerFirstName] [newManagerLastName]');
     process.exit(1);
 }
 
