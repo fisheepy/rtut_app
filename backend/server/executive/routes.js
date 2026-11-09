@@ -112,7 +112,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const [employees, leaves, injuries, changes, newHireRecords, terminationRecords] = await Promise.all([
         db.collection('employees').find({}).toArray(),
         db.collection('employee_hr_leave').find({}).toArray(),
-        db.collection('work_injury_cases').find({ closedAt: { $in: [null, ''] } }).toArray(),
+        db.collection('work_injury_cases').find({}).toArray(),
         db.collection('employee_hr_employment_change').find({}).toArray(),
         db.collection('employee_hr_platform').find({}).toArray(),
         db.collection('employee_hr_termination').find({}).toArray(),
@@ -193,6 +193,25 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           };
         })
         .sort((a, b) => (a.caseStatus === b.caseStatus ? a.leaveStartDate.localeCompare(b.leaveStartDate) : a.caseStatus === 'Open' ? -1 : 1) || a.name.localeCompare(b.name));
+      const injuryDataLive = easternDateKey() >= '2027-01-01';
+      const currentInjuryCases = injuryDataLive ? injuries
+        .filter(record => {
+          const injuryDate = dateOnly(record.injuryDateTime);
+          const closedDate = dateOnly(record.closedAt);
+          return !closedDate || injuryDate.slice(0, 7) === currentMonth || closedDate.slice(0, 7) === currentMonth;
+        })
+        .map(record => ({
+          id: String(record._id),
+          name: clean(record.employeeName) || 'Name Not Recorded',
+          injuryDate: dateOnly(record.injuryDateTime),
+          jobTitle: clean(record.jobTitle) || 'Not Recorded',
+          department: clean(record.department) || 'Not Recorded',
+          location: clean(record.location) || 'Not Recorded',
+          workStatus: clean(record.workStatus === 'Other' ? record.otherWorkStatus : record.workStatus) || 'Pending Medical Evaluation',
+          oshaRecordable: clean(record.oshaRecordable) || 'No',
+          caseStatus: record.closedAt ? 'Closed' : 'Open',
+        }))
+        .sort((a, b) => (a.caseStatus === b.caseStatus ? a.injuryDate.localeCompare(b.injuryDate) : a.caseStatus === 'Open' ? -1 : 1) || a.name.localeCompare(b.name)) : [];
       const locations = Object.entries(activeEmployees.reduce((result, employee) => {
         const location = clean(employee.Location) || 'Not Recorded';
         result[location] = (result[location] || 0) + 1;
@@ -218,8 +237,11 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         currentMonthTerminations,
         currentMonthEmploymentChanges,
         currentLeaveCases,
+        injuryDataLive,
+        injuryLaunchDate: '2027-01-01',
+        currentInjuryCases,
         openLeaveCases: leaves.filter(record => record.active === true).length,
-        openInjuryCases: injuries.length,
+        openInjuryCases: injuryDataLive ? injuries.filter(record => !record.closedAt).length : 0,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
         smartAiEnabled: Boolean(clean(process.env.OPENAI_API_KEY)),
       });
