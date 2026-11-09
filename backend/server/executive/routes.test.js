@@ -93,3 +93,16 @@ test('keeps location filters exact instead of merging Dearborn Warehouse into De
   assert.equal(result.count, 1);
   assert.equal(result.employees[0].name, 'A One');
 });
+
+test('returns a complete historical monthly new-hire count', async () => {
+  const employees = [
+    { _id: 1, 'First Name': 'October', 'Last Name': 'Hire', 'Hire Date': '2026-10-10', 'Position Status': 'Active' },
+    { _id: 2, 'First Name': 'Later', 'Last Name': 'Terminated', 'Hire Date': '2026-10-15', 'Termination Date': '2026-11-01', 'Position Status': 'Terminated' },
+    { _id: 3, 'First Name': 'Cancelled', 'Last Name': 'Before Start', 'Hire Date': '2026-10-20', 'Termination Date': '2026-10-19', 'Position Status': 'Terminated' },
+    { _id: 4, 'First Name': 'Yang', 'Last Name': 'Yang', 'Hire Date': '2026-10-01', 'Position Status': 'Active' },
+  ];
+  const resolve = createToolResolver({ db: {}, employees, compensationRecord: () => null, employmentChangeIncomplete: () => false });
+  const result = await resolve('get_monthly_workforce_activity', { month: '2026-10', category: 'new_hires' });
+  assert.equal(result.newHires.count, 2);
+  assert.deepEqual(result.newHires.employees.map(employee => employee.name), ['October Hire', 'Later Terminated']);
+});

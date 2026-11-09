@@ -3,6 +3,21 @@ const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' '
 const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
 const isTerminated = employee => /^(terminated|inactive)$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']));
 const { findEmployeeMatches } = require('./employeeMatcher');
+const dateOnly = value => {
+  if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const text = clean(value);
+  const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+};
+const isExcludedTestEmployee = employee => normalize(employeeName(employee)) === 'yang yang';
+const isPreEmploymentCancellation = employee => {
+  const hireDate = dateOnly(employee['Hire Date']);
+  const terminationDate = dateOnly(employee['Termination Date']);
+  return Boolean(hireDate && terminationDate && terminationDate < hireDate);
+};
 
 const nullableString = { type: ['string', 'null'] };
 
@@ -42,6 +57,20 @@ const EXECUTIVE_TOOLS = [
       type: 'object', additionalProperties: false,
       properties: { groupBy: { type: 'string', enum: ['location', 'department', 'status', 'payType'] } },
       required: ['groupBy'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_monthly_workforce_activity',
+    description: 'Get verified historical workforce activity for a specific calendar month using Hire Date, Termination Date, and Employment Change Effective Date. Use this for monthly new-hire, termination, or employment-change questions.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        month: { type: 'string', pattern: '^\\d{4}-(0[1-9]|1[0-2])$' },
+        category: { type: 'string', enum: ['new_hires', 'terminations', 'employment_changes', 'all'] },
+      },
+      required: ['month', 'category'],
     },
   },
   {
@@ -132,6 +161,29 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
         result[value] = (result[value] || 0) + 1; return result;
       }, {});
       return { total: activeEmployees.length, groupBy: args.groupBy, groups: Object.entries(groups).sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count })) };
+    }
+    if (name === 'get_monthly_workforce_activity') {
+      const month = clean(args.month);
+      const validEmployees = employees.filter(employee => !isExcludedTestEmployee(employee) && !isPreEmploymentCancellation(employee));
+      const result = { month };
+      if (['new_hires', 'all'].includes(args.category)) {
+        const newHires = validEmployees.filter(employee => dateOnly(employee['Hire Date']).slice(0, 7) === month);
+        result.newHires = { count: newHires.length, employees: newHires.map(employee => ({ ...safeEmployee(employee), hireDate: dateOnly(employee['Hire Date']) })).sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name)) };
+      }
+      if (['terminations', 'all'].includes(args.category)) {
+        const terminations = validEmployees.filter(employee => dateOnly(employee['Termination Date']).slice(0, 7) === month);
+        result.terminations = { count: terminations.length, employees: terminations.map(employee => ({ ...safeEmployee(employee), terminationDate: dateOnly(employee['Termination Date']), terminationType: clean(employee['Termination Type']) || 'Not recorded' })).sort((a, b) => a.terminationDate.localeCompare(b.terminationDate) || a.name.localeCompare(b.name)) };
+      }
+      if (['employment_changes', 'all'].includes(args.category)) {
+        const changes = await db.collection('employee_hr_employment_change').find({}).toArray();
+        const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
+        const monthlyChanges = changes.filter(record => dateOnly(record.effectiveDate).slice(0, 7) === month).map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || {};
+          return { employeeName: clean(record.employeeName) || employeeName(employee) || 'Name not recorded', effectiveDate: dateOnly(record.effectiveDate), reason: clean(record.reason) || 'Not recorded' };
+        });
+        result.employmentChanges = { count: monthlyChanges.length, records: monthlyChanges.sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate) || a.employeeName.localeCompare(b.employeeName)) };
+      }
+      return result;
     }
     if (name === 'get_open_case_summary') {
       const result = {};
