@@ -26,6 +26,46 @@ const easternDateKey = () => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}-${parts.find(part => part.type === 'day')?.value}`;
 };
+const TURNOVER_Q3_2026 = [
+  { location: 'Northville', denominator: 36, voluntary: 1, involuntary: 0 },
+  { location: 'Dearborn', denominator: 66, voluntary: 5, involuntary: 4 },
+  { location: 'Grand Rapids', denominator: 50, voluntary: 4, involuntary: 4 },
+  { location: 'Gaylord', denominator: 9, voluntary: 2, involuntary: 0 },
+  { location: 'Hudsonville', denominator: 31, voluntary: 2, involuntary: 1 },
+  { location: 'Cleveland', denominator: 7, voluntary: 0, involuntary: 0 },
+  { location: 'Warren', denominator: 25, voluntary: 2, involuntary: 1 },
+  { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1 },
+];
+const canonicalTurnoverLocation = value => {
+  const key = normalize(value);
+  if (['corporate', 'east michigan', 'northville'].includes(key)) return 'Northville';
+  if (['dearborn', 'dearborn warehouse'].includes(key)) return 'Dearborn';
+  if (['grand rapids', 'west michigan'].includes(key)) return 'Grand Rapids';
+  if (['ohio cleveland', 'cleveland'].includes(key)) return 'Cleveland';
+  return clean(value) || 'Not Recorded';
+};
+const turnoverRate = (count, denominator) => denominator ? Math.round(count / denominator * 1000) / 10 : 0;
+const turnoverSummary = rows => {
+  const denominator = rows.reduce((sum, row) => sum + row.denominator, 0);
+  const voluntary = rows.reduce((sum, row) => sum + row.voluntary, 0);
+  const involuntary = rows.reduce((sum, row) => sum + row.involuntary, 0);
+  return {
+    denominator,
+    voluntary,
+    involuntary,
+    total: voluntary + involuntary,
+    totalRate: turnoverRate(voluntary + involuntary, denominator),
+    voluntaryRate: turnoverRate(voluntary, denominator),
+    involuntaryRate: turnoverRate(involuntary, denominator),
+  };
+};
+const turnoverRowsWithRates = rows => rows.map(row => ({
+  ...row,
+  total: row.voluntary + row.involuntary,
+  totalRate: turnoverRate(row.voluntary + row.involuntary, row.denominator),
+  voluntaryRate: turnoverRate(row.voluntary, row.denominator),
+  involuntaryRate: turnoverRate(row.involuntary, row.denominator),
+}));
 const isPreEmploymentCancellation = employee => {
   const hireDate = dateOnly(employee?.['Hire Date']);
   const terminationDate = dateOnly(employee?.['Termination Date']);
@@ -155,6 +195,37 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           };
         })
         .sort((a, b) => a.terminationDate.localeCompare(b.terminationDate) || a.name.localeCompare(b.name));
+      const terminationByEmployeeId = new Map(terminationRecords.map(record => [clean(record.employeeId), record]));
+      const currentTurnoverEmployees = employees.filter(employee => {
+        const status = normalize(employee['Position Status']);
+        return !dateOnly(employee['Termination Date']) && ['active', 'leave'].includes(status);
+      });
+      const ytdTurnoverByLocation = new Map(TURNOVER_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
+      for (const employee of currentTurnoverEmployees) {
+        const location = canonicalTurnoverLocation(employee.Location);
+        const row = ytdTurnoverByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
+        row.denominator += 1;
+        ytdTurnoverByLocation.set(location, row);
+      }
+      const unclassifiedTurnovers = [];
+      for (const employee of employees) {
+        const hireDate = dateOnly(employee['Hire Date']);
+        const terminationDate = dateOnly(employee['Termination Date']);
+        if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > easternDateKey() || (hireDate && terminationDate < hireDate)) continue;
+        if (/^(retired|deceased|dead)$/i.test(clean(employee['Position Status']))) continue;
+        const terminationType = clean(employee['Termination Type'] || terminationByEmployeeId.get(String(employee._id))?.terminationType);
+        if (!['Voluntary', 'Involuntary'].includes(terminationType)) {
+          unclassifiedTurnovers.push(employeeName(employee) || 'Name Not Recorded');
+          continue;
+        }
+        const location = canonicalTurnoverLocation(employee.Location);
+        const row = ytdTurnoverByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
+        row.denominator += 1;
+        row[terminationType.toLowerCase()] += 1;
+        ytdTurnoverByLocation.set(location, row);
+      }
+      const q3TurnoverRows = turnoverRowsWithRates(TURNOVER_Q3_2026);
+      const ytdTurnoverRows = turnoverRowsWithRates([...ytdTurnoverByLocation.values()].sort((a, b) => a.location.localeCompare(b.location)));
       const currentMonthEmploymentChanges = changes
         .filter(record => dateOnly(record.effectiveDate).slice(0, 7) === currentMonth)
         .map(record => {
@@ -293,6 +364,19 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           completed: trainingCompleted,
           completionRate: trainingAssigned ? Math.round(trainingCompleted / trainingAssigned * 100) : null,
           locations: trainingLocationRows,
+        },
+        turnover: {
+          q1: { status: 'Not Loaded', label: 'Q1 2026' },
+          q2: { status: 'Not Loaded', label: 'Q2 2026' },
+          q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows },
+          q4: { status: easternDateKey() >= '2026-12-31' ? 'Ready for Review' : 'Pending Quarter End', label: 'Q4 2026' },
+          ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows },
+          excluded: {
+            leave: 'Leave-status employees remain in the employee denominator and are not counted as turnover.',
+            retiredOrDeceased: 'Retired and deceased employees are excluded from turnover events.',
+            preEmployment: 'Employees terminated before their Hire Date are excluded.',
+          },
+          unclassifiedTurnovers,
         },
         openLeaveCases: leaves.filter(record => record.active === true).length,
         openInjuryCases: injuryDataLive ? injuries.filter(record => !record.closedAt).length : 0,
