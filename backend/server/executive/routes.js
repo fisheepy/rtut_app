@@ -113,12 +113,9 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           };
         })
         .sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name));
-      const terminationByEmployeeId = new Map(terminationRecords.map(record => [clean(record.employeeId), record]));
       const currentMonthTerminations = employees
         .filter(employee => dateOnly(employee['Termination Date']).slice(0, 7) === currentMonth)
         .map(employee => {
-          const record = terminationByEmployeeId.get(String(employee._id)) || {};
-          const tracker = record.fileTracker || {};
           return {
             id: String(employee._id),
             name: employeeName(employee) || 'Name Not Recorded',
@@ -126,8 +123,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
             jobTitle: clean(employee['Job Title']) || 'Not Recorded',
             department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
             location: clean(employee.Location) || 'Not Recorded',
-            terminationType: clean(employee['Termination Type'] || record.terminationType) || 'Not Recorded',
-            terminationStatus: tracker.finalLockedAt || tracker.confirmedAt ? 'Completed' : tracker.submittedAt ? 'Final Review Needed' : 'In Progress',
+            terminationType: clean(employee['Termination Type'] || terminationRecords.find(record => clean(record.employeeId) === String(employee._id))?.terminationType) || 'Not Recorded',
           };
         })
         .sort((a, b) => a.terminationDate.localeCompare(b.terminationDate) || a.name.localeCompare(b.name));
