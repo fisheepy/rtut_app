@@ -9,6 +9,19 @@ const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' '
 const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
 const isTerminated = employee => /^(terminated|inactive)$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']));
 const money = value => Number.isFinite(Number(value)) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(value)) : '';
+const dateOnly = value => {
+  if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const text = clean(value);
+  const iso = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+};
+const easternMonthKey = () => {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
+  return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}`;
+};
 
 function taskIncomplete(task = {}, finalRequired = false) {
   if (task.required !== true && task.applicable !== true) return false;
@@ -72,13 +85,33 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
-      const [employees, leaves, injuries, changes] = await Promise.all([
+      const [employees, leaves, injuries, changes, newHireRecords] = await Promise.all([
         db.collection('employees').find({}).toArray(),
         db.collection('employee_hr_leave').find({ active: true }).toArray(),
         db.collection('work_injury_cases').find({ closedAt: { $in: [null, ''] } }).toArray(),
         db.collection('employee_hr_employment_change').find({}).toArray(),
+        db.collection('employee_hr_platform').find({}).toArray(),
       ]);
       const activeEmployees = employees.filter(employee => !isTerminated(employee));
+      const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
+      const currentMonth = easternMonthKey();
+      const currentMonthNewHires = employees
+        .filter(employee => dateOnly(employee['Hire Date']).slice(0, 7) === currentMonth)
+        .map(employee => {
+          const record = newHireByEmployeeId.get(String(employee._id)) || {};
+          const tracker = record.fileTracker || {};
+          return {
+            id: String(employee._id),
+            name: employeeName(employee) || 'Name Not Recorded',
+            hireDate: dateOnly(employee['Hire Date']),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+            department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+            location: clean(employee.Location) || 'Not Recorded',
+            employeeStatus: clean(employee['Position Status']) || 'Active',
+            onboardingStatus: tracker.finalLockedAt || tracker.confirmedAt ? 'Completed' : tracker.submittedAt ? 'Final Review Needed' : 'In Progress',
+          };
+        })
+        .sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name));
       const locations = Object.entries(activeEmployees.reduce((result, employee) => {
         const location = clean(employee.Location) || 'Not Recorded';
         result[location] = (result[location] || 0) + 1;
@@ -99,6 +132,8 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
             status: clean(employee['Position Status']) || 'Active',
           }))
           .sort((a, b) => a.name.localeCompare(b.name)),
+        currentMonth,
+        currentMonthNewHires,
         openLeaveCases: leaves.length,
         openInjuryCases: injuries.length,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
