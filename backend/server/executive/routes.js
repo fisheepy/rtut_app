@@ -531,21 +531,30 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
 
   router.post('/ask', async (req, res) => {
     const question = clean(req.body?.question).slice(0, 500);
-    if (question.length < 3) return res.status(400).json({ error: 'Enter a question.' });
+    if (question.length < 2) return res.status(400).json({ error: 'Enter a question or reply.' });
+    const conversation = (Array.isArray(req.body?.conversation) ? req.body.conversation : [])
+      .slice(-6)
+      .map(message => ({ role: message?.role === 'assistant' ? 'assistant' : 'user', content: clean(message?.content).slice(0, 1000) }))
+      .filter(message => message.content);
+    const contextualQuestion = conversation.length
+      ? `${conversation.map(message => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`).join('\n')}\nUser follow-up: ${question}`
+      : question;
     const client = createClient();
     try {
       await client.connect();
       const db = client.db(databaseName);
       const employees = await db.collection('employees').find({}).toArray();
       const activeEmployees = employees.filter(employee => !isExcludedTestEmployee(employee) && !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
-      const q = normalize(question);
-      const location = findLocationMatch(activeEmployees, question);
+      const q = normalize(contextualQuestion);
+      const location = findLocationMatch(activeEmployees, contextualQuestion);
+      const currentEmployeeMatches = findEmployeeMatches(employees, question);
+      const contextualEmployeeMatches = currentEmployeeMatches.length ? currentEmployeeMatches : findEmployeeMatches(employees, contextualQuestion);
       let response;
       let smartAiError = '';
 
       if (clean(process.env.OPENAI_API_KEY)) {
         try {
-          response = await answerWithSmartAi({ question, db, employees, compensationRecord, employmentChangeIncomplete });
+          response = await answerWithSmartAi({ question: contextualQuestion, db, employees, compensationRecord, employmentChangeIncomplete });
         } catch (error) {
           smartAiError = clean(error?.message).slice(0, 180);
           console.error('Smart AI unavailable; using guided assistant fallback:', smartAiError);
@@ -569,15 +578,15 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           const location = clean(employee.Location) || 'Not Recorded'; result[location] = (result[location] || 0) + 1; return result;
         }, {})).sort((a, b) => b[1] - a[1]);
         response = { answer: `Royal currently has ${activeEmployees.length} active or leave-status employees.`, details: locationCounts.map(([label, value]) => `${label}: ${value}`), sources: ['Company App employee roster'], dataAsOf: new Date() };
-      } else if (/leave|fmla|medical/.test(q) && !findEmployeeMatches(employees, question).length) {
+      } else if (/leave|fmla|medical/.test(q) && !contextualEmployeeMatches.length) {
         const leaves = await db.collection('employee_hr_leave').find({ active: true }).toArray();
         response = { answer: `There are ${leaves.length} open FMLA / ADA / Medical Leave cases.`, details: [], sources: ['HR Platform medical leave cases'], dataAsOf: new Date() };
-      } else if (/injury|osha/.test(q) && !findEmployeeMatches(employees, question).length) {
+      } else if (/injury|osha/.test(q) && !contextualEmployeeMatches.length) {
         const injuries = await db.collection('work_injury_cases').find({ closedAt: { $in: [null, ''] } }).toArray();
         const osha = injuries.filter(record => /^yes$/i.test(clean(record.oshaRecordable))).length;
         response = { answer: `There are ${injuries.length} open injury cases, including ${osha} marked OSHA recordable.`, details: [], sources: ['Work-Related Injury platform'], dataAsOf: new Date() };
       } else {
-        const matches = findEmployeeMatches(employees, question);
+        const matches = contextualEmployeeMatches;
         if (!matches.length) {
           response = { answer: 'I could not identify an employee from that name. Try the first name, last name, or a longer part of the name.', details: [], sources: [], dataAsOf: new Date() };
         } else if (matches.length > 1) {
@@ -618,7 +627,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       }
 
       await db.collection('executive_assistant_audit').insertOne({
-        askedBy: clean(req.adminSession?.email).toLowerCase(), question, responseType: response.employeeId ? 'employee' : 'summary', employeeId: response.employeeId || '', sources: response.sources, askedAt: new Date(), readOnly: true,
+        askedBy: clean(req.adminSession?.email).toLowerCase(), question, conversationTurns: conversation.length, responseType: response.employeeId ? 'employee' : 'summary', employeeId: response.employeeId || '', sources: response.sources, askedAt: new Date(), readOnly: true,
         assistantMode: response.assistantMode || 'guided-fallback', model: response.model || '', toolsUsed: response.toolsUsed || [], smartAiError,
       });
       response.assistantMode = response.assistantMode || 'guided-fallback';

@@ -53,6 +53,7 @@ type AssistantResponse = {
   dataAsOf: string
   assistantMode?: 'smart-ai' | 'guided-fallback'
 }
+type ConversationMessage = { role: 'user' | 'assistant'; content: string }
 
 function ExecutiveLogin({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('')
@@ -155,6 +156,8 @@ export default function ExecutiveIntelligence() {
   const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'signed-out'>('checking')
   const [overview, setOverview] = useState<Overview | null>(null)
   const [question, setQuestion] = useState('')
+  const [followUp, setFollowUp] = useState('')
+  const [conversation, setConversation] = useState<ConversationMessage[]>([])
   const [response, setResponse] = useState<AssistantResponse | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -173,16 +176,29 @@ export default function ExecutiveIntelligence() {
     api.get('/executive-auth/me').then(async () => { setAuthState('authenticated'); await loadOverview() }).catch(() => setAuthState('signed-out'))
   }, [])
 
-  async function ask(event?: React.FormEvent) {
-    event?.preventDefault()
-    if (!question.trim()) return
+  async function submitQuestion(text: string) {
+    const submitted = text.trim()
+    if (!submitted) return
     setBusy(true); setError(''); setResponse(null)
     try {
-      const result = await api.post<AssistantResponse>('/executive/ask', { question: question.trim() })
+      const result = await api.post<AssistantResponse>('/executive/ask', { question: submitted, conversation })
       setResponse(result.data)
+      setConversation(previous => [...previous, { role: 'user', content: submitted }, { role: 'assistant', content: result.data.answer }].slice(-6) as ConversationMessage[])
+      setQuestion('')
+      setFollowUp('')
     } catch (requestError: any) {
       setError(requestError.response?.data?.error || 'The Executive Data Assistant could not answer this question.')
     } finally { setBusy(false) }
+  }
+
+  async function ask(event?: React.FormEvent) {
+    event?.preventDefault()
+    await submitQuestion(question)
+  }
+
+  async function reply(event: React.FormEvent) {
+    event.preventDefault()
+    await submitQuestion(followUp)
   }
 
   async function logout() { await api.post('/executive-auth/logout').catch(() => {}); setAuthState('signed-out'); setOverview(null) }
@@ -254,7 +270,7 @@ export default function ExecutiveIntelligence() {
       <div className="p-6"><div className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${overview?.smartAiEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}><span className={`h-2 w-2 rounded-full ${overview?.smartAiEnabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />{overview?.smartAiEnabled ? 'Smart AI Active' : 'Guided Assistant Active — Smart AI ready for secure key'}</div><form className="flex flex-col gap-3 md:flex-row" onSubmit={ask}><label className="sr-only" htmlFor="executive-question">Executive question</label><input className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" id="executive-question" maxLength={500} onChange={event => setQuestion(event.target.value)} placeholder="Ask about employees, locations, departments, headcount, leave, injury, or payroll history..." value={question} /><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50" disabled={busy || !question.trim()} type="submit"><Send className="h-4 w-4" />{busy ? 'Reviewing data...' : 'Ask'}</button></form>
         <div className="mt-4 flex flex-wrap gap-2">{examples.map(example => <button className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-left text-xs font-bold text-indigo-800 hover:bg-indigo-100" key={example} onClick={() => setQuestion(example)} type="button">{example}</button>)}</div>
         {error && <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{error}</p>}
-        {response && <article className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="text-lg font-black text-slate-950">{response.answer}</p>{response.details?.length > 0 && <div className="mt-4 grid gap-2 md:grid-cols-2">{response.details.map(detail => <p className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700" key={detail}>{detail}</p>)}</div>}<div className="mt-5 border-t border-slate-200 pt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Data sources</p><div className="mt-2 flex flex-wrap gap-2">{response.sources.length ? response.sources.map(source => <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-900" key={source}>{source}</span>) : <span className="text-xs text-slate-500">No record source matched.</span>}</div><p className="mt-3 text-xs text-slate-500">Data reviewed {new Date(response.dataAsOf).toLocaleString()}</p></div></article>}
+        {response && <article className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="text-lg font-black text-slate-950">{response.answer}</p>{response.details?.length > 0 && <div className="mt-4 grid gap-2 md:grid-cols-2">{response.details.map(detail => <p className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700" key={detail}>{detail}</p>)}</div>}<div className="mt-5 border-t border-slate-200 pt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Data sources</p><div className="mt-2 flex flex-wrap gap-2">{response.sources.length ? response.sources.map(source => <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-900" key={source}>{source}</span>) : <span className="text-xs text-slate-500">No record source matched.</span>}</div><p className="mt-3 text-xs text-slate-500">Data reviewed {new Date(response.dataAsOf).toLocaleString()}</p></div><form className="mt-5 rounded-2xl border border-indigo-200 bg-white p-4" onSubmit={reply}><label className="text-xs font-black uppercase tracking-wide text-indigo-700" htmlFor="executive-follow-up">Reply or ask a follow-up</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" id="executive-follow-up" maxLength={500} onChange={event => setFollowUp(event.target.value)} placeholder="For example: Michael Davis, or show me the payroll change date..." value={followUp} /><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50" disabled={busy || followUp.trim().length < 2} type="submit"><Send className="h-4 w-4" />{busy ? 'Reviewing...' : 'Reply'}</button></div><p className="mt-2 text-xs text-slate-500">The assistant keeps the recent conversation so you can answer a clarification without repeating the original question.</p></form></article>}
       </div>
     </section>
 
