@@ -27,20 +27,21 @@ const easternDateKey = () => {
   return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}-${parts.find(part => part.type === 'day')?.value}`;
 };
 const TURNOVER_Q3_2026 = [
-  { location: 'Northville', denominator: 36, voluntary: 1, involuntary: 0 },
+  { location: 'Corporate', denominator: 23, voluntary: 1, involuntary: 0 },
   { location: 'Dearborn', denominator: 66, voluntary: 5, involuntary: 4 },
-  { location: 'Grand Rapids', denominator: 50, voluntary: 4, involuntary: 4 },
+  { location: 'East Michigan', denominator: 13, voluntary: 0, involuntary: 0 },
   { location: 'Gaylord', denominator: 9, voluntary: 2, involuntary: 0 },
+  { location: 'Grand Rapids', denominator: 39, voluntary: 4, involuntary: 1 },
   { location: 'Hudsonville', denominator: 31, voluntary: 2, involuntary: 1 },
   { location: 'Cleveland', denominator: 7, voluntary: 0, involuntary: 0 },
   { location: 'Warren', denominator: 25, voluntary: 2, involuntary: 1 },
+  { location: 'West Michigan', denominator: 11, voluntary: 0, involuntary: 3 },
   { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1 },
 ];
 const canonicalTurnoverLocation = value => {
   const key = normalize(value);
-  if (['corporate', 'east michigan', 'northville'].includes(key)) return 'Northville';
+  if (['corporate', 'northville'].includes(key)) return 'Corporate';
   if (['dearborn', 'dearborn warehouse'].includes(key)) return 'Dearborn';
-  if (['grand rapids', 'west michigan'].includes(key)) return 'Grand Rapids';
   if (['ohio cleveland', 'cleveland'].includes(key)) return 'Cleveland';
   return clean(value) || 'Not Recorded';
 };
