@@ -97,6 +97,27 @@ const examples = [
   'How many open injury cases are OSHA recordable?',
 ]
 
+const q3FallbackLocations: TurnoverLocation[] = [
+  { location: 'Corporate', denominator: 23, voluntary: 1, involuntary: 0, total: 1, totalRate: 4.3, voluntaryRate: 4.3, involuntaryRate: 0 },
+  { location: 'Dearborn', denominator: 66, voluntary: 5, involuntary: 4, total: 9, totalRate: 13.6, voluntaryRate: 7.6, involuntaryRate: 6.1 },
+  { location: 'East Michigan', denominator: 13, voluntary: 0, involuntary: 0, total: 0, totalRate: 0, voluntaryRate: 0, involuntaryRate: 0 },
+  { location: 'Gaylord', denominator: 9, voluntary: 2, involuntary: 0, total: 2, totalRate: 22.2, voluntaryRate: 22.2, involuntaryRate: 0 },
+  { location: 'Grand Rapids', denominator: 39, voluntary: 4, involuntary: 1, total: 5, totalRate: 12.8, voluntaryRate: 10.3, involuntaryRate: 2.6 },
+  { location: 'Hudsonville', denominator: 31, voluntary: 2, involuntary: 1, total: 3, totalRate: 9.7, voluntaryRate: 6.5, involuntaryRate: 3.2 },
+  { location: 'Cleveland', denominator: 7, voluntary: 0, involuntary: 0, total: 0, totalRate: 0, voluntaryRate: 0, involuntaryRate: 0 },
+  { location: 'Warren', denominator: 25, voluntary: 2, involuntary: 1, total: 3, totalRate: 12, voluntaryRate: 8, involuntaryRate: 4 },
+  { location: 'West Michigan', denominator: 11, voluntary: 0, involuntary: 3, total: 3, totalRate: 27.3, voluntaryRate: 0, involuntaryRate: 27.3 },
+  { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1, total: 1, totalRate: 11.1, voluntaryRate: 0, involuntaryRate: 11.1 },
+]
+const q3FallbackSummary: TurnoverMetrics = { denominator: 233, voluntary: 16, involuntary: 11, total: 27, totalRate: 11.6, voluntaryRate: 6.9, involuntaryRate: 4.7 }
+const fallbackTurnover: Overview['turnover'] = {
+  q1: { status: 'Not Loaded', label: 'Q1 2026' }, q2: { status: 'Not Loaded', label: 'Q2 2026' },
+  q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: q3FallbackSummary, locations: q3FallbackLocations },
+  q4: { status: 'Pending Quarter End', label: 'Q4 2026' },
+  ytd: { status: 'Q3 Baseline', label: '2026 Year to Date', asOf: '2026-09-30', summary: q3FallbackSummary, locations: q3FallbackLocations },
+  excluded: { leave: '', retiredOrDeceased: '', preEmployment: '' }, unclassifiedTurnovers: [],
+}
+
 function TurnoverMetricCard({ label, metrics, status }: { label: string; metrics?: TurnoverMetrics; status: string }) {
   return <article className={`rounded-2xl border p-4 ${metrics ? 'border-indigo-100 bg-indigo-50/70' : 'border-slate-200 bg-slate-50'}`}><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-slate-600">{label}</p><span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${metrics ? 'bg-indigo-900 text-white' : 'bg-slate-200 text-slate-600'}`}>{status}</span></div>{metrics ? <><p className="mt-4 text-3xl font-black text-slate-950">{metrics.totalRate.toFixed(1)}%</p><p className="mt-1 text-xs font-bold text-slate-500">{metrics.total} turnover events / {metrics.denominator} employees</p><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl bg-white p-3"><p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">Voluntary</p><p className="mt-1 text-lg font-black text-slate-900">{metrics.voluntaryRate.toFixed(1)}%</p><p className="text-[10px] font-semibold text-slate-500">{metrics.voluntary} employees</p></div><div className="rounded-xl bg-white p-3"><p className="text-[10px] font-black uppercase tracking-wide text-rose-700">Involuntary</p><p className="mt-1 text-lg font-black text-slate-900">{metrics.involuntaryRate.toFixed(1)}%</p><p className="text-[10px] font-semibold text-slate-500">{metrics.involuntary} employees</p></div></div></> : <div className="grid min-h-36 place-items-center text-center"><div><p className="text-3xl font-black text-slate-300">—</p><p className="mt-2 text-xs font-semibold text-slate-500">{status}</p></div></div>}</article>
 }
@@ -144,6 +165,8 @@ export default function ExecutiveIntelligence() {
     const searchMatches = !query || [employee.name, employee.jobTitle, employee.department, employee.location, employee.status].some(value => value.toLowerCase().includes(query))
     return locationMatches && searchMatches
   })
+  const turnover = overview?.turnover || fallbackTurnover
+  if (overview && !overview.turnover) overview.turnover = turnover
 
   function openHeadcount(location = '') {
     setHeadcountLocation(location)
@@ -151,7 +174,7 @@ export default function ExecutiveIntelligence() {
     setShowHeadcount(true)
   }
 
-  return <div className="space-y-7">
+  return <div className="flex flex-col gap-7 [&>section:nth-of-type(4)]:order-last">
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 px-7 py-8 text-white shadow-xl"><div className="absolute -right-12 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" /><div className="relative flex flex-wrap items-start justify-between gap-5"><div><Link className="inline-flex items-center gap-2 text-sm font-semibold text-blue-200 hover:text-white" to="/"><ArrowLeft className="h-4 w-4" />Back to Integrated Platform</Link><p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">C-Suite Restricted Workspace</p><h1 className="mt-2 text-4xl font-black">Executive Intelligence Platform</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">Read-only workforce intelligence with source-backed answers and a complete query audit trail.</p></div><button className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white" onClick={logout} type="button"><LogOut className="h-4 w-4" />Sign out</button></div></section>
 
     <section className="overflow-hidden rounded-3xl border border-indigo-200 bg-white shadow-xl"><div className="bg-gradient-to-r from-indigo-950 to-blue-900 px-6 py-6 text-white"><div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15"><Bot className="h-7 w-7 text-cyan-200" /></div><div><p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-200">Read-only assistant</p><h2 className="mt-1 text-2xl font-black">Ask Royal’s workforce data</h2></div></div><p className="mt-3 max-w-3xl text-sm leading-6 text-indigo-100">The assistant never changes employee records. If historical data is missing, it will say so instead of estimating or guessing.</p></div>
