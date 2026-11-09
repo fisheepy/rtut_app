@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Bot, Building2, KeyRound, LockKeyhole, LogOut, Mail, MessageSquareText, RefreshCw, Send, ShieldCheck, Sparkles, UserRoundCheck, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Bot, Building2, KeyRound, LockKeyhole, LogOut, Mail, MessageSquareText, RefreshCw, Search, Send, ShieldCheck, Sparkles, UserRoundCheck, X, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../shared/api'
 
@@ -8,6 +8,7 @@ type Overview = {
   generatedAt: string
   headcount: number
   locations: Array<{ location: string; count: number }>
+  employees: Array<{ id: string; name: string; jobTitle: string; department: string; location: string; status: string }>
   openLeaveCases: number
   openInjuryCases: number
   unfinishedEmploymentChanges: number
@@ -87,6 +88,8 @@ export default function ExecutiveIntelligence() {
   const [response, setResponse] = useState<AssistantResponse | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showHeadcount, setShowHeadcount] = useState(false)
+  const [employeeSearch, setEmployeeSearch] = useState('')
 
   async function loadOverview() {
     const result = await api.get<Overview>('/executive/overview')
@@ -114,6 +117,11 @@ export default function ExecutiveIntelligence() {
   if (authState === 'checking') return <div className="grid min-h-64 place-items-center rounded-3xl bg-white shadow-sm"><RefreshCw className="h-7 w-7 animate-spin text-indigo-700" /></div>
   if (authState === 'signed-out') return <ExecutiveLogin onLogin={() => { setAuthState('authenticated'); void loadOverview() }} />
 
+  const filteredEmployees = (overview?.employees || []).filter(employee => {
+    const query = employeeSearch.trim().toLowerCase()
+    return !query || [employee.name, employee.jobTitle, employee.department, employee.location, employee.status].some(value => value.toLowerCase().includes(query))
+  })
+
   return <div className="space-y-7">
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 px-7 py-8 text-white shadow-xl"><div className="absolute -right-12 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" /><div className="relative flex flex-wrap items-start justify-between gap-5"><div><Link className="inline-flex items-center gap-2 text-sm font-semibold text-blue-200 hover:text-white" to="/"><ArrowLeft className="h-4 w-4" />Back to Integrated Platform</Link><p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">C-Suite Restricted Workspace</p><h1 className="mt-2 text-4xl font-black">Executive Intelligence Platform</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">Read-only workforce intelligence with source-backed answers and a complete query audit trail.</p></div><button className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white" onClick={logout} type="button"><LogOut className="h-4 w-4" />Sign out</button></div></section>
 
@@ -125,12 +133,14 @@ export default function ExecutiveIntelligence() {
       </div>
     </section>
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg"><div className="grid lg:grid-cols-[0.34fr_0.66fr]"><div className="bg-gradient-to-br from-cyan-50 to-blue-50 p-7"><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Current workforce</p><UserRoundCheck className="h-7 w-7 text-indigo-700" /></div><p className="mt-5 text-6xl font-black tracking-tight text-slate-950">{overview.headcount}</p><p className="mt-2 text-sm font-bold text-slate-600">Current Company Headcount</p><p className="mt-1 text-xs leading-5 text-slate-500">Active and leave-status employees; terminated employees are excluded.</p></div><div className="p-7"><div className="flex items-center gap-2"><Building2 className="h-5 w-5 text-indigo-700" /><h2 className="text-xl font-black text-slate-950">Headcount by Location</h2></div><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{overview.locations.map(row => <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3" key={row.location}><span className="text-sm font-bold text-slate-700">{row.location}</span><span className="rounded-full bg-indigo-950 px-2.5 py-1 text-xs font-black text-white">{row.count}</span></div>)}</div></div></div></section>}
+    {overview && <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg"><div className="grid lg:grid-cols-[0.34fr_0.66fr]"><button className="group bg-gradient-to-br from-cyan-50 to-blue-50 p-7 text-left transition hover:from-cyan-100 hover:to-blue-100 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-indigo-200" onClick={() => setShowHeadcount(true)} type="button"><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Current workforce</p><UserRoundCheck className="h-7 w-7 text-indigo-700" /></div><p className="mt-5 text-6xl font-black tracking-tight text-slate-950 underline decoration-indigo-300 decoration-2 underline-offset-8 group-hover:decoration-indigo-700">{overview.headcount}</p><p className="mt-3 text-sm font-bold text-slate-600">Current Company Headcount</p><p className="mt-1 text-xs leading-5 text-slate-500">Click the number to view employees. Active and leave-status employees are included; terminated employees are excluded.</p></button><div className="p-7"><div className="flex items-center gap-2"><Building2 className="h-5 w-5 text-indigo-700" /><h2 className="text-xl font-black text-slate-950">Headcount by Location</h2></div><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{overview.locations.map(row => <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3" key={row.location}><span className="text-sm font-bold text-slate-700">{row.location}</span><span className="rounded-full bg-indigo-950 px-2.5 py-1 text-xs font-black text-white">{row.count}</span></div>)}</div></div></div></section>}
 
     {overview && <section className="grid gap-4 sm:grid-cols-3">{([
       { label: 'Open Leave Cases', value: overview.openLeaveCases, icon: Building2, note: 'FMLA / ADA / Medical Leave' },
       { label: 'Open Injury Cases', value: overview.openInjuryCases, icon: ShieldCheck, note: 'Cases awaiting closure' },
       { label: 'Employment Changes', value: overview.unfinishedEmploymentChanges, icon: MessageSquareText, note: 'Records with unfinished tasks' },
     ] satisfies OverviewCard[]).map(({ label, value, icon: Icon, note }) => <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" key={label}><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</p><Icon className="h-5 w-5 text-indigo-600" /></div><p className="mt-3 text-3xl font-black text-slate-950">{value}</p><p className="mt-1 text-xs font-semibold text-slate-500">{note}</p></article>)}</section>}
+
+    {showHeadcount && overview && <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog"><section className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header className="flex items-start justify-between gap-5 border-b border-slate-200 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Current workforce</p><h2 className="mt-1 text-2xl font-black text-slate-950">Employee Headcount Details</h2><p className="mt-1 text-sm text-slate-500">{overview.headcount} active or leave-status employees</p></div><button aria-label="Close employee headcount details" className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-950" onClick={() => setShowHeadcount(false)} type="button"><X className="h-6 w-6" /></button></header><div className="border-b border-slate-200 bg-slate-50 px-6 py-4"><label className="relative block"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input autoFocus className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" onChange={event => setEmployeeSearch(event.target.value)} placeholder="Search employee, job title, department, location, or status..." value={employeeSearch} /></label></div><div className="overflow-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="sticky top-0 bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', 'Job Title', 'Home Department', 'Location', 'Status'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filteredEmployees.map(employee => <tr className="hover:bg-indigo-50/50" key={employee.id}><td className="px-4 py-3 font-bold text-slate-950">{employee.name}</td><td className="px-4 py-3 text-slate-700">{employee.jobTitle}</td><td className="px-4 py-3 text-slate-700">{employee.department}</td><td className="px-4 py-3 text-slate-700">{employee.location}</td><td className="px-4 py-3"><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{employee.status}</span></td></tr>)}</tbody></table>{!filteredEmployees.length && <p className="p-8 text-center text-sm font-semibold text-slate-500">No employees match this search.</p>}</div><footer className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4"><p className="text-sm font-bold text-slate-600">Showing {filteredEmployees.length} of {overview.headcount} employees</p><button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800" onClick={() => setShowHeadcount(false)} type="button">Close</button></footer></section></div>}
   </div>
 }

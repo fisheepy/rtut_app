@@ -89,6 +89,16 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         generatedAt: new Date(),
         headcount: activeEmployees.length,
         locations,
+        employees: activeEmployees
+          .map(employee => ({
+            id: String(employee._id),
+            name: employeeName(employee) || 'Name Not Recorded',
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+            department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+            location: clean(employee.Location) || 'Not Recorded',
+            status: clean(employee['Position Status']) || 'Active',
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
         openLeaveCases: leaves.length,
         openInjuryCases: injuries.length,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
