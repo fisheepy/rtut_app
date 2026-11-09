@@ -22,10 +22,16 @@ const easternMonthKey = () => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
   return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}`;
 };
+const easternDateKey = () => {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}-${parts.find(part => part.type === 'day')?.value}`;
+};
 const isPreEmploymentCancellation = employee => {
   const hireDate = dateOnly(employee?.['Hire Date']);
   const terminationDate = dateOnly(employee?.['Termination Date']);
-  return Boolean(hireDate && terminationDate && terminationDate < hireDate);
+  const terminatedBeforeStartDate = isTerminated(employee) && hireDate && hireDate > easternDateKey();
+  const terminationPrecedesHire = hireDate && terminationDate && terminationDate < hireDate;
+  return Boolean(terminatedBeforeStartDate || terminationPrecedesHire);
 };
 
 function taskIncomplete(task = {}, finalRequired = false) {
