@@ -49,6 +49,22 @@ const TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES = {
   deceased: ['Dale Day'],
   retired: ['Daniel Savat', 'Kenneth Allen', 'Leslie Carder', 'Mark Duimstra'],
 };
+const TURNOVER_Q3_2026_EVENTS = [
+  ['Zachary Ghadieh', 'Involuntary', 'Dearborn'], ['Sean Matatall', 'Involuntary', 'Dearborn'],
+  ['Harold Tackett', 'Involuntary', 'Dearborn'], ['Gary Melletat', 'Involuntary', 'Dearborn'],
+  ['Sean Cullen', 'Involuntary', 'Grand Rapids'], ['Tristen Kuprienko', 'Involuntary', 'Hudsonville'],
+  ['Rebecca Murphy', 'Involuntary', 'West Michigan'], ['Kimberlee Arnold', 'Involuntary', 'West Michigan'],
+  ['Micah Herin', 'Involuntary', 'West Michigan'], ['Cordell Wyatt', 'Involuntary', 'Wixom'],
+  ['David Schoenherr', 'Involuntary', 'Warren'], ['Nathan Alda', 'Voluntary', 'Dearborn'],
+  ['Joshua Rapley', 'Voluntary', 'Dearborn'], ['Wala Baha', 'Voluntary', 'Dearborn'],
+  ['Jeffrey Ouellette', 'Voluntary', 'Dearborn'], ['Taylor Flamard', 'Voluntary', 'Dearborn'],
+  ['Michael Dewater', 'Voluntary', 'Gaylord'], ['Amanda Weber', 'Voluntary', 'Gaylord'],
+  ['Timothy Leys Jr', 'Voluntary', 'Grand Rapids'], ['Tyler Revard', 'Voluntary', 'Grand Rapids'],
+  ['Robert Bright', 'Voluntary', 'Grand Rapids'], ['Nathan Woods', 'Voluntary', 'Grand Rapids'],
+  ['James Ray McFarland', 'Voluntary', 'Hudsonville'], ['Matthew Hough', 'Voluntary', 'Hudsonville'],
+  ['Steven Chapman II', 'Voluntary', 'Warren'], ['Vincent Lisowski', 'Voluntary', 'Warren'],
+  ['Brian Trombley', 'Voluntary', 'Corporate'],
+].map(([name, type, location]) => ({ name, type, location, terminationDate: '', period: 'Q3 2026 baseline' }));
 const canonicalTurnoverLocation = value => {
   const key = normalize(value);
   if (['corporate', 'northville'].includes(key)) return 'Corporate';
@@ -221,6 +237,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         ytdTurnoverByLocation.set(location, row);
       }
       const unclassifiedTurnovers = [];
+      const ytdTurnoverEvents = TURNOVER_Q3_2026_EVENTS.map(event => ({ ...event }));
       const turnoverYear = Number(easternDateKey().slice(0, 4));
       const excludedTurnoverEmployees = {
         deceased: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.deceased : []),
@@ -259,6 +276,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         row.denominator += 1;
         row[terminationType.toLowerCase()] += 1;
         ytdTurnoverByLocation.set(location, row);
+        ytdTurnoverEvents.push({ name: employeeName(employee) || 'Name Not Recorded', type: terminationType, location, terminationDate, period: 'After Q3 2026' });
       }
       const q3TurnoverRows = turnoverRowsWithRates(TURNOVER_Q3_2026);
       const ytdTurnoverRows = turnoverRowsWithRates([...ytdTurnoverByLocation.values()].sort((a, b) => a.location.localeCompare(b.location)));
@@ -405,9 +423,9 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           year: turnoverYear,
           q1: { status: 'Not Loaded', label: 'Q1 2026' },
           q2: { status: 'Not Loaded', label: 'Q2 2026' },
-          q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows },
+          q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows, events: TURNOVER_Q3_2026_EVENTS },
           q4: { status: easternDateKey() >= '2026-12-31' ? 'Ready for Review' : 'Pending Quarter End', label: 'Q4 2026' },
-          ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows },
+          ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows, events: ytdTurnoverEvents },
           excluded: {
             leave: 'Leave-status employees remain in the employee denominator and are not counted as turnover.',
             retiredOrDeceased: 'Retired and deceased employees are excluded from turnover events.',

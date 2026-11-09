@@ -67,3 +67,16 @@ textarea {
 .executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(n + 6) {
   background: rgb(240 253 250 / 72%);
 }
+
+.executive-dashboard .turnover-count,
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(3) span,
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(4) span,
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(5) span,
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(7) span,
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(8) span,
+.executive-dashboard > section:nth-of-type(4) table tbody td:nth-child(9) span {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
