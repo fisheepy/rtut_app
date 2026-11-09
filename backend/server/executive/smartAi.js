@@ -2,6 +2,7 @@ const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
 const isTerminated = employee => /^(terminated|inactive)$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']));
+const { findEmployeeMatches } = require('./employeeMatcher');
 
 const nullableString = { type: ['string', 'null'] };
 
@@ -114,7 +115,8 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
   const activeEmployees = employees.filter(employee => !isTerminated(employee));
   return async (name, args = {}) => {
     if (name === 'search_employees') {
-      const matches = activeEmployees.filter(employee => match(employeeName(employee), args.name)
+      const nameMatches = args.name ? new Set(findEmployeeMatches(activeEmployees, args.name)) : null;
+      const matches = activeEmployees.filter(employee => (!nameMatches || nameMatches.has(employee))
         && exactMatch(employee.Location, args.location)
         && exactMatch(employee['Home Department'] || employee.Department, args.department)
         && match(employee['Job Title'], args.jobTitle)
@@ -146,9 +148,8 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
       return result;
     }
     if (name === 'get_employee_profile') {
-      const requested = normalize(args.employeeName);
-      const matches = employees.filter(employee => normalize(employeeName(employee)) === requested);
-      if (matches.length !== 1) return { matchCount: matches.length, message: matches.length ? 'More than one exact employee matched.' : 'No exact employee matched.' };
+      const matches = findEmployeeMatches(employees, args.employeeName);
+      if (matches.length !== 1) return { matchCount: matches.length, candidates: matches.slice(0, 8).map(safeEmployee), message: matches.length ? 'More than one employee matched. Ask the user to choose a candidate.' : 'No employee matched that name.' };
       const employee = matches[0];
       const employeeId = String(employee._id);
       const [onboarding, changes] = await Promise.all([

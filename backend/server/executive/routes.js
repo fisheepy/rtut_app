@@ -4,6 +4,7 @@ const { SALARY_EMPLOYEES } = require('../compensation/salaryEmployees');
 const { HOURLY_EMPLOYEES } = require('../compensation/hourlyEmployees');
 const { answerWithSmartAi } = require('./smartAi');
 const TURNOVER_Q3_2026_EMPLOYEE_BASE = require('./turnoverQ3EmployeeBase.json');
+const { findEmployeeMatches } = require('./employeeMatcher');
 
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -198,20 +199,6 @@ function compensationRecord(name) {
   const hourly = HOURLY_EMPLOYEES.find(employee => normalize(employee.name) === key);
   if (hourly) return { payType: 'Hourly', rate: hourly.hourlyRate, source: 'Compensation Analysis hourly-rate snapshot' };
   return null;
-}
-
-function findEmployeeMatches(employees, question) {
-  const normalizedQuestion = ` ${normalize(question)} `;
-  const exact = employees.filter(employee => normalizedQuestion.includes(` ${normalize(employeeName(employee))} `));
-  if (exact.length) {
-    const longest = Math.max(...exact.map(employee => normalize(employeeName(employee)).length));
-    return exact.filter(employee => normalize(employeeName(employee)).length === longest);
-  }
-  return employees.filter(employee => {
-    const first = normalize(employee['First Name']);
-    const last = normalize(employee['Last Name']);
-    return first && last && normalizedQuestion.includes(` ${last} `) && normalizedQuestion.includes(` ${first} `);
-  });
 }
 
 function findLocationMatch(employees, question) {
@@ -592,9 +579,9 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       } else {
         const matches = findEmployeeMatches(employees, question);
         if (!matches.length) {
-          response = { answer: 'I could not identify an employee in that question. Please enter the employee’s first and last name.', details: [], sources: [], dataAsOf: new Date() };
+          response = { answer: 'I could not identify an employee from that name. Try the first name, last name, or a longer part of the name.', details: [], sources: [], dataAsOf: new Date() };
         } else if (matches.length > 1) {
-          response = { answer: 'More than one employee matched. Please use the employee’s full name.', details: matches.slice(0, 8).map(employeeName), sources: ['Company App employee roster'], dataAsOf: new Date() };
+          response = { answer: 'More than one employee matched. Please choose one of these employees.', details: matches.slice(0, 8).map(employeeName), sources: ['Company App employee roster'], dataAsOf: new Date() };
         } else {
           const employee = matches[0];
           const id = String(employee._id);

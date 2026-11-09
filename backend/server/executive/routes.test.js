@@ -11,6 +11,25 @@ test('matches an employee full name without partial last-name collisions', () =>
   assert.deepEqual(findEmployeeMatches(employees, 'What is Ryan Russell Jr. current pay rate?'), [employees[1]]);
 });
 
+test('matches a unique employee by first name, last name, or a minor typo', () => {
+  const employees = [
+    { 'First Name': 'Cherie', 'Last Name': 'Lynch' },
+    { 'First Name': 'Michael', 'Last Name': 'Davis' },
+  ];
+  assert.deepEqual(findEmployeeMatches(employees, 'Show me Cherie'), [employees[0]]);
+  assert.deepEqual(findEmployeeMatches(employees, 'What is Lynch paid?'), [employees[0]]);
+  assert.deepEqual(findEmployeeMatches(employees, 'Show me Cherrie Linch'), [employees[0]]);
+});
+
+test('returns candidate employees when a short name is ambiguous', () => {
+  const employees = [
+    { 'First Name': 'Michael', 'Last Name': 'Davis' },
+    { 'First Name': 'Michael', 'Last Name': 'Morrison' },
+    { 'First Name': 'Cherie', 'Last Name': 'Lynch' },
+  ];
+  assert.deepEqual(findEmployeeMatches(employees, 'Tell me about Michael'), [employees[0], employees[1]]);
+});
+
 test('finds known compensation snapshot data', () => {
   const result = compensationRecord('Cherie Lynch');
   assert.equal(result.payType, 'Salary');
