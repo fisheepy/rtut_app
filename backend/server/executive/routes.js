@@ -38,6 +38,13 @@ const TURNOVER_Q3_2026 = [
   { location: 'West Michigan', denominator: 11, voluntary: 0, involuntary: 3 },
   { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1 },
 ];
+const TURNOVER_Q3_2026_INCLUDED_NAMES = new Set([
+  'zachary ghadieh', 'sean matatall', 'harold tackett', 'gary melletat', 'sean cullen', 'tristen kuprienko',
+  'rebecca murphy', 'kimberlee arnold', 'micah herin', 'cordell wyatt', 'david schoenherr', 'nathan alda',
+  'joshua rapley', 'wala baha', 'jeffrey ouellette', 'taylor flamard', 'michael dewater', 'amanda weber',
+  'timothy leys jr', 'tyler revard', 'robert bright', 'nathan woods', 'james ray mcfarland', 'matthew hough',
+  'steven chapman ii', 'vincent lisowski', 'brian trombley',
+].map(normalize));
 const canonicalTurnoverLocation = value => {
   const key = normalize(value);
   if (['corporate', 'northville'].includes(key)) return 'Corporate';
@@ -214,6 +221,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         const hireDate = dateOnly(employee['Hire Date']);
         const terminationDate = dateOnly(employee['Termination Date']);
         if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > easternDateKey() || (hireDate && terminationDate < hireDate)) continue;
+        if (TURNOVER_Q3_2026_INCLUDED_NAMES.has(normalize(employeeName(employee)))) continue;
         if (/^(retired|deceased|dead)$/i.test(clean(employee['Position Status']))) continue;
         const location = canonicalTurnoverLocation(employee.Location);
         if (location === 'Not Recorded') continue;

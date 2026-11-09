@@ -229,6 +229,56 @@ async function reconcileHistoricalAppRegistrationDates() {
     }
 }
 
+const HISTORICAL_TERMINATION_TYPE_BACKFILL = [
+    ['Crystal', 'Blankenship'],
+    ['Kyle', 'Condon'],
+    ['Samuel', 'Hauxwell'],
+    ['Jason', 'Knapp'],
+    ['Levi', 'Nation'],
+    ['David', 'Robertson'],
+    ['Brian', 'Trombley'],
+    ['Brandon', 'Zoerhof'],
+    ['Jaren', 'Zoerhof'],
+];
+
+async function reconcileHistoricalTerminationTypes() {
+    const migrationClient = new MongoClient(uri, {
+        serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
+    });
+    try {
+        await migrationClient.connect();
+        const db = migrationClient.db(database_name);
+        const employees = db.collection('employees');
+        let updated = 0;
+        for (const [firstName, lastName] of HISTORICAL_TERMINATION_TYPE_BACKFILL) {
+            const employee = await employees.findOne({
+                'First Name': { $regex: new RegExp(`^${firstName}$`, 'i') },
+                'Last Name': { $regex: new RegExp(`^${lastName}$`, 'i') },
+                $or: [{ 'Position Status': /^terminated$/i }, { 'Termination Date': { $exists: true, $nin: ['', null] } }],
+            });
+            if (!employee) {
+                console.warn(`Historical termination type backfill skipped: ${firstName} ${lastName} was not found as terminated.`);
+                continue;
+            }
+            const result = await employees.updateOne(
+                { _id: employee._id, $or: [{ 'Termination Type': { $exists: false } }, { 'Termination Type': { $in: ['', null] } }] },
+                { $set: { 'Termination Type': 'Voluntary', 'Termination Type Backfilled At': new Date(), 'Termination Type Backfill Source': 'Administrator confirmed 2026-11-09' } },
+            );
+            updated += result.modifiedCount;
+            await db.collection('employee_hr_termination').updateOne(
+                { employeeId: String(employee._id) },
+                { $set: { terminationType: 'Voluntary', terminationTypeUpdatedAt: new Date(), terminationTypeUpdatedBy: 'system-historical-backfill' } },
+                { upsert: true },
+            );
+        }
+        console.log(`Historical termination type reconciliation completed: ${updated} employee record(s) updated.`);
+    } catch (error) {
+        console.error('Historical termination type reconciliation failed:', error.message);
+    } finally {
+        await migrationClient.close();
+    }
+}
+
 // ======= Daily Digest 主函数（独立连接/独立关闭） =======
 async function runDailyDigest(etDateOpt) {
   const TZ = process.env.TIMEZONE || 'America/Detroit';
@@ -2223,4 +2273,5 @@ app.get(/^\/(?!api|admin|hr-tools).*/, (req, res) => {
 app.listen(process.env.PORT || port, () => {
     console.log(`Server is running on port ${port}`);
     reconcileHistoricalAppRegistrationDates();
+    reconcileHistoricalTerminationTypes();
 });
