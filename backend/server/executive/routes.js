@@ -109,13 +109,16 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
-      const [employees, leaves, injuries, changes, newHireRecords, terminationRecords] = await Promise.all([
+      const trainingDataLive = easternDateKey() >= '2027-01-01';
+      const [employees, leaves, injuries, changes, newHireRecords, terminationRecords, trainingTopics, trainingRecords] = await Promise.all([
         db.collection('employees').find({}).toArray(),
         db.collection('employee_hr_leave').find({}).toArray(),
         db.collection('work_injury_cases').find({}).toArray(),
         db.collection('employee_hr_employment_change').find({}).toArray(),
         db.collection('employee_hr_platform').find({}).toArray(),
         db.collection('employee_hr_termination').find({}).toArray(),
+        trainingDataLive ? db.collection('monthly_training_topics').find({}).sort({ order: 1, targetDate: 1, name: 1 }).toArray() : Promise.resolve([]),
+        trainingDataLive ? db.collection('employee_training').find({}).toArray() : Promise.resolve([]),
       ]);
       const activeEmployees = employees.filter(employee => !isTerminated(employee));
       const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
@@ -212,6 +215,48 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           caseStatus: record.closedAt ? 'Closed' : 'Open',
         }))
         .sort((a, b) => (a.caseStatus === b.caseStatus ? a.injuryDate.localeCompare(b.injuryDate) : a.caseStatus === 'Open' ? -1 : 1) || a.name.localeCompare(b.name)) : [];
+      const currentTrainingTopics = trainingDataLive
+        ? trainingTopics.filter(topic => dateOnly(topic.targetDate).slice(0, 7) === currentMonth)
+        : [];
+      const trainingByEmployeeId = new Map(trainingRecords.map(record => [clean(record.employeeId), record]));
+      const trainingPrograms = currentTrainingTopics.map(topic => ({
+        id: clean(topic.id),
+        name: clean(topic.name) || 'Monthly Training Program',
+        targetDate: dateOnly(topic.targetDate),
+        courseCount: Array.isArray(topic.courses) ? topic.courses.length : 0,
+        assigned: 0,
+        completed: 0,
+        completionRate: null,
+      }));
+      const trainingLocations = new Map();
+      let trainingAssigned = 0;
+      let trainingCompleted = 0;
+      if (trainingDataLive && currentTrainingTopics.length) {
+        for (const employee of activeEmployees) {
+          const location = clean(employee.Location) || 'Not Recorded';
+          const record = trainingByEmployeeId.get(String(employee._id)) || {};
+          for (const program of trainingPrograms) {
+            const topic = currentTrainingTopics.find(item => clean(item.id) === program.id) || {};
+            const assignment = record.monthly?.topicAssignments?.[program.id];
+            if (assignment?.requirement !== 'Required') continue;
+            const courses = Array.isArray(topic.courses) ? topic.courses : [];
+            const completed = assignment.completionStatus === 'Finished'
+              || Boolean(courses.length && courses.every(course => clean(assignment.courseProgress?.[clean(course.id)]?.completedAt)));
+            program.assigned += 1;
+            trainingAssigned += 1;
+            const locationStats = trainingLocations.get(location) || { location, assigned: 0, completed: 0, completionRate: null };
+            locationStats.assigned += 1;
+            if (completed) {
+              program.completed += 1;
+              trainingCompleted += 1;
+              locationStats.completed += 1;
+            }
+            trainingLocations.set(location, locationStats);
+          }
+        }
+      }
+      trainingPrograms.forEach(program => { program.completionRate = program.assigned ? Math.round(program.completed / program.assigned * 100) : null; });
+      const trainingLocationRows = [...trainingLocations.values()].map(row => ({ ...row, completionRate: row.assigned ? Math.round(row.completed / row.assigned * 100) : null })).sort((a, b) => a.location.localeCompare(b.location));
       const locations = Object.entries(activeEmployees.reduce((result, employee) => {
         const location = clean(employee.Location) || 'Not Recorded';
         result[location] = (result[location] || 0) + 1;
@@ -240,6 +285,15 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         injuryDataLive,
         injuryLaunchDate: '2027-01-01',
         currentInjuryCases,
+        trainingDataLive,
+        trainingLaunchDate: '2027-01-01',
+        trainingOverview: {
+          programs: trainingPrograms,
+          assigned: trainingAssigned,
+          completed: trainingCompleted,
+          completionRate: trainingAssigned ? Math.round(trainingCompleted / trainingAssigned * 100) : null,
+          locations: trainingLocationRows,
+        },
         openLeaveCases: leaves.filter(record => record.active === true).length,
         openInjuryCases: injuryDataLive ? injuries.filter(record => !record.closedAt).length : 0,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
