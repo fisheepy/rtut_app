@@ -111,7 +111,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const db = client.db(databaseName);
       const [employees, leaves, injuries, changes, newHireRecords, terminationRecords] = await Promise.all([
         db.collection('employees').find({}).toArray(),
-        db.collection('employee_hr_leave').find({ active: true }).toArray(),
+        db.collection('employee_hr_leave').find({}).toArray(),
         db.collection('work_injury_cases').find({ closedAt: { $in: [null, ''] } }).toArray(),
         db.collection('employee_hr_employment_change').find({}).toArray(),
         db.collection('employee_hr_platform').find({}).toArray(),
@@ -169,6 +169,30 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           };
         })
         .sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate) || a.name.localeCompare(b.name));
+      const currentLeaveCases = leaves
+        .filter(record => {
+          const startDate = dateOnly(record.leaveStartedAt || record.createdAt);
+          const endDate = dateOnly(record.actualReturnDate || record.closedAt);
+          return record.active === true || startDate.slice(0, 7) === currentMonth || endDate.slice(0, 7) === currentMonth;
+        })
+        .map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || record.employeeSnapshot || {};
+          return {
+            id: String(record._id),
+            employeeId: clean(record.employeeId),
+            name: employeeName(employee) || 'Name Not Recorded',
+            leaveStartDate: dateOnly(record.leaveStartedAt || record.createdAt),
+            anticipatedReturnDate: dateOnly(record.anticipatedReturnDate),
+            actualReturnDate: dateOnly(record.actualReturnDate),
+            closedDate: dateOnly(record.closedAt),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+            department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+            location: clean(employee.Location) || 'Not Recorded',
+            companyStatus: clean(employee['Position Status'] || record.employeeStatus) || 'Not Recorded',
+            caseStatus: record.active === true ? 'Open' : 'Closed',
+          };
+        })
+        .sort((a, b) => (a.caseStatus === b.caseStatus ? a.leaveStartDate.localeCompare(b.leaveStartDate) : a.caseStatus === 'Open' ? -1 : 1) || a.name.localeCompare(b.name));
       const locations = Object.entries(activeEmployees.reduce((result, employee) => {
         const location = clean(employee.Location) || 'Not Recorded';
         result[location] = (result[location] || 0) + 1;
@@ -193,7 +217,8 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         currentMonthNewHires,
         currentMonthTerminations,
         currentMonthEmploymentChanges,
-        openLeaveCases: leaves.length,
+        currentLeaveCases,
+        openLeaveCases: leaves.filter(record => record.active === true).length,
         openInjuryCases: injuries.length,
         unfinishedEmploymentChanges: changes.filter(employmentChangeIncomplete).length,
         smartAiEnabled: Boolean(clean(process.env.OPENAI_API_KEY)),
