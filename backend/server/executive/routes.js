@@ -3,6 +3,7 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 const { SALARY_EMPLOYEES } = require('../compensation/salaryEmployees');
 const { HOURLY_EMPLOYEES } = require('../compensation/hourlyEmployees');
 const { answerWithSmartAi } = require('./smartAi');
+const TURNOVER_Q3_2026_EMPLOYEE_BASE = require('./turnoverQ3EmployeeBase.json');
 
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -120,6 +121,13 @@ const isPartsServiceFacilityEmployee = employee => {
   const jobTitle = normalize(employee['Job Title'] || employee.jobTitle);
   return !['outside parts sales', 'outside parts sales manager', 'equipment sales', 'equipment design consultant', 'trailer sales', 'trailer sales manager', 'trailer & equipment sales', 'vp of trailers'].includes(jobTitle);
 };
+const turnoverBaseEmployee = employee => ({
+  name: clean(employee.name) || employeeName(employee) || 'Name Not Recorded',
+  jobTitle: clean(employee.jobTitle || employee['Job Title']) || 'Not Recorded',
+  department: clean(employee.department || employee['Home Department'] || employee.Department) || 'Not Recorded',
+  location: canonicalTurnoverLocation(employee.location || employee.Location),
+  status: clean(employee.status || employee['Position Status']) || 'Not Recorded',
+});
 const canonicalTurnoverLocation = value => {
   const key = normalize(value);
   if (['corporate', 'northville'].includes(key)) return 'Corporate';
@@ -281,20 +289,10 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const terminationByEmployeeId = new Map(terminationRecords.map(record => [clean(record.employeeId), record]));
       const currentTurnoverEmployees = employees.filter(employee => {
         const status = normalize(employee['Position Status']);
-        return !isExcludedTestEmployee(employee) && !dateOnly(employee['Termination Date']) && ['active', 'leave'].includes(status);
+        return !isExcludedTestEmployee(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded' && !dateOnly(employee['Termination Date']) && ['active', 'leave'].includes(status);
       });
       const q3TurnoverBase = TURNOVER_Q3_2026.map(row => ({ ...row }));
       const partsServiceQ3Base = PARTS_SERVICE_Q3_2026.map(row => ({ ...row }));
-      for (const employee of employees.filter(isExcludedTestEmployee)) {
-        const hireDate = dateOnly(employee['Hire Date']);
-        const terminationDate = dateOnly(employee['Termination Date']);
-        if ((hireDate && hireDate > '2026-09-30') || (terminationDate && terminationDate <= '2026-09-30')) continue;
-        const location = canonicalTurnoverLocation(employee.Location);
-        const q3Row = q3TurnoverBase.find(row => row.location === location);
-        if (q3Row) q3Row.denominator = Math.max(q3Row.voluntary + q3Row.involuntary, q3Row.denominator - 1);
-        const partsRow = partsServiceQ3Base.find(row => row.location === location);
-        if (partsRow && isPartsServiceFacilityEmployee(employee)) partsRow.denominator = Math.max(partsRow.voluntary + partsRow.involuntary, partsRow.denominator - 1);
-      }
       const ytdTurnoverByLocation = new Map(TURNOVER_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
       const partsServiceYtdByLocation = new Map(PARTS_SERVICE_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
       for (const employee of currentTurnoverEmployees) {
@@ -312,6 +310,11 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const unclassifiedTurnovers = [];
       const ytdTurnoverEvents = TURNOVER_Q3_2026_EVENTS.map(event => ({ ...event }));
       const partsServiceYtdEvents = PARTS_SERVICE_Q3_2026_EVENTS.map(event => ({ ...event }));
+      const q3TerminatedBaseEmployees = TURNOVER_Q3_2026_EMPLOYEE_BASE.filter(employee => employee.status === 'Terminated');
+      const ytdBaseEmployees = [
+        ...currentTurnoverEmployees.map(turnoverBaseEmployee),
+        ...q3TerminatedBaseEmployees,
+      ];
       const turnoverYear = Number(easternDateKey().slice(0, 4));
       const excludedTurnoverEmployees = {
         deceased: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.deceased : []),
@@ -354,6 +357,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         ytdTurnoverByLocation.set(location, row);
         const event = { name: employeeName(employee) || 'Name Not Recorded', type: terminationType, location, jobTitle: clean(employee['Job Title']) || 'Not Recorded', terminationDate, period: 'After Q3 2026' };
         ytdTurnoverEvents.push(event);
+        ytdBaseEmployees.push(turnoverBaseEmployee({ ...employee, status: 'Terminated' }));
         if (isPartsServiceFacilityEmployee(employee)) {
           const partsRow = partsServiceYtdByLocation.get(location) || { location, denominator: 0, voluntary: 0, involuntary: 0 };
           partsRow.denominator += 1;
@@ -509,12 +513,12 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           year: turnoverYear,
           q1: { status: 'Not Loaded', label: 'Q1 2026' },
           q2: { status: 'Not Loaded', label: 'Q2 2026' },
-          q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows, events: TURNOVER_Q3_2026_EVENTS },
+          q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows, events: TURNOVER_Q3_2026_EVENTS, baseEmployees: TURNOVER_Q3_2026_EMPLOYEE_BASE },
           q4: { status: easternDateKey() >= '2026-12-31' ? 'Ready for Review' : 'Pending Quarter End', label: 'Q4 2026' },
-          ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows, events: ytdTurnoverEvents },
+          ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows, events: ytdTurnoverEvents, baseEmployees: ytdBaseEmployees },
           partsService: {
-            q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(partsServiceQ3Rows), locations: partsServiceQ3Rows, events: PARTS_SERVICE_Q3_2026_EVENTS },
-            ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(partsServiceYtdRows), locations: partsServiceYtdRows, events: partsServiceYtdEvents },
+            q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(partsServiceQ3Rows), locations: partsServiceQ3Rows, events: PARTS_SERVICE_Q3_2026_EVENTS, baseEmployees: TURNOVER_Q3_2026_EMPLOYEE_BASE.filter(isPartsServiceFacilityEmployee) },
+            ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(partsServiceYtdRows), locations: partsServiceYtdRows, events: partsServiceYtdEvents, baseEmployees: ytdBaseEmployees.filter(isPartsServiceFacilityEmployee) },
           },
           excluded: {
             leave: 'Leave-status employees remain in the employee denominator and are not counted as turnover.',
