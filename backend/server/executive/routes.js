@@ -221,10 +221,19 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         ytdTurnoverByLocation.set(location, row);
       }
       const unclassifiedTurnovers = [];
+      const turnoverYear = Number(easternDateKey().slice(0, 4));
       const excludedTurnoverEmployees = {
-        deceased: new Set(TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.deceased),
-        retired: new Set(TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.retired),
+        deceased: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.deceased : []),
+        retired: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.retired : []),
       };
+      for (const employee of employees) {
+        const terminationDate = dateOnly(employee['Termination Date']);
+        if (!terminationDate.startsWith(`${turnoverYear}-`)) continue;
+        const terminationType = clean(employee['Termination Type'] || terminationByEmployeeId.get(String(employee._id))?.terminationType);
+        const exclusionType = normalize(terminationType || employee['Position Status']);
+        if (['deceased', 'dead'].includes(exclusionType)) excludedTurnoverEmployees.deceased.add(employeeName(employee) || 'Name Not Recorded');
+        if (exclusionType === 'retired') excludedTurnoverEmployees.retired.add(employeeName(employee) || 'Name Not Recorded');
+      }
       for (const employee of employees) {
         const hireDate = dateOnly(employee['Hire Date']);
         const terminationDate = dateOnly(employee['Termination Date']);
@@ -393,6 +402,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           locations: trainingLocationRows,
         },
         turnover: {
+          year: turnoverYear,
           q1: { status: 'Not Loaded', label: 'Q1 2026' },
           q2: { status: 'Not Loaded', label: 'Q2 2026' },
           q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows },

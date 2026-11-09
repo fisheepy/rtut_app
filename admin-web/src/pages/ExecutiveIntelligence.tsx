@@ -21,6 +21,7 @@ type Overview = {
   trainingLaunchDate: string
   trainingOverview: { programs: Array<{ id: string; name: string; targetDate: string; courseCount: number; assigned: number; completed: number; completionRate: number | null }>; assigned: number; completed: number; completionRate: number | null; locations: Array<{ location: string; assigned: number; completed: number; completionRate: number | null }> }
   turnover: {
+    year: number
     q1: { status: string; label: string }
     q2: { status: string; label: string }
     q3: { status: string; label: string; asOf: string; summary: TurnoverMetrics; locations: TurnoverLocation[] }
@@ -112,6 +113,7 @@ const q3FallbackLocations: TurnoverLocation[] = [
 ]
 const q3FallbackSummary: TurnoverMetrics = { denominator: 233, voluntary: 16, involuntary: 11, total: 27, totalRate: 11.6, voluntaryRate: 6.9, involuntaryRate: 4.7 }
 const fallbackTurnover: Overview['turnover'] = {
+  year: 2026,
   q1: { status: 'Not Loaded', label: 'Q1 2026' }, q2: { status: 'Not Loaded', label: 'Q2 2026' },
   q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: q3FallbackSummary, locations: q3FallbackLocations },
   q4: { status: 'Pending Quarter End', label: 'Q4 2026' },
