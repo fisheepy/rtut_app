@@ -2,6 +2,18 @@ const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
 const QUESTION_WORDS = new Set(['about', 'current', 'data', 'date', 'does', 'employee', 'find', 'for', 'give', 'have', 'her', 'hire', 'his', 'how', 'information', 'last', 'location', 'manager', 'much', 'pay', 'paid', 'please', 'rate', 'salary', 'show', 'status', 'tell', 'the', 'what', 'when', 'where', 'which', 'with']);
+const EMPLOYEE_NAME_ALIASES = {
+  'xuan yu': ['myra yu', 'myra'],
+};
+
+function employeeNameVariants(employee) {
+  const legalName = normalize(employeeName(employee));
+  const lastName = clean(employee['Last Name']);
+  const preferredNames = [employee['Preferred Name'], employee['Preferred First Name'], employee.Nickname, employee['Known As']]
+    .map(clean).filter(Boolean)
+    .flatMap(preferred => [preferred, [preferred, lastName].filter(Boolean).join(' ')]);
+  return [...new Set([legalName, ...(EMPLOYEE_NAME_ALIASES[legalName] || []), ...preferredNames].map(normalize).filter(Boolean))];
+}
 
 function editDistance(left, right) {
   const a = normalize(left);
@@ -33,16 +45,19 @@ function findEmployeeMatches(employees, input) {
   const query = normalize(input);
   if (!query) return [];
   const paddedQuery = ` ${query} `;
-  const exact = employees.filter(employee => paddedQuery.includes(` ${normalize(employeeName(employee))} `));
+  const exact = employees.filter(employee => employeeNameVariants(employee).some(variant => paddedQuery.includes(` ${variant} `)));
   if (exact.length) {
-    const longest = Math.max(...exact.map(employee => normalize(employeeName(employee)).length));
-    return exact.filter(employee => normalize(employeeName(employee)).length === longest);
+    const longest = Math.max(...exact.map(employee => Math.max(...employeeNameVariants(employee).filter(variant => paddedQuery.includes(` ${variant} `)).map(variant => variant.length))));
+    return exact.filter(employee => employeeNameVariants(employee).some(variant => variant.length === longest && paddedQuery.includes(` ${variant} `)));
   }
 
   const queryTokens = query.split(' ').filter(token => token.length >= 3 && !QUESTION_WORDS.has(token));
   const scored = employees.map(employee => {
-    const firstTokens = normalize(employee['First Name']).split(' ').filter(Boolean);
-    const lastTokens = normalize(employee['Last Name']).split(' ').filter(Boolean);
+    const variants = employeeNameVariants(employee);
+    const legalLastTokens = normalize(employee['Last Name']).split(' ').filter(Boolean);
+    const nameTokens = [...new Set(variants.flatMap(variant => variant.split(' ').filter(Boolean)))];
+    const firstTokens = nameTokens.filter(token => !legalLastTokens.includes(token));
+    const lastTokens = legalLastTokens;
     const matchedQueryTokens = new Set();
     let score = 0;
     for (const queryToken of queryTokens) {

@@ -30,6 +30,15 @@ test('returns candidate employees when a short name is ambiguous', () => {
   assert.deepEqual(findEmployeeMatches(employees, 'Tell me about Michael'), [employees[0], employees[1]]);
 });
 
+test('matches an employee by a configured preferred-name alias', () => {
+  const employees = [
+    { 'First Name': 'Xuan', 'Last Name': 'Yu' },
+    { 'First Name': 'Cherie', 'Last Name': 'Lynch' },
+  ];
+  assert.deepEqual(findEmployeeMatches(employees, 'What is Myra Yu paid?'), [employees[0]]);
+  assert.deepEqual(findEmployeeMatches(employees, 'Show me Myra'), [employees[0]]);
+});
+
 test('finds known compensation snapshot data', () => {
   const result = compensationRecord('Cherie Lynch');
   assert.equal(result.payType, 'Salary');
