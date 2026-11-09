@@ -242,7 +242,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         trainingDataLive ? db.collection('monthly_training_topics').find({}).sort({ order: 1, targetDate: 1, name: 1 }).toArray() : Promise.resolve([]),
         trainingDataLive ? db.collection('employee_training').find({}).toArray() : Promise.resolve([]),
       ]);
-      const activeEmployees = employees.filter(employee => !isTerminated(employee));
+      const activeEmployees = employees.filter(employee => !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
       const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
       const currentMonth = easternMonthKey();
@@ -531,7 +531,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       await client.connect();
       const db = client.db(databaseName);
       const employees = await db.collection('employees').find({}).toArray();
-      const activeEmployees = employees.filter(employee => !isTerminated(employee));
+      const activeEmployees = employees.filter(employee => !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
       const q = normalize(question);
       const location = findLocationMatch(activeEmployees, question);
       let response;
