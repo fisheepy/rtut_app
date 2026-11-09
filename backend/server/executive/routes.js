@@ -7,6 +7,7 @@ const { answerWithSmartAi } = require('./smartAi');
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
+const isExcludedTestEmployee = employee => normalize(employeeName(employee)) === 'yang yang';
 const isTerminated = employee => /^(terminated|inactive)$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']));
 const money = value => Number.isFinite(Number(value)) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(value)) : '';
 const dateOnly = value => {
@@ -242,7 +243,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         trainingDataLive ? db.collection('monthly_training_topics').find({}).sort({ order: 1, targetDate: 1, name: 1 }).toArray() : Promise.resolve([]),
         trainingDataLive ? db.collection('employee_training').find({}).toArray() : Promise.resolve([]),
       ]);
-      const activeEmployees = employees.filter(employee => !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
+      const activeEmployees = employees.filter(employee => !isExcludedTestEmployee(employee) && !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
       const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
       const currentMonth = easternMonthKey();
@@ -280,8 +281,20 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const terminationByEmployeeId = new Map(terminationRecords.map(record => [clean(record.employeeId), record]));
       const currentTurnoverEmployees = employees.filter(employee => {
         const status = normalize(employee['Position Status']);
-        return !dateOnly(employee['Termination Date']) && ['active', 'leave'].includes(status);
+        return !isExcludedTestEmployee(employee) && !dateOnly(employee['Termination Date']) && ['active', 'leave'].includes(status);
       });
+      const q3TurnoverBase = TURNOVER_Q3_2026.map(row => ({ ...row }));
+      const partsServiceQ3Base = PARTS_SERVICE_Q3_2026.map(row => ({ ...row }));
+      for (const employee of employees.filter(isExcludedTestEmployee)) {
+        const hireDate = dateOnly(employee['Hire Date']);
+        const terminationDate = dateOnly(employee['Termination Date']);
+        if ((hireDate && hireDate > '2026-09-30') || (terminationDate && terminationDate <= '2026-09-30')) continue;
+        const location = canonicalTurnoverLocation(employee.Location);
+        const q3Row = q3TurnoverBase.find(row => row.location === location);
+        if (q3Row) q3Row.denominator = Math.max(q3Row.voluntary + q3Row.involuntary, q3Row.denominator - 1);
+        const partsRow = partsServiceQ3Base.find(row => row.location === location);
+        if (partsRow && isPartsServiceFacilityEmployee(employee)) partsRow.denominator = Math.max(partsRow.voluntary + partsRow.involuntary, partsRow.denominator - 1);
+      }
       const ytdTurnoverByLocation = new Map(TURNOVER_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
       const partsServiceYtdByLocation = new Map(PARTS_SERVICE_Q3_2026.map(row => [row.location, { ...row, denominator: row.voluntary + row.involuntary }]));
       for (const employee of currentTurnoverEmployees) {
@@ -305,6 +318,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         retired: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.retired : []),
       };
       for (const employee of employees) {
+        if (isExcludedTestEmployee(employee)) continue;
         const terminationDate = dateOnly(employee['Termination Date']);
         if (!terminationDate.startsWith(`${turnoverYear}-`)) continue;
         const terminationType = clean(employee['Termination Type'] || terminationByEmployeeId.get(String(employee._id))?.terminationType);
@@ -313,6 +327,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         if (exclusionType === 'retired') excludedTurnoverEmployees.retired.add(employeeName(employee) || 'Name Not Recorded');
       }
       for (const employee of employees) {
+        if (isExcludedTestEmployee(employee)) continue;
         const hireDate = dateOnly(employee['Hire Date']);
         const terminationDate = dateOnly(employee['Termination Date']);
         if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > easternDateKey() || (hireDate && terminationDate < hireDate)) continue;
@@ -347,9 +362,9 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           partsServiceYtdEvents.push(event);
         }
       }
-      const q3TurnoverRows = turnoverRowsWithRates(TURNOVER_Q3_2026);
+      const q3TurnoverRows = turnoverRowsWithRates(q3TurnoverBase);
       const ytdTurnoverRows = turnoverRowsWithRates([...ytdTurnoverByLocation.values()].sort((a, b) => a.location.localeCompare(b.location)));
-      const partsServiceQ3Rows = turnoverRowsWithRates(PARTS_SERVICE_Q3_2026);
+      const partsServiceQ3Rows = turnoverRowsWithRates(partsServiceQ3Base);
       const partsServiceYtdRows = turnoverRowsWithRates([...partsServiceYtdByLocation.values()].sort((a, b) => a.location.localeCompare(b.location)));
       const currentMonthEmploymentChanges = changes
         .filter(record => dateOnly(record.effectiveDate).slice(0, 7) === currentMonth)
@@ -531,7 +546,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       await client.connect();
       const db = client.db(databaseName);
       const employees = await db.collection('employees').find({}).toArray();
-      const activeEmployees = employees.filter(employee => !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
+      const activeEmployees = employees.filter(employee => !isExcludedTestEmployee(employee) && !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
       const q = normalize(question);
       const location = findLocationMatch(activeEmployees, question);
       let response;
