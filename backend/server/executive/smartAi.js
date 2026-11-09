@@ -86,6 +86,53 @@ const EXECUTIVE_TOOLS = [
   },
   {
     type: 'function',
+    name: 'get_employee_hr_process_status',
+    description: 'Get the current read-only New Hire, Employment Change, Termination, COBRA, and Leave workflow status for one employee. This excludes medical details and private comments.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { employeeName: { type: 'string', minLength: 2 } },
+      required: ['employeeName'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_monthly_hr_safety_summary',
+    description: 'Get the verified HR and Safety summary for a calendar month, including new hires, terminations, employment changes, leave cases overlapping the month, and injury cases overlapping the month.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { month: { type: 'string', pattern: '^\\d{4}-(0[1-9]|1[0-2])$' } },
+      required: ['month'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_termination_cobra_leave_status',
+    description: 'Get read-only Termination, COBRA, or Leave status. Employee name may be omitted to list current/open records. Medical details and private comments are excluded.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: {
+        employeeName: nullableString,
+        category: { type: 'string', enum: ['termination', 'cobra', 'leave', 'all'] },
+      },
+      required: ['employeeName', 'category'],
+    },
+  },
+  {
+    type: 'function',
+    name: 'get_employee_employment_change_history',
+    description: 'Get the read-only Employment Change history for one employee, including effective dates, recorded changes, reason, and workflow task status.',
+    strict: true,
+    parameters: {
+      type: 'object', additionalProperties: false,
+      properties: { employeeName: { type: 'string', minLength: 2 } },
+      required: ['employeeName'],
+    },
+  },
+  {
+    type: 'function',
     name: 'request_clarification',
     description: 'Use when the question cannot be answered safely without one missing detail.',
     strict: true,
@@ -116,6 +163,25 @@ function safeEmployee(employee) {
     payType: clean(employee['Pay Category']) || 'Not recorded',
     hireDate: clean(employee['Hire Date']) || 'Not recorded',
   };
+}
+
+function trackerStatus(tracker = {}) {
+  if (tracker.finalLockedAt || tracker.confirmedAt) return 'Final Reviewed / Locked';
+  if (tracker.submittedAt) return 'Awaiting Final Review';
+  return 'In Progress';
+}
+
+function taskStatus(task = {}) {
+  if (task.applicable === false || task.required === false) return 'Not Applicable';
+  if (task.finalReviewedAt || task.completedAt) return 'Completed';
+  if (task.checkedAt) return 'Awaiting Final Review';
+  return task.applicable === true || task.required === true ? 'Incomplete' : 'Not Assigned';
+}
+
+function employeeMatchResult(employees, requested) {
+  const matches = findEmployeeMatches(employees, requested);
+  if (matches.length === 1) return { employee: matches[0] };
+  return { error: { matchCount: matches.length, candidates: matches.slice(0, 8).map(safeEmployee), message: matches.length ? 'More than one employee matched. Ask the user to choose a candidate.' : 'No employee matched that name.' } };
 }
 
 function extractOutputText(response = {}) {
@@ -198,6 +264,109 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
         result.unfinishedEmploymentChanges = changes.filter(employmentChangeIncomplete).length;
       }
       return result;
+    }
+    if (name === 'get_employee_hr_process_status') {
+      const matched = employeeMatchResult(employees, args.employeeName);
+      if (matched.error) return matched.error;
+      const employee = matched.employee;
+      const employeeId = String(employee._id);
+      const [newHires, termination, changes, leaves] = await Promise.all([
+        db.collection('employee_hr_platform').find({ employeeId }).sort({ onboardingCycleStartedAt: -1, createdAt: -1 }).toArray(),
+        db.collection('employee_hr_termination').findOne({ employeeId }),
+        db.collection('employee_hr_employment_change').find({ employeeId }).sort({ effectiveDate: -1, createdAt: -1 }).toArray(),
+        db.collection('employee_hr_leave').find({ employeeId }).sort({ leaveStartedAt: -1, createdAt: -1 }).toArray(),
+      ]);
+      const latestHire = newHires[0] || null;
+      const latestChange = changes[0] || null;
+      const latestLeave = leaves[0] || null;
+      return {
+        employee: safeEmployee(employee), companyStatus: clean(employee['Position Status']) || 'Not recorded',
+        newHire: latestHire ? { hireDate: dateOnly(employee['Hire Date']), status: trackerStatus(latestHire.fileTracker) } : null,
+        employmentChange: latestChange ? { recordCount: changes.length, effectiveDate: dateOnly(latestChange.effectiveDate), reason: clean(latestChange.reason) || 'Not recorded', status: employmentChangeIncomplete(latestChange) ? 'In Progress' : 'Completed' } : null,
+        termination: termination || clean(employee['Termination Date']) ? { terminationDate: dateOnly(employee['Termination Date'] || termination?.terminationDate), terminationType: clean(employee['Termination Type'] || termination?.terminationType) || 'Not recorded', status: trackerStatus(termination?.fileTracker) } : null,
+        cobra: termination?.cobraStartDate ? { startDate: dateOnly(termination.cobraStartDate), endDate: dateOnly(termination.cobraEndDate), status: termination.cobraClosedAt ? 'Closed' : termination.cobraEndDate ? 'Ready to Close' : 'Active' } : null,
+        leave: latestLeave ? { startDate: dateOnly(latestLeave.leaveStartedAt || latestLeave.createdAt), anticipatedReturnDate: dateOnly(latestLeave.anticipatedReturnDate), returnToWorkDate: dateOnly(latestLeave.actualReturnDate || latestLeave.returnedAt), status: latestLeave.active === false || latestLeave.actualReturnDate || latestLeave.returnedAt ? 'Closed' : 'Open', insuranceStatus: clean(latestLeave.insuranceStatus) || 'Not recorded' } : null,
+      };
+    }
+    if (name === 'get_employee_employment_change_history') {
+      const matched = employeeMatchResult(employees, args.employeeName);
+      if (matched.error) return matched.error;
+      const employee = matched.employee;
+      const records = await db.collection('employee_hr_employment_change').find({ employeeId: String(employee._id) }).sort({ effectiveDate: -1, createdAt: -1 }).toArray();
+      return {
+        employee: safeEmployee(employee), count: records.length,
+        history: records.map(record => ({
+          effectiveDate: dateOnly(record.effectiveDate), reason: clean(record.reason) || 'Not recorded', status: employmentChangeIncomplete(record) ? 'In Progress' : 'Completed',
+          changes: (record.changes || []).map(change => ({ field: clean(change.field), from: clean(change.from) || 'Not recorded', to: clean(change.to) || 'Not recorded' })),
+          requestedTracking: record.requestedTracking || {},
+          tasks: Object.fromEntries(Object.entries(record.tasks || {}).map(([key, value]) => [key, taskStatus(value)])),
+        })),
+      };
+    }
+    if (name === 'get_termination_cobra_leave_status') {
+      let selectedEmployee = null;
+      if (clean(args.employeeName)) {
+        const matched = employeeMatchResult(employees, args.employeeName);
+        if (matched.error) return matched.error;
+        selectedEmployee = matched.employee;
+      }
+      const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
+      const filter = selectedEmployee ? { employeeId: String(selectedEmployee._id) } : {};
+      const result = { category: args.category, employee: selectedEmployee ? safeEmployee(selectedEmployee) : null };
+      if (['termination', 'all'].includes(args.category)) {
+        const records = await db.collection('employee_hr_termination').find(filter).toArray();
+        result.terminations = records.map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || {};
+          return { employeeName: employeeName(employee) || clean(record.employeeName) || 'Name not recorded', terminationDate: dateOnly(employee['Termination Date'] || record.terminationDate), terminationType: clean(employee['Termination Type'] || record.terminationType) || 'Not recorded', workflowStatus: trackerStatus(record.fileTracker) };
+        });
+      }
+      if (['cobra', 'all'].includes(args.category)) {
+        const records = await db.collection('employee_hr_termination').find(filter).toArray();
+        const manualRecords = selectedEmployee ? [] : await db.collection('hr_manual_cobra').find({}).toArray();
+        result.cobra = records.filter(record => record.cobraStartDate).map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || {};
+          return { employeeName: employeeName(employee) || clean(record.employeeName) || 'Name not recorded', startDate: dateOnly(record.cobraStartDate), endDate: dateOnly(record.cobraEndDate), status: record.cobraClosedAt ? 'Closed' : record.cobraEndDate ? 'Ready to Close' : 'Active' };
+        }).concat(manualRecords.map(record => ({ employeeName: clean(record.name) || 'Name not recorded', startDate: dateOnly(record.cobraStartDate), endDate: dateOnly(record.cobraEndDate), status: record.cobraClosedAt ? 'Closed' : record.cobraEndDate ? 'Ready to Close' : 'Active', source: 'Manual COBRA record' })));
+      }
+      if (['leave', 'all'].includes(args.category)) {
+        let records = await db.collection('employee_hr_leave').find(filter).toArray();
+        if (!selectedEmployee) records = records.filter(record => record.active !== false && !record.actualReturnDate && !record.returnedAt);
+        result.leave = records.map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || {};
+          return { employeeName: employeeName(employee) || clean(record.employeeName) || 'Name not recorded', startDate: dateOnly(record.leaveStartedAt || record.createdAt), anticipatedReturnDate: dateOnly(record.anticipatedReturnDate), returnToWorkDate: dateOnly(record.actualReturnDate || record.returnedAt), status: record.active === false || record.actualReturnDate || record.returnedAt ? 'Closed' : 'Open', insuranceStatus: clean(record.insuranceStatus) || 'Not recorded' };
+        });
+      }
+      return result;
+    }
+    if (name === 'get_monthly_hr_safety_summary') {
+      const month = clean(args.month);
+      const monthStart = `${month}-01`;
+      const [year, monthNumber] = month.split('-').map(Number);
+      const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+      const validEmployees = employees.filter(employee => !isExcludedTestEmployee(employee) && !isPreEmploymentCancellation(employee));
+      const employeeById = new Map(validEmployees.map(employee => [String(employee._id), employee]));
+      const [changes, leaves, injuries] = await Promise.all([
+        db.collection('employee_hr_employment_change').find({}).toArray(),
+        db.collection('employee_hr_leave').find({}).toArray(),
+        db.collection('work_injury_cases').find({}).toArray(),
+      ]);
+      const overlaps = (start, end) => Boolean(start && start <= monthEnd && (!end || end >= monthStart));
+      const newHires = validEmployees.filter(employee => dateOnly(employee['Hire Date']).slice(0, 7) === month);
+      const terminations = validEmployees.filter(employee => dateOnly(employee['Termination Date']).slice(0, 7) === month);
+      const monthlyChanges = changes.filter(record => dateOnly(record.effectiveDate).slice(0, 7) === month);
+      const monthlyLeaves = leaves.filter(record => overlaps(dateOnly(record.leaveStartedAt || record.createdAt), dateOnly(record.actualReturnDate || record.returnedAt || record.closedAt)));
+      const monthlyInjuries = injuries.filter(record => overlaps(dateOnly(record.injuryDate || record.createdAt), dateOnly(record.closedAt)));
+      const headcountEmployees = validEmployees.filter(employee => !isTerminated(employee));
+      const headcountByLocation = headcountEmployees.reduce((groups, employee) => { const location = clean(employee.Location) || 'Not Recorded'; groups[location] = (groups[location] || 0) + 1; return groups; }, {});
+      const named = employee => employeeName(employee) || 'Name not recorded';
+      return {
+        month, currentHeadcount: headcountEmployees.length, headcountByLocation,
+        newHires: { count: newHires.length, records: newHires.map(employee => ({ employeeName: named(employee), hireDate: dateOnly(employee['Hire Date']), location: clean(employee.Location) || 'Not recorded', department: clean(employee['Home Department'] || employee.Department) || 'Not recorded' })) },
+        terminations: { count: terminations.length, records: terminations.map(employee => ({ employeeName: named(employee), terminationDate: dateOnly(employee['Termination Date']), terminationType: clean(employee['Termination Type']) || 'Not recorded', location: clean(employee.Location) || 'Not recorded' })) },
+        employmentChanges: { count: monthlyChanges.length, records: monthlyChanges.map(record => ({ employeeName: clean(record.employeeName) || named(employeeById.get(clean(record.employeeId)) || {}), effectiveDate: dateOnly(record.effectiveDate), reason: clean(record.reason) || 'Not recorded' })) },
+        leaveCases: { count: monthlyLeaves.length, records: monthlyLeaves.map(record => ({ employeeName: named(employeeById.get(clean(record.employeeId)) || {}) || clean(record.employeeName), startDate: dateOnly(record.leaveStartedAt || record.createdAt), returnToWorkDate: dateOnly(record.actualReturnDate || record.returnedAt), status: record.active === false || record.actualReturnDate || record.returnedAt ? 'Closed' : 'Open' })) },
+        injuryCases: { count: monthlyInjuries.length, records: monthlyInjuries.map(record => ({ employeeName: clean(record.employeeName) || named(employeeById.get(clean(record.employeeId)) || {}), injuryDate: dateOnly(record.injuryDate || record.createdAt), status: record.closedAt ? 'Closed' : 'Open', oshaRecordable: clean(record.oshaRecordable) || 'Not recorded' })) },
+      };
     }
     if (name === 'get_employee_profile') {
       const matches = findEmployeeMatches(employees, args.employeeName);
