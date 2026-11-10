@@ -98,3 +98,22 @@ test('employee-level hourly data supports unique individual analysis', () => {
   assert.equal(analysis.hourlyEmployees.some((employee) => employee.name === 'Brian Trombley'), false);
   assert.equal(analysis.hourlyEmployees.some((employee) => employee.jobTitle === 'Yard Associate'), false);
 });
+
+test('live Company App rates update current pay without replacing the Nov. 1 salary baseline with older data', () => {
+  const analysis = getCompensationGrossPayAnalysis([
+    { 'First Name': 'Adam', 'Last Name': 'Pigeon', 'Pay Rate': 300000, 'Pay Rate Type': 'Annual Salary', 'Pay Rate Updated At': '2026-10-31T12:00:00Z' },
+    { 'First Name': 'Adrian', 'Last Name': 'Buentello', 'Pay Rate': 21.25, 'Pay Rate Type': 'Hourly Rate', 'Pay Rate Updated At': '2026-11-05T12:00:00Z' },
+  ]);
+  assert.equal(analysis.salaryEmployees.find(employee => employee.name === 'Adam Pigeon').regularPay, 315000);
+  assert.equal(analysis.hourlyEmployees.find(employee => employee.name === 'Adrian Buentello').hourlyRate, 21.25);
+});
+
+test('a post-Nov. 1 Employment Change allows the newer Company App salary to replace the confirmed baseline', () => {
+  const analysis = getCompensationGrossPayAnalysis([
+    { _id: 'adam-id', 'First Name': 'Adam', 'Last Name': 'Pigeon', 'Pay Rate': 330000, 'Pay Rate Type': 'Annual Salary', 'Pay Rate Updated At': '2026-11-02T12:00:00Z' },
+  ], [
+    { employeeId: 'adam-id', effectiveDate: '2026-11-02', requestedTracking: { payroll: true }, changes: [{ field: 'Pay Rate' }] },
+  ]);
+  assert.equal(analysis.salaryEmployees.find(employee => employee.name === 'Adam Pigeon').regularPay, 330000);
+  assert.equal(analysis.payTypes.find(row => row.payType === 'Salary').jobTitlesRegularPay.find(row => row.jobTitle === 'Chief Operations Officer').average, 330000);
+});

@@ -1486,9 +1486,21 @@ app.get('/api/compensation/overview', requireCompensationSession, (req, res) => 
     platform: 'Compensation Analysis Platform',
   });
 });
-app.get('/api/compensation/gross-pay-analysis', requireCompensationSession, (req, res) => {
-  const { getCompensationGrossPayAnalysis } = require('./compensation/analysis');
-  res.json(getCompensationGrossPayAnalysis());
+app.get('/api/compensation/gross-pay-analysis', requireCompensationSession, async (req, res) => {
+  const client = new MongoClient(uri, { serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true } });
+  try {
+    await client.connect();
+    const db = client.db(database_name);
+    const [companyEmployees, employmentChanges] = await Promise.all([
+      db.collection('employees').find({}, { projection: { 'First Name': 1, 'Last Name': 1, 'Pay Rate': 1, 'Pay Rate Type': 1, 'Pay Category': 1, 'Pay Rate Updated At': 1 } }).toArray(),
+      db.collection('employee_hr_employment_change').find({}, { projection: { employeeId: 1, effectiveDate: 1, requestedTracking: 1, changes: 1, tasks: 1 } }).toArray(),
+    ]);
+    const { getCompensationGrossPayAnalysis } = require('./compensation/analysis');
+    res.json(getCompensationGrossPayAnalysis(companyEmployees, employmentChanges));
+  } catch (error) {
+    console.error('Unable to load live Compensation Analysis rates:', error);
+    res.status(500).json({ error: 'Compensation Analysis could not be loaded.' });
+  } finally { await client.close(); }
 });
 app.post('/api/compensation/hourly-employee-report.xlsx', requireCompensationSession, async (req, res) => {
   try {

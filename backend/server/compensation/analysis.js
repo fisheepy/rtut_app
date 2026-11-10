@@ -191,8 +191,79 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
   hourlyEmployees: HOURLY_EMPLOYEES,
 });
 
-function getCompensationGrossPayAnalysis() {
-  return COMPENSATION_GROSS_PAY_SNAPSHOT;
+const NOVEMBER_1_2026_SALARY_BASELINE = new Set([
+  'tommy westfall', 'ken bumgardner', 'stratos dallis', 'mike morrison', 'anthony sciara', 'adam pigeon',
+  'abbie sack', 'myra yu', 'xuan yu', 'phil barnhart', 'april ouding', 'julie igielski', 'ashley cooper',
+  'robert smoke', 'carole vandawalker', 'robert pelkey', 'alyssa sowders', 'cherie lynch', 'jim malone',
+  'mike griffiths', 'john eurich', 'keith kline', 'charles vanover', 'paul rodriguez', 'mary ling',
+  'russell mullen', 'jeffrey guldenstein', 'joey smith', 'scott chapman',
+]);
+const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const employeeName = employee => [employee?.['First Name'], employee?.['Last Name']].filter(Boolean).join(' ').trim();
+const dateOnly = value => {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+};
+const quantile = (values, percentile) => {
+  const sorted = values.slice().sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const index = (sorted.length - 1) * percentile;
+  const lower = Math.floor(index); const upper = Math.ceil(index);
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+};
+const rounded = value => value == null ? null : Math.round(value * 100) / 100;
+const distribution = (values, population = values.length) => {
+  const valid = values.filter(value => Number.isFinite(Number(value))).map(Number);
+  return {
+    population, analyzed: valid.length, noHistory: Math.max(0, population - valid.length),
+    min: rounded(valid.length ? Math.min(...valid) : null), p25: rounded(quantile(valid, .25)),
+    median: rounded(quantile(valid, .5)), average: rounded(valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null),
+    p75: rounded(quantile(valid, .75)), max: rounded(valid.length ? Math.max(...valid) : null),
+  };
+};
+const groupedDistribution = (employees, field) => [...employees.reduce((groups, employee) => {
+  const key = employee.jobTitle || 'Not Recorded';
+  const group = groups.get(key) || [];
+  group.push(employee); groups.set(key, group); return groups;
+}, new Map()).entries()].map(([jobTitle, group]) => ({ jobTitle, ...distribution(group.map(employee => employee[field]), group.length) }))
+  .sort((a, b) => (b.average ?? -Infinity) - (a.average ?? -Infinity) || a.jobTitle.localeCompare(b.jobTitle));
+
+function getCompensationGrossPayAnalysis(companyEmployees = [], employmentChanges = []) {
+  if (!Array.isArray(companyEmployees) || !companyEmployees.length) return COMPENSATION_GROSS_PAY_SNAPSHOT;
+  const analysis = JSON.parse(JSON.stringify(COMPENSATION_GROSS_PAY_SNAPSHOT));
+  const companyByName = new Map(companyEmployees.map(employee => [normalize(employeeName(employee)), employee]));
+  const postNovemberPayrollChangeEmployeeIds = new Set(employmentChanges.filter(record => {
+    const effectiveDate = dateOnly(record?.effectiveDate || record?.tasks?.payroll?.actionDate);
+    const isPayrollChange = record?.requestedTracking?.payroll === true || (Array.isArray(record?.changes) && record.changes.some(change => /pay|rate|salary/i.test(String(change?.field || ''))));
+    return effectiveDate > '2026-11-01' && isPayrollChange;
+  }).map(record => String(record.employeeId || '')));
+  analysis.salaryEmployees = analysis.salaryEmployees.map(employee => {
+    const company = companyByName.get(normalize(employee.name));
+    const payRate = Number(company?.['Pay Rate']);
+    const payType = normalize(company?.['Pay Rate Type'] || company?.['Pay Category']);
+    const updatedAt = dateOnly(company?.['Pay Rate Updated At']);
+    const protectedBaseline = NOVEMBER_1_2026_SALARY_BASELINE.has(normalize(employee.name));
+    const canUseCompanyRate = Number.isFinite(payRate) && payRate > 0 && (payType.includes('salary') || payType.includes('annual'))
+      && (!protectedBaseline || postNovemberPayrollChangeEmployeeIds.has(String(company?._id || '')));
+    return canUseCompanyRate ? { ...employee, regularPay: payRate, currentBasePaySource: protectedBaseline ? 'Post-Nov. 1 Employment Change and Company App database' : 'Company App database', currentBasePayUpdatedAt: updatedAt || null } : { ...employee, currentBasePaySource: protectedBaseline ? 'Confirmed Nov. 1, 2026 salary baseline' : 'Compensation Analysis baseline', currentBasePayUpdatedAt: protectedBaseline ? '2026-11-01' : null };
+  });
+  analysis.hourlyEmployees = analysis.hourlyEmployees.map(employee => {
+    const company = companyByName.get(normalize(employee.name));
+    const payRate = Number(company?.['Pay Rate']);
+    const payType = normalize(company?.['Pay Rate Type'] || company?.['Pay Category']);
+    const canUseCompanyRate = Number.isFinite(payRate) && payRate > 0 && payType.includes('hour');
+    return canUseCompanyRate ? { ...employee, hourlyRate: payRate, currentBasePaySource: 'Company App database', currentBasePayUpdatedAt: dateOnly(company?.['Pay Rate Updated At']) || null } : { ...employee, currentBasePaySource: 'Compensation Analysis baseline', currentBasePayUpdatedAt: null };
+  });
+  const salaryPayType = analysis.payTypes.find(row => row.payType === 'Salary');
+  const hourlyPayType = analysis.payTypes.find(row => row.payType === 'Hourly');
+  salaryPayType.regularPay = distribution(analysis.salaryEmployees.map(employee => employee.regularPay), analysis.salaryEmployees.length);
+  salaryPayType.jobTitlesRegularPay = groupedDistribution(analysis.salaryEmployees, 'regularPay');
+  hourlyPayType.hourlyRate = distribution(analysis.hourlyEmployees.map(employee => employee.hourlyRate), analysis.hourlyEmployees.length);
+  hourlyPayType.jobTitlesHourlyRate = groupedDistribution(analysis.hourlyEmployees, 'hourlyRate');
+  analysis.currentBasePayAsOf = new Date().toISOString();
+  analysis.currentBasePayBasis = 'Current Hourly Rate is read from the restricted Company App database when a valid current rate is available. Confirmed Nov. 1, 2026 salary changes remain the salary baseline unless a later payroll or pay-rate change is recorded in Employment Change; only then does the newer Company App Annual Salary replace the baseline. Historical gross pay remains fixed for Sep. 30, 2025–Sep. 29, 2026.';
+  return analysis;
 }
 
-module.exports = { COMPENSATION_GROSS_PAY_SNAPSHOT, getCompensationGrossPayAnalysis };
+module.exports = { COMPENSATION_GROSS_PAY_SNAPSHOT, NOVEMBER_1_2026_SALARY_BASELINE, getCompensationGrossPayAnalysis };
