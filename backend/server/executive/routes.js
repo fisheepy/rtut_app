@@ -302,7 +302,11 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         ...currentTurnoverEmployees.map(turnoverBaseEmployee),
         ...q3TerminatedBaseEmployees,
       ];
-      const turnoverYear = Number(easternDateKey().slice(0, 4));
+      // Keep the completed 2026 reporting year as a stable, auditable annual
+      // result after year-end. A future reporting year can be introduced as a
+      // separate selectable dataset without changing the archived 2026 result.
+      const turnoverYear = 2026;
+      const turnoverAsOf = easternDateKey() > '2026-12-31' ? '2026-12-31' : easternDateKey();
       const excludedTurnoverEmployees = {
         deceased: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.deceased : []),
         retired: new Set(turnoverYear === 2026 ? TURNOVER_Q3_2026_EXCLUDED_EMPLOYEES.retired : []),
@@ -320,7 +324,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         if (isExcludedTestEmployee(employee)) continue;
         const hireDate = dateOnly(employee['Hire Date']);
         const terminationDate = dateOnly(employee['Termination Date']);
-        if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > easternDateKey() || (hireDate && terminationDate < hireDate)) continue;
+        if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > turnoverAsOf || (hireDate && terminationDate < hireDate)) continue;
         if (TURNOVER_Q3_2026_INCLUDED_NAMES.has(normalize(employeeName(employee)))) continue;
         const terminationType = clean(employee['Termination Type'] || terminationByEmployeeId.get(String(employee._id))?.terminationType);
         const exclusionType = normalize(terminationType || employee['Position Status']);
@@ -501,11 +505,11 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           q1: { status: 'Not Loaded', label: 'Q1 2026' },
           q2: { status: 'Not Loaded', label: 'Q2 2026' },
           q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(q3TurnoverRows), locations: q3TurnoverRows, events: TURNOVER_Q3_2026_EVENTS, baseEmployees: TURNOVER_Q3_2026_EMPLOYEE_BASE },
-          q4: { status: easternDateKey() >= '2026-12-31' ? 'Ready for Review' : 'Pending Quarter End', label: 'Q4 2026' },
-          ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows, events: ytdTurnoverEvents, baseEmployees: ytdBaseEmployees },
+          q4: { status: easternDateKey() >= '2027-01-01' ? 'Final' : easternDateKey() >= '2026-12-31' ? 'Ready for Review' : 'Pending Quarter End', label: 'Q4 2026' },
+          ytd: { status: easternDateKey() >= '2027-01-01' ? 'Final Annual' : 'Current', label: easternDateKey() >= '2027-01-01' ? '2026 Final Annual' : '2026 Year to Date', asOf: turnoverAsOf, summary: turnoverSummary(ytdTurnoverRows), locations: ytdTurnoverRows, events: ytdTurnoverEvents, baseEmployees: ytdBaseEmployees },
           partsService: {
             q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: turnoverSummary(partsServiceQ3Rows), locations: partsServiceQ3Rows, events: PARTS_SERVICE_Q3_2026_EVENTS, baseEmployees: TURNOVER_Q3_2026_EMPLOYEE_BASE.filter(isPartsServiceFacilityEmployee) },
-            ytd: { status: 'Current', label: '2026 Year to Date', asOf: easternDateKey(), summary: turnoverSummary(partsServiceYtdRows), locations: partsServiceYtdRows, events: partsServiceYtdEvents, baseEmployees: ytdBaseEmployees.filter(isPartsServiceFacilityEmployee) },
+            ytd: { status: easternDateKey() >= '2027-01-01' ? 'Final Annual' : 'Current', label: easternDateKey() >= '2027-01-01' ? '2026 Final Annual' : '2026 Year to Date', asOf: turnoverAsOf, summary: turnoverSummary(partsServiceYtdRows), locations: partsServiceYtdRows, events: partsServiceYtdEvents, baseEmployees: ytdBaseEmployees.filter(isPartsServiceFacilityEmployee) },
           },
           excluded: {
             leave: 'Leave-status employees remain in the employee denominator and are not counted as turnover.',
@@ -526,6 +530,69 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
     } catch (error) {
       console.error('Unable to load Executive Intelligence overview:', error);
       return res.status(500).json({ error: 'Executive overview could not be loaded.' });
+    } finally { await client.close(); }
+  });
+
+  router.get('/workforce-history', async (req, res) => {
+    const category = clean(req.query.category);
+    const employeeQuery = normalize(req.query.employeeName);
+    const dateFrom = dateOnly(req.query.dateFrom);
+    const dateTo = dateOnly(req.query.dateTo);
+    if (!['new-hire', 'termination', 'employment-change'].includes(category)) return res.status(400).json({ error: 'Select a valid history category.' });
+    if ((clean(req.query.dateFrom) && !dateFrom) || (clean(req.query.dateTo) && !dateTo) || (dateFrom && dateTo && dateFrom > dateTo)) return res.status(400).json({ error: 'Enter a valid date range.' });
+    const client = createClient();
+    try {
+      await client.connect();
+      const db = client.db(databaseName);
+      const [employees, newHireRecords, terminationRecords, changes] = await Promise.all([
+        db.collection('employees').find({}).toArray(),
+        db.collection('employee_hr_platform').find({}).toArray(),
+        db.collection('employee_hr_termination').find({}).toArray(),
+        db.collection('employee_hr_employment_change').find({}).toArray(),
+      ]);
+      const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
+      const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
+      const terminationByEmployeeId = new Map(terminationRecords.map(record => [clean(record.employeeId), record]));
+      const nameMatches = value => !employeeQuery || normalize(value).includes(employeeQuery);
+      const dateMatches = value => {
+        const date = dateOnly(value);
+        return Boolean(date && (!dateFrom || date >= dateFrom) && (!dateTo || date <= dateTo));
+      };
+      let records = [];
+      if (category === 'new-hire') {
+        records = employees.filter(employee => !isExcludedTestEmployee(employee) && !isPreEmploymentCancellation(employee) && dateMatches(employee['Hire Date']) && nameMatches(employeeName(employee))).map(employee => {
+          const tracker = newHireByEmployeeId.get(String(employee._id))?.fileTracker || {};
+          return {
+            id: String(employee._id), employeeName: employeeName(employee) || 'Name Not Recorded', eventDate: dateOnly(employee['Hire Date']),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded', department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded', location: clean(employee.Location) || 'Not Recorded',
+            status: tracker.finalLockedAt || tracker.confirmedAt ? 'Completed' : tracker.submittedAt ? 'Final Review Needed' : 'In Progress', detail: clean(employee['Position Status']) || 'Active',
+          };
+        });
+      } else if (category === 'termination') {
+        records = employees.filter(employee => !isExcludedTestEmployee(employee) && !isPreEmploymentCancellation(employee) && dateMatches(employee['Termination Date']) && nameMatches(employeeName(employee))).map(employee => {
+          const termination = terminationByEmployeeId.get(String(employee._id)) || {};
+          return {
+            id: String(employee._id), employeeName: employeeName(employee) || 'Name Not Recorded', eventDate: dateOnly(employee['Termination Date']),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded', department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded', location: clean(employee.Location) || 'Not Recorded',
+            status: clean(employee['Termination Type'] || termination.terminationType) || 'Not Recorded', detail: termination.fileTracker?.finalLockedAt ? 'File Tracker Final Reviewed' : 'Termination Follow-up In Progress',
+          };
+        });
+      } else {
+        records = changes.filter(record => dateMatches(record.effectiveDate)).map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || record.employeeSnapshot || {};
+          const name = clean(record.employeeName) || employeeName(employee) || 'Name Not Recorded';
+          return {
+            id: String(record._id), employeeName: name, eventDate: dateOnly(record.effectiveDate),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded', department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded', location: clean(employee.Location) || 'Not Recorded',
+            status: employmentChangeIncomplete(record) ? 'In Progress' : 'Completed', detail: employmentChangeDetails(record), reason: clean(record.reason) || 'Not Recorded',
+          };
+        }).filter(record => nameMatches(record.employeeName));
+      }
+      records.sort((a, b) => b.eventDate.localeCompare(a.eventDate) || a.employeeName.localeCompare(b.employeeName));
+      return res.json({ category, count: records.length, records: records.slice(0, 500), truncated: records.length > 500 });
+    } catch (error) {
+      console.error('Unable to load Executive Intelligence workforce history:', error);
+      return res.status(500).json({ error: 'Historical workforce records could not be loaded.' });
     } finally { await client.close(); }
   });
 
