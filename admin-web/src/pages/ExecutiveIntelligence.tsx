@@ -122,15 +122,15 @@ const q3FallbackLocations: TurnoverLocation[] = [
 ]
 const q3FallbackSummary: TurnoverMetrics = { denominator: 233, voluntary: 16, involuntary: 11, total: 27, totalRate: 11.6, voluntaryRate: 6.9, involuntaryRate: 4.7 }
 const partsServiceFallbackLocations: TurnoverLocation[] = [
-  { location: 'Cleveland', denominator: 5, voluntary: 0, involuntary: 0, total: 0, totalRate: 0, voluntaryRate: 0, involuntaryRate: 0 },
-  { location: 'Dearborn', denominator: 63, voluntary: 5, involuntary: 4, total: 9, totalRate: 14.3, voluntaryRate: 7.9, involuntaryRate: 6.3 },
-  { location: 'Gaylord', denominator: 8, voluntary: 2, involuntary: 0, total: 2, totalRate: 25, voluntaryRate: 25, involuntaryRate: 0 },
-  { location: 'Grand Rapids', denominator: 34, voluntary: 4, involuntary: 1, total: 5, totalRate: 14.7, voluntaryRate: 11.8, involuntaryRate: 2.9 },
-  { location: 'Hudsonville', denominator: 31, voluntary: 2, involuntary: 1, total: 3, totalRate: 9.7, voluntaryRate: 6.5, involuntaryRate: 3.2 },
-  { location: 'Warren', denominator: 24, voluntary: 2, involuntary: 1, total: 3, totalRate: 12.5, voluntaryRate: 8.3, involuntaryRate: 4.2 },
-  { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1, total: 1, totalRate: 11.1, voluntaryRate: 0, involuntaryRate: 11.1 },
+  { location: 'Cleveland', denominator: 4, voluntary: 0, involuntary: 0, total: 0, totalRate: 0, voluntaryRate: 0, involuntaryRate: 0 },
+  { location: 'Dearborn', denominator: 62, voluntary: 5, involuntary: 4, total: 9, totalRate: 14.5, voluntaryRate: 8.1, involuntaryRate: 6.5 },
+  { location: 'Gaylord', denominator: 7, voluntary: 2, involuntary: 0, total: 2, totalRate: 28.6, voluntaryRate: 28.6, involuntaryRate: 0 },
+  { location: 'Grand Rapids', denominator: 33, voluntary: 4, involuntary: 1, total: 5, totalRate: 15.2, voluntaryRate: 12.1, involuntaryRate: 3 },
+  { location: 'Hudsonville', denominator: 30, voluntary: 2, involuntary: 1, total: 3, totalRate: 10, voluntaryRate: 6.7, involuntaryRate: 3.3 },
+  { location: 'Warren', denominator: 22, voluntary: 2, involuntary: 0, total: 2, totalRate: 9.1, voluntaryRate: 9.1, involuntaryRate: 0 },
+  { location: 'Wixom', denominator: 8, voluntary: 0, involuntary: 1, total: 1, totalRate: 12.5, voluntaryRate: 0, involuntaryRate: 12.5 },
 ]
-const partsServiceFallbackSummary: TurnoverMetrics = { denominator: 174, voluntary: 15, involuntary: 8, total: 23, totalRate: 13.2, voluntaryRate: 8.6, involuntaryRate: 4.6 }
+const partsServiceFallbackSummary: TurnoverMetrics = { denominator: 166, voluntary: 15, involuntary: 7, total: 22, totalRate: 13.3, voluntaryRate: 9, involuntaryRate: 4.2 }
 const fallbackTurnover: Overview['turnover'] = {
   year: 2026,
   q1: { status: 'Not Loaded', label: 'Q1 2026' }, q2: { status: 'Not Loaded', label: 'Q2 2026' },

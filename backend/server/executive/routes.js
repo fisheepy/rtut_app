@@ -82,13 +82,13 @@ const TURNOVER_Q3_2026_EVENTS = [
   ['Brian Trombley', 'Voluntary', 'Corporate', 'Director of Corporate Projects & IT'],
 ].map(([name, type, location, jobTitle]) => ({ name, type, location, jobTitle, terminationDate: '', period: 'Q3 2026 baseline' }));
 const PARTS_SERVICE_Q3_2026 = [
-  { location: 'Cleveland', denominator: 5, voluntary: 0, involuntary: 0 },
-  { location: 'Dearborn', denominator: 63, voluntary: 5, involuntary: 4 },
-  { location: 'Gaylord', denominator: 8, voluntary: 2, involuntary: 0 },
-  { location: 'Grand Rapids', denominator: 34, voluntary: 4, involuntary: 1 },
-  { location: 'Hudsonville', denominator: 31, voluntary: 2, involuntary: 1 },
-  { location: 'Warren', denominator: 24, voluntary: 2, involuntary: 1 },
-  { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1 },
+  { location: 'Cleveland', denominator: 4, voluntary: 0, involuntary: 0 },
+  { location: 'Dearborn', denominator: 62, voluntary: 5, involuntary: 4 },
+  { location: 'Gaylord', denominator: 7, voluntary: 2, involuntary: 0 },
+  { location: 'Grand Rapids', denominator: 33, voluntary: 4, involuntary: 1 },
+  { location: 'Hudsonville', denominator: 30, voluntary: 2, involuntary: 1 },
+  { location: 'Warren', denominator: 22, voluntary: 2, involuntary: 0 },
+  { location: 'Wixom', denominator: 8, voluntary: 0, involuntary: 1 },
 ];
 const PARTS_SERVICE_Q3_2026_EVENTS = [
   ['Zachary Ghadieh', 'Involuntary', 'Dearborn', 'Trailer Mechanic / Technician'],
@@ -98,7 +98,6 @@ const PARTS_SERVICE_Q3_2026_EVENTS = [
   ['Sean Cullen', 'Involuntary', 'Grand Rapids', 'Truck Upfit Specialist'],
   ['Tristen Kuprienko', 'Involuntary', 'Hudsonville', 'Apprentice Service Technician'],
   ['Cordell Wyatt', 'Involuntary', 'Wixom', 'Apprentice Service Technician'],
-  ['David Schoenherr', 'Involuntary', 'Warren', 'General Manager'],
   ['Nathan Alda', 'Voluntary', 'Dearborn', 'Warehouse Associate'],
   ['Joshua Rapley', 'Voluntary', 'Dearborn', 'Inside Parts Sales'],
   ['Wala Baha', 'Voluntary', 'Dearborn', 'Trailer Mechanic / Technician'],
@@ -120,6 +119,7 @@ const isPartsServiceFacilityEmployee = employee => {
   const location = canonicalTurnoverLocation(employee.Location || employee.location);
   if (!PARTS_SERVICE_FACILITIES.has(location)) return false;
   const jobTitle = normalize(employee['Job Title'] || employee.jobTitle);
+  if (jobTitle.includes('general manager')) return false;
   return !['outside parts sales', 'outside parts sales manager', 'equipment sales', 'equipment design consultant', 'trailer sales', 'trailer sales manager', 'trailer & equipment sales', 'vp of trailers'].includes(jobTitle);
 };
 const turnoverBaseEmployee = employee => ({
