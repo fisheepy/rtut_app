@@ -184,8 +184,15 @@ export const money = new Intl.NumberFormat("en-US", { style: "currency", currenc
 export const hourlyMoney = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const dateText = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const salaryJobFamilies = [
-  { family: "Executive Leadership", employees: 4, jobs: "CEO, COO, CFO, CLO", regular: "$210,000–$420,000", gross: "$203,415–$393,846", market: "Base: $209,000–$338,000 · Bonus/LTI: company-specific" },
-  { family: "Enterprise Leadership", employees: 5, jobs: "VP Trailers, VP Aftermarket, HR Director, Procurement & IT Director, Marketing Director", regular: "$75,000–$165,000", gross: "$70,423–$185,595", market: "Base: $146,000–$186,000 · Incentive: role-specific" },
+  { family: "Executive · Chief Executive", employees: 1, jobs: "Chief Executive Officer", regular: "$420,000", gross: "$393,846", market: "Base: $275,000–$450,000 · Bonus/LTI: company-specific" },
+  { family: "Executive · Operations", employees: 1, jobs: "Chief Operating Officer", regular: "$315,000", gross: "$321,511", market: "Base: $225,000–$350,000 · Bonus/LTI: company-specific" },
+  { family: "Executive · Finance", employees: 1, jobs: "Chief Financial Officer", regular: "$262,500", gross: "$246,154", market: "Base: $210,000–$325,000 · Bonus/LTI: company-specific" },
+  { family: "Executive · Legal", employees: 1, jobs: "Chief Legal Officer", regular: "$210,000", gross: "$203,415", market: "Base: $190,000–$300,000 · Bonus/LTI: company-specific" },
+  { family: "Enterprise Function · Trailer Sales", employees: 1, jobs: "VP of Trailers", regular: "$165,000", gross: "$185,595", market: "Base: $150,000–$225,000 · Incentive: role-specific" },
+  { family: "Enterprise Function · Aftermarket", employees: 1, jobs: "VP of Aftermarket Sales and Operations", regular: "$150,000", gross: "$163,787", market: "Base: $145,000–$215,000 · Incentive: role-specific" },
+  { family: "Enterprise Function · Human Resources", employees: 1, jobs: "Director of Human Resources", regular: "$135,000", gross: "$128,077", market: "Base: $140,000–$200,000" },
+  { family: "Enterprise Function · Procurement & IT", employees: 1, jobs: "Director of Procurement and IT", regular: "$130,000", gross: "$132,313", market: "Base: $140,000–$200,000" },
+  { family: "Enterprise Function · Marketing", employees: 1, jobs: "Director of Marketing", regular: "$75,000", gross: "$70,423", market: "Base: $105,000–$160,000" },
   { family: "Management Level 1 · General & Business Unit Leadership", employees: 9, jobs: "General Managers, Specialty Equipment Service Manager, Outside Parts Sales Manager", regular: "$62,500–$150,000", gross: "$62,716–$153,942", market: "Base: $93,000–$150,000 · Branch incentive varies" },
   { family: "Management Level 2A · Service Operations Leadership", employees: 5, jobs: "Truck and trailer Service Managers", regular: "$72,500–$140,000", gross: "$75,313–$137,846", market: "Base: $90,000–$130,000 · Total cash: $105,000–$155,000+" },
   { family: "Management Level 2B · Parts & Leasing Operations", employees: 5, jobs: "Parts Managers and Leasing Manager", regular: "$70,000–$100,000", gross: "$66,583–$129,003", market: "Base: $52,000–$100,000 · Role-specific" },
@@ -315,6 +322,15 @@ function HourlyJobArchitecture() {
 }
 
 export const externalBaseRanges: Record<string, { min: number; max: number; note: string }> = {
+  "Chief Executive Officer": { min: 275000, max: 450000, note: "Chief-executive base reference for a private Michigan company of Royal's size; bonus and long-term incentives require separate review." },
+  "Chief Operating Officer": { min: 225000, max: 350000, note: "Enterprise operations executive base reference; bonus and long-term incentives require separate review." },
+  "Chief Financial Officer": { min: 210000, max: 325000, note: "Enterprise finance executive base reference; bonus and long-term incentives require separate review." },
+  "Chief Legal Officer": { min: 190000, max: 300000, note: "Enterprise legal executive base reference; bonus and long-term incentives require separate review." },
+  "VP of Trailers": { min: 150000, max: 225000, note: "Trailer-sales leadership base reference. Sales incentives require separate review." },
+  "VP of Aftermarket Sales and Operations": { min: 145000, max: 215000, note: "Aftermarket sales and operations leadership base reference. Annual incentives require separate review." },
+  "Director of Human Resources": { min: 140000, max: 200000, note: "Enterprise HR functional-director base reference for Royal's organizational scope." },
+  "Director of Procurement and IT": { min: 140000, max: 200000, note: "Combined procurement and technology functional-director base reference." },
+  "Director of Marketing": { min: 105000, max: 160000, note: "Enterprise marketing functional-director base reference." },
   "Executive Leadership": { min: 209000, max: 338000, note: "Executive base reference; bonus and long-term incentives require separate review." },
   "Enterprise Leadership": { min: 146000, max: 186000, note: "Enterprise-leadership base reference; annual incentives vary by role." },
   "Management Level 1 · General & Business Unit Leadership": { min: 93000, max: 150000, note: "General and business-unit leadership base reference." },
@@ -330,6 +346,9 @@ export const externalBaseRanges: Record<string, { min: number; max: number; note
   "Senior Service Advisory": { min: 65000, max: 85000, note: "Senior service-advisory base reference." },
   "Upfit, Technical & Field Support": { min: 60000, max: 105000, note: "Technical and field-support base reference." },
 };
+
+export const externalBaseRangeForEmployee = (employee: Pick<SalaryEmployee, "jobTitle" | "jobFamily">) =>
+  externalBaseRanges[employee.jobTitle] ?? externalBaseRanges[employee.jobFamily];
 
 const crossPayTypeJobTitles = [
   { title: "Inside Parts Sales", salary: "Brandon Neeb; Jeffery Guldenstein; Benjamin Tuinstra", hourly: "Thomas Collins; Michael Davis; John King; Benjamin Morris; Robert Mullen; Jeffrey Pilch; Cooper Start; Christopher Watts; Dennis Whisman" },
@@ -364,7 +383,7 @@ export const alignment = (value: number | null, min: number, max: number) => {
 
 export const employeeExternalAlignment = (employee: SalaryEmployee) => {
   if (employee.regularPay == null) return "Missing Regular Pay";
-  const market = externalBaseRanges[employee.jobFamily];
+  const market = externalBaseRangeForEmployee(employee);
   if (!market) return "External Benchmark Unavailable";
   return alignment(employee.regularPay, market.min, market.max);
 };
@@ -378,7 +397,7 @@ const isInternalLowPosition = (employee: SalaryEmployee, employees: SalaryEmploy
 
 export const employeeBaseAlignment = (employee: SalaryEmployee, employees: SalaryEmployee[]) => {
   if (employee.regularPay == null) return "Missing Regular Pay";
-  const market = externalBaseRanges[employee.jobFamily];
+  const market = externalBaseRangeForEmployee(employee);
   if (!market) return "External Benchmark Unavailable";
   const internalLow = isInternalLowPosition(employee, employees);
   const externalLow = employee.regularPay < market.min * 1.05;

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, RefreshCw, UsersRound } from "lucide-react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { api } from "../shared/api";
-import { CompensationLogin, dateText, employeeBaseAlignment, externalBaseRanges, money, percentile, quantile } from "./CompensationAnalysis";
+import { CompensationLogin, dateText, employeeBaseAlignment, externalBaseRangeForEmployee, money, percentile, quantile } from "./CompensationAnalysis";
 import type { GrossPayAnalysis } from "./CompensationAnalysis";
 
 export default function SalaryEmployeeAnalysis() {
@@ -29,7 +29,7 @@ export default function SalaryEmployeeAnalysis() {
   const peerGross = peers.map((item) => item.grossPay);
   const limitedPeerSample = peerRegular.length < 5;
   const internalStatus = "";
-  const market = externalBaseRanges[employee.jobFamily];
+  const market = externalBaseRangeForEmployee(employee);
   const externalStatus = employeeBaseAlignment(employee, analysis.salaryEmployees);
   const reviewStatus = externalStatus;
   const cards = [["Current Regular Pay", employee.regularPay == null ? "Unavailable" : money.format(employee.regularPay)], ["Regular Pay Percentile", employee.regularPay == null ? "—" : `${percentile(allRegular, employee.regularPay)}th of salary employees`], ["Total Gross Pay", money.format(employee.grossPay)], ["Gross Pay Percentile", `${percentile(allGross, employee.grossPay)}th of salary employees`]];
