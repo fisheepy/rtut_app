@@ -198,6 +198,9 @@ const NOVEMBER_1_2026_SALARY_BASELINE = new Set([
   'mike griffiths', 'john eurich', 'keith kline', 'charles vanover', 'paul rodriguez', 'mary ling',
   'russell mullen', 'jeffrey guldenstein', 'joey smith', 'scott chapman',
 ]);
+const CONFIRMED_SALARY_BASELINE_DATES = new Map([
+  ['tommy westfall', '2026-09-16'],
+]);
 const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [employee?.['First Name'], employee?.['Last Name']].filter(Boolean).join(' ').trim();
 const dateOnly = value => {
@@ -244,9 +247,10 @@ function getCompensationGrossPayAnalysis(companyEmployees = [], employmentChange
     const payType = normalize(company?.['Pay Rate Type'] || company?.['Pay Category']);
     const updatedAt = dateOnly(company?.['Pay Rate Updated At']);
     const protectedBaseline = NOVEMBER_1_2026_SALARY_BASELINE.has(normalize(employee.name));
+    const confirmedBaselineDate = CONFIRMED_SALARY_BASELINE_DATES.get(normalize(employee.name)) || '2026-11-01';
     const canUseCompanyRate = Number.isFinite(payRate) && payRate > 0 && (payType.includes('salary') || payType.includes('annual'))
       && (!protectedBaseline || postNovemberPayrollChangeEmployeeIds.has(String(company?._id || '')));
-    return canUseCompanyRate ? { ...employee, regularPay: payRate, currentBasePaySource: protectedBaseline ? 'Post-Nov. 1 Employment Change and Company App database' : 'Company App database', currentBasePayUpdatedAt: updatedAt || null } : { ...employee, currentBasePaySource: protectedBaseline ? 'Confirmed Nov. 1, 2026 salary baseline' : 'Compensation Analysis baseline', currentBasePayUpdatedAt: protectedBaseline ? '2026-11-01' : null };
+    return canUseCompanyRate ? { ...employee, regularPay: payRate, currentBasePaySource: protectedBaseline ? 'Post-Nov. 1 Employment Change and Company App database' : 'Company App database', currentBasePayUpdatedAt: updatedAt || null } : { ...employee, currentBasePaySource: protectedBaseline ? `Confirmed ${confirmedBaselineDate} salary baseline` : 'Compensation Analysis baseline', currentBasePayUpdatedAt: protectedBaseline ? confirmedBaselineDate : null };
   });
   analysis.hourlyEmployees = analysis.hourlyEmployees.map(employee => {
     const company = companyByName.get(normalize(employee.name));
@@ -262,7 +266,7 @@ function getCompensationGrossPayAnalysis(companyEmployees = [], employmentChange
   hourlyPayType.hourlyRate = distribution(analysis.hourlyEmployees.map(employee => employee.hourlyRate), analysis.hourlyEmployees.length);
   hourlyPayType.jobTitlesHourlyRate = groupedDistribution(analysis.hourlyEmployees, 'hourlyRate');
   analysis.currentBasePayAsOf = new Date().toISOString();
-  analysis.currentBasePayBasis = 'Current Hourly Rate is read from the restricted Company App database when a valid current rate is available. Confirmed Nov. 1, 2026 salary changes remain the salary baseline unless a later payroll or pay-rate change is recorded in Employment Change; only then does the newer Company App Annual Salary replace the baseline. Historical gross pay remains fixed for Sep. 30, 2025–Sep. 29, 2026.';
+  analysis.currentBasePayBasis = 'Current Hourly Rate is read from the restricted Company App database when a valid current rate is available. Confirmed 2026 salary adjustments remain the salary baseline unless a later payroll or pay-rate change is recorded in Employment Change; only then does the newer Company App Annual Salary replace the baseline. Historical gross pay remains fixed for Sep. 30, 2025–Sep. 29, 2026.';
   return analysis;
 }
 

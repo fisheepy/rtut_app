@@ -4,7 +4,7 @@ const employeeName = employee => [clean(employee?.['First Name']), clean(employe
 const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
 
 const NOVEMBER_1_2026_SALARY_CHANGES = Object.freeze([
-  ['Tommy Westfall', 130000], ['Ken Bumgardner', 420000], ['Stratos Dallis', 104750],
+  ['Tommy Westfall', 130000, '2026-09-16'], ['Ken Bumgardner', 420000], ['Stratos Dallis', 104750],
   ['Mike Morrison', 150000], ['Anthony Sciara', 210000], ['Adam Pigeon', 315000],
   ['Abbie Sack', 165000], ['Myra Yu', 135000], ['Phil Barnhart', 130000],
   ['April Ouding', 100000], ['Julie Igielski', 262500], ['Ashley Cooper', 70000],
@@ -14,7 +14,7 @@ const NOVEMBER_1_2026_SALARY_CHANGES = Object.freeze([
   ['Charles Vanover', 110000], ['Paul Rodriguez', 110000], ['Mary Ling', 110000],
   ['Russell Mullen', 75000], ['Jeffrey Guldenstein', 67000], ['Joey Smith', 55000],
   ['Scott Chapman', 103000],
-].map(([name, annualSalary]) => Object.freeze({ name, annualSalary })));
+].map(([name, annualSalary, effectiveDate = '2026-11-01']) => Object.freeze({ name, annualSalary, effectiveDate })));
 
 const NAME_ALIASES = new Map([
   ['myra yu', ['myra yu', 'xuan yu']],
@@ -56,7 +56,7 @@ const recordedSalary = record => {
 
 function completedTasks(existingTasks = {}, effectiveDate = '2026-11-01') {
   const completedAt = new Date(`${effectiveDate}T12:00:00.000Z`);
-  const systemActor = 'System migration — confirmed Nov. 1, 2026 salary list';
+  const systemActor = 'System migration — confirmed 2026 salary adjustment list';
   return {
     ...existingTasks,
     file: existingTasks.file || { required: false, checkedAt: completedAt, checkedBy: systemActor, finalReviewedAt: completedAt, finalReviewedBy: systemActor },
@@ -78,9 +78,13 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
   const changeCollection = db.collection('employee_hr_employment_change');
   const [employees, existingChanges] = await Promise.all([
     employeeCollection.find({}).toArray(),
-    changeCollection.find({ effectiveDate: '2026-11-01' }).toArray(),
+    changeCollection.find({ effectiveDate: { $in: [...new Set(NOVEMBER_1_2026_SALARY_CHANGES.map(target => target.effectiveDate).concat('2026-11-01'))] } }).toArray(),
   ]);
-  const existingByEmployeeId = new Map(existingChanges.map(record => [clean(record.employeeId), record]));
+  const existingByEmployeeId = existingChanges.reduce((records, record) => {
+    const employeeId = clean(record.employeeId);
+    records.set(employeeId, [...(records.get(employeeId) || []), record]);
+    return records;
+  }, new Map());
   const summary = { total: NOVEMBER_1_2026_SALARY_CHANGES.length, alreadyRecorded: 0, updated: 0, inserted: 0, employeesNotFound: [] };
 
   for (const target of NOVEMBER_1_2026_SALARY_CHANGES) {
@@ -90,8 +94,15 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
       continue;
     }
     const employeeId = String(employee._id);
-    const existing = existingByEmployeeId.get(employeeId);
-    if (existing && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
+    const employeeChanges = existingByEmployeeId.get(employeeId) || [];
+    const exactRecord = employeeChanges.find(record => clean(record.effectiveDate) === target.effectiveDate);
+    const staleBackfill = employeeChanges.find(record => record.historicalBackfill === true && clean(record.effectiveDate) === '2026-11-01');
+    const existing = exactRecord || staleBackfill;
+    if (exactRecord && staleBackfill && String(exactRecord._id) !== String(staleBackfill._id)) {
+      await changeCollection.deleteOne({ _id: staleBackfill._id });
+    }
+    const needsEffectiveDateCorrection = existing?.historicalBackfill === true && clean(existing.effectiveDate) !== target.effectiveDate;
+    if (existing && !needsEffectiveDateCorrection && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
       summary.alreadyRecorded += 1;
       continue;
     }
@@ -104,8 +115,10 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
         changes,
         requestedPayRate: { type: 'Annual Salary', amount: target.annualSalary },
         requestedTracking: { ...(existing.requestedTracking || {}), payroll: true },
-        tasks: completedTasks(existing.tasks),
-        updatedAt: new Date(), updatedBy: 'System migration — confirmed Nov. 1, 2026 salary list',
+        effectiveDate: target.effectiveDate,
+        reason: `Confirmed ${target.effectiveDate === '2026-11-01' ? 'November 1' : 'September 16'}, 2026 compensation adjustment`,
+        tasks: completedTasks(existing.tasks, target.effectiveDate),
+        updatedAt: new Date(), updatedBy: 'System migration — confirmed 2026 salary adjustment list',
       } });
       summary.updated += 1;
       continue;
@@ -115,15 +128,15 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
       employeeName: employeeName(employee),
       employeeEmail: clean(employee.Email),
       payCategory: clean(employee['Pay Category']) || 'Salary',
-      effectiveDate: '2026-11-01',
-      reason: 'Confirmed November 1, 2026 compensation adjustment',
+      effectiveDate: target.effectiveDate,
+      reason: `Confirmed ${target.effectiveDate === '2026-11-01' ? 'November 1' : 'September 16'}, 2026 compensation adjustment`,
       employeeFolderUrl: '', followUpIssues: false, followUpNotes: '', followUpUntil: '',
       changes: [change],
       requestedPayRate: { type: 'Annual Salary', amount: target.annualSalary },
       requestedTracking: { payroll: true, insurance: false, retirement: false },
-      tasks: completedTasks(),
+      tasks: completedTasks({}, target.effectiveDate),
       historicalBackfill: true,
-      createdAt: new Date(), createdBy: 'System migration — confirmed Nov. 1, 2026 salary list',
+      createdAt: new Date(), createdBy: 'System migration — confirmed 2026 salary adjustment list',
     });
     summary.inserted += 1;
   }

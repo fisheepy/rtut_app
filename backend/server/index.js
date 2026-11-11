@@ -2228,7 +2228,7 @@ app.post('/api/authentication', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'annual-osha-recordable-injury-view-2026-11-11' })
+  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'tommy-westfall-effective-date-2026-09-16' })
 })
 
 // ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======

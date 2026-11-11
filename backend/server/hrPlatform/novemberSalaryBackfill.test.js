@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { NOVEMBER_1_2026_SALARY_CHANGES, findEmployeeForSalaryTarget } = require('./novemberSalaryBackfill');
+const { NOVEMBER_1_2026_SALARY_CHANGES, findEmployeeForSalaryTarget, ensureNovemberSalaryEmploymentChanges } = require('./novemberSalaryBackfill');
 const roster = require('../executive/turnoverQ3EmployeeBase.json');
 
 test('confirmed November 1 salary list is complete and unique', () => {
@@ -17,6 +17,11 @@ test('confirmed executive salaries retain the approved values', () => {
   assert.equal(salary('Scott Chapman'), 103000);
 });
 
+test('Tommy Westfall uses the confirmed September effective date', () => {
+  const tommy = NOVEMBER_1_2026_SALARY_CHANGES.find(item => item.name === 'Tommy Westfall');
+  assert.equal(tommy?.effectiveDate, '2026-09-16');
+});
+
 test('Ken Bumgardner includes the formal Company App name', () => {
   const target = NOVEMBER_1_2026_SALARY_CHANGES.find(item => item.name === 'Ken Bumgardner');
   assert.equal(findEmployeeForSalaryTarget(target, roster)?.name, 'Kenneth Carl Bumgardner');
@@ -25,4 +30,21 @@ test('Ken Bumgardner includes the formal Company App name', () => {
 test('every confirmed salary employee resolves to the formal roster name', () => {
   const missing = NOVEMBER_1_2026_SALARY_CHANGES.filter(target => !findEmployeeForSalaryTarget(target, roster)).map(target => target.name);
   assert.deepEqual(missing, []);
+});
+
+test('moves the system-created Tommy record from November 1 to September 16', async () => {
+  const employees = [{ _id: 'tommy-id', 'First Name': 'Thomas', 'Last Name': 'Westfall', Email: 'tommy@example.com', 'Pay Category': 'Salary' }];
+  const changes = [{
+    _id: 'change-id', employeeId: 'tommy-id', effectiveDate: '2026-11-01', historicalBackfill: true,
+    requestedPayRate: { type: 'Annual Salary', amount: 130000 }, requestedTracking: { payroll: true }, changes: [], tasks: {},
+  }];
+  const collection = records => ({
+    find: () => ({ toArray: async () => records }),
+    updateOne: async ({ _id }, update) => Object.assign(records.find(record => record._id === _id), update.$set),
+    deleteOne: async ({ _id }) => { const index = records.findIndex(record => record._id === _id); if (index >= 0) records.splice(index, 1); },
+    insertOne: async record => records.push(record),
+  });
+  const db = { collection: name => name === 'employees' ? collection(employees) : collection(changes) };
+  await ensureNovemberSalaryEmploymentChanges(db);
+  assert.equal(changes.find(record => record.employeeId === 'tommy-id')?.effectiveDate, '2026-09-16');
 });
