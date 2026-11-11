@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { NOVEMBER_1_2026_SALARY_CHANGES } = require('./novemberSalaryBackfill');
+const { NOVEMBER_1_2026_SALARY_CHANGES, findEmployeeForSalaryTarget } = require('./novemberSalaryBackfill');
+const roster = require('../executive/turnoverQ3EmployeeBase.json');
 
 test('confirmed November 1 salary list is complete and unique', () => {
   assert.equal(NOVEMBER_1_2026_SALARY_CHANGES.length, 28);
@@ -17,6 +18,11 @@ test('confirmed executive salaries retain the approved values', () => {
 });
 
 test('Ken Bumgardner includes the formal Company App name', () => {
-  const source = require('node:fs').readFileSync(require.resolve('./novemberSalaryBackfill'), 'utf8');
-  assert.match(source, /kenneth carl bumgardner/);
+  const target = NOVEMBER_1_2026_SALARY_CHANGES.find(item => item.name === 'Ken Bumgardner');
+  assert.equal(findEmployeeForSalaryTarget(target, roster)?.name, 'Kenneth Carl Bumgardner');
+});
+
+test('every confirmed salary employee resolves to the formal roster name', () => {
+  const missing = NOVEMBER_1_2026_SALARY_CHANGES.filter(target => !findEmployeeForSalaryTarget(target, roster)).map(target => target.name);
+  assert.deepEqual(missing, []);
 });

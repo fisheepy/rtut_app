@@ -1,6 +1,6 @@
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-const employeeName = employee => [clean(employee?.['First Name']), clean(employee?.['Last Name'])].filter(Boolean).join(' ');
+const employeeName = employee => [clean(employee?.['First Name']), clean(employee?.['Last Name'])].filter(Boolean).join(' ') || clean(employee?.name);
 const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
 
 const NOVEMBER_1_2026_SALARY_CHANGES = Object.freeze([
@@ -30,6 +30,19 @@ const NAME_ALIASES = new Map([
 ]);
 
 const targetNames = target => NAME_ALIASES.get(normalize(target.name)) || [normalize(target.name)];
+function findEmployeeForSalaryTarget(target, employees) {
+  const directNames = new Set(targetNames(target));
+  const direct = employees.find(employee => directNames.has(normalize(employeeName(employee))));
+  if (direct) return direct;
+  const targetParts = normalize(target.name).split(' ');
+  const first = targetParts[0];
+  const last = targetParts[targetParts.length - 1];
+  const candidates = employees.filter(employee => {
+    const parts = normalize(employeeName(employee)).split(' ');
+    return parts[0] === first && parts[parts.length - 1] === last;
+  });
+  return candidates.length === 1 ? candidates[0] : null;
+}
 const payrollChangeRecorded = record => record?.requestedTracking?.payroll === true
   || Number(record?.requestedPayRate?.amount) > 0
   || (Array.isArray(record?.changes) && record.changes.some(change => /pay rate|salary/i.test(clean(change?.field))));
@@ -67,12 +80,11 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
     employeeCollection.find({}).toArray(),
     changeCollection.find({ effectiveDate: '2026-11-01' }).toArray(),
   ]);
-  const employeesByName = new Map(employees.map(employee => [normalize(employeeName(employee)), employee]));
   const existingByEmployeeId = new Map(existingChanges.map(record => [clean(record.employeeId), record]));
   const summary = { total: NOVEMBER_1_2026_SALARY_CHANGES.length, alreadyRecorded: 0, updated: 0, inserted: 0, employeesNotFound: [] };
 
   for (const target of NOVEMBER_1_2026_SALARY_CHANGES) {
-    const employee = targetNames(target).map(name => employeesByName.get(name)).find(Boolean);
+    const employee = findEmployeeForSalaryTarget(target, employees);
     if (!employee) {
       summary.employeesNotFound.push(target.name);
       continue;
@@ -118,4 +130,4 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
   return summary;
 }
 
-module.exports = { NOVEMBER_1_2026_SALARY_CHANGES, ensureNovemberSalaryEmploymentChanges };
+module.exports = { NOVEMBER_1_2026_SALARY_CHANGES, findEmployeeForSalaryTarget, ensureNovemberSalaryEmploymentChanges };
