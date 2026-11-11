@@ -65,10 +65,10 @@ function completedTasks(existingTasks = {}, effectiveDate = '2026-11-01', forceC
     file: {
       ...existingFile,
       required: existingFile.required === true,
-      checkedAt: forceCompletionDate ? completedAt : existingFile.checkedAt || completedAt,
-      checkedBy: existingFile.checkedBy || systemActor,
-      finalReviewedAt: forceCompletionDate ? completedAt : existingFile.finalReviewedAt || completedAt,
-      finalReviewedBy: existingFile.finalReviewedBy || systemActor,
+      checkedAt: existingFile.required === true ? (forceCompletionDate ? completedAt : existingFile.checkedAt || completedAt) : null,
+      checkedBy: existingFile.required === true ? existingFile.checkedBy || systemActor : '',
+      finalReviewedAt: existingFile.required === true ? (forceCompletionDate ? completedAt : existingFile.finalReviewedAt || completedAt) : null,
+      finalReviewedBy: existingFile.required === true ? existingFile.finalReviewedBy || systemActor : '',
     },
     payroll: {
       ...existingPayroll, required: true, applicable: true, actionDate: effectiveDate,
@@ -113,7 +113,7 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
     }
     const needsEffectiveDateCorrection = existing?.historicalBackfill === true && clean(existing.effectiveDate) !== target.effectiveDate;
     const needsCompletionDateCorrection = existing?.historicalBackfill === true
-      && (dateKey(existing.tasks?.file?.finalReviewedAt) !== target.effectiveDate || dateKey(existing.tasks?.payroll?.finalReviewedAt) !== target.effectiveDate);
+      && (Boolean(existing.tasks?.file?.checkedAt || existing.tasks?.file?.finalReviewedAt) || dateKey(existing.tasks?.payroll?.finalReviewedAt) !== target.effectiveDate);
     if (existing && !needsEffectiveDateCorrection && !needsCompletionDateCorrection && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
       summary.alreadyRecorded += 1;
       continue;

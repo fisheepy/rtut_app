@@ -247,7 +247,7 @@ export default function EmploymentChange() {
         if (dateFromTime !== null && (Number.isNaN(effectiveDateTime) || effectiveDateTime < dateFromTime)) return false;
         if (dateToTime !== null && (Number.isNaN(effectiveDateTime) || effectiveDateTime > dateToTime)) return false;
         const allComplete =
-          finalDone(record.tasks?.file) &&
+          (!record.tasks?.file?.required || finalDone(record.tasks?.file)) &&
           (!record.tasks?.payroll?.applicable ||
             finalDone(record.tasks.payroll)) &&
           (!record.followUpIssues || finalDone(record.tasks?.followUp)) &&
@@ -300,7 +300,7 @@ export default function EmploymentChange() {
     [records],
   );
   const payrollComplete = (record: RecordItem) =>
-    finalDone(record.tasks?.file) &&
+    (!record.tasks?.file?.required || finalDone(record.tasks?.file)) &&
     (!record.tasks?.payroll?.applicable || finalDone(record.tasks.payroll)) &&
     (!record.followUpIssues || finalDone(record.tasks?.followUp));
   const payrollRows = visible
@@ -933,18 +933,24 @@ export default function EmploymentChange() {
                       </div>
                     </Cell>
                     <Cell>
-                      <Action
-                        label={
-                          record.tasks?.file?.checkedAt
-                            ? "View File Check"
-                            : "File Check Required"
-                        }
-                        onClick={() => openTracker(record)}
-                        attention={!record.tasks?.file?.checkedAt}
-                      />
+                      {record.tasks?.file?.required === false ? (
+                        pill(true, "Not Required")
+                      ) : (
+                        <Action
+                          label={
+                            record.tasks?.file?.checkedAt
+                              ? "View File Check"
+                              : "File Check Required"
+                          }
+                          onClick={() => openTracker(record)}
+                          attention={!record.tasks?.file?.checkedAt}
+                        />
+                      )}
                     </Cell>
                     <Cell>
-                      {record.tasks?.file?.finalReviewedAt ? (
+                      {record.tasks?.file?.required === false ? (
+                        pill(true, "Not Required")
+                      ) : record.tasks?.file?.finalReviewedAt ? (
                         pill(true, "Final Reviewed")
                       ) : manager ? (
                         <Action
