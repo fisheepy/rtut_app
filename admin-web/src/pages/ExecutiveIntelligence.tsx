@@ -89,6 +89,17 @@ type Overview = {
     oshaRecordable: string;
     caseStatus: "Open" | "Closed";
   }>;
+  annualOshaRecordableCases: Array<{
+    id: string;
+    name: string;
+    injuryDate: string;
+    jobTitle: string;
+    department: string;
+    location: string;
+    workStatus: string;
+    oshaRecordable: string;
+    caseStatus: "Open" | "Closed";
+  }>;
   trainingDataLive: boolean;
   trainingLaunchDate: string;
   trainingOverview: {
@@ -709,6 +720,7 @@ export default function ExecutiveIntelligence() {
   const [historySearched, setHistorySearched] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [injuryView, setInjuryView] = useState<"current" | "annual-osha">("current");
 
   async function loadOverview() {
     const result = await api.get<Overview>("/executive/overview");
@@ -919,6 +931,12 @@ export default function ExecutiveIntelligence() {
       events,
     });
   }
+
+  const displayedInjuryCases = overview
+    ? injuryView === "annual-osha"
+      ? overview.annualOshaRecordableCases || []
+      : overview.currentInjuryCases
+    : [];
 
   return (
     <div
@@ -1966,7 +1984,9 @@ export default function ExecutiveIntelligence() {
               </h2>
               <p className="mt-1 text-sm text-slate-600">
                 {overview.injuryDataLive
-                  ? `All open cases, plus cases opened or closed in ${new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}.`
+                  ? injuryView === "annual-osha"
+                    ? `OSHA-recordable injury cases with an Injury Date in ${overview.currentMonth.slice(0, 4)}, including open and closed cases.`
+                    : `All open cases, plus cases opened or closed in ${new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}.`
                   : "The production injury case display begins January 1, 2027. Existing database records are testing data and are intentionally hidden."}
               </p>
             </div>
@@ -1976,7 +1996,7 @@ export default function ExecutiveIntelligence() {
                   {overview.openInjuryCases} Open
                 </span>
                 <span className="rounded-full bg-slate-800 px-4 py-2 text-sm font-black text-white">
-                  {overview.currentInjuryCases.length} Shown
+                  {displayedInjuryCases.length} Shown
                 </span>
               </div>
             ) : (
@@ -1985,8 +2005,26 @@ export default function ExecutiveIntelligence() {
               </span>
             )}
           </header>
+          {overview.injuryDataLive && (
+            <div className="flex flex-wrap gap-2 border-b border-orange-100 bg-white px-6 py-4">
+              <button
+                className={`rounded-xl px-4 py-2 text-sm font-black transition ${injuryView === "current" ? "bg-orange-700 text-white shadow-sm" : "border border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100"}`}
+                onClick={() => setInjuryView("current")}
+                type="button"
+              >
+                Ongoing & Current Month
+              </button>
+              <button
+                className={`rounded-xl px-4 py-2 text-sm font-black transition ${injuryView === "annual-osha" ? "bg-red-700 text-white shadow-sm" : "border border-red-200 bg-red-50 text-red-800 hover:bg-red-100"}`}
+                onClick={() => setInjuryView("annual-osha")}
+                type="button"
+              >
+                Annual OSHA Recordable ({overview.annualOshaRecordableCases?.length || 0})
+              </button>
+            </div>
+          )}
           {overview.injuryDataLive ? (
-            overview.currentInjuryCases.length ? (
+            displayedInjuryCases.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1080px] text-left text-sm">
                   <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
@@ -2008,7 +2046,7 @@ export default function ExecutiveIntelligence() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {overview.currentInjuryCases.map((record) => (
+                    {displayedInjuryCases.map((record) => (
                       <tr className="hover:bg-orange-50/50" key={record.id}>
                         <td className="px-4 py-3 font-bold text-slate-950">
                           {record.name}
@@ -2049,7 +2087,9 @@ export default function ExecutiveIntelligence() {
               </div>
             ) : (
               <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">
-                No open or current-month injury cases.
+                {injuryView === "annual-osha"
+                  ? `No OSHA-recordable injury cases are recorded for ${overview.currentMonth.slice(0, 4)}.`
+                  : "No open or current-month injury cases."}
               </p>
             )
           ) : (

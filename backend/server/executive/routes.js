@@ -406,24 +406,32 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         })
         .sort((a, b) => (a.caseStatus === b.caseStatus ? a.leaveStartDate.localeCompare(b.leaveStartDate) : a.caseStatus === 'Open' ? -1 : 1) || a.name.localeCompare(b.name));
       const injuryDataLive = easternDateKey() >= '2027-01-01';
-      const currentInjuryCases = injuryDataLive ? injuries
+      const injuryCaseRow = record => ({
+        id: String(record._id),
+        name: clean(record.employeeName) || 'Name Not Recorded',
+        injuryDate: dateOnly(record.injuryDateTime),
+        jobTitle: clean(record.jobTitle) || 'Not Recorded',
+        department: clean(record.department) || 'Not Recorded',
+        location: clean(record.location) || 'Not Recorded',
+        workStatus: clean(record.workStatus === 'Other' ? record.otherWorkStatus : record.workStatus) || 'Pending Medical Evaluation',
+        oshaRecordable: clean(record.oshaRecordable) || 'No',
+        caseStatus: record.closedAt ? 'Closed' : 'Open',
+      });
+      const sortInjuryCases = rows => rows.sort((a, b) => (a.caseStatus === b.caseStatus ? a.injuryDate.localeCompare(b.injuryDate) : a.caseStatus === 'Open' ? -1 : 1) || a.name.localeCompare(b.name));
+      const currentInjuryCases = injuryDataLive ? sortInjuryCases(injuries
         .filter(record => {
           const injuryDate = dateOnly(record.injuryDateTime);
           const closedDate = dateOnly(record.closedAt);
           return !closedDate || injuryDate.slice(0, 7) === currentMonth || closedDate.slice(0, 7) === currentMonth;
         })
-        .map(record => ({
-          id: String(record._id),
-          name: clean(record.employeeName) || 'Name Not Recorded',
-          injuryDate: dateOnly(record.injuryDateTime),
-          jobTitle: clean(record.jobTitle) || 'Not Recorded',
-          department: clean(record.department) || 'Not Recorded',
-          location: clean(record.location) || 'Not Recorded',
-          workStatus: clean(record.workStatus === 'Other' ? record.otherWorkStatus : record.workStatus) || 'Pending Medical Evaluation',
-          oshaRecordable: clean(record.oshaRecordable) || 'No',
-          caseStatus: record.closedAt ? 'Closed' : 'Open',
-        }))
-        .sort((a, b) => (a.caseStatus === b.caseStatus ? a.injuryDate.localeCompare(b.injuryDate) : a.caseStatus === 'Open' ? -1 : 1) || a.name.localeCompare(b.name)) : [];
+        .map(injuryCaseRow)) : [];
+      const injuryYear = currentMonth.slice(0, 4);
+      const annualOshaRecordableCases = injuryDataLive ? sortInjuryCases(injuries
+        .filter(record => {
+          const oshaValue = normalize(record.oshaRecordable);
+          return dateOnly(record.injuryDateTime).startsWith(`${injuryYear}-`) && ['yes', 'true', 'recordable', 'osha recordable'].includes(oshaValue);
+        })
+        .map(injuryCaseRow)) : [];
       const currentTrainingTopics = trainingDataLive
         ? trainingTopics.filter(topic => dateOnly(topic.targetDate).slice(0, 7) === currentMonth)
         : [];
@@ -494,6 +502,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         injuryDataLive,
         injuryLaunchDate: '2027-01-01',
         currentInjuryCases,
+        annualOshaRecordableCases,
         trainingDataLive,
         trainingLaunchDate: '2027-01-01',
         trainingOverview: {
