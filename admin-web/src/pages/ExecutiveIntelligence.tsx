@@ -1,325 +1,2782 @@
-import { useEffect, useState } from 'react'
-import { ArrowLeft, Bot, Building2, KeyRound, LockKeyhole, LogOut, Mail, RefreshCw, Search, Send, ShieldCheck, Sparkles, UserRoundCheck, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { api } from '../shared/api'
+import { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  Bot,
+  Building2,
+  KeyRound,
+  LockKeyhole,
+  LogOut,
+  Mail,
+  RefreshCw,
+  Search,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserRoundCheck,
+  X,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { api } from "../shared/api";
 
 type Overview = {
-  email: string
-  generatedAt: string
-  headcount: number
-  locations: Array<{ location: string; count: number }>
-  employees: Array<{ id: string; name: string; jobTitle: string; department: string; location: string; status: string }>
-  currentMonth: string
-  currentMonthNewHires: Array<{ id: string; name: string; hireDate: string; jobTitle: string; department: string; location: string; employeeStatus: string; onboardingStatus: 'Completed' | 'Final Review Needed' | 'In Progress' }>
-  currentMonthTerminations: Array<{ id: string; name: string; terminationDate: string; jobTitle: string; department: string; location: string; terminationType: string }>
-  currentMonthEmploymentChanges: Array<{ id: string; employeeId: string; name: string; effectiveDate: string; jobTitle: string; department: string; location: string; changes: string; reason: string }>
-  currentLeaveCases: Array<{ id: string; employeeId: string; name: string; leaveStartDate: string; anticipatedReturnDate: string; actualReturnDate: string; closedDate: string; jobTitle: string; department: string; location: string; companyStatus: string; caseStatus: 'Open' | 'Closed' }>
-  injuryDataLive: boolean
-  injuryLaunchDate: string
-  currentInjuryCases: Array<{ id: string; name: string; injuryDate: string; jobTitle: string; department: string; location: string; workStatus: string; oshaRecordable: string; caseStatus: 'Open' | 'Closed' }>
-  trainingDataLive: boolean
-  trainingLaunchDate: string
-  trainingOverview: { programs: Array<{ id: string; name: string; targetDate: string; courseCount: number; assigned: number; completed: number; completionRate: number | null }>; assigned: number; completed: number; completionRate: number | null; locations: Array<{ location: string; assigned: number; completed: number; completionRate: number | null }> }
+  email: string;
+  generatedAt: string;
+  headcount: number;
+  locations: Array<{ location: string; count: number }>;
+  employees: Array<{
+    id: string;
+    name: string;
+    jobTitle: string;
+    department: string;
+    location: string;
+    status: string;
+  }>;
+  currentMonth: string;
+  currentMonthNewHires: Array<{
+    id: string;
+    name: string;
+    hireDate: string;
+    jobTitle: string;
+    department: string;
+    location: string;
+    employeeStatus: string;
+    onboardingStatus: "Completed" | "Final Review Needed" | "In Progress";
+  }>;
+  currentMonthTerminations: Array<{
+    id: string;
+    name: string;
+    terminationDate: string;
+    jobTitle: string;
+    department: string;
+    location: string;
+    terminationType: string;
+  }>;
+  currentMonthEmploymentChanges: Array<{
+    id: string;
+    employeeId: string;
+    name: string;
+    effectiveDate: string;
+    jobTitle: string;
+    department: string;
+    location: string;
+    changes: string;
+    reason: string;
+  }>;
+  currentLeaveCases: Array<{
+    id: string;
+    employeeId: string;
+    name: string;
+    leaveStartDate: string;
+    anticipatedReturnDate: string;
+    actualReturnDate: string;
+    closedDate: string;
+    jobTitle: string;
+    department: string;
+    location: string;
+    companyStatus: string;
+    caseStatus: "Open" | "Closed";
+  }>;
+  injuryDataLive: boolean;
+  injuryLaunchDate: string;
+  currentInjuryCases: Array<{
+    id: string;
+    name: string;
+    injuryDate: string;
+    jobTitle: string;
+    department: string;
+    location: string;
+    workStatus: string;
+    oshaRecordable: string;
+    caseStatus: "Open" | "Closed";
+  }>;
+  trainingDataLive: boolean;
+  trainingLaunchDate: string;
+  trainingOverview: {
+    programs: Array<{
+      id: string;
+      name: string;
+      targetDate: string;
+      courseCount: number;
+      assigned: number;
+      completed: number;
+      completionRate: number | null;
+    }>;
+    assigned: number;
+    completed: number;
+    completionRate: number | null;
+    locations: Array<{
+      location: string;
+      assigned: number;
+      completed: number;
+      completionRate: number | null;
+    }>;
+  };
   turnover: {
-    year: number
-    q1: { status: string; label: string }
-    q2: { status: string; label: string }
-    q3: { status: string; label: string; asOf: string; summary: TurnoverMetrics; locations: TurnoverLocation[]; events: TurnoverEvent[]; baseEmployees: TurnoverBaseEmployee[] }
-    q4: { status: string; label: string }
-    ytd: { status: string; label: string; asOf: string; summary: TurnoverMetrics; locations: TurnoverLocation[]; events: TurnoverEvent[]; baseEmployees: TurnoverBaseEmployee[] }
+    year: number;
+    q1: { status: string; label: string };
+    q2: { status: string; label: string };
+    q3: {
+      status: string;
+      label: string;
+      asOf: string;
+      summary: TurnoverMetrics;
+      locations: TurnoverLocation[];
+      events: TurnoverEvent[];
+      baseEmployees: TurnoverBaseEmployee[];
+    };
+    q4: { status: string; label: string };
+    ytd: {
+      status: string;
+      label: string;
+      asOf: string;
+      summary: TurnoverMetrics;
+      locations: TurnoverLocation[];
+      events: TurnoverEvent[];
+      baseEmployees: TurnoverBaseEmployee[];
+    };
     partsService: {
-      q3: { status: string; label: string; asOf: string; summary: TurnoverMetrics; locations: TurnoverLocation[]; events: TurnoverEvent[]; baseEmployees: TurnoverBaseEmployee[] }
-      ytd: { status: string; label: string; asOf: string; summary: TurnoverMetrics; locations: TurnoverLocation[]; events: TurnoverEvent[]; baseEmployees: TurnoverBaseEmployee[] }
-    }
-    excluded: { leave: string; retiredOrDeceased: string; preEmployment: string }
-    excludedEmployees: { deceased: string[]; retired: string[] }
-    unclassifiedTurnovers: string[]
-  }
-  openLeaveCases: number
-  openInjuryCases: number
-  unfinishedEmploymentChanges: number
-  smartAiEnabled: boolean
-}
+      q3: {
+        status: string;
+        label: string;
+        asOf: string;
+        summary: TurnoverMetrics;
+        locations: TurnoverLocation[];
+        events: TurnoverEvent[];
+        baseEmployees: TurnoverBaseEmployee[];
+      };
+      ytd: {
+        status: string;
+        label: string;
+        asOf: string;
+        summary: TurnoverMetrics;
+        locations: TurnoverLocation[];
+        events: TurnoverEvent[];
+        baseEmployees: TurnoverBaseEmployee[];
+      };
+    };
+    excluded: {
+      leave: string;
+      retiredOrDeceased: string;
+      preEmployment: string;
+    };
+    excludedEmployees: { deceased: string[]; retired: string[] };
+    unclassifiedTurnovers: string[];
+  };
+  openLeaveCases: number;
+  openInjuryCases: number;
+  unfinishedEmploymentChanges: number;
+  smartAiEnabled: boolean;
+};
 
-type TurnoverMetrics = { denominator: number; voluntary: number; involuntary: number; total: number; totalRate: number; voluntaryRate: number; involuntaryRate: number }
-type TurnoverLocation = TurnoverMetrics & { location: string }
-type TurnoverEvent = { name: string; type: 'Voluntary' | 'Involuntary'; location: string; jobTitle?: string; terminationDate: string; period: string }
-type TurnoverBaseEmployee = { name: string; jobTitle: string; department: string; location: string; status: string }
+type TurnoverMetrics = {
+  denominator: number;
+  voluntary: number;
+  involuntary: number;
+  total: number;
+  totalRate: number;
+  voluntaryRate: number;
+  involuntaryRate: number;
+};
+type TurnoverLocation = TurnoverMetrics & { location: string };
+type TurnoverEvent = {
+  name: string;
+  type: "Voluntary" | "Involuntary";
+  location: string;
+  jobTitle?: string;
+  terminationDate: string;
+  period: string;
+};
+type TurnoverBaseEmployee = {
+  name: string;
+  jobTitle: string;
+  department: string;
+  location: string;
+  status: string;
+};
 
 type AssistantResponse = {
-  answer: string
-  details: string[]
-  sources: string[]
-  dataAsOf: string
-  assistantMode?: 'smart-ai' | 'guided-fallback'
-}
-type ConversationMessage = { role: 'user' | 'assistant'; content: string }
-type HistoryCategory = 'new-hire' | 'termination' | 'employment-change'
-type HistoryRecord = { id: string; employeeName: string; eventDate: string; jobTitle: string; department: string; location: string; status: string; detail: string; reason?: string }
+  answer: string;
+  details: string[];
+  sources: string[];
+  dataAsOf: string;
+  assistantMode?: "smart-ai" | "guided-fallback";
+};
+type ConversationMessage = { role: "user" | "assistant"; content: string };
+type HistoryCategory = "new-hire" | "termination" | "employment-change";
+type HistoryRecord = {
+  id: string;
+  employeeName: string;
+  eventDate: string;
+  jobTitle: string;
+  department: string;
+  location: string;
+  status: string;
+  detail: string;
+  reason?: string;
+};
 
 function ExecutiveLogin({ onLogin }: { onLogin: () => void }) {
-  const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
-  const [codeSent, setCodeSent] = useState(false)
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function submit(event: React.FormEvent) {
-    event.preventDefault()
-    setBusy(true)
+    event.preventDefault();
+    setBusy(true);
     try {
       if (!codeSent) {
-        await api.post('/executive-auth/request-code', { email: email.trim() })
-        setCodeSent(true)
-        setMessage('A 6-digit executive access code was sent to your company email.')
+        await api.post("/executive-auth/request-code", { email: email.trim() });
+        setCodeSent(true);
+        setMessage(
+          "A 6-digit executive access code was sent to your company email.",
+        );
       } else {
-        await api.post('/executive-auth/verify-code', { email: email.trim(), code: code.trim() })
-        onLogin()
+        await api.post("/executive-auth/verify-code", {
+          email: email.trim(),
+          code: code.trim(),
+        });
+        onLogin();
       }
     } catch (error: any) {
-      setMessage(error.response?.data?.error || 'Secure executive access could not be completed.')
-    } finally { setBusy(false) }
+      setMessage(
+        error.response?.data?.error ||
+          "Secure executive access could not be completed.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
-  return <div className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-2xl">
-    <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
-      <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 p-9 text-white md:p-12">
-        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="relative"><Link className="inline-flex items-center gap-2 text-sm font-semibold text-blue-200 hover:text-white" to="/"><ArrowLeft className="h-4 w-4" />Back to Integrated Platform</Link>
-          <div className="mt-10 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-cyan-100"><ShieldCheck className="h-4 w-4" />C-Suite Restricted</div>
-          <Sparkles className="mt-8 h-12 w-12 text-cyan-300" /><h1 className="mt-5 text-4xl font-black leading-tight">Executive Intelligence Platform</h1>
-          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">Ask governed, read-only questions across Royal’s connected workforce data. Every response identifies its sources and is recorded in the executive audit log.</p>
-        </div>
-      </section>
-      <section className="p-8 md:p-12"><LockKeyhole className="h-9 w-9 text-indigo-700" /><h2 className="mt-5 text-2xl font-black text-slate-950">Executive access</h2><p className="mt-2 text-sm leading-6 text-slate-500">Use an approved C-Suite company email. The one-time code expires after 10 minutes.</p>
-        <form className="mt-7 space-y-4" onSubmit={submit}><label className="block text-sm font-bold text-slate-700">Company email<span className="relative mt-2 block"><Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" onChange={event => setEmail(event.target.value)} placeholder="name@royaltrailersales.com" type="email" value={email} /></span></label>
-          {codeSent && <label className="block text-sm font-bold text-slate-700">6-digit code<input autoFocus className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-center text-xl font-bold tracking-[0.35em] outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" inputMode="numeric" maxLength={6} onChange={event => setCode(event.target.value.replace(/\D/g, ''))} value={code} /></label>}
-          <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-800 disabled:opacity-50" disabled={busy || !email.trim() || (codeSent && code.length !== 6)} type="submit"><KeyRound className="h-4 w-4" />{busy ? 'Please wait...' : codeSent ? 'Enter Executive Platform' : 'Email me a code'}</button>
-        </form>{message && <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700">{message}</p>}
-      </section>
+  return (
+    <div className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-white/80 bg-white shadow-2xl">
+      <div className="grid lg:grid-cols-[1.08fr_0.92fr]">
+        <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 p-9 text-white md:p-12">
+          <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="relative">
+            <Link
+              className="inline-flex items-center gap-2 text-sm font-semibold text-blue-200 hover:text-white"
+              to="/"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Integrated Platform
+            </Link>
+            <div className="mt-10 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-cyan-100">
+              <ShieldCheck className="h-4 w-4" />
+              C-Suite Restricted
+            </div>
+            <Sparkles className="mt-8 h-12 w-12 text-cyan-300" />
+            <h1 className="mt-5 text-4xl font-black leading-tight">
+              Executive Intelligence Platform
+            </h1>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">
+              Ask governed, read-only questions across Royal’s connected
+              workforce data. Every response identifies its sources and is
+              recorded in the executive audit log.
+            </p>
+          </div>
+        </section>
+        <section className="p-8 md:p-12">
+          <LockKeyhole className="h-9 w-9 text-indigo-700" />
+          <h2 className="mt-5 text-2xl font-black text-slate-950">
+            Executive access
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Use an approved C-Suite company email. The one-time code expires
+            after 10 minutes.
+          </p>
+          <form className="mt-7 space-y-4" onSubmit={submit}>
+            <label className="block text-sm font-bold text-slate-700">
+              Company email
+              <span className="relative mt-2 block">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@royaltrailersales.com"
+                  type="email"
+                  value={email}
+                />
+              </span>
+            </label>
+            {codeSent && (
+              <label className="block text-sm font-bold text-slate-700">
+                6-digit code
+                <input
+                  autoFocus
+                  className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-center text-xl font-bold tracking-[0.35em] outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  inputMode="numeric"
+                  maxLength={6}
+                  onChange={(event) =>
+                    setCode(event.target.value.replace(/\D/g, ""))
+                  }
+                  value={code}
+                />
+              </label>
+            )}
+            <button
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-800 disabled:opacity-50"
+              disabled={
+                busy || !email.trim() || (codeSent && code.length !== 6)
+              }
+              type="submit"
+            >
+              <KeyRound className="h-4 w-4" />
+              {busy
+                ? "Please wait..."
+                : codeSent
+                  ? "Enter Executive Platform"
+                  : "Email me a code"}
+            </button>
+          </form>
+          {message && (
+            <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+              {message}
+            </p>
+          )}
+        </section>
+      </div>
     </div>
-  </div>
+  );
 }
 
 const examples = [
-  'What is Cherie Lynch’s current pay rate and last payroll change?',
-  'How many employees do we currently have?',
-  'How many open medical leave cases are there?',
-  'How many open injury cases are OSHA recordable?',
-]
+  "What is Cherie Lynch’s current pay rate and last payroll change?",
+  "How many employees do we currently have?",
+  "How many open medical leave cases are there?",
+  "How many open injury cases are OSHA recordable?",
+];
 
 const q3FallbackLocations: TurnoverLocation[] = [
-  { location: 'Corporate', denominator: 23, voluntary: 1, involuntary: 0, total: 1, totalRate: 4.3, voluntaryRate: 4.3, involuntaryRate: 0 },
-  { location: 'Dearborn', denominator: 66, voluntary: 5, involuntary: 4, total: 9, totalRate: 13.6, voluntaryRate: 7.6, involuntaryRate: 6.1 },
-  { location: 'East Michigan', denominator: 13, voluntary: 0, involuntary: 0, total: 0, totalRate: 0, voluntaryRate: 0, involuntaryRate: 0 },
-  { location: 'Gaylord', denominator: 9, voluntary: 2, involuntary: 0, total: 2, totalRate: 22.2, voluntaryRate: 22.2, involuntaryRate: 0 },
-  { location: 'Grand Rapids', denominator: 39, voluntary: 4, involuntary: 1, total: 5, totalRate: 12.8, voluntaryRate: 10.3, involuntaryRate: 2.6 },
-  { location: 'Hudsonville', denominator: 31, voluntary: 2, involuntary: 1, total: 3, totalRate: 9.7, voluntaryRate: 6.5, involuntaryRate: 3.2 },
-  { location: 'Cleveland', denominator: 7, voluntary: 0, involuntary: 0, total: 0, totalRate: 0, voluntaryRate: 0, involuntaryRate: 0 },
-  { location: 'Warren', denominator: 25, voluntary: 2, involuntary: 1, total: 3, totalRate: 12, voluntaryRate: 8, involuntaryRate: 4 },
-  { location: 'West Michigan', denominator: 11, voluntary: 0, involuntary: 3, total: 3, totalRate: 27.3, voluntaryRate: 0, involuntaryRate: 27.3 },
-  { location: 'Wixom', denominator: 9, voluntary: 0, involuntary: 1, total: 1, totalRate: 11.1, voluntaryRate: 0, involuntaryRate: 11.1 },
-]
-const q3FallbackSummary: TurnoverMetrics = { denominator: 233, voluntary: 16, involuntary: 11, total: 27, totalRate: 11.6, voluntaryRate: 6.9, involuntaryRate: 4.7 }
-const partsServiceFallbackLocations: TurnoverLocation[] = [
-  { location: 'Cleveland', denominator: 4, voluntary: 0, involuntary: 0, total: 0, totalRate: 0, voluntaryRate: 0, involuntaryRate: 0 },
-  { location: 'Dearborn', denominator: 62, voluntary: 5, involuntary: 4, total: 9, totalRate: 14.5, voluntaryRate: 8.1, involuntaryRate: 6.5 },
-  { location: 'Gaylord', denominator: 7, voluntary: 2, involuntary: 0, total: 2, totalRate: 28.6, voluntaryRate: 28.6, involuntaryRate: 0 },
-  { location: 'Grand Rapids', denominator: 33, voluntary: 4, involuntary: 1, total: 5, totalRate: 15.2, voluntaryRate: 12.1, involuntaryRate: 3 },
-  { location: 'Hudsonville', denominator: 30, voluntary: 2, involuntary: 1, total: 3, totalRate: 10, voluntaryRate: 6.7, involuntaryRate: 3.3 },
-  { location: 'Warren', denominator: 22, voluntary: 2, involuntary: 0, total: 2, totalRate: 9.1, voluntaryRate: 9.1, involuntaryRate: 0 },
-  { location: 'Wixom', denominator: 8, voluntary: 0, involuntary: 1, total: 1, totalRate: 12.5, voluntaryRate: 0, involuntaryRate: 12.5 },
-]
-const partsServiceFallbackSummary: TurnoverMetrics = { denominator: 166, voluntary: 15, involuntary: 7, total: 22, totalRate: 13.3, voluntaryRate: 9, involuntaryRate: 4.2 }
-const fallbackTurnover: Overview['turnover'] = {
-  year: 2026,
-  q1: { status: 'Not Loaded', label: 'Q1 2026' }, q2: { status: 'Not Loaded', label: 'Q2 2026' },
-  q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: q3FallbackSummary, locations: q3FallbackLocations, events: [], baseEmployees: [] },
-  q4: { status: 'Pending Quarter End', label: 'Q4 2026' },
-  ytd: { status: 'Q3 Baseline', label: '2026 Year to Date', asOf: '2026-09-30', summary: q3FallbackSummary, locations: q3FallbackLocations, events: [], baseEmployees: [] },
-  partsService: {
-    q3: { status: 'Final', label: 'Q3 2026', asOf: '2026-09-30', summary: partsServiceFallbackSummary, locations: partsServiceFallbackLocations, events: [], baseEmployees: [] },
-    ytd: { status: 'Q3 Baseline', label: '2026 Year to Date', asOf: '2026-09-30', summary: partsServiceFallbackSummary, locations: partsServiceFallbackLocations, events: [], baseEmployees: [] },
+  {
+    location: "Corporate",
+    denominator: 23,
+    voluntary: 1,
+    involuntary: 0,
+    total: 1,
+    totalRate: 4.3,
+    voluntaryRate: 4.3,
+    involuntaryRate: 0,
   },
-  excluded: { leave: '', retiredOrDeceased: '', preEmployment: '' },
-  excludedEmployees: { deceased: ['Dale Day'], retired: ['Daniel Savat', 'Kenneth Allen', 'Leslie Carder', 'Mark Duimstra'] },
+  {
+    location: "Dearborn",
+    denominator: 66,
+    voluntary: 5,
+    involuntary: 4,
+    total: 9,
+    totalRate: 13.6,
+    voluntaryRate: 7.6,
+    involuntaryRate: 6.1,
+  },
+  {
+    location: "East Michigan",
+    denominator: 13,
+    voluntary: 0,
+    involuntary: 0,
+    total: 0,
+    totalRate: 0,
+    voluntaryRate: 0,
+    involuntaryRate: 0,
+  },
+  {
+    location: "Gaylord",
+    denominator: 9,
+    voluntary: 2,
+    involuntary: 0,
+    total: 2,
+    totalRate: 22.2,
+    voluntaryRate: 22.2,
+    involuntaryRate: 0,
+  },
+  {
+    location: "Grand Rapids",
+    denominator: 39,
+    voluntary: 4,
+    involuntary: 1,
+    total: 5,
+    totalRate: 12.8,
+    voluntaryRate: 10.3,
+    involuntaryRate: 2.6,
+  },
+  {
+    location: "Hudsonville",
+    denominator: 31,
+    voluntary: 2,
+    involuntary: 1,
+    total: 3,
+    totalRate: 9.7,
+    voluntaryRate: 6.5,
+    involuntaryRate: 3.2,
+  },
+  {
+    location: "Cleveland",
+    denominator: 7,
+    voluntary: 0,
+    involuntary: 0,
+    total: 0,
+    totalRate: 0,
+    voluntaryRate: 0,
+    involuntaryRate: 0,
+  },
+  {
+    location: "Warren",
+    denominator: 25,
+    voluntary: 2,
+    involuntary: 1,
+    total: 3,
+    totalRate: 12,
+    voluntaryRate: 8,
+    involuntaryRate: 4,
+  },
+  {
+    location: "West Michigan",
+    denominator: 11,
+    voluntary: 0,
+    involuntary: 3,
+    total: 3,
+    totalRate: 27.3,
+    voluntaryRate: 0,
+    involuntaryRate: 27.3,
+  },
+  {
+    location: "Wixom",
+    denominator: 9,
+    voluntary: 0,
+    involuntary: 1,
+    total: 1,
+    totalRate: 11.1,
+    voluntaryRate: 0,
+    involuntaryRate: 11.1,
+  },
+];
+const q3FallbackSummary: TurnoverMetrics = {
+  denominator: 233,
+  voluntary: 16,
+  involuntary: 11,
+  total: 27,
+  totalRate: 11.6,
+  voluntaryRate: 6.9,
+  involuntaryRate: 4.7,
+};
+const partsServiceFallbackLocations: TurnoverLocation[] = [
+  {
+    location: "Cleveland",
+    denominator: 4,
+    voluntary: 0,
+    involuntary: 0,
+    total: 0,
+    totalRate: 0,
+    voluntaryRate: 0,
+    involuntaryRate: 0,
+  },
+  {
+    location: "Dearborn",
+    denominator: 62,
+    voluntary: 5,
+    involuntary: 4,
+    total: 9,
+    totalRate: 14.5,
+    voluntaryRate: 8.1,
+    involuntaryRate: 6.5,
+  },
+  {
+    location: "Gaylord",
+    denominator: 7,
+    voluntary: 2,
+    involuntary: 0,
+    total: 2,
+    totalRate: 28.6,
+    voluntaryRate: 28.6,
+    involuntaryRate: 0,
+  },
+  {
+    location: "Grand Rapids",
+    denominator: 33,
+    voluntary: 4,
+    involuntary: 1,
+    total: 5,
+    totalRate: 15.2,
+    voluntaryRate: 12.1,
+    involuntaryRate: 3,
+  },
+  {
+    location: "Hudsonville",
+    denominator: 30,
+    voluntary: 2,
+    involuntary: 1,
+    total: 3,
+    totalRate: 10,
+    voluntaryRate: 6.7,
+    involuntaryRate: 3.3,
+  },
+  {
+    location: "Warren",
+    denominator: 22,
+    voluntary: 2,
+    involuntary: 0,
+    total: 2,
+    totalRate: 9.1,
+    voluntaryRate: 9.1,
+    involuntaryRate: 0,
+  },
+  {
+    location: "Wixom",
+    denominator: 8,
+    voluntary: 0,
+    involuntary: 1,
+    total: 1,
+    totalRate: 12.5,
+    voluntaryRate: 0,
+    involuntaryRate: 12.5,
+  },
+];
+const partsServiceFallbackSummary: TurnoverMetrics = {
+  denominator: 166,
+  voluntary: 15,
+  involuntary: 7,
+  total: 22,
+  totalRate: 13.3,
+  voluntaryRate: 9,
+  involuntaryRate: 4.2,
+};
+const fallbackTurnover: Overview["turnover"] = {
+  year: 2026,
+  q1: { status: "Not Loaded", label: "Q1 2026" },
+  q2: { status: "Not Loaded", label: "Q2 2026" },
+  q3: {
+    status: "Final",
+    label: "Q3 2026",
+    asOf: "2026-09-30",
+    summary: q3FallbackSummary,
+    locations: q3FallbackLocations,
+    events: [],
+    baseEmployees: [],
+  },
+  q4: { status: "Pending Quarter End", label: "Q4 2026" },
+  ytd: {
+    status: "Q3 Baseline",
+    label: "2026 Year to Date",
+    asOf: "2026-09-30",
+    summary: q3FallbackSummary,
+    locations: q3FallbackLocations,
+    events: [],
+    baseEmployees: [],
+  },
+  partsService: {
+    q3: {
+      status: "Final",
+      label: "Q3 2026",
+      asOf: "2026-09-30",
+      summary: partsServiceFallbackSummary,
+      locations: partsServiceFallbackLocations,
+      events: [],
+      baseEmployees: [],
+    },
+    ytd: {
+      status: "Q3 Baseline",
+      label: "2026 Year to Date",
+      asOf: "2026-09-30",
+      summary: partsServiceFallbackSummary,
+      locations: partsServiceFallbackLocations,
+      events: [],
+      baseEmployees: [],
+    },
+  },
+  excluded: { leave: "", retiredOrDeceased: "", preEmployment: "" },
+  excludedEmployees: {
+    deceased: ["Dale Day"],
+    retired: [
+      "Daniel Savat",
+      "Kenneth Allen",
+      "Leslie Carder",
+      "Mark Duimstra",
+    ],
+  },
   unclassifiedTurnovers: [],
-}
+};
 
-function TurnoverMetricCard({ label, metrics, status }: { label: string; metrics?: TurnoverMetrics; status: string }) {
-  const isYtd = label.includes('Year to Date')
-  const cardClass = !metrics ? 'border-slate-200 bg-slate-50' : isYtd ? 'border-teal-300 bg-gradient-to-br from-teal-50 to-emerald-100 shadow-md' : 'border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-100'
-  const badgeClass = !metrics ? 'bg-slate-200 text-slate-600' : isYtd ? 'bg-teal-800 text-white' : 'bg-indigo-900 text-white'
-  const rateClass = isYtd ? 'text-teal-950' : 'text-indigo-950'
-  return <article className={`rounded-2xl border p-4 ${cardClass}`}><div className="flex items-center justify-between gap-3"><p className={`text-xs font-black uppercase tracking-wide ${isYtd ? 'text-teal-800' : metrics ? 'text-indigo-800' : 'text-slate-600'}`}>{label}</p><span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${badgeClass}`}>{status}</span></div>{metrics ? <><p className={`mt-4 text-3xl font-black ${rateClass}`}>{metrics.totalRate.toFixed(1)}%</p><p className="turnover-count mt-1 text-xs font-bold text-slate-600">{metrics.total} employees / {metrics.denominator} employee base</p><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-xl bg-white/90 p-3"><p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">Voluntary</p><p className="mt-1 text-lg font-black text-slate-900">{metrics.voluntaryRate.toFixed(1)}%</p><p className="turnover-count text-[10px] font-semibold text-slate-500">{metrics.voluntary} employees</p></div><div className="rounded-xl bg-white/90 p-3"><p className="text-[10px] font-black uppercase tracking-wide text-rose-700">Involuntary</p><p className="mt-1 text-lg font-black text-slate-900">{metrics.involuntaryRate.toFixed(1)}%</p><p className="turnover-count text-[10px] font-semibold text-slate-500">{metrics.involuntary} employees</p></div></div></> : <div className="grid min-h-36 place-items-center text-center"><div><p className="text-3xl font-black text-slate-300">—</p><p className="mt-2 text-xs font-semibold text-slate-500">{status}</p></div></div>}</article>
+function TurnoverMetricCard({
+  label,
+  metrics,
+  status,
+}: {
+  label: string;
+  metrics?: TurnoverMetrics;
+  status: string;
+}) {
+  const isYtd = label.includes("Year to Date");
+  const cardClass = !metrics
+    ? "border-slate-200 bg-slate-50"
+    : isYtd
+      ? "border-teal-300 bg-gradient-to-br from-teal-50 to-emerald-100 shadow-md"
+      : "border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-100";
+  const badgeClass = !metrics
+    ? "bg-slate-200 text-slate-600"
+    : isYtd
+      ? "bg-teal-800 text-white"
+      : "bg-indigo-900 text-white";
+  const rateClass = isYtd ? "text-teal-950" : "text-indigo-950";
+  return (
+    <article className={`rounded-2xl border p-4 ${cardClass}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p
+          className={`text-xs font-black uppercase tracking-wide ${isYtd ? "text-teal-800" : metrics ? "text-indigo-800" : "text-slate-600"}`}
+        >
+          {label}
+        </p>
+        <span
+          className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${badgeClass}`}
+        >
+          {status}
+        </span>
+      </div>
+      {metrics ? (
+        <>
+          <p className={`mt-4 text-3xl font-black ${rateClass}`}>
+            {metrics.totalRate.toFixed(1)}%
+          </p>
+          <p className="turnover-count mt-1 text-xs font-bold text-slate-600">
+            {metrics.total} employees / {metrics.denominator} employee base
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-xl bg-white/90 p-3">
+              <p className="text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                Voluntary
+              </p>
+              <p className="mt-1 text-lg font-black text-slate-900">
+                {metrics.voluntaryRate.toFixed(1)}%
+              </p>
+              <p className="turnover-count text-[10px] font-semibold text-slate-500">
+                {metrics.voluntary} employees
+              </p>
+            </div>
+            <div className="rounded-xl bg-white/90 p-3">
+              <p className="text-[10px] font-black uppercase tracking-wide text-rose-700">
+                Involuntary
+              </p>
+              <p className="mt-1 text-lg font-black text-slate-900">
+                {metrics.involuntaryRate.toFixed(1)}%
+              </p>
+              <p className="turnover-count text-[10px] font-semibold text-slate-500">
+                {metrics.involuntary} employees
+              </p>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="grid min-h-36 place-items-center text-center">
+          <div>
+            <p className="text-3xl font-black text-slate-300">—</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">
+              {status}
+            </p>
+          </div>
+        </div>
+      )}
+    </article>
+  );
 }
 
 export default function ExecutiveIntelligence() {
-  const [authState, setAuthState] = useState<'checking' | 'authenticated' | 'signed-out'>('checking')
-  const [overview, setOverview] = useState<Overview | null>(null)
-  const [question, setQuestion] = useState('')
-  const [followUp, setFollowUp] = useState('')
-  const [conversation, setConversation] = useState<ConversationMessage[]>([])
-  const [response, setResponse] = useState<AssistantResponse | null>(null)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [showHeadcount, setShowHeadcount] = useState(false)
-  const [headcountLocation, setHeadcountLocation] = useState('')
-  const [employeeSearch, setEmployeeSearch] = useState('')
-  const [turnoverDetail, setTurnoverDetail] = useState<{ title: string; events: TurnoverEvent[] } | null>(null)
-  const [turnoverBaseDetail, setTurnoverBaseDetail] = useState<{ title: string; employees: TurnoverBaseEmployee[] } | null>(null)
-  const [historyCategory, setHistoryCategory] = useState<HistoryCategory | null>(null)
-  const [historyEmployee, setHistoryEmployee] = useState('')
-  const [historyFrom, setHistoryFrom] = useState('')
-  const [historyTo, setHistoryTo] = useState('')
-  const [historyRecords, setHistoryRecords] = useState<HistoryRecord[]>([])
-  const [historySearched, setHistorySearched] = useState(false)
-  const [historyBusy, setHistoryBusy] = useState(false)
-  const [historyError, setHistoryError] = useState('')
+  const [authState, setAuthState] = useState<
+    "checking" | "authenticated" | "signed-out"
+  >("checking");
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [question, setQuestion] = useState("");
+  const [followUp, setFollowUp] = useState("");
+  const [conversation, setConversation] = useState<ConversationMessage[]>([]);
+  const [response, setResponse] = useState<AssistantResponse | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [showHeadcount, setShowHeadcount] = useState(false);
+  const [headcountLocation, setHeadcountLocation] = useState("");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [turnoverDetail, setTurnoverDetail] = useState<{
+    title: string;
+    events: TurnoverEvent[];
+  } | null>(null);
+  const [turnoverBaseDetail, setTurnoverBaseDetail] = useState<{
+    title: string;
+    employees: TurnoverBaseEmployee[];
+  } | null>(null);
+  const [historyCategory, setHistoryCategory] =
+    useState<HistoryCategory | null>(null);
+  const [historyEmployee, setHistoryEmployee] = useState("");
+  const [historyFrom, setHistoryFrom] = useState("");
+  const [historyTo, setHistoryTo] = useState("");
+  const [historyRecords, setHistoryRecords] = useState<HistoryRecord[]>([]);
+  const [historySearched, setHistorySearched] = useState(false);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   async function loadOverview() {
-    const result = await api.get<Overview>('/executive/overview')
-    setOverview(result.data)
+    const result = await api.get<Overview>("/executive/overview");
+    setOverview(result.data);
   }
 
   useEffect(() => {
-    api.get('/executive-auth/me').then(async () => { setAuthState('authenticated'); await loadOverview() }).catch(() => setAuthState('signed-out'))
-  }, [])
+    api
+      .get("/executive-auth/me")
+      .then(async () => {
+        setAuthState("authenticated");
+        await loadOverview();
+      })
+      .catch(() => setAuthState("signed-out"));
+  }, []);
 
   async function submitQuestion(text: string) {
-    const submitted = text.trim()
-    if (!submitted) return
-    setBusy(true); setError(''); setResponse(null)
+    const submitted = text.trim();
+    if (!submitted) return;
+    setBusy(true);
+    setError("");
+    setResponse(null);
     try {
-      const result = await api.post<AssistantResponse>('/executive/ask', { question: submitted, conversation })
-      setResponse(result.data)
-      setConversation(previous => [...previous, { role: 'user', content: submitted }, { role: 'assistant', content: result.data.answer }].slice(-6) as ConversationMessage[])
-      setQuestion('')
-      setFollowUp('')
+      const result = await api.post<AssistantResponse>("/executive/ask", {
+        question: submitted,
+        conversation,
+      });
+      setResponse(result.data);
+      setConversation(
+        (previous) =>
+          [
+            ...previous,
+            { role: "user", content: submitted },
+            { role: "assistant", content: result.data.answer },
+          ].slice(-6) as ConversationMessage[],
+      );
+      setQuestion("");
+      setFollowUp("");
     } catch (requestError: any) {
-      setError(requestError.response?.data?.error || 'The Executive Data Assistant could not answer this question.')
-    } finally { setBusy(false) }
+      setError(
+        requestError.response?.data?.error ||
+          "The Executive Data Assistant could not answer this question.",
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function ask(event?: React.FormEvent) {
-    event?.preventDefault()
-    await submitQuestion(question)
+    event?.preventDefault();
+    await submitQuestion(question);
   }
 
   async function reply(event: React.FormEvent) {
-    event.preventDefault()
-    await submitQuestion(followUp)
+    event.preventDefault();
+    await submitQuestion(followUp);
   }
 
-  async function logout() { await api.post('/executive-auth/logout').catch(() => {}); setAuthState('signed-out'); setOverview(null) }
+  async function logout() {
+    await api.post("/executive-auth/logout").catch(() => {});
+    setAuthState("signed-out");
+    setOverview(null);
+  }
 
   function openHistory(category: HistoryCategory) {
-    setHistoryCategory(category); setHistoryEmployee(''); setHistoryFrom(''); setHistoryTo(''); setHistoryRecords([]); setHistorySearched(false); setHistoryError('')
+    setHistoryCategory(category);
+    setHistoryEmployee("");
+    setHistoryFrom("");
+    setHistoryTo("");
+    setHistoryRecords([]);
+    setHistorySearched(false);
+    setHistoryError("");
   }
 
   async function searchHistory(event: React.FormEvent) {
-    event.preventDefault()
-    if (!historyCategory) return
-    setHistoryBusy(true); setHistoryError('')
+    event.preventDefault();
+    if (!historyCategory) return;
+    setHistoryBusy(true);
+    setHistoryError("");
     try {
-      const result = await api.get<{ records: HistoryRecord[] }>('/executive/workforce-history', { params: { category: historyCategory, employeeName: historyEmployee.trim() || undefined, dateFrom: historyFrom || undefined, dateTo: historyTo || undefined } })
-      setHistoryRecords(result.data.records); setHistorySearched(true)
-    } catch (requestError: any) { setHistoryError(requestError.response?.data?.error || 'Historical records could not be loaded.') }
-    finally { setHistoryBusy(false) }
+      const result = await api.get<{ records: HistoryRecord[] }>(
+        "/executive/workforce-history",
+        {
+          params: {
+            category: historyCategory,
+            employeeName: historyEmployee.trim() || undefined,
+            dateFrom: historyFrom || undefined,
+            dateTo: historyTo || undefined,
+          },
+        },
+      );
+      setHistoryRecords(result.data.records);
+      setHistorySearched(true);
+    } catch (requestError: any) {
+      setHistoryError(
+        requestError.response?.data?.error ||
+          "Historical records could not be loaded.",
+      );
+    } finally {
+      setHistoryBusy(false);
+    }
   }
 
-  if (authState === 'checking') return <div className="grid min-h-64 place-items-center rounded-3xl bg-white shadow-sm"><RefreshCw className="h-7 w-7 animate-spin text-indigo-700" /></div>
-  if (authState === 'signed-out') return <ExecutiveLogin onLogin={() => { setAuthState('authenticated'); void loadOverview() }} />
+  if (authState === "checking")
+    return (
+      <div className="grid min-h-64 place-items-center rounded-3xl bg-white shadow-sm">
+        <RefreshCw className="h-7 w-7 animate-spin text-indigo-700" />
+      </div>
+    );
+  if (authState === "signed-out")
+    return (
+      <ExecutiveLogin
+        onLogin={() => {
+          setAuthState("authenticated");
+          void loadOverview();
+        }}
+      />
+    );
 
-  const filteredEmployees = (overview?.employees || []).filter(employee => {
-    const query = employeeSearch.trim().toLowerCase()
-    const locationMatches = !headcountLocation || employee.location === headcountLocation
-    const searchMatches = !query || [employee.name, employee.jobTitle, employee.department, employee.location, employee.status].some(value => value.toLowerCase().includes(query))
-    return locationMatches && searchMatches
-  })
-  const turnover = overview?.turnover || fallbackTurnover
-  if (overview && !overview.turnover) overview.turnover = turnover
+  const filteredEmployees = (overview?.employees || []).filter((employee) => {
+    const query = employeeSearch.trim().toLowerCase();
+    const locationMatches =
+      !headcountLocation || employee.location === headcountLocation;
+    const searchMatches =
+      !query ||
+      [
+        employee.name,
+        employee.jobTitle,
+        employee.department,
+        employee.location,
+        employee.status,
+      ].some((value) => value.toLowerCase().includes(query));
+    return locationMatches && searchMatches;
+  });
+  const turnover = overview?.turnover || fallbackTurnover;
+  if (overview && !overview.turnover) overview.turnover = turnover;
 
-  function openHeadcount(location = '') {
-    setHeadcountLocation(location)
-    setEmployeeSearch('')
-    setShowHeadcount(true)
+  function openHeadcount(location = "") {
+    setHeadcountLocation(location);
+    setEmployeeSearch("");
+    setShowHeadcount(true);
   }
 
   function openTurnoverPeople(event: React.MouseEvent<HTMLDivElement>) {
-    if (!overview) return
-    const target = event.target as HTMLElement
-    const section = target.closest('section')
-    if (!section?.textContent?.includes('Turnover Analysis')) return
-    const clickedText = target.textContent?.trim() || ''
-    let period: 'q3' | 'ytd' | '' = ''
-    let location = ''
-    let type: 'Voluntary' | 'Involuntary' | '' = ''
-    const cell = target.closest('td') as HTMLTableCellElement | null
-    const isPartsService = Boolean(target.closest('table')?.closest('[data-turnover-scope="parts-service"]'))
+    if (!overview) return;
+    const target = event.target as HTMLElement;
+    const section = target.closest("section");
+    if (!section?.textContent?.includes("Turnover Analysis")) return;
+    const clickedText = target.textContent?.trim() || "";
+    let period: "q3" | "ytd" | "" = "";
+    let location = "";
+    let type: "Voluntary" | "Involuntary" | "" = "";
+    const cell = target.closest("td") as HTMLTableCellElement | null;
+    const isPartsService = Boolean(
+      target.closest("table")?.closest('[data-turnover-scope="parts-service"]'),
+    );
     if (cell && [1, 5].includes(cell.cellIndex)) {
-      period = cell.cellIndex === 1 ? 'q3' : 'ytd'
-      location = cell.parentElement?.querySelector('td')?.textContent?.trim() || ''
-      const periodData = isPartsService ? overview.turnover.partsService[period] : overview.turnover[period]
-      const employees = (periodData.baseEmployees || []).filter(employee => employee.location === location)
-      setTurnoverBaseDetail({ title: `${periodData.label} · ${location} · Employee Base`, employees })
-      return
+      period = cell.cellIndex === 1 ? "q3" : "ytd";
+      location =
+        cell.parentElement?.querySelector("td")?.textContent?.trim() || "";
+      const periodData = isPartsService
+        ? overview.turnover.partsService[period]
+        : overview.turnover[period];
+      const employees = (periodData.baseEmployees || []).filter(
+        (employee) => employee.location === location,
+      );
+      setTurnoverBaseDetail({
+        title: `${periodData.label} · ${location} · Employee Base`,
+        employees,
+      });
+      return;
     }
-    if (cell && target.closest('span')) {
-      const column = cell.cellIndex
-      if (![2, 3, 4, 6, 7, 8].includes(column)) return
-      period = column <= 4 ? 'q3' : 'ytd'
-      location = cell.parentElement?.querySelector('td')?.textContent?.trim() || ''
-      if ([3, 7].includes(column)) type = 'Voluntary'
-      if ([4, 8].includes(column)) type = 'Involuntary'
+    if (cell && target.closest("span")) {
+      const column = cell.cellIndex;
+      if (![2, 3, 4, 6, 7, 8].includes(column)) return;
+      period = column <= 4 ? "q3" : "ytd";
+      location =
+        cell.parentElement?.querySelector("td")?.textContent?.trim() || "";
+      if ([3, 7].includes(column)) type = "Voluntary";
+      if ([4, 8].includes(column)) type = "Involuntary";
     } else {
-      const card = target.closest('article')
-      if (!card || !clickedText.includes('employees')) return
-      const cardText = card.textContent || ''
-      period = cardText.includes('Year to Date') ? 'ytd' : cardText.includes('Q3 2026') ? 'q3' : ''
-      const metricText = target.closest('div.rounded-xl')?.textContent || ''
-      if (metricText.includes('Involuntary')) type = 'Involuntary'
-      else if (metricText.includes('Voluntary')) type = 'Voluntary'
+      const card = target.closest("article");
+      if (!card || !clickedText.includes("employees")) return;
+      const cardText = card.textContent || "";
+      period = cardText.includes("Year to Date")
+        ? "ytd"
+        : cardText.includes("Q3 2026")
+          ? "q3"
+          : "";
+      const metricText = target.closest("div.rounded-xl")?.textContent || "";
+      if (metricText.includes("Involuntary")) type = "Involuntary";
+      else if (metricText.includes("Voluntary")) type = "Voluntary";
     }
-    if (!period) return
-    const periodData = isPartsService ? overview.turnover.partsService[period] : overview.turnover[period]
-    const events = periodData.events.filter(item => (!location || item.location === location) && (!type || item.type === type))
-    if (!events.length) return
-    setTurnoverDetail({ title: [periodData.label, location, type || 'All Turnover'].filter(Boolean).join(' · '), events })
+    if (!period) return;
+    const periodData = isPartsService
+      ? overview.turnover.partsService[period]
+      : overview.turnover[period];
+    const events = periodData.events.filter(
+      (item) =>
+        (!location || item.location === location) &&
+        (!type || item.type === type),
+    );
+    if (!events.length) return;
+    setTurnoverDetail({
+      title: [periodData.label, location, type || "All Turnover"]
+        .filter(Boolean)
+        .join(" · "),
+      events,
+    });
   }
 
-  return <div className="executive-dashboard flex flex-col gap-7 [&>section:nth-of-type(4)]:order-last" onClickCapture={openTurnoverPeople}>
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 px-7 py-8 text-white shadow-xl"><div className="absolute -right-12 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" /><div className="relative flex flex-wrap items-start justify-between gap-5"><div><Link className="inline-flex items-center gap-2 text-sm font-semibold text-blue-200 hover:text-white" to="/"><ArrowLeft className="h-4 w-4" />Back to Integrated Platform</Link><p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">C-Suite Restricted Workspace</p><h1 className="mt-2 text-4xl font-black">Executive Intelligence Platform</h1><p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">Read-only workforce intelligence with source-backed answers and a complete query audit trail.</p></div><button className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white" onClick={logout} type="button"><LogOut className="h-4 w-4" />Sign out</button></div></section>
+  return (
+    <div
+      className="executive-dashboard flex flex-col gap-7 [&>section:nth-of-type(4)]:order-last"
+      onClickCapture={openTurnoverPeople}
+    >
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-950 px-7 py-8 text-white shadow-xl">
+        <div className="absolute -right-12 -top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <Link
+              className="inline-flex items-center gap-2 text-sm font-semibold text-blue-200 hover:text-white"
+              to="/"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Integrated Platform
+            </Link>
+            <p className="mt-7 text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
+              C-Suite Restricted Workspace
+            </p>
+            <h1 className="mt-2 text-4xl font-black">
+              Executive Intelligence Platform
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
+              Read-only workforce intelligence with source-backed answers and a
+              complete query audit trail.
+            </p>
+          </div>
+          <button
+            className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white"
+            onClick={logout}
+            type="button"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </div>
+      </section>
 
-    <section className="overflow-hidden rounded-3xl border border-indigo-200 bg-white shadow-xl"><div className="bg-gradient-to-r from-indigo-950 to-blue-900 px-6 py-6 text-white"><div className="flex items-center gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15"><Bot className="h-7 w-7 text-cyan-200" /></div><div><p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-200">Read-only assistant</p><h2 className="mt-1 text-2xl font-black">Ask Royal’s workforce data</h2></div></div><p className="mt-3 max-w-3xl text-sm leading-6 text-indigo-100">The assistant never changes employee records. If historical data is missing, it will say so instead of estimating or guessing.</p></div>
-      <div className="p-6"><div className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${overview?.smartAiEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}><span className={`h-2 w-2 rounded-full ${overview?.smartAiEnabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />{overview?.smartAiEnabled ? 'Smart AI Active' : 'Guided Assistant Active — Smart AI ready for secure key'}</div><form className="flex flex-col gap-3 md:flex-row" onSubmit={ask}><label className="sr-only" htmlFor="executive-question">Executive question</label><input className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" id="executive-question" maxLength={500} onChange={event => setQuestion(event.target.value)} placeholder="Ask about employees, locations, departments, headcount, leave, injury, or payroll history..." value={question} /><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50" disabled={busy || !question.trim()} type="submit"><Send className="h-4 w-4" />{busy ? 'Reviewing data...' : 'Ask'}</button></form>
-        <div className="mt-4 flex flex-wrap gap-2">{examples.map(example => <button className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-left text-xs font-bold text-indigo-800 hover:bg-indigo-100" key={example} onClick={() => setQuestion(example)} type="button">{example}</button>)}</div>
-        {error && <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{error}</p>}
-        {response && <article className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="text-lg font-black text-slate-950">{response.answer}</p>{response.details?.length > 0 && <div className="mt-4 grid gap-2 md:grid-cols-2">{response.details.map(detail => <p className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700" key={detail}>{detail}</p>)}</div>}<div className="mt-5 border-t border-slate-200 pt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Data sources</p><div className="mt-2 flex flex-wrap gap-2">{response.sources.length ? response.sources.map(source => <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-900" key={source}>{source}</span>) : <span className="text-xs text-slate-500">No record source matched.</span>}</div><p className="mt-3 text-xs text-slate-500">Data reviewed {new Date(response.dataAsOf).toLocaleString()}</p></div><form className="mt-5 rounded-2xl border border-indigo-200 bg-white p-4" onSubmit={reply}><label className="text-xs font-black uppercase tracking-wide text-indigo-700" htmlFor="executive-follow-up">Reply or ask a follow-up</label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><input className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" id="executive-follow-up" maxLength={500} onChange={event => setFollowUp(event.target.value)} placeholder="For example: Michael Davis, or show me the payroll change date..." value={followUp} /><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50" disabled={busy || followUp.trim().length < 2} type="submit"><Send className="h-4 w-4" />{busy ? 'Reviewing...' : 'Reply'}</button></div><p className="mt-2 text-xs text-slate-500">The assistant keeps the recent conversation so you can answer a clarification without repeating the original question.</p></form></article>}
-      </div>
-    </section>
+      <section className="overflow-hidden rounded-3xl border border-indigo-200 bg-white shadow-xl">
+        <div className="bg-gradient-to-r from-indigo-950 to-blue-900 px-6 py-6 text-white">
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-300/15">
+              <Bot className="h-7 w-7 text-cyan-200" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.15em] text-cyan-200">
+                Read-only assistant
+              </p>
+              <h2 className="mt-1 text-2xl font-black">
+                Ask Royal’s workforce data
+              </h2>
+            </div>
+          </div>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-indigo-100">
+            The assistant never changes employee records. If historical data is
+            missing, it will say so instead of estimating or guessing.
+          </p>
+        </div>
+        <div className="p-6">
+          <div
+            className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${overview?.smartAiEnabled ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${overview?.smartAiEnabled ? "bg-emerald-500" : "bg-amber-500"}`}
+            />
+            {overview?.smartAiEnabled
+              ? "Smart AI Active"
+              : "Guided Assistant Active — Smart AI ready for secure key"}
+          </div>
+          <form className="flex flex-col gap-3 md:flex-row" onSubmit={ask}>
+            <label className="sr-only" htmlFor="executive-question">
+              Executive question
+            </label>
+            <input
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              id="executive-question"
+              maxLength={500}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="Ask about employees, locations, departments, headcount, leave, injury, or payroll history..."
+              value={question}
+            />
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50"
+              disabled={busy || !question.trim()}
+              type="submit"
+            >
+              <Send className="h-4 w-4" />
+              {busy ? "Reviewing data..." : "Ask"}
+            </button>
+          </form>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {examples.map((example) => (
+              <button
+                className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-left text-xs font-bold text-indigo-800 hover:bg-indigo-100"
+                key={example}
+                onClick={() => setQuestion(example)}
+                type="button"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+          {error && (
+            <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+              {error}
+            </p>
+          )}
+          {response && (
+            <article className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-lg font-black text-slate-950">
+                {response.answer}
+              </p>
+              {response.details?.length > 0 && (
+                <div className="mt-4 grid gap-2 md:grid-cols-2">
+                  {response.details.map((detail) => (
+                    <p
+                      className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700"
+                      key={detail}
+                    >
+                      {detail}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="mt-5 border-t border-slate-200 pt-4">
+                <p className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  Data sources
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {response.sources.length ? (
+                    response.sources.map((source) => (
+                      <span
+                        className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-900"
+                        key={source}
+                      >
+                        {source}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-500">
+                      No record source matched.
+                    </span>
+                  )}
+                </div>
+                <p className="mt-3 text-xs text-slate-500">
+                  Data reviewed {new Date(response.dataAsOf).toLocaleString()}
+                </p>
+              </div>
+              <form
+                className="mt-5 rounded-2xl border border-indigo-200 bg-white p-4"
+                onSubmit={reply}
+              >
+                <label
+                  className="text-xs font-black uppercase tracking-wide text-indigo-700"
+                  htmlFor="executive-follow-up"
+                >
+                  Reply or ask a follow-up
+                </label>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    id="executive-follow-up"
+                    maxLength={500}
+                    onChange={(event) => setFollowUp(event.target.value)}
+                    placeholder="For example: Michael Davis, or show me the payroll change date..."
+                    value={followUp}
+                  />
+                  <button
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 py-2.5 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50"
+                    disabled={busy || followUp.trim().length < 2}
+                    type="submit"
+                  >
+                    <Send className="h-4 w-4" />
+                    {busy ? "Reviewing..." : "Reply"}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  The assistant keeps the recent conversation so you can answer
+                  a clarification without repeating the original question.
+                </p>
+              </form>
+            </article>
+          )}
+        </div>
+      </section>
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg"><div className="grid lg:grid-cols-[0.34fr_0.66fr]"><button className="group bg-gradient-to-br from-cyan-50 to-blue-50 p-7 text-left transition hover:from-cyan-100 hover:to-blue-100 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-indigo-200" onClick={() => openHeadcount()} type="button"><div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Current workforce</p><UserRoundCheck className="h-7 w-7 text-indigo-700" /></div><p className="mt-5 text-6xl font-black tracking-tight text-slate-950 underline decoration-indigo-300 decoration-2 underline-offset-8 group-hover:decoration-indigo-700">{overview.headcount}</p><p className="mt-3 text-sm font-bold text-slate-600">Current Company Headcount</p><p className="mt-1 text-xs leading-5 text-slate-500">Click the number to view employees. Active and leave-status employees are included; terminated employees are excluded.</p></button><div className="p-7"><div className="flex items-center gap-2"><Building2 className="h-5 w-5 text-indigo-700" /><h2 className="text-xl font-black text-slate-950">Headcount by Location</h2></div><div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{overview.locations.map(row => <button className="group flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-200" key={row.location} onClick={() => openHeadcount(row.location)} type="button"><span className="text-sm font-bold text-slate-700">{row.location}</span><span className="rounded-full bg-indigo-950 px-2.5 py-1 text-xs font-black text-white group-hover:bg-indigo-700">{row.count}</span></button>)}</div><p className="mt-3 text-xs font-semibold text-slate-500">Click any location count to view its employees.</p></div></div></section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg">
+          <div className="grid lg:grid-cols-[0.34fr_0.66fr]">
+            <button
+              className="group bg-gradient-to-br from-cyan-50 to-blue-50 p-7 text-left transition hover:from-cyan-100 hover:to-blue-100 focus:outline-none focus:ring-4 focus:ring-inset focus:ring-indigo-200"
+              onClick={() => openHeadcount()}
+              type="button"
+            >
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">
+                  Current workforce
+                </p>
+                <UserRoundCheck className="h-7 w-7 text-indigo-700" />
+              </div>
+              <p className="mt-5 text-6xl font-black tracking-tight text-slate-950 underline decoration-indigo-300 decoration-2 underline-offset-8 group-hover:decoration-indigo-700">
+                {overview.headcount}
+              </p>
+              <p className="mt-3 text-sm font-bold text-slate-600">
+                Current Company Headcount
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Click the number to view employees. Active and leave-status
+                employees are included; terminated employees are excluded.
+              </p>
+            </button>
+            <div className="p-7">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-indigo-700" />
+                <h2 className="text-xl font-black text-slate-950">
+                  Headcount by Location
+                </h2>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {overview.locations.map((row) => (
+                  <button
+                    className="group flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    key={row.location}
+                    onClick={() => openHeadcount(row.location)}
+                    type="button"
+                  >
+                    <span className="text-sm font-bold text-slate-700">
+                      {row.location}
+                    </span>
+                    <span className="rounded-full bg-indigo-950 px-2.5 py-1 text-xs font-black text-white group-hover:bg-indigo-700">
+                      {row.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                Click any location count to view its employees.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-indigo-200 bg-white shadow-lg"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-cyan-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Quarterly workforce measurement</p><h2 className="mt-1 text-xl font-black text-slate-950">Turnover Analysis</h2><p className="mt-1 text-sm text-slate-600">Quarter-end results and current 2026 year-to-date turnover for the company and each location.</p></div><span className="rounded-full bg-indigo-900 px-4 py-2 text-sm font-black text-white">YTD {overview.turnover.ytd.summary.totalRate.toFixed(1)}%</span></header><div className="space-y-6 p-6"><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><TurnoverMetricCard label={overview.turnover.q1.label} status={overview.turnover.q1.status} /><TurnoverMetricCard label={overview.turnover.q2.label} status={overview.turnover.q2.status} /><TurnoverMetricCard label={overview.turnover.q3.label} metrics={overview.turnover.q3.summary} status={overview.turnover.q3.status} /><TurnoverMetricCard label={overview.turnover.q4.label} status={overview.turnover.q4.status} /><TurnoverMetricCard label={overview.turnover.ytd.label} metrics={overview.turnover.ytd.summary} status={`Through ${new Date(`${overview.turnover.ytd.asOf}T12:00:00`).toLocaleDateString('en-US')}`} /></div><div className="overflow-hidden rounded-2xl border border-slate-200"><div className="border-b border-slate-200 bg-slate-50 px-4 py-3"><h3 className="font-black text-slate-900">Turnover by Location</h3><p className="mt-1 text-xs font-semibold text-slate-500">Q3 is the supplied quarter-end baseline through September 30. YTD adds valid system terminations recorded after September.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr><th className="px-4 py-3">Location</th><th className="px-4 py-3">Q3 Employee Base</th><th className="px-4 py-3">Q3 Total</th><th className="px-4 py-3">Q3 Voluntary</th><th className="px-4 py-3">Q3 Involuntary</th><th className="px-4 py-3">YTD Employee Base</th><th className="px-4 py-3">YTD Total</th><th className="px-4 py-3">YTD Voluntary</th><th className="px-4 py-3">YTD Involuntary</th></tr></thead><tbody className="divide-y divide-slate-100">{overview.turnover.ytd.locations.map(ytd => { const q3 = overview.turnover.q3.locations.find(row => row.location === ytd.location); return <tr className="hover:bg-indigo-50/50" key={ytd.location}><td className="px-4 py-3 font-black text-slate-900">{ytd.location}</td><td className="px-4 py-3"><button className="font-black text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-950" type="button">{q3?.denominator || 0}</button></td><td className="px-4 py-3 font-bold text-indigo-800">{(q3?.totalRate || 0).toFixed(1)}% <span className="text-xs text-slate-400">({q3?.total || 0})</span></td><td className="px-4 py-3 text-emerald-800">{(q3?.voluntaryRate || 0).toFixed(1)}% <span className="text-xs text-slate-400">({q3?.voluntary || 0})</span></td><td className="px-4 py-3 text-rose-800">{(q3?.involuntaryRate || 0).toFixed(1)}% <span className="text-xs text-slate-400">({q3?.involuntary || 0})</span></td><td className="px-4 py-3"><button className="font-black text-teal-700 underline decoration-teal-300 underline-offset-4 hover:text-teal-950" type="button">{ytd.denominator}</button></td><td className="px-4 py-3 font-bold text-indigo-800">{ytd.totalRate.toFixed(1)}% <span className="text-xs text-slate-400">({ytd.total})</span></td><td className="px-4 py-3 text-emerald-800">{ytd.voluntaryRate.toFixed(1)}% <span className="text-xs text-slate-400">({ytd.voluntary})</span></td><td className="px-4 py-3 text-rose-800">{ytd.involuntaryRate.toFixed(1)}% <span className="text-xs text-slate-400">({ytd.involuntary})</span></td></tr> })}</tbody></table></div></div><div data-turnover-scope="parts-service" className="overflow-hidden rounded-2xl border border-amber-200"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-4"><div><h3 className="font-black text-slate-900">Parts / Service Only Turnover by Location</h3><p className="mt-1 text-xs font-semibold text-slate-600">Facility employees only. Corporate, East Michigan, West Michigan, Outside Parts Sales, Equipment Sales, and Trailer Sales are excluded.</p></div><span className="rounded-full bg-amber-700 px-3 py-1.5 text-xs font-black text-white">YTD {overview.turnover.partsService.ytd.summary.totalRate.toFixed(1)}%</span></div><div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr><th className="px-4 py-3">Facility</th><th className="px-4 py-3">Q3 Employee Base</th><th className="px-4 py-3">Q3 Total</th><th className="px-4 py-3">Q3 Voluntary</th><th className="px-4 py-3">Q3 Involuntary</th><th className="px-4 py-3">YTD Employee Base</th><th className="px-4 py-3">YTD Total</th><th className="px-4 py-3">YTD Voluntary</th><th className="px-4 py-3">YTD Involuntary</th></tr></thead><tbody className="divide-y divide-slate-100">{overview.turnover.partsService.ytd.locations.map(ytd => { const q3 = overview.turnover.partsService.q3.locations.find(row => row.location === ytd.location); return <tr className="hover:bg-amber-50/60" key={ytd.location}><td className="px-4 py-3 font-black text-slate-900">{ytd.location}</td><td className="px-4 py-3"><button className="font-black text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-950" type="button">{q3?.denominator || 0}</button></td><td className="px-4 py-3 font-bold text-indigo-800">{(q3?.totalRate || 0).toFixed(1)}% <span className="text-xs text-slate-400">({q3?.total || 0})</span></td><td className="px-4 py-3 text-emerald-800">{(q3?.voluntaryRate || 0).toFixed(1)}% <span className="text-xs text-slate-400">({q3?.voluntary || 0})</span></td><td className="px-4 py-3 text-rose-800">{(q3?.involuntaryRate || 0).toFixed(1)}% <span className="text-xs text-slate-400">({q3?.involuntary || 0})</span></td><td className="px-4 py-3"><button className="font-black text-teal-700 underline decoration-teal-300 underline-offset-4 hover:text-teal-950" type="button">{ytd.denominator}</button></td><td className="px-4 py-3 font-bold text-indigo-800">{ytd.totalRate.toFixed(1)}% <span className="text-xs text-slate-400">({ytd.total})</span></td><td className="px-4 py-3 text-emerald-800">{ytd.voluntaryRate.toFixed(1)}% <span className="text-xs text-slate-400">({ytd.voluntary})</span></td><td className="px-4 py-3 text-rose-800">{ytd.involuntaryRate.toFixed(1)}% <span className="text-xs text-slate-400">({ytd.involuntary})</span></td></tr> })}</tbody></table></div></div><div className="overflow-hidden rounded-2xl border border-sky-200 bg-white"><div className="border-b border-sky-200 bg-gradient-to-r from-sky-50 to-indigo-50 px-5 py-4"><p className="text-xs font-black uppercase tracking-[0.14em] text-sky-800">Turnover Benchmark</p><h3 className="mt-1 text-lg font-black text-slate-950">External Market Context and Royal Annual Target</h3></div><div className="grid gap-4 p-5 lg:grid-cols-2"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-5"><p className="text-xs font-black uppercase tracking-wide text-slate-600">2025 External Market Annualized Reference</p><p className="mt-3 text-sm font-semibold leading-6 text-slate-700">Simple annualized reference (BLS 2025 monthly average × 12): Wholesale Trade approximately 27.6%, Durable Goods Manufacturing approximately 27.6%, and Michigan nonfarm approximately 44.4%.</p><p className="mt-2 text-xs leading-5 text-slate-500">These annualized figures are directional comparisons, not official BLS annual turnover rates. The Royal 20% annual target is therefore a disciplined internal performance goal.</p><div className="mt-3 flex flex-wrap gap-2"><a className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-sky-800 ring-1 ring-sky-200 hover:bg-sky-50" href="https://www.bls.gov/news.release/jolts.t20.htm" rel="noreferrer" target="_blank">BLS Industry Data</a><a className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-sky-800 ring-1 ring-sky-200 hover:bg-sky-50" href="https://www.bls.gov/news.release/jltst.t16.htm" rel="noreferrer" target="_blank">BLS Michigan Data</a></div></div><div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5"><p className="text-xs font-black uppercase tracking-wide text-indigo-700">Royal Annual Target</p><div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-xl bg-white p-3"><p className="text-2xl font-black text-indigo-950">20% or less</p><p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Total</p></div><div className="rounded-xl bg-white p-3"><p className="text-2xl font-black text-emerald-700">12% or less</p><p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Voluntary</p></div><div className="rounded-xl bg-white p-3"><p className="text-2xl font-black text-rose-700">8% or less</p><p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Involuntary</p></div></div><div className="mt-4 grid gap-2 text-xs font-bold sm:grid-cols-2"><p className="rounded-lg bg-emerald-100 px-3 py-2 text-emerald-900">Below 15% · Strong</p><p className="rounded-lg bg-blue-100 px-3 py-2 text-blue-900">15%–20% · Within Target</p><p className="rounded-lg bg-amber-100 px-3 py-2 text-amber-900">20%–25% · Elevated</p><p className="rounded-lg bg-rose-100 px-3 py-2 text-rose-900">Above 25% · High Turnover</p></div><p className="mt-3 text-xs leading-5 text-slate-600">Total turnover includes voluntary and involuntary terminations. Leave, retired, deceased, and pre-employment cancellations remain excluded.</p></div></div></div><div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4"><p className="text-xs font-black uppercase tracking-wide text-indigo-800">Calculation Rules</p><p className="mt-2 text-sm font-semibold leading-6 text-slate-700">Total turnover rate = voluntary and involuntary terminations ÷ employee base. The employee base includes Active, Leave, and valid terminated employees. Leave is not counted as turnover. Retired and deceased employees are excluded. Anyone terminated before the Hire Date is excluded as a pre-employment cancellation.</p></div>{overview.turnover.unclassifiedTurnovers.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-900"><span className="font-black">Review needed:</span> termination type is missing for {overview.turnover.unclassifiedTurnovers.join(', ')}. These records are not included until marked Voluntary or Involuntary.</div>}</div></section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-indigo-200 bg-white shadow-lg">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-cyan-50 px-6 py-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">
+                Quarterly workforce measurement
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                Turnover Analysis
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Quarter-end results and current 2026 year-to-date turnover for
+                the company and each location.
+              </p>
+            </div>
+            <span className="rounded-full bg-indigo-900 px-4 py-2 text-sm font-black text-white">
+              YTD {overview.turnover.ytd.summary.totalRate.toFixed(1)}%
+            </span>
+          </header>
+          <div className="space-y-6 p-6">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <TurnoverMetricCard
+                label={overview.turnover.q1.label}
+                status={overview.turnover.q1.status}
+              />
+              <TurnoverMetricCard
+                label={overview.turnover.q2.label}
+                status={overview.turnover.q2.status}
+              />
+              <TurnoverMetricCard
+                label={overview.turnover.q3.label}
+                metrics={overview.turnover.q3.summary}
+                status={overview.turnover.q3.status}
+              />
+              <TurnoverMetricCard
+                label={overview.turnover.q4.label}
+                status={overview.turnover.q4.status}
+              />
+              <TurnoverMetricCard
+                label={overview.turnover.ytd.label}
+                metrics={overview.turnover.ytd.summary}
+                status={`Through ${new Date(`${overview.turnover.ytd.asOf}T12:00:00`).toLocaleDateString("en-US")}`}
+              />
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <h3 className="font-black text-slate-900">
+                  Turnover by Location
+                </h3>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Q3 is the supplied quarter-end baseline through September 30.
+                  YTD adds valid system terminations recorded after September.
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1080px] text-left text-sm">
+                  <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                    <tr>
+                      <th className="px-4 py-3">Location</th>
+                      <th className="px-4 py-3">Q3 Employee Base</th>
+                      <th className="px-4 py-3">Q3 Total</th>
+                      <th className="px-4 py-3">Q3 Voluntary</th>
+                      <th className="px-4 py-3">Q3 Involuntary</th>
+                      <th className="px-4 py-3">YTD Employee Base</th>
+                      <th className="px-4 py-3">YTD Total</th>
+                      <th className="px-4 py-3">YTD Voluntary</th>
+                      <th className="px-4 py-3">YTD Involuntary</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {overview.turnover.ytd.locations.map((ytd) => {
+                      const q3 = overview.turnover.q3.locations.find(
+                        (row) => row.location === ytd.location,
+                      );
+                      return (
+                        <tr
+                          className="hover:bg-indigo-50/50"
+                          key={ytd.location}
+                        >
+                          <td className="px-4 py-3 font-black text-slate-900">
+                            {ytd.location}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              className="font-black text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-950"
+                              type="button"
+                            >
+                              {q3?.denominator || 0}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-indigo-800">
+                            {(q3?.totalRate || 0).toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({q3?.total || 0})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-emerald-800">
+                            {(q3?.voluntaryRate || 0).toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({q3?.voluntary || 0})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-rose-800">
+                            {(q3?.involuntaryRate || 0).toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({q3?.involuntary || 0})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              className="font-black text-teal-700 underline decoration-teal-300 underline-offset-4 hover:text-teal-950"
+                              type="button"
+                            >
+                              {ytd.denominator}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-indigo-800">
+                            {ytd.totalRate.toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({ytd.total})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-emerald-800">
+                            {ytd.voluntaryRate.toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({ytd.voluntary})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-rose-800">
+                            {ytd.involuntaryRate.toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({ytd.involuntary})
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div
+              data-turnover-scope="parts-service"
+              className="overflow-hidden rounded-2xl border border-amber-200"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-4">
+                <div>
+                  <h3 className="font-black text-slate-900">
+                    Parts / Service Only Turnover by Location
+                  </h3>
+                  <p className="mt-1 text-xs font-semibold text-slate-600">
+                    Facility employees only. Corporate, East Michigan, West
+                    Michigan, Outside Parts Sales, Equipment Sales, and Trailer
+                    Sales are excluded.
+                  </p>
+                </div>
+                <span className="rounded-full bg-amber-700 px-3 py-1.5 text-xs font-black text-white">
+                  YTD{" "}
+                  {overview.turnover.partsService.ytd.summary.totalRate.toFixed(
+                    1,
+                  )}
+                  %
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1080px] text-left text-sm">
+                  <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                    <tr>
+                      <th className="px-4 py-3">Facility</th>
+                      <th className="px-4 py-3">Q3 Employee Base</th>
+                      <th className="px-4 py-3">Q3 Total</th>
+                      <th className="px-4 py-3">Q3 Voluntary</th>
+                      <th className="px-4 py-3">Q3 Involuntary</th>
+                      <th className="px-4 py-3">YTD Employee Base</th>
+                      <th className="px-4 py-3">YTD Total</th>
+                      <th className="px-4 py-3">YTD Voluntary</th>
+                      <th className="px-4 py-3">YTD Involuntary</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {overview.turnover.partsService.ytd.locations.map((ytd) => {
+                      const q3 =
+                        overview.turnover.partsService.q3.locations.find(
+                          (row) => row.location === ytd.location,
+                        );
+                      return (
+                        <tr className="hover:bg-amber-50/60" key={ytd.location}>
+                          <td className="px-4 py-3 font-black text-slate-900">
+                            {ytd.location}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              className="font-black text-indigo-700 underline decoration-indigo-300 underline-offset-4 hover:text-indigo-950"
+                              type="button"
+                            >
+                              {q3?.denominator || 0}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-indigo-800">
+                            {(q3?.totalRate || 0).toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({q3?.total || 0})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-emerald-800">
+                            {(q3?.voluntaryRate || 0).toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({q3?.voluntary || 0})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-rose-800">
+                            {(q3?.involuntaryRate || 0).toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({q3?.involuntary || 0})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              className="font-black text-teal-700 underline decoration-teal-300 underline-offset-4 hover:text-teal-950"
+                              type="button"
+                            >
+                              {ytd.denominator}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-indigo-800">
+                            {ytd.totalRate.toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({ytd.total})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-emerald-800">
+                            {ytd.voluntaryRate.toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({ytd.voluntary})
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-rose-800">
+                            {ytd.involuntaryRate.toFixed(1)}%{" "}
+                            <span className="text-xs text-slate-400">
+                              ({ytd.involuntary})
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-sky-200 bg-white">
+              <div className="border-b border-sky-200 bg-gradient-to-r from-sky-50 to-indigo-50 px-5 py-4">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-sky-800">
+                  Turnover Benchmark
+                </p>
+                <h3 className="mt-1 text-lg font-black text-slate-950">
+                  Dealership Industry Background and Royal Annual Target
+                </h3>
+              </div>
+              <div className="grid gap-4 p-5 lg:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-600">
+                    2024 Dealership Industry Background
+                  </p>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">
+                    NADA reports 42% annualized turnover across all dealership
+                    positions. Fixed Operations benchmarks vary materially by
+                    role: Parts Manager 13%, Service Manager 21%, Parts
+                    Consultant 21%, Service Technician 31%, and Service Advisor
+                    / Writer 43%.
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Source: 2025 NADA Dealership Workforce Study using 2024
+                    dealership payroll data. This is an industry background
+                    reference—not Royal&apos;s performance target. Royal&apos;s
+                    commercial truck and trailer business and workforce mix
+                    differ from the broader auto-dealership population.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <a
+                      className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-sky-800 ring-1 ring-sky-200 hover:bg-sky-50"
+                      href="https://www.nada.org/media/18376/download"
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      NADA Dealership Workforce Study
+                    </a>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+                  <p className="text-xs font-black uppercase tracking-wide text-indigo-700">
+                    Royal Annual Target
+                  </p>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl bg-white p-3">
+                      <p className="text-2xl font-black text-indigo-950">
+                        20% or less
+                      </p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                        Total
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3">
+                      <p className="text-2xl font-black text-emerald-700">
+                        12% or less
+                      </p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                        Voluntary
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white p-3">
+                      <p className="text-2xl font-black text-rose-700">
+                        8% or less
+                      </p>
+                      <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                        Involuntary
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-2 text-xs font-bold sm:grid-cols-2">
+                    <p className="rounded-lg bg-emerald-100 px-3 py-2 text-emerald-900">
+                      Below 15% · Strong
+                    </p>
+                    <p className="rounded-lg bg-blue-100 px-3 py-2 text-blue-900">
+                      15%–20% · Within Target
+                    </p>
+                    <p className="rounded-lg bg-amber-100 px-3 py-2 text-amber-900">
+                      20%–25% · Elevated
+                    </p>
+                    <p className="rounded-lg bg-rose-100 px-3 py-2 text-rose-900">
+                      Above 25% · High Turnover
+                    </p>
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-slate-600">
+                    Total turnover includes voluntary and involuntary
+                    terminations. Leave, retired, deceased, and pre-employment
+                    cancellations remain excluded.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50 px-5 py-4">
+              <p className="text-xs font-black uppercase tracking-wide text-indigo-800">
+                Calculation Rules
+              </p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-700">
+                Total turnover rate = voluntary and involuntary terminations ÷
+                employee base. The employee base includes Active, Leave, and
+                valid terminated employees. Leave is not counted as turnover.
+                Retired and deceased employees are excluded. Anyone terminated
+                before the Hire Date is excluded as a pre-employment
+                cancellation.
+              </p>
+              {(overview.turnover.excludedEmployees.retired.length > 0 ||
+                overview.turnover.excludedEmployees.deceased.length > 0) && (
+                <div className="mt-3 border-t border-indigo-200 pt-3 text-xs leading-5 text-slate-600">
+                  <p>
+                    <span className="font-black text-slate-800">
+                      Excluded from {overview.turnover.year} turnover:
+                    </span>{" "}
+                    Retired and deceased employees are documented but are not
+                    counted as voluntary or involuntary turnover.
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1">
+                    <p>
+                      <span className="font-black text-slate-700">Retired:</span>{" "}
+                      {overview.turnover.excludedEmployees.retired.length
+                        ? overview.turnover.excludedEmployees.retired.join(", ")
+                        : "None"}
+                    </p>
+                    <p>
+                      <span className="font-black text-slate-700">Deceased:</span>{" "}
+                      {overview.turnover.excludedEmployees.deceased.length
+                        ? overview.turnover.excludedEmployees.deceased.join(", ")
+                        : "None"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            {overview.turnover.unclassifiedTurnovers.length > 0 && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-semibold text-amber-900">
+                <span className="font-black">Review needed:</span> termination
+                type is missing for{" "}
+                {overview.turnover.unclassifiedTurnovers.join(", ")}. These
+                records are not included until marked Voluntary or Involuntary.
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-lg"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-cyan-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Current month workforce activity</p><h2 className="mt-1 text-xl font-black text-slate-950">This Month’s New Hires</h2><p className="mt-1 text-sm text-slate-600">All employees with a Hire Date in {new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}, including completed and in-progress onboarding.</p></div><div className="flex items-center gap-2"><button className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm font-black text-emerald-800 hover:bg-emerald-50" onClick={() => openHistory('new-hire')} type="button"><Search className="h-4 w-4" />Search History</button><span className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-black text-white">{overview.currentMonthNewHires.length} New Hire{overview.currentMonthNewHires.length === 1 ? '' : 's'}</span></div></header>{overview.currentMonthNewHires.length ? <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', 'Hire Date', 'Job Title', 'Home Department', 'Location', 'Company Status', 'Onboarding Status'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{overview.currentMonthNewHires.map(employee => <tr className="hover:bg-emerald-50/50" key={employee.id}><td className="px-4 py-3 font-bold text-slate-950">{employee.name}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{new Date(`${employee.hireDate}T12:00:00`).toLocaleDateString('en-US')}</td><td className="px-4 py-3 text-slate-700">{employee.jobTitle}</td><td className="px-4 py-3 text-slate-700">{employee.department}</td><td className="px-4 py-3 text-slate-700">{employee.location}</td><td className="px-4 py-3 text-slate-700">{employee.employeeStatus}</td><td className="px-4 py-3"><span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ${employee.onboardingStatus === 'Completed' ? 'bg-emerald-100 text-emerald-800' : employee.onboardingStatus === 'Final Review Needed' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-800'}`}>{employee.onboardingStatus}</span></td></tr>)}</tbody></table></div> : <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">No employees have a Hire Date in this month.</p>}</section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-lg">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-cyan-50 px-6 py-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
+                Current month workforce activity
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                This Month’s New Hires
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                All employees with a Hire Date in{" "}
+                {new Date(
+                  `${overview.currentMonth}-01T12:00:00`,
+                ).toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+                , including completed and in-progress onboarding.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-white px-3 py-2 text-sm font-black text-emerald-800 hover:bg-emerald-50"
+                onClick={() => openHistory("new-hire")}
+                type="button"
+              >
+                <Search className="h-4 w-4" />
+                Search History
+              </button>
+              <span className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-black text-white">
+                {overview.currentMonthNewHires.length} New Hire
+                {overview.currentMonthNewHires.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          </header>
+          {overview.currentMonthNewHires.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] text-left text-sm">
+                <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    {[
+                      "Employee Name",
+                      "Hire Date",
+                      "Job Title",
+                      "Home Department",
+                      "Location",
+                      "Company Status",
+                      "Onboarding Status",
+                    ].map((label) => (
+                      <th className="px-4 py-3" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {overview.currentMonthNewHires.map((employee) => (
+                    <tr className="hover:bg-emerald-50/50" key={employee.id}>
+                      <td className="px-4 py-3 font-bold text-slate-950">
+                        {employee.name}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        {new Date(
+                          `${employee.hireDate}T12:00:00`,
+                        ).toLocaleDateString("en-US")}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.jobTitle}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.department}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.location}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.employeeStatus}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-black ${employee.onboardingStatus === "Completed" ? "bg-emerald-100 text-emerald-800" : employee.onboardingStatus === "Final Review Needed" ? "bg-amber-100 text-amber-900" : "bg-blue-100 text-blue-800"}`}
+                        >
+                          {employee.onboardingStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">
+              No employees have a Hire Date in this month.
+            </p>
+          )}
+        </section>
+      )}
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-rose-200 bg-white shadow-lg"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-orange-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-rose-700">Current month workforce activity</p><h2 className="mt-1 text-xl font-black text-slate-950">This Month’s Terminations</h2><p className="mt-1 text-sm text-slate-600">All employees with a Termination Date in {new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}, regardless of termination workflow status.</p></div><div className="flex items-center gap-2"><button className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-black text-rose-800 hover:bg-rose-50" onClick={() => openHistory('termination')} type="button"><Search className="h-4 w-4" />Search History</button><span className="rounded-full bg-rose-700 px-4 py-2 text-sm font-black text-white">{overview.currentMonthTerminations.length} Termination{overview.currentMonthTerminations.length === 1 ? '' : 's'}</span></div></header>{overview.currentMonthTerminations.length ? <div className="overflow-x-auto"><table className="w-full min-w-[880px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', 'Termination Date', 'Job Title', 'Home Department', 'Location', 'Termination Type'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{overview.currentMonthTerminations.map(employee => <tr className="hover:bg-rose-50/50" key={employee.id}><td className="px-4 py-3 font-bold text-slate-950">{employee.name}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{new Date(`${employee.terminationDate}T12:00:00`).toLocaleDateString('en-US')}</td><td className="px-4 py-3 text-slate-700">{employee.jobTitle}</td><td className="px-4 py-3 text-slate-700">{employee.department}</td><td className="px-4 py-3 text-slate-700">{employee.location}</td><td className="px-4 py-3 text-slate-700">{employee.terminationType}</td></tr>)}</tbody></table></div> : <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">No employees have a Termination Date in this month.</p>}</section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-rose-200 bg-white shadow-lg">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-orange-50 px-6 py-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-rose-700">
+                Current month workforce activity
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                This Month’s Terminations
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                All employees with a Termination Date in{" "}
+                {new Date(
+                  `${overview.currentMonth}-01T12:00:00`,
+                ).toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+                , regardless of termination workflow status.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-black text-rose-800 hover:bg-rose-50"
+                onClick={() => openHistory("termination")}
+                type="button"
+              >
+                <Search className="h-4 w-4" />
+                Search History
+              </button>
+              <span className="rounded-full bg-rose-700 px-4 py-2 text-sm font-black text-white">
+                {overview.currentMonthTerminations.length} Termination
+                {overview.currentMonthTerminations.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          </header>
+          {overview.currentMonthTerminations.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] text-left text-sm">
+                <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    {[
+                      "Employee Name",
+                      "Termination Date",
+                      "Job Title",
+                      "Home Department",
+                      "Location",
+                      "Termination Type",
+                    ].map((label) => (
+                      <th className="px-4 py-3" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {overview.currentMonthTerminations.map((employee) => (
+                    <tr className="hover:bg-rose-50/50" key={employee.id}>
+                      <td className="px-4 py-3 font-bold text-slate-950">
+                        {employee.name}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        {new Date(
+                          `${employee.terminationDate}T12:00:00`,
+                        ).toLocaleDateString("en-US")}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.jobTitle}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.department}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.location}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.terminationType}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">
+              No employees have a Termination Date in this month.
+            </p>
+          )}
+        </section>
+      )}
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-lg"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">Current month workforce activity</p><h2 className="mt-1 text-xl font-black text-slate-950">This Month’s Employment Changes</h2><p className="mt-1 text-sm text-slate-600">All records with a Change Effective Date in {new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}, regardless of workflow completion.</p></div><div className="flex items-center gap-2"><button className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2 text-sm font-black text-blue-800 hover:bg-blue-50" onClick={() => openHistory('employment-change')} type="button"><Search className="h-4 w-4" />Search History</button><span className="rounded-full bg-blue-700 px-4 py-2 text-sm font-black text-white">{overview.currentMonthEmploymentChanges.length} Change{overview.currentMonthEmploymentChanges.length === 1 ? '' : 's'}</span></div></header>{overview.currentMonthEmploymentChanges.length ? <div className="overflow-x-auto"><table className="w-full min-w-[1180px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', 'Effective Date', 'Job Title', 'Home Department', 'Location', 'Changes', 'Change Reason / Notes'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{overview.currentMonthEmploymentChanges.map(change => <tr className="hover:bg-blue-50/50" key={change.id}><td className="px-4 py-3 font-bold text-slate-950">{change.name}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{new Date(`${change.effectiveDate}T12:00:00`).toLocaleDateString('en-US')}</td><td className="px-4 py-3 text-slate-700">{change.jobTitle}</td><td className="px-4 py-3 text-slate-700">{change.department}</td><td className="px-4 py-3 text-slate-700">{change.location}</td><td className="max-w-md px-4 py-3 font-semibold text-slate-800">{change.changes}</td><td className="max-w-sm px-4 py-3 text-slate-700">{change.reason}</td></tr>)}</tbody></table></div> : <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">No employment changes have an Effective Date in this month.</p>}</section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-blue-200 bg-white shadow-lg">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
+                Current month workforce activity
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                This Month’s Employment Changes
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                All records with a Change Effective Date in{" "}
+                {new Date(
+                  `${overview.currentMonth}-01T12:00:00`,
+                ).toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+                , regardless of workflow completion.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="inline-flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2 text-sm font-black text-blue-800 hover:bg-blue-50"
+                onClick={() => openHistory("employment-change")}
+                type="button"
+              >
+                <Search className="h-4 w-4" />
+                Search History
+              </button>
+              <span className="rounded-full bg-blue-700 px-4 py-2 text-sm font-black text-white">
+                {overview.currentMonthEmploymentChanges.length} Change
+                {overview.currentMonthEmploymentChanges.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          </header>
+          {overview.currentMonthEmploymentChanges.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1180px] text-left text-sm">
+                <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    {[
+                      "Employee Name",
+                      "Effective Date",
+                      "Job Title",
+                      "Home Department",
+                      "Location",
+                      "Changes",
+                      "Change Reason / Notes",
+                    ].map((label) => (
+                      <th className="px-4 py-3" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {overview.currentMonthEmploymentChanges.map((change) => (
+                    <tr className="hover:bg-blue-50/50" key={change.id}>
+                      <td className="px-4 py-3 font-bold text-slate-950">
+                        {change.name}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        {new Date(
+                          `${change.effectiveDate}T12:00:00`,
+                        ).toLocaleDateString("en-US")}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {change.jobTitle}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {change.department}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {change.location}
+                      </td>
+                      <td className="max-w-md px-4 py-3 font-semibold text-slate-800">
+                        {change.changes}
+                      </td>
+                      <td className="max-w-sm px-4 py-3 text-slate-700">
+                        {change.reason}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">
+              No employment changes have an Effective Date in this month.
+            </p>
+          )}
+        </section>
+      )}
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-lg"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-violet-700">Leave case visibility</p><h2 className="mt-1 text-xl font-black text-slate-950">FMLA / ADA / Medical Leave Cases</h2><p className="mt-1 text-sm text-slate-600">All open cases, plus cases opened or closed in {new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.</p></div><div className="flex flex-wrap gap-2"><span className="rounded-full bg-violet-700 px-4 py-2 text-sm font-black text-white">{overview.openLeaveCases} Open</span><span className="rounded-full bg-slate-800 px-4 py-2 text-sm font-black text-white">{overview.currentLeaveCases.length} Shown</span></div></header>{overview.currentLeaveCases.length ? <div className="overflow-x-auto"><table className="w-full min-w-[1240px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', 'Leave Start Date', 'Anticipated Return', 'Actual Return', 'Job Title', 'Home Department', 'Location', 'Company Status', 'Case Status'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{overview.currentLeaveCases.map(record => <tr className="hover:bg-violet-50/50" key={record.id}><td className="px-4 py-3 font-bold text-slate-950">{record.name}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{record.leaveStartDate ? new Date(`${record.leaveStartDate}T12:00:00`).toLocaleDateString('en-US') : 'Not Recorded'}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{record.anticipatedReturnDate ? new Date(`${record.anticipatedReturnDate}T12:00:00`).toLocaleDateString('en-US') : 'Not Recorded'}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{record.actualReturnDate ? new Date(`${record.actualReturnDate}T12:00:00`).toLocaleDateString('en-US') : record.closedDate ? new Date(`${record.closedDate}T12:00:00`).toLocaleDateString('en-US') : '—'}</td><td className="px-4 py-3 text-slate-700">{record.jobTitle}</td><td className="px-4 py-3 text-slate-700">{record.department}</td><td className="px-4 py-3 text-slate-700">{record.location}</td><td className="px-4 py-3 text-slate-700">{record.companyStatus}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${record.caseStatus === 'Open' ? 'bg-violet-100 text-violet-800' : 'bg-slate-200 text-slate-700'}`}>{record.caseStatus}</span></td></tr>)}</tbody></table></div> : <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">No open or current-month leave cases.</p>}</section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-lg">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-violet-100 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-6 py-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-700">
+                Leave case visibility
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                FMLA / ADA / Medical Leave Cases
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                All open cases, plus cases opened or closed in{" "}
+                {new Date(
+                  `${overview.currentMonth}-01T12:00:00`,
+                ).toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
+                .
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-violet-700 px-4 py-2 text-sm font-black text-white">
+                {overview.openLeaveCases} Open
+              </span>
+              <span className="rounded-full bg-slate-800 px-4 py-2 text-sm font-black text-white">
+                {overview.currentLeaveCases.length} Shown
+              </span>
+            </div>
+          </header>
+          {overview.currentLeaveCases.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1240px] text-left text-sm">
+                <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    {[
+                      "Employee Name",
+                      "Leave Start Date",
+                      "Anticipated Return",
+                      "Actual Return",
+                      "Job Title",
+                      "Home Department",
+                      "Location",
+                      "Company Status",
+                      "Case Status",
+                    ].map((label) => (
+                      <th className="px-4 py-3" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {overview.currentLeaveCases.map((record) => (
+                    <tr className="hover:bg-violet-50/50" key={record.id}>
+                      <td className="px-4 py-3 font-bold text-slate-950">
+                        {record.name}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        {record.leaveStartDate
+                          ? new Date(
+                              `${record.leaveStartDate}T12:00:00`,
+                            ).toLocaleDateString("en-US")
+                          : "Not Recorded"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        {record.anticipatedReturnDate
+                          ? new Date(
+                              `${record.anticipatedReturnDate}T12:00:00`,
+                            ).toLocaleDateString("en-US")
+                          : "Not Recorded"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                        {record.actualReturnDate
+                          ? new Date(
+                              `${record.actualReturnDate}T12:00:00`,
+                            ).toLocaleDateString("en-US")
+                          : record.closedDate
+                            ? new Date(
+                                `${record.closedDate}T12:00:00`,
+                              ).toLocaleDateString("en-US")
+                            : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {record.jobTitle}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {record.department}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {record.location}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {record.companyStatus}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-black ${record.caseStatus === "Open" ? "bg-violet-100 text-violet-800" : "bg-slate-200 text-slate-700"}`}
+                        >
+                          {record.caseStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">
+              No open or current-month leave cases.
+            </p>
+          )}
+        </section>
+      )}
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-orange-200 bg-white shadow-lg"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-orange-700">Safety case visibility</p><h2 className="mt-1 text-xl font-black text-slate-950">Work-Related Injury Cases</h2><p className="mt-1 text-sm text-slate-600">{overview.injuryDataLive ? `All open cases, plus cases opened or closed in ${new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.` : 'The production injury case display begins January 1, 2027. Existing database records are testing data and are intentionally hidden.'}</p></div>{overview.injuryDataLive ? <div className="flex flex-wrap gap-2"><span className="rounded-full bg-orange-700 px-4 py-2 text-sm font-black text-white">{overview.openInjuryCases} Open</span><span className="rounded-full bg-slate-800 px-4 py-2 text-sm font-black text-white">{overview.currentInjuryCases.length} Shown</span></div> : <span className="rounded-full bg-orange-700 px-4 py-2 text-sm font-black text-white">Available Jan. 1, 2027</span>}</header>{overview.injuryDataLive ? overview.currentInjuryCases.length ? <div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', 'Injury Date', 'Job Title', 'Department', 'Location', 'Work Status / Medical Restriction', 'OSHA Recordable', 'Case Status'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{overview.currentInjuryCases.map(record => <tr className="hover:bg-orange-50/50" key={record.id}><td className="px-4 py-3 font-bold text-slate-950">{record.name}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{record.injuryDate ? new Date(`${record.injuryDate}T12:00:00`).toLocaleDateString('en-US') : 'Not Recorded'}</td><td className="px-4 py-3 text-slate-700">{record.jobTitle}</td><td className="px-4 py-3 text-slate-700">{record.department}</td><td className="px-4 py-3 text-slate-700">{record.location}</td><td className="px-4 py-3 text-slate-700">{record.workStatus}</td><td className="px-4 py-3 text-slate-700">{record.oshaRecordable}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${record.caseStatus === 'Open' ? 'bg-orange-100 text-orange-800' : 'bg-slate-200 text-slate-700'}`}>{record.caseStatus}</span></td></tr>)}</tbody></table></div> : <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">No open or current-month injury cases.</p> : <div className="grid min-h-44 place-items-center px-6 py-10 text-center"><div><ShieldCheck className="mx-auto h-10 w-10 text-orange-500" /><p className="mt-4 text-lg font-black text-slate-900">Production data display is not active yet</p><p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">This window is ready. It will automatically begin showing official injury cases on January 1, 2027. Testing records will remain hidden from the C-Suite dashboard.</p></div></div>}</section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-orange-200 bg-white shadow-lg">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-orange-100 bg-gradient-to-r from-orange-50 to-amber-50 px-6 py-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-orange-700">
+                Safety case visibility
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                Work-Related Injury Cases
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {overview.injuryDataLive
+                  ? `All open cases, plus cases opened or closed in ${new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}.`
+                  : "The production injury case display begins January 1, 2027. Existing database records are testing data and are intentionally hidden."}
+              </p>
+            </div>
+            {overview.injuryDataLive ? (
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full bg-orange-700 px-4 py-2 text-sm font-black text-white">
+                  {overview.openInjuryCases} Open
+                </span>
+                <span className="rounded-full bg-slate-800 px-4 py-2 text-sm font-black text-white">
+                  {overview.currentInjuryCases.length} Shown
+                </span>
+              </div>
+            ) : (
+              <span className="rounded-full bg-orange-700 px-4 py-2 text-sm font-black text-white">
+                Available Jan. 1, 2027
+              </span>
+            )}
+          </header>
+          {overview.injuryDataLive ? (
+            overview.currentInjuryCases.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1080px] text-left text-sm">
+                  <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                    <tr>
+                      {[
+                        "Employee Name",
+                        "Injury Date",
+                        "Job Title",
+                        "Department",
+                        "Location",
+                        "Work Status / Medical Restriction",
+                        "OSHA Recordable",
+                        "Case Status",
+                      ].map((label) => (
+                        <th className="px-4 py-3" key={label}>
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {overview.currentInjuryCases.map((record) => (
+                      <tr className="hover:bg-orange-50/50" key={record.id}>
+                        <td className="px-4 py-3 font-bold text-slate-950">
+                          {record.name}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                          {record.injuryDate
+                            ? new Date(
+                                `${record.injuryDate}T12:00:00`,
+                              ).toLocaleDateString("en-US")
+                            : "Not Recorded"}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {record.jobTitle}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {record.department}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {record.location}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {record.workStatus}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {record.oshaRecordable}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-black ${record.caseStatus === "Open" ? "bg-orange-100 text-orange-800" : "bg-slate-200 text-slate-700"}`}
+                          >
+                            {record.caseStatus}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">
+                No open or current-month injury cases.
+              </p>
+            )
+          ) : (
+            <div className="grid min-h-44 place-items-center px-6 py-10 text-center">
+              <div>
+                <ShieldCheck className="mx-auto h-10 w-10 text-orange-500" />
+                <p className="mt-4 text-lg font-black text-slate-900">
+                  Production data display is not active yet
+                </p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                  This window is ready. It will automatically begin showing
+                  official injury cases on January 1, 2027. Testing records will
+                  remain hidden from the C-Suite dashboard.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
-    {overview && <section className="overflow-hidden rounded-3xl border border-teal-200 bg-white shadow-lg"><header className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-emerald-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">Monthly workforce development</p><h2 className="mt-1 text-xl font-black text-slate-950">Training Overview</h2><p className="mt-1 text-sm text-slate-600">{overview.trainingDataLive ? `Monthly training programs and completion results for ${new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.` : 'The production training overview begins January 1, 2027. Existing training records are testing data and are intentionally hidden.'}</p></div>{overview.trainingDataLive ? <span className="rounded-full bg-teal-700 px-4 py-2 text-sm font-black text-white">{overview.trainingOverview.completionRate == null ? 'No Assignments' : `${overview.trainingOverview.completionRate}% Complete`}</span> : <span className="rounded-full bg-teal-700 px-4 py-2 text-sm font-black text-white">Available Jan. 1, 2027</span>}</header>{overview.trainingDataLive ? <div className="space-y-6 p-6"><div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]"><div className="overflow-hidden rounded-2xl border border-slate-200"><div className="border-b border-slate-200 bg-slate-50 px-4 py-3"><h3 className="font-black text-slate-900">Monthly Training Program</h3></div>{overview.trainingOverview.programs.length ? <div className="divide-y divide-slate-100">{overview.trainingOverview.programs.map(program => <div className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center" key={program.id}><div><p className="font-bold text-slate-900">{program.name}</p><p className="mt-1 text-xs text-slate-500">Target: {new Date(`${program.targetDate}T12:00:00`).toLocaleDateString('en-US')} · {program.courseCount} course{program.courseCount === 1 ? '' : 's'}</p></div><p className="text-sm font-bold text-slate-600">{program.completed}/{program.assigned} completed</p><span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-black text-teal-800">{program.completionRate == null ? '—' : `${program.completionRate}%`}</span></div>)}</div> : <p className="p-6 text-center text-sm font-semibold text-slate-500">No monthly training program is scheduled.</p>}</div><div className="rounded-2xl bg-gradient-to-br from-teal-700 to-emerald-700 p-6 text-white"><p className="text-xs font-black uppercase tracking-[0.14em] text-teal-100">Company Overall Completion Rate</p><p className="mt-5 text-6xl font-black">{overview.trainingOverview.completionRate == null ? '—' : `${overview.trainingOverview.completionRate}%`}</p><p className="mt-3 text-sm font-bold text-teal-50">{overview.trainingOverview.completed} of {overview.trainingOverview.assigned} required employee-program assignments completed</p></div></div><div className="overflow-hidden rounded-2xl border border-slate-200"><div className="border-b border-slate-200 bg-slate-50 px-4 py-3"><h3 className="font-black text-slate-900">Completion Rate by Location</h3></div>{overview.trainingOverview.locations.length ? <div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Location', 'Assigned', 'Completed', 'Completion Rate'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{overview.trainingOverview.locations.map(row => <tr className="hover:bg-teal-50/50" key={row.location}><td className="px-4 py-3 font-bold text-slate-900">{row.location}</td><td className="px-4 py-3 text-slate-700">{row.assigned}</td><td className="px-4 py-3 text-slate-700">{row.completed}</td><td className="px-4 py-3"><div className="flex items-center gap-3"><div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-teal-600" style={{ width: `${row.completionRate || 0}%` }} /></div><span className="w-12 text-right font-black text-teal-800">{row.completionRate == null ? '—' : `${row.completionRate}%`}</span></div></td></tr>)}</tbody></table></div> : <p className="p-6 text-center text-sm font-semibold text-slate-500">No required training assignments are available by location.</p>}</div></div> : <div className="p-6"><div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-teal-100 bg-teal-50 p-5"><p className="text-xs font-black uppercase tracking-wide text-teal-700">Monthly Program</p><p className="mt-3 text-lg font-black text-slate-900">Program and course details</p><p className="mt-2 text-sm text-slate-600">Scheduled topic, target date, assigned employees, and completed employees.</p></div><div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">Company Overall</p><p className="mt-3 text-lg font-black text-slate-900">Completion rate</p><p className="mt-2 text-sm text-slate-600">Company-wide completed required assignments compared with total required assignments.</p></div><div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-5"><p className="text-xs font-black uppercase tracking-wide text-cyan-700">By Location</p><p className="mt-3 text-lg font-black text-slate-900">Location completion rates</p><p className="mt-2 text-sm text-slate-600">Assigned, completed, and completion percentage for each company location.</p></div></div><div className="mt-6 rounded-2xl border border-dashed border-teal-300 bg-white px-6 py-8 text-center"><Sparkles className="mx-auto h-9 w-9 text-teal-600" /><p className="mt-3 text-lg font-black text-slate-900">Production training data begins January 1, 2027</p><p className="mt-2 text-sm text-slate-600">The window is ready, and all current testing records remain hidden from the C-Suite dashboard.</p></div></div>}</section>}
+      {overview && (
+        <section className="overflow-hidden rounded-3xl border border-teal-200 bg-white shadow-lg">
+          <header className="flex flex-wrap items-center justify-between gap-4 border-b border-teal-100 bg-gradient-to-r from-teal-50 to-emerald-50 px-6 py-5">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-700">
+                Monthly workforce development
+              </p>
+              <h2 className="mt-1 text-xl font-black text-slate-950">
+                Training Overview
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                {overview.trainingDataLive
+                  ? `Monthly training programs and completion results for ${new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })}.`
+                  : "The production training overview begins January 1, 2027. Existing training records are testing data and are intentionally hidden."}
+              </p>
+            </div>
+            {overview.trainingDataLive ? (
+              <span className="rounded-full bg-teal-700 px-4 py-2 text-sm font-black text-white">
+                {overview.trainingOverview.completionRate == null
+                  ? "No Assignments"
+                  : `${overview.trainingOverview.completionRate}% Complete`}
+              </span>
+            ) : (
+              <span className="rounded-full bg-teal-700 px-4 py-2 text-sm font-black text-white">
+                Available Jan. 1, 2027
+              </span>
+            )}
+          </header>
+          {overview.trainingDataLive ? (
+            <div className="space-y-6 p-6">
+              <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                    <h3 className="font-black text-slate-900">
+                      Monthly Training Program
+                    </h3>
+                  </div>
+                  {overview.trainingOverview.programs.length ? (
+                    <div className="divide-y divide-slate-100">
+                      {overview.trainingOverview.programs.map((program) => (
+                        <div
+                          className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+                          key={program.id}
+                        >
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {program.name}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Target:{" "}
+                              {new Date(
+                                `${program.targetDate}T12:00:00`,
+                              ).toLocaleDateString("en-US")}{" "}
+                              · {program.courseCount} course
+                              {program.courseCount === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                          <p className="text-sm font-bold text-slate-600">
+                            {program.completed}/{program.assigned} completed
+                          </p>
+                          <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-black text-teal-800">
+                            {program.completionRate == null
+                              ? "—"
+                              : `${program.completionRate}%`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="p-6 text-center text-sm font-semibold text-slate-500">
+                      No monthly training program is scheduled.
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-2xl bg-gradient-to-br from-teal-700 to-emerald-700 p-6 text-white">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-teal-100">
+                    Company Overall Completion Rate
+                  </p>
+                  <p className="mt-5 text-6xl font-black">
+                    {overview.trainingOverview.completionRate == null
+                      ? "—"
+                      : `${overview.trainingOverview.completionRate}%`}
+                  </p>
+                  <p className="mt-3 text-sm font-bold text-teal-50">
+                    {overview.trainingOverview.completed} of{" "}
+                    {overview.trainingOverview.assigned} required
+                    employee-program assignments completed
+                  </p>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                  <h3 className="font-black text-slate-900">
+                    Completion Rate by Location
+                  </h3>
+                </div>
+                {overview.trainingOverview.locations.length ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[680px] text-left text-sm">
+                      <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
+                        <tr>
+                          {[
+                            "Location",
+                            "Assigned",
+                            "Completed",
+                            "Completion Rate",
+                          ].map((label) => (
+                            <th className="px-4 py-3" key={label}>
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {overview.trainingOverview.locations.map((row) => (
+                          <tr
+                            className="hover:bg-teal-50/50"
+                            key={row.location}
+                          >
+                            <td className="px-4 py-3 font-bold text-slate-900">
+                              {row.location}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {row.assigned}
+                            </td>
+                            <td className="px-4 py-3 text-slate-700">
+                              {row.completed}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                                  <div
+                                    className="h-full rounded-full bg-teal-600"
+                                    style={{
+                                      width: `${row.completionRate || 0}%`,
+                                    }}
+                                  />
+                                </div>
+                                <span className="w-12 text-right font-black text-teal-800">
+                                  {row.completionRate == null
+                                    ? "—"
+                                    : `${row.completionRate}%`}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="p-6 text-center text-sm font-semibold text-slate-500">
+                    No required training assignments are available by location.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="p-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-teal-100 bg-teal-50 p-5">
+                  <p className="text-xs font-black uppercase tracking-wide text-teal-700">
+                    Monthly Program
+                  </p>
+                  <p className="mt-3 text-lg font-black text-slate-900">
+                    Program and course details
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Scheduled topic, target date, assigned employees, and
+                    completed employees.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+                  <p className="text-xs font-black uppercase tracking-wide text-emerald-700">
+                    Company Overall
+                  </p>
+                  <p className="mt-3 text-lg font-black text-slate-900">
+                    Completion rate
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Company-wide completed required assignments compared with
+                    total required assignments.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-5">
+                  <p className="text-xs font-black uppercase tracking-wide text-cyan-700">
+                    By Location
+                  </p>
+                  <p className="mt-3 text-lg font-black text-slate-900">
+                    Location completion rates
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Assigned, completed, and completion percentage for each
+                    company location.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 rounded-2xl border border-dashed border-teal-300 bg-white px-6 py-8 text-center">
+                <Sparkles className="mx-auto h-9 w-9 text-teal-600" />
+                <p className="mt-3 text-lg font-black text-slate-900">
+                  Production training data begins January 1, 2027
+                </p>
+                <p className="mt-2 text-sm text-slate-600">
+                  The window is ready, and all current testing records remain
+                  hidden from the C-Suite dashboard.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
-    {overview && (overview.turnover.excludedEmployees.retired.length > 0 || overview.turnover.excludedEmployees.deceased.length > 0) && <aside className="order-last rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600"><p><span className="font-black text-slate-800">Excluded from {overview.turnover.year} turnover:</span> Retired and deceased employees are documented but are not counted as voluntary or involuntary turnover.</p><div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs"><p><span className="font-black text-slate-700">Retired:</span> {overview.turnover.excludedEmployees.retired.length ? overview.turnover.excludedEmployees.retired.join(', ') : 'None'}</p><p><span className="font-black text-slate-700">Deceased:</span> {overview.turnover.excludedEmployees.deceased.length ? overview.turnover.excludedEmployees.deceased.join(', ') : 'None'}</p></div></aside>}
-
-    {showHeadcount && overview && <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog"><section className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header className="flex items-start justify-between gap-5 border-b border-slate-200 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">{headcountLocation || 'Current workforce'}</p><h2 className="mt-1 text-2xl font-black text-slate-950">{headcountLocation ? `${headcountLocation} Employee Details` : 'Employee Headcount Details'}</h2><p className="mt-1 text-sm text-slate-500">{headcountLocation ? `${overview.employees.filter(employee => employee.location === headcountLocation).length} employees at this location` : `${overview.headcount} active or leave-status employees`}</p></div><button aria-label="Close employee headcount details" className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-950" onClick={() => setShowHeadcount(false)} type="button"><X className="h-6 w-6" /></button></header><div className="border-b border-slate-200 bg-slate-50 px-6 py-4"><label className="relative block"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input autoFocus className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" onChange={event => setEmployeeSearch(event.target.value)} placeholder="Search employee, job title, department, location, or status..." value={employeeSearch} /></label></div><div className="overflow-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="sticky top-0 bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', 'Job Title', 'Home Department', 'Location', 'Status'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filteredEmployees.map(employee => <tr className="hover:bg-indigo-50/50" key={employee.id}><td className="px-4 py-3 font-bold text-slate-950">{employee.name}</td><td className="px-4 py-3 text-slate-700">{employee.jobTitle}</td><td className="px-4 py-3 text-slate-700">{employee.department}</td><td className="px-4 py-3 text-slate-700">{employee.location}</td><td className="px-4 py-3"><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{employee.status}</span></td></tr>)}</tbody></table>{!filteredEmployees.length && <p className="p-8 text-center text-sm font-semibold text-slate-500">No employees match this search.</p>}</div><footer className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4"><p className="text-sm font-bold text-slate-600">Showing {filteredEmployees.length}{headcountLocation ? ` employees in ${headcountLocation}` : ` of ${overview.headcount} employees`}</p><button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800" onClick={() => setShowHeadcount(false)} type="button">Close</button></footer></section></div>}
-    {turnoverBaseDetail && <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog"><section className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header className="flex shrink-0 items-start justify-between gap-5 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Turnover employee base</p><h2 className="mt-1 text-2xl font-black text-slate-950">{turnoverBaseDetail.title}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{turnoverBaseDetail.employees.length} employees included in this calculation</p></div><button aria-label="Close turnover employee base" className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-950" onClick={() => setTurnoverBaseDetail(null)} type="button"><X className="h-6 w-6" /></button></header><div className="min-h-0 flex-1 overflow-auto"><table className="w-full min-w-[920px] text-left text-sm"><thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['#', 'Employee Name', 'Job Title', 'Home Department', 'Location', 'Status'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{turnoverBaseDetail.employees.map((employee, index) => <tr className="hover:bg-indigo-50/50" key={`${employee.name}-${employee.location}-${index}`}><td className="px-4 py-3 font-black text-slate-400">{index + 1}</td><td className="px-4 py-3 font-black text-slate-950">{employee.name}</td><td className="px-4 py-3 text-slate-700">{employee.jobTitle}</td><td className="px-4 py-3 text-slate-700">{employee.department}</td><td className="px-4 py-3 text-slate-700">{employee.location}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${employee.status === 'Terminated' ? 'bg-rose-100 text-rose-800' : employee.status === 'Leave' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>{employee.status}</span></td></tr>)}</tbody></table></div><footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 px-6 py-4"><p className="text-sm font-bold text-slate-600">Showing {turnoverBaseDetail.employees.length} employees</p><button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800" onClick={() => setTurnoverBaseDetail(null)} type="button">Close</button></footer></section></div>}
-    {turnoverDetail && <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog"><section className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header className="shrink-0 flex items-start justify-between gap-5 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-teal-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Turnover employee details</p><h2 className="mt-1 text-2xl font-black text-slate-950">{turnoverDetail.title}</h2><p className="mt-1 text-sm font-semibold text-slate-500">{turnoverDetail.events.length} employee{turnoverDetail.events.length === 1 ? '' : 's'}</p></div><button aria-label="Close turnover employee details" className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-950" onClick={() => setTurnoverDetail(null)} type="button"><X className="h-6 w-6" /></button></header><div className="min-h-0 flex-1 overflow-auto"><table className="w-full min-w-[960px] text-left text-sm"><thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['#', 'Employee Name', 'Job Title', 'Termination Type', 'Location', 'Termination Date / Source'].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{turnoverDetail.events.map((item, index) => <tr className="hover:bg-indigo-50/50" key={`${item.name}-${item.type}-${index}`}><td className="px-4 py-3 font-black text-slate-400">{index + 1}</td><td className="px-4 py-3 font-black text-slate-950">{item.name}</td><td className="px-4 py-3 text-slate-700">{item.jobTitle || 'Not Recorded'}</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-black ${item.type === 'Voluntary' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>{item.type}</span></td><td className="px-4 py-3 text-slate-700">{item.location}</td><td className="px-4 py-3 text-slate-700">{item.terminationDate ? new Date(`${item.terminationDate}T12:00:00`).toLocaleDateString('en-US') : item.period}</td></tr>)}</tbody></table></div><footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 px-6 py-4"><p className="text-sm font-bold text-slate-600">Showing {turnoverDetail.events.length} of {turnoverDetail.events.length} employees</p><button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800" onClick={() => setTurnoverDetail(null)} type="button">Close</button></footer></section></div>}
-    {historyCategory && <div aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" role="dialog"><section className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"><header className="flex shrink-0 items-start justify-between gap-5 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-6 py-5"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">Historical workforce search</p><h2 className="mt-1 text-2xl font-black text-slate-950">{historyCategory === 'new-hire' ? 'New Hire History' : historyCategory === 'termination' ? 'Termination History' : 'Employment Change History'}</h2><p className="mt-1 text-sm text-slate-500">Search all retained records by employee name, date range, or both.</p></div><button aria-label="Close history search" className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-950" onClick={() => setHistoryCategory(null)} type="button"><X className="h-6 w-6" /></button></header><form className="grid shrink-0 gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4 md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-end" onSubmit={searchHistory}><label className="text-xs font-black uppercase tracking-wide text-slate-600">Employee Name<input autoFocus className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" onChange={event => setHistoryEmployee(event.target.value)} placeholder="First name, last name, or full name" value={historyEmployee} /></label><label className="text-xs font-black uppercase tracking-wide text-slate-600">Date From<input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" onChange={event => setHistoryFrom(event.target.value)} type="date" value={historyFrom} /></label><label className="text-xs font-black uppercase tracking-wide text-slate-600">Date To<input className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" onChange={event => setHistoryTo(event.target.value)} type="date" value={historyTo} /></label><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50" disabled={historyBusy} type="submit"><Search className="h-4 w-4" />{historyBusy ? 'Searching...' : 'Search History'}</button></form>{historyError && <p className="m-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">{historyError}</p>}<div className="min-h-0 flex-1 overflow-auto">{historySearched ? historyRecords.length ? <table className="w-full min-w-[1100px] text-left text-sm"><thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase tracking-wide text-white"><tr>{['Employee Name', historyCategory === 'new-hire' ? 'Hire Date' : historyCategory === 'termination' ? 'Termination Date' : 'Effective Date', 'Job Title', 'Home Department', 'Location', 'Status', historyCategory === 'employment-change' ? 'Changes' : 'Details', ...(historyCategory === 'employment-change' ? ['Reason / Notes'] : [])].map(label => <th className="px-4 py-3" key={label}>{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{historyRecords.map(record => <tr className="hover:bg-indigo-50/50" key={`${record.id}-${record.eventDate}`}><td className="px-4 py-3 font-black text-slate-950">{record.employeeName}</td><td className="whitespace-nowrap px-4 py-3 text-slate-700">{new Date(`${record.eventDate}T12:00:00`).toLocaleDateString('en-US')}</td><td className="px-4 py-3 text-slate-700">{record.jobTitle}</td><td className="px-4 py-3 text-slate-700">{record.department}</td><td className="px-4 py-3 text-slate-700">{record.location}</td><td className="px-4 py-3"><span className="whitespace-nowrap rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-black text-indigo-800">{record.status}</span></td><td className="max-w-lg px-4 py-3 font-semibold text-slate-700">{record.detail}</td>{historyCategory === 'employment-change' && <td className="max-w-sm px-4 py-3 text-slate-700">{record.reason}</td>}</tr>)}</tbody></table> : <div className="grid min-h-56 place-items-center p-8 text-center"><div><Search className="mx-auto h-9 w-9 text-slate-300" /><p className="mt-3 font-black text-slate-800">No historical records match these filters.</p></div></div> : <div className="grid min-h-56 place-items-center p-8 text-center"><div><Search className="mx-auto h-10 w-10 text-indigo-300" /><p className="mt-3 font-black text-slate-900">Choose your filters and select Search History</p><p className="mt-1 text-sm text-slate-500">Leaving all fields blank returns all retained records, newest first.</p></div></div>}</div><footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 px-6 py-4"><p className="text-sm font-bold text-slate-600">{historySearched ? `${historyRecords.length} record${historyRecords.length === 1 ? '' : 's'} found` : 'Historical records are read-only'}</p><button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800" onClick={() => setHistoryCategory(null)} type="button">Close</button></footer></section></div>}
-  </div>
+      {showHeadcount && overview && (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          role="dialog"
+        >
+          <section className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <header className="flex items-start justify-between gap-5 border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">
+                  {headcountLocation || "Current workforce"}
+                </p>
+                <h2 className="mt-1 text-2xl font-black text-slate-950">
+                  {headcountLocation
+                    ? `${headcountLocation} Employee Details`
+                    : "Employee Headcount Details"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {headcountLocation
+                    ? `${overview.employees.filter((employee) => employee.location === headcountLocation).length} employees at this location`
+                    : `${overview.headcount} active or leave-status employees`}
+                </p>
+              </div>
+              <button
+                aria-label="Close employee headcount details"
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+                onClick={() => setShowHeadcount(false)}
+                type="button"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </header>
+            <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <label className="relative block">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <input
+                  autoFocus
+                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  onChange={(event) => setEmployeeSearch(event.target.value)}
+                  placeholder="Search employee, job title, department, location, or status..."
+                  value={employeeSearch}
+                />
+              </label>
+            </div>
+            <div className="overflow-auto">
+              <table className="w-full min-w-[850px] text-left text-sm">
+                <thead className="sticky top-0 bg-slate-900 text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    {[
+                      "Employee Name",
+                      "Job Title",
+                      "Home Department",
+                      "Location",
+                      "Status",
+                    ].map((label) => (
+                      <th className="px-4 py-3" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredEmployees.map((employee) => (
+                    <tr className="hover:bg-indigo-50/50" key={employee.id}>
+                      <td className="px-4 py-3 font-bold text-slate-950">
+                        {employee.name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.jobTitle}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.department}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.location}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+                          {employee.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!filteredEmployees.length && (
+                <p className="p-8 text-center text-sm font-semibold text-slate-500">
+                  No employees match this search.
+                </p>
+              )}
+            </div>
+            <footer className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
+              <p className="text-sm font-bold text-slate-600">
+                Showing {filteredEmployees.length}
+                {headcountLocation
+                  ? ` employees in ${headcountLocation}`
+                  : ` of ${overview.headcount} employees`}
+              </p>
+              <button
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                onClick={() => setShowHeadcount(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+      {turnoverBaseDetail && (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          role="dialog"
+        >
+          <section className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <header className="flex shrink-0 items-start justify-between gap-5 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-6 py-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">
+                  Turnover employee base
+                </p>
+                <h2 className="mt-1 text-2xl font-black text-slate-950">
+                  {turnoverBaseDetail.title}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {turnoverBaseDetail.employees.length} employees included in
+                  this calculation
+                </p>
+              </div>
+              <button
+                aria-label="Close turnover employee base"
+                className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-950"
+                onClick={() => setTurnoverBaseDetail(null)}
+                type="button"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <table className="w-full min-w-[920px] text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    {[
+                      "#",
+                      "Employee Name",
+                      "Job Title",
+                      "Home Department",
+                      "Location",
+                      "Status",
+                    ].map((label) => (
+                      <th className="px-4 py-3" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {turnoverBaseDetail.employees.map((employee, index) => (
+                    <tr
+                      className="hover:bg-indigo-50/50"
+                      key={`${employee.name}-${employee.location}-${index}`}
+                    >
+                      <td className="px-4 py-3 font-black text-slate-400">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 py-3 font-black text-slate-950">
+                        {employee.name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.jobTitle}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.department}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {employee.location}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-black ${employee.status === "Terminated" ? "bg-rose-100 text-rose-800" : employee.status === "Leave" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}
+                        >
+                          {employee.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 px-6 py-4">
+              <p className="text-sm font-bold text-slate-600">
+                Showing {turnoverBaseDetail.employees.length} employees
+              </p>
+              <button
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                onClick={() => setTurnoverBaseDetail(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+      {turnoverDetail && (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          role="dialog"
+        >
+          <section className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <header className="shrink-0 flex items-start justify-between gap-5 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-teal-50 px-6 py-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">
+                  Turnover employee details
+                </p>
+                <h2 className="mt-1 text-2xl font-black text-slate-950">
+                  {turnoverDetail.title}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {turnoverDetail.events.length} employee
+                  {turnoverDetail.events.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <button
+                aria-label="Close turnover employee details"
+                className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-950"
+                onClick={() => setTurnoverDetail(null)}
+                type="button"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <table className="w-full min-w-[960px] text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase tracking-wide text-white">
+                  <tr>
+                    {[
+                      "#",
+                      "Employee Name",
+                      "Job Title",
+                      "Termination Type",
+                      "Location",
+                      "Termination Date / Source",
+                    ].map((label) => (
+                      <th className="px-4 py-3" key={label}>
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {turnoverDetail.events.map((item, index) => (
+                    <tr
+                      className="hover:bg-indigo-50/50"
+                      key={`${item.name}-${item.type}-${index}`}
+                    >
+                      <td className="px-4 py-3 font-black text-slate-400">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 py-3 font-black text-slate-950">
+                        {item.name}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {item.jobTitle || "Not Recorded"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-black ${item.type === "Voluntary" ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}
+                        >
+                          {item.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {item.location}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700">
+                        {item.terminationDate
+                          ? new Date(
+                              `${item.terminationDate}T12:00:00`,
+                            ).toLocaleDateString("en-US")
+                          : item.period}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 px-6 py-4">
+              <p className="text-sm font-bold text-slate-600">
+                Showing {turnoverDetail.events.length} of{" "}
+                {turnoverDetail.events.length} employees
+              </p>
+              <button
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                onClick={() => setTurnoverDetail(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+      {historyCategory && (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+          role="dialog"
+        >
+          <section className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <header className="flex shrink-0 items-start justify-between gap-5 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-cyan-50 px-6 py-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-indigo-700">
+                  Historical workforce search
+                </p>
+                <h2 className="mt-1 text-2xl font-black text-slate-950">
+                  {historyCategory === "new-hire"
+                    ? "New Hire History"
+                    : historyCategory === "termination"
+                      ? "Termination History"
+                      : "Employment Change History"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Search all retained records by employee name, date range, or
+                  both.
+                </p>
+              </div>
+              <button
+                aria-label="Close history search"
+                className="rounded-full p-2 text-slate-500 hover:bg-white hover:text-slate-950"
+                onClick={() => setHistoryCategory(null)}
+                type="button"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </header>
+            <form
+              className="grid shrink-0 gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4 md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-end"
+              onSubmit={searchHistory}
+            >
+              <label className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Employee Name
+                <input
+                  autoFocus
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  onChange={(event) => setHistoryEmployee(event.target.value)}
+                  placeholder="First name, last name, or full name"
+                  value={historyEmployee}
+                />
+              </label>
+              <label className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Date From
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  onChange={(event) => setHistoryFrom(event.target.value)}
+                  type="date"
+                  value={historyFrom}
+                />
+              </label>
+              <label className="text-xs font-black uppercase tracking-wide text-slate-600">
+                Date To
+                <input
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  onChange={(event) => setHistoryTo(event.target.value)}
+                  type="date"
+                  value={historyTo}
+                />
+              </label>
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-50"
+                disabled={historyBusy}
+                type="submit"
+              >
+                <Search className="h-4 w-4" />
+                {historyBusy ? "Searching..." : "Search History"}
+              </button>
+            </form>
+            {historyError && (
+              <p className="m-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+                {historyError}
+              </p>
+            )}
+            <div className="min-h-0 flex-1 overflow-auto">
+              {historySearched ? (
+                historyRecords.length ? (
+                  <table className="w-full min-w-[1100px] text-left text-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-900 text-xs uppercase tracking-wide text-white">
+                      <tr>
+                        {[
+                          "Employee Name",
+                          historyCategory === "new-hire"
+                            ? "Hire Date"
+                            : historyCategory === "termination"
+                              ? "Termination Date"
+                              : "Effective Date",
+                          "Job Title",
+                          "Home Department",
+                          "Location",
+                          "Status",
+                          historyCategory === "employment-change"
+                            ? "Changes"
+                            : "Details",
+                          ...(historyCategory === "employment-change"
+                            ? ["Reason / Notes"]
+                            : []),
+                        ].map((label) => (
+                          <th className="px-4 py-3" key={label}>
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {historyRecords.map((record) => (
+                        <tr
+                          className="hover:bg-indigo-50/50"
+                          key={`${record.id}-${record.eventDate}`}
+                        >
+                          <td className="px-4 py-3 font-black text-slate-950">
+                            {record.employeeName}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                            {new Date(
+                              `${record.eventDate}T12:00:00`,
+                            ).toLocaleDateString("en-US")}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {record.jobTitle}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {record.department}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {record.location}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="whitespace-nowrap rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-black text-indigo-800">
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="max-w-lg px-4 py-3 font-semibold text-slate-700">
+                            {record.detail}
+                          </td>
+                          {historyCategory === "employment-change" && (
+                            <td className="max-w-sm px-4 py-3 text-slate-700">
+                              {record.reason}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="grid min-h-56 place-items-center p-8 text-center">
+                    <div>
+                      <Search className="mx-auto h-9 w-9 text-slate-300" />
+                      <p className="mt-3 font-black text-slate-800">
+                        No historical records match these filters.
+                      </p>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="grid min-h-56 place-items-center p-8 text-center">
+                  <div>
+                    <Search className="mx-auto h-10 w-10 text-indigo-300" />
+                    <p className="mt-3 font-black text-slate-900">
+                      Choose your filters and select Search History
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Leaving all fields blank returns all retained records,
+                      newest first.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-200 px-6 py-4">
+              <p className="text-sm font-bold text-slate-600">
+                {historySearched
+                  ? `${historyRecords.length} record${historyRecords.length === 1 ? "" : "s"} found`
+                  : "Historical records are read-only"}
+              </p>
+              <button
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
+                onClick={() => setHistoryCategory(null)}
+                type="button"
+              >
+                Close
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }

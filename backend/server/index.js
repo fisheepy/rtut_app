@@ -2228,7 +2228,7 @@ app.post('/api/authentication', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'november-salary-employment-changes-full-name-audit-2026-11-11' })
+  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'nada-turnover-industry-background-2026-11-11' })
 })
 
 // ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
