@@ -192,7 +192,7 @@ const COMPENSATION_GROSS_PAY_SNAPSHOT = Object.freeze({
 });
 
 const NOVEMBER_1_2026_SALARY_BASELINE = new Set([
-  'tommy westfall', 'ken bumgardner', 'stratos dallis', 'mike morrison', 'anthony sciara', 'adam pigeon',
+  'tommy westfall', 'ken bumgardner', 'kenneth bumgardner', 'kenneth carl bumgardner', 'stratos dallis', 'mike morrison', 'anthony sciara', 'adam pigeon',
   'abbie sack', 'myra yu', 'xuan yu', 'phil barnhart', 'april ouding', 'julie igielski', 'ashley cooper',
   'robert smoke', 'carole vandawalker', 'robert pelkey', 'alyssa sowders', 'cherie lynch', 'jim malone',
   'mike griffiths', 'john eurich', 'keith kline', 'charles vanover', 'paul rodriguez', 'mary ling',

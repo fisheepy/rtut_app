@@ -18,6 +18,7 @@ const NOVEMBER_1_2026_SALARY_CHANGES = Object.freeze([
 
 const NAME_ALIASES = new Map([
   ['myra yu', ['myra yu', 'xuan yu']],
+  ['ken bumgardner', ['ken bumgardner', 'kenneth bumgardner', 'kenneth carl bumgardner']],
   ['tommy westfall', ['tommy westfall', 'thomas westfall']],
   ['mike morrison', ['mike morrison', 'michael morrison']],
   ['phil barnhart', ['phil barnhart', 'philip barnhart']],

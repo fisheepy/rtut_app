@@ -15,3 +15,8 @@ test('confirmed executive salaries retain the approved values', () => {
   assert.equal(salary('Myra Yu'), 135000);
   assert.equal(salary('Scott Chapman'), 103000);
 });
+
+test('Ken Bumgardner includes the formal Company App name', () => {
+  const source = require('node:fs').readFileSync(require.resolve('./novemberSalaryBackfill'), 'utf8');
+  assert.match(source, /kenneth carl bumgardner/);
+});
