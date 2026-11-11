@@ -51,4 +51,28 @@ test('moves the system-created Tommy record from November 1 to September 16', as
   assert.equal(corrected?.tasks?.file?.required, false);
   assert.equal(corrected?.tasks?.file?.finalReviewedAt, null);
   assert.equal(corrected?.tasks?.payroll?.finalReviewedAt?.toISOString().slice(0, 10), '2026-09-16');
+  assert.equal(corrected?.salaryHistoryVersion, 2);
+});
+
+test('sets November salary payroll work to November 20 once and preserves later admin edits', async () => {
+  const employees = [{ _id: 'stratos-id', 'First Name': 'Stratos', 'Last Name': 'Dallis', Email: 'stratos@example.com', 'Pay Category': 'Salary' }];
+  const changes = [{
+    _id: 'change-id', employeeId: 'stratos-id', effectiveDate: '2026-11-01', historicalBackfill: true,
+    requestedPayRate: { type: 'Annual Salary', amount: 104750 }, requestedTracking: { payroll: true },
+    changes: [], tasks: { file: { required: false, finalReviewedAt: new Date('2026-11-01T12:00:00Z') }, payroll: { required: true, applicable: true, actionDate: '2026-11-01', finalReviewedAt: new Date('2026-11-01T12:00:00Z') } },
+  }];
+  const collection = records => ({
+    find: () => ({ toArray: async () => records }),
+    updateOne: async ({ _id }, update) => Object.assign(records.find(record => record._id === _id), update.$set),
+    deleteOne: async ({ _id }) => { const index = records.findIndex(record => record._id === _id); if (index >= 0) records.splice(index, 1); },
+    insertOne: async record => records.push(record),
+  });
+  const db = { collection: name => name === 'employees' ? collection(employees) : collection(changes) };
+  await ensureNovemberSalaryEmploymentChanges(db);
+  const corrected = changes[0];
+  assert.equal(corrected.tasks.payroll.actionDate, '2026-11-20');
+  assert.equal(corrected.tasks.payroll.finalReviewedAt, null);
+  corrected.tasks.payroll.actionDate = '2026-11-25';
+  await ensureNovemberSalaryEmploymentChanges(db);
+  assert.equal(corrected.tasks.payroll.actionDate, '2026-11-25');
 });

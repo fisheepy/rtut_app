@@ -2,10 +2,9 @@ const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee?.['First Name']), clean(employee?.['Last Name'])].filter(Boolean).join(' ') || clean(employee?.name);
 const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
-const dateKey = value => value instanceof Date && !Number.isNaN(value.getTime()) ? value.toISOString().slice(0, 10) : clean(value).slice(0, 10);
 
 const NOVEMBER_1_2026_SALARY_CHANGES = Object.freeze([
-  ['Tommy Westfall', 130000, '2026-09-16'], ['Ken Bumgardner', 420000], ['Stratos Dallis', 104750],
+  ['Tommy Westfall', 130000, '2026-09-16', '2026-09-16', true], ['Ken Bumgardner', 420000], ['Stratos Dallis', 104750],
   ['Mike Morrison', 150000], ['Anthony Sciara', 210000], ['Adam Pigeon', 315000],
   ['Abbie Sack', 165000], ['Myra Yu', 135000], ['Phil Barnhart', 130000],
   ['April Ouding', 100000], ['Julie Igielski', 262500], ['Ashley Cooper', 70000],
@@ -15,7 +14,7 @@ const NOVEMBER_1_2026_SALARY_CHANGES = Object.freeze([
   ['Charles Vanover', 110000], ['Paul Rodriguez', 110000], ['Mary Ling', 110000],
   ['Russell Mullen', 75000], ['Jeffrey Guldenstein', 67000], ['Joey Smith', 55000],
   ['Scott Chapman', 103000],
-].map(([name, annualSalary, effectiveDate = '2026-11-01']) => Object.freeze({ name, annualSalary, effectiveDate })));
+].map(([name, annualSalary, effectiveDate = '2026-11-01', payrollDate = '2026-11-20', payrollCompleted = false]) => Object.freeze({ name, annualSalary, effectiveDate, payrollDate, payrollCompleted })));
 
 const NAME_ALIASES = new Map([
   ['myra yu', ['myra yu', 'xuan yu']],
@@ -55,27 +54,21 @@ const recordedSalary = record => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-function completedTasks(existingTasks = {}, effectiveDate = '2026-11-01', forceCompletionDate = false) {
-  const completedAt = new Date(`${effectiveDate}T12:00:00.000Z`);
+function historicalImportTasks(target, existingTasks = {}) {
+  const completedAt = target.payrollCompleted ? new Date(`${target.payrollDate}T12:00:00.000Z`) : null;
   const systemActor = 'System migration — confirmed 2026 salary adjustment list';
-  const existingFile = existingTasks.file || {};
   const existingPayroll = existingTasks.payroll || {};
   return {
     ...existingTasks,
     file: {
-      ...existingFile,
-      required: existingFile.required === true,
-      checkedAt: existingFile.required === true ? (forceCompletionDate ? completedAt : existingFile.checkedAt || completedAt) : null,
-      checkedBy: existingFile.required === true ? existingFile.checkedBy || systemActor : '',
-      finalReviewedAt: existingFile.required === true ? (forceCompletionDate ? completedAt : existingFile.finalReviewedAt || completedAt) : null,
-      finalReviewedBy: existingFile.required === true ? existingFile.finalReviewedBy || systemActor : '',
+      ...(existingTasks.file || {}), required: false,
+      checkedAt: null, checkedBy: '', finalReviewedAt: null, finalReviewedBy: '',
     },
     payroll: {
-      ...existingPayroll, required: true, applicable: true, actionDate: effectiveDate,
-      checkedAt: forceCompletionDate ? completedAt : existingPayroll.checkedAt || completedAt,
-      checkedBy: existingPayroll.checkedBy || systemActor,
-      finalReviewedAt: forceCompletionDate ? completedAt : existingPayroll.finalReviewedAt || completedAt,
-      finalReviewedBy: existingPayroll.finalReviewedBy || systemActor,
+      ...existingPayroll, required: true, applicable: true, actionDate: target.payrollDate,
+      checkedAt: completedAt, checkedBy: completedAt ? systemActor : '',
+      finalReviewedAt: completedAt, finalReviewedBy: completedAt ? systemActor : '',
+      completedAt: null, completedBy: '',
     },
     insurance: existingTasks.insurance || { required: false, applicable: false, actionDate: '', checkedAt: null, checkedBy: '' },
     retirement: existingTasks.retirement || { required: false, applicable: false, actionDate: '', checkedAt: null, checkedBy: '' },
@@ -112,9 +105,8 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
       await changeCollection.deleteOne({ _id: staleBackfill._id });
     }
     const needsEffectiveDateCorrection = existing?.historicalBackfill === true && clean(existing.effectiveDate) !== target.effectiveDate;
-    const needsCompletionDateCorrection = existing?.historicalBackfill === true
-      && (Boolean(existing.tasks?.file?.checkedAt || existing.tasks?.file?.finalReviewedAt) || dateKey(existing.tasks?.payroll?.finalReviewedAt) !== target.effectiveDate);
-    if (existing && !needsEffectiveDateCorrection && !needsCompletionDateCorrection && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
+    const needsWorkflowCorrection = existing?.historicalBackfill === true && Number(existing.salaryHistoryVersion || 0) < 2;
+    if (existing && !needsEffectiveDateCorrection && !needsWorkflowCorrection && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
       summary.alreadyRecorded += 1;
       continue;
     }
@@ -129,7 +121,8 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
         requestedTracking: { ...(existing.requestedTracking || {}), payroll: true },
         effectiveDate: target.effectiveDate,
         reason: `Confirmed ${target.effectiveDate === '2026-11-01' ? 'November 1' : 'September 16'}, 2026 compensation adjustment`,
-        tasks: completedTasks(existing.tasks, target.effectiveDate, needsEffectiveDateCorrection || needsCompletionDateCorrection),
+        tasks: existing.historicalBackfill === true && (needsEffectiveDateCorrection || needsWorkflowCorrection) ? historicalImportTasks(target, existing.tasks) : existing.tasks,
+        ...(existing.historicalBackfill === true ? { salaryHistoryVersion: 2 } : {}),
         updatedAt: new Date(), updatedBy: 'System migration — confirmed 2026 salary adjustment list',
       } });
       summary.updated += 1;
@@ -146,8 +139,8 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
       changes: [change],
       requestedPayRate: { type: 'Annual Salary', amount: target.annualSalary },
       requestedTracking: { payroll: true, insurance: false, retirement: false },
-      tasks: completedTasks({}, target.effectiveDate),
-      historicalBackfill: true,
+      tasks: historicalImportTasks(target),
+      historicalBackfill: true, salaryHistoryVersion: 2,
       createdAt: new Date(), createdBy: 'System migration — confirmed 2026 salary adjustment list',
     });
     summary.inserted += 1;

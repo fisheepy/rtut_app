@@ -1942,7 +1942,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       const set = {
         effectiveDate: values.effectiveDate, reason: values.reason, employeeFolderUrl: values.employeeFolderUrl,
         followUpIssues: values.followUpIssues, followUpNotes: values.followUpIssues ? values.followUpNotes : '', followUpUntil: values.followUpIssues ? values.followUpUntil : '',
-        'tasks.file.required': true,
+        'tasks.file.required': existing.historicalBackfill === true ? false : true,
         'tasks.payroll.required': values.payrollApplicable, 'tasks.payroll.applicable': values.payrollApplicable, 'tasks.payroll.actionDate': values.payrollApplicable ? values.payrollActionDate : '',
         'tasks.insurance.required': values.insuranceApplicable, 'tasks.insurance.applicable': values.insuranceApplicable, 'tasks.insurance.actionDate': values.insuranceApplicable ? values.insuranceActionDate : '',
         'tasks.retirement.required': values.retirementApplicable, 'tasks.retirement.applicable': values.retirementApplicable, 'tasks.retirement.actionDate': values.retirementApplicable ? values.retirementActionDate : '',
