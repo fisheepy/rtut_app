@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const ExcelJS = require('exceljs');
+const { ensureNovemberSalaryEmploymentChanges } = require('./novemberSalaryBackfill');
 const { MongoClient, ObjectId, ServerApiVersion } = require('mongodb');
 const { isAllowedFolderUrl } = require('../training/folderLink');
 const { clean, commentAudit, DEFAULT_FILE_TRACKER_FIELDS, employeeView, terminationEmployeeView, fileTrackerComplete, fourMonthReviewDate, payrollChangeRequestChanged, sanitizeFileTracker, sanitizeTrackerCatalogField, validDate } = require('./data');
@@ -1709,6 +1710,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
+      const novemberBackfill = await ensureNovemberSalaryEmploymentChanges(db);
+      if (novemberBackfill.inserted || novemberBackfill.updated || novemberBackfill.employeesNotFound.length) console.info('November 1 salary Employment Change reconciliation:', novemberBackfill);
       await syncOpenEmploymentChangeTrackers(db);
       const records = await db.collection('employee_hr_employment_change')
         .find({}).sort({ effectiveDate: 1, createdAt: 1 }).toArray();

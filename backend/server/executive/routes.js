@@ -5,6 +5,7 @@ const { HOURLY_EMPLOYEES } = require('../compensation/hourlyEmployees');
 const { answerWithSmartAi } = require('./smartAi');
 const TURNOVER_Q3_2026_EMPLOYEE_BASE = require('./turnoverQ3EmployeeBase.json');
 const { findEmployeeMatches } = require('./employeeMatcher');
+const { ensureNovemberSalaryEmploymentChanges } = require('../hrPlatform/novemberSalaryBackfill');
 
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -227,6 +228,8 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
     try {
       await client.connect();
       const db = client.db(databaseName);
+      const novemberBackfill = await ensureNovemberSalaryEmploymentChanges(db);
+      if (novemberBackfill.inserted || novemberBackfill.updated || novemberBackfill.employeesNotFound.length) console.info('November 1 salary Employment Change reconciliation:', novemberBackfill);
       const trainingDataLive = easternDateKey() >= '2027-01-01';
       const [employees, leaves, injuries, changes, newHireRecords, terminationRecords, trainingTopics, trainingRecords] = await Promise.all([
         db.collection('employees').find({}).toArray(),
