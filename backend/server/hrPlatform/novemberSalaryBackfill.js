@@ -32,6 +32,13 @@ const targetNames = target => NAME_ALIASES.get(normalize(target.name)) || [norma
 const payrollChangeRecorded = record => record?.requestedTracking?.payroll === true
   || Number(record?.requestedPayRate?.amount) > 0
   || (Array.isArray(record?.changes) && record.changes.some(change => /pay rate|salary/i.test(clean(change?.field))));
+const recordedSalary = record => {
+  const requested = Number(record?.requestedPayRate?.amount);
+  if (Number.isFinite(requested) && requested > 0) return requested;
+  const payChange = Array.isArray(record?.changes) ? record.changes.find(change => /pay rate|salary/i.test(clean(change?.field))) : null;
+  const parsed = Number(clean(payChange?.to).replace(/[^0-9.]/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
 
 function completedTasks(existingTasks = {}, effectiveDate = '2026-11-01') {
   const completedAt = new Date(`${effectiveDate}T12:00:00.000Z`);
@@ -71,7 +78,7 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
     }
     const employeeId = String(employee._id);
     const existing = existingByEmployeeId.get(employeeId);
-    if (existing && payrollChangeRecorded(existing) && Number(existing.requestedPayRate?.amount || target.annualSalary) === target.annualSalary) {
+    if (existing && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
       summary.alreadyRecorded += 1;
       continue;
     }
