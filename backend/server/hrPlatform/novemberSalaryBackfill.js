@@ -2,6 +2,7 @@ const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee?.['First Name']), clean(employee?.['Last Name'])].filter(Boolean).join(' ') || clean(employee?.name);
 const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
+const dateKey = value => value instanceof Date && !Number.isNaN(value.getTime()) ? value.toISOString().slice(0, 10) : clean(value).slice(0, 10);
 
 const NOVEMBER_1_2026_SALARY_CHANGES = Object.freeze([
   ['Tommy Westfall', 130000, '2026-09-16'], ['Ken Bumgardner', 420000], ['Stratos Dallis', 104750],
@@ -54,18 +55,27 @@ const recordedSalary = record => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-function completedTasks(existingTasks = {}, effectiveDate = '2026-11-01') {
+function completedTasks(existingTasks = {}, effectiveDate = '2026-11-01', forceCompletionDate = false) {
   const completedAt = new Date(`${effectiveDate}T12:00:00.000Z`);
   const systemActor = 'System migration — confirmed 2026 salary adjustment list';
+  const existingFile = existingTasks.file || {};
+  const existingPayroll = existingTasks.payroll || {};
   return {
     ...existingTasks,
-    file: existingTasks.file || { required: false, checkedAt: completedAt, checkedBy: systemActor, finalReviewedAt: completedAt, finalReviewedBy: systemActor },
+    file: {
+      ...existingFile,
+      required: existingFile.required === true,
+      checkedAt: forceCompletionDate ? completedAt : existingFile.checkedAt || completedAt,
+      checkedBy: existingFile.checkedBy || systemActor,
+      finalReviewedAt: forceCompletionDate ? completedAt : existingFile.finalReviewedAt || completedAt,
+      finalReviewedBy: existingFile.finalReviewedBy || systemActor,
+    },
     payroll: {
-      ...(existingTasks.payroll || {}), required: true, applicable: true, actionDate: effectiveDate,
-      checkedAt: existingTasks.payroll?.checkedAt || completedAt,
-      checkedBy: existingTasks.payroll?.checkedBy || systemActor,
-      finalReviewedAt: existingTasks.payroll?.finalReviewedAt || completedAt,
-      finalReviewedBy: existingTasks.payroll?.finalReviewedBy || systemActor,
+      ...existingPayroll, required: true, applicable: true, actionDate: effectiveDate,
+      checkedAt: forceCompletionDate ? completedAt : existingPayroll.checkedAt || completedAt,
+      checkedBy: existingPayroll.checkedBy || systemActor,
+      finalReviewedAt: forceCompletionDate ? completedAt : existingPayroll.finalReviewedAt || completedAt,
+      finalReviewedBy: existingPayroll.finalReviewedBy || systemActor,
     },
     insurance: existingTasks.insurance || { required: false, applicable: false, actionDate: '', checkedAt: null, checkedBy: '' },
     retirement: existingTasks.retirement || { required: false, applicable: false, actionDate: '', checkedAt: null, checkedBy: '' },
@@ -102,7 +112,9 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
       await changeCollection.deleteOne({ _id: staleBackfill._id });
     }
     const needsEffectiveDateCorrection = existing?.historicalBackfill === true && clean(existing.effectiveDate) !== target.effectiveDate;
-    if (existing && !needsEffectiveDateCorrection && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
+    const needsCompletionDateCorrection = existing?.historicalBackfill === true
+      && (dateKey(existing.tasks?.file?.finalReviewedAt) !== target.effectiveDate || dateKey(existing.tasks?.payroll?.finalReviewedAt) !== target.effectiveDate);
+    if (existing && !needsEffectiveDateCorrection && !needsCompletionDateCorrection && payrollChangeRecorded(existing) && recordedSalary(existing) === target.annualSalary) {
       summary.alreadyRecorded += 1;
       continue;
     }
@@ -117,7 +129,7 @@ async function ensureNovemberSalaryEmploymentChanges(db) {
         requestedTracking: { ...(existing.requestedTracking || {}), payroll: true },
         effectiveDate: target.effectiveDate,
         reason: `Confirmed ${target.effectiveDate === '2026-11-01' ? 'November 1' : 'September 16'}, 2026 compensation adjustment`,
-        tasks: completedTasks(existing.tasks, target.effectiveDate),
+        tasks: completedTasks(existing.tasks, target.effectiveDate, needsEffectiveDateCorrection || needsCompletionDateCorrection),
         updatedAt: new Date(), updatedBy: 'System migration — confirmed 2026 salary adjustment list',
       } });
       summary.updated += 1;

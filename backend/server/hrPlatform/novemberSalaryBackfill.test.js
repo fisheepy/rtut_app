@@ -46,5 +46,8 @@ test('moves the system-created Tommy record from November 1 to September 16', as
   });
   const db = { collection: name => name === 'employees' ? collection(employees) : collection(changes) };
   await ensureNovemberSalaryEmploymentChanges(db);
-  assert.equal(changes.find(record => record.employeeId === 'tommy-id')?.effectiveDate, '2026-09-16');
+  const corrected = changes.find(record => record.employeeId === 'tommy-id');
+  assert.equal(corrected?.effectiveDate, '2026-09-16');
+  assert.equal(corrected?.tasks?.file?.finalReviewedAt?.toISOString().slice(0, 10), '2026-09-16');
+  assert.equal(corrected?.tasks?.payroll?.finalReviewedAt?.toISOString().slice(0, 10), '2026-09-16');
 });
