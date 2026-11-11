@@ -25,6 +25,7 @@ const { createAccidentNearMissRouter } = require('./accidentNearMiss/routes');
 const { createExecutiveRouter } = require('./executive/routes');
 const { createRequireCompensationSession, createRequireExecutiveSession, createRequireHrToolsSession, createRequireTrainingSession, isAuthorizedCompensationEmail, isAuthorizedExecutiveEmail, isAuthorizedHrToolsEmail } = require('./training/access');
 const { createHrPlatformRouter } = require('./hrPlatform/routes');
+const { ensureNovemberSalaryEmploymentChanges } = require('./hrPlatform/novemberSalaryBackfill');
 const { findExistingEmployeeFolderUrl } = require('./hrPlatform/folderInheritance');
 const {
     buildEarliestAcceptanceMap,
@@ -2227,7 +2228,7 @@ app.post('/api/authentication', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'historical-termination-types-2026-11-09' })
+  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'november-salary-employment-changes-2026-11-11' })
 })
 
 // ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
@@ -2286,4 +2287,16 @@ app.listen(process.env.PORT || port, () => {
     console.log(`Server is running on port ${port}`);
     reconcileHistoricalAppRegistrationDates();
     reconcileHistoricalTerminationTypes();
+    (async () => {
+      const reconciliationClient = new MongoClient(uri, { serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true } });
+      try {
+        await reconciliationClient.connect();
+        const summary = await ensureNovemberSalaryEmploymentChanges(reconciliationClient.db(database_name));
+        console.log('November 1 salary Employment Change reconciliation complete:', summary);
+      } catch (error) {
+        console.error('Unable to reconcile November 1 salary Employment Change records:', error);
+      } finally {
+        await reconciliationClient.close();
+      }
+    })();
 });
