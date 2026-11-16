@@ -31,6 +31,7 @@ type Employee = {
   phone: string;
   hireDate: string;
   terminationDate: string;
+  terminationType: string;
   homeDepartment: string;
   jobTitle: string;
   location: string;
@@ -117,6 +118,24 @@ const statusPill = (
     {label}
   </span>
 );
+const terminationTypePill = (value?: string) => {
+  const type = value || "Not Recorded";
+  const tone =
+    type === "Voluntary"
+      ? "bg-blue-100 text-blue-800"
+      : type === "Involuntary"
+        ? "bg-rose-100 text-rose-800"
+        : type === "Retired"
+          ? "bg-violet-100 text-violet-800"
+          : type === "Deceased"
+            ? "bg-slate-200 text-slate-800"
+            : "bg-amber-100 text-amber-900";
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${tone}`}>
+      {type}
+    </span>
+  );
+};
 
 export default function Termination() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -800,11 +819,12 @@ export default function Termination() {
         tone="blue"
         count={payroll.length}
       >
-        <table className="min-w-[2220px] text-sm">
+        <table className="min-w-[2330px] text-sm">
           <TableHead
             labels={[
               "Name",
               "Termination Date",
+              "Termination Type",
               "Department",
               "Job Title",
               "Pay Category",
@@ -836,6 +856,7 @@ export default function Termination() {
                 >
                   <StickyName employee={employee} />
                   <Cell>{dateDisplay(employee.terminationDate)}</Cell>
+                  <Cell>{terminationTypePill(employee.terminationType)}</Cell>
                   <Cell>{employee.homeDepartment || "--"}</Cell>
                   <Cell>{employee.jobTitle || "--"}</Cell>
                   <Cell>
@@ -1005,7 +1026,7 @@ export default function Termination() {
                 </tr>
               );
             })}
-            {!payroll.length && <EmptyRow columns={17} />}
+            {!payroll.length && <EmptyRow columns={18} />}
           </tbody>
         </table>
       </StatusSection>
@@ -1596,6 +1617,7 @@ function SimpleStatusTable({
       <TableHead
         labels={[
           "Employee",
+          "Termination Type",
           "Participation",
           "Ending Date",
           ...(insurance ? [] : ["Vesting Status"]),
@@ -1624,6 +1646,7 @@ function SimpleStatusTable({
               key={employee.id}
             >
               <StickyName employee={employee} />
+              <Cell>{terminationTypePill(employee.terminationType)}</Cell>
               <Cell>
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-bold ${participation === "participated" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}
@@ -1690,7 +1713,7 @@ function SimpleStatusTable({
             </tr>
           );
         })}
-        {!employees.length && <EmptyRow columns={insurance ? 6 : 7} />}
+        {!employees.length && <EmptyRow columns={insurance ? 7 : 8} />}
       </tbody>
     </table>
   );

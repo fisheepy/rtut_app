@@ -110,6 +110,7 @@ function terminationEmployeeView(employee, record = {}) {
     email: clean(employee.Email), phone: clean(employee.Phone),
     hireDate: clean(employee['Hire Date'] || employee['First Day']),
     terminationDate: clean(employee['Termination Date']),
+    terminationType: clean(employee['Termination Type']),
     homeDepartment: clean(employee['Home Department'] || employee.Department),
     jobTitle: clean(employee['Job Title']), location: clean(employee.Location),
     supervisor: [clean(employee['Supervisor First Name']), clean(employee['Supervisor Last Name'])].filter(Boolean).join(' '),

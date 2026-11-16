@@ -98,13 +98,14 @@ test('maps a terminated Company App employee into the termination workflow', () 
   const row = terminationEmployeeView({
     _id: 'employee-2', 'First Name': 'Test080501', 'Last Name': 'Test080501',
     'Termination Date': '2026-08-05', 'Home Department': 'Office/Admin', 'Job Title': 'Tester',
-    'Pay Category': 'Hourly',
+    'Pay Category': 'Hourly', 'Termination Type': 'Voluntary',
   }, {
     finalPayrollDate: '2026-08-12', pendingIssues: true,
     payrollFollowThroughUntil: '2026-08-31', insuranceParticipation: 'not-participated',
   });
   assert.equal(row.name, 'Test080501 Test080501');
   assert.equal(row.terminationDate, '2026-08-05');
+  assert.equal(row.terminationType, 'Voluntary');
   assert.equal(row.finalPayrollDate, '2026-08-12');
   assert.equal(row.pendingIssues, true);
   assert.equal(row.insuranceParticipation, 'not-participated');
