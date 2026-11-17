@@ -1,6 +1,7 @@
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
+const CONFIRMED_PRE_EMPLOYMENT_CANCELLATIONS = new Set(['robert brooks', 'robert brooke']);
 const isTerminated = employee => /^(terminated|inactive)$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']));
 const { findEmployeeMatches } = require('./employeeMatcher');
 const dateOnly = value => {
@@ -17,7 +18,11 @@ const isExcludedTestEmployee = employee => normalize(employeeName(employee)) ===
 const isPreEmploymentCancellation = employee => {
   const hireDate = employeeHireDate(employee);
   const terminationDate = dateOnly(employee['Termination Date']);
-  return Boolean(hireDate && terminationDate && terminationDate < hireDate);
+  return Boolean(
+    employee?.['Pre-Employment Cancellation'] === true
+    || CONFIRMED_PRE_EMPLOYMENT_CANCELLATIONS.has(normalize(employeeName(employee)))
+    || (hireDate && terminationDate && terminationDate < hireDate)
+  );
 };
 
 const nullableString = { type: ['string', 'null'] };

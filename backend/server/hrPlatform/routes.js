@@ -209,6 +209,15 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
       && !reportDate(employee['Termination Date']);
   }
 
+  function isPreEmploymentCancellation(employee = {}) {
+    const name = employeeName(employee).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const hireDate = reportDate(employee['Hire Date'] || employee['First Day']);
+    const terminationDate = reportDate(employee['Termination Date']);
+    return employee['Pre-Employment Cancellation'] === true
+      || ['robert brooks', 'robert brooke'].includes(name)
+      || Boolean(hireDate && terminationDate && terminationDate < hireDate);
+  }
+
   function styleMonthlyHeader(row, color = 'FF0F766E') {
     row.eachCell(cell => {
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -245,11 +254,11 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         return counts;
       }, new Map()).entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
 
-      const newHires = employees.filter(employee => inPeriod(employee['Hire Date'])).map(employee => {
+      const newHires = employees.filter(employee => !isPreEmploymentCancellation(employee) && inPeriod(employee['Hire Date'] || employee['First Day'])).map(employee => {
         const record = newHireRecords.find(item => clean(item.employeeId) === String(employee._id)) || {};
         return { employee: employeeName(employee), date: reportDate(employee['Hire Date']), location: clean(employee.Location), department: clean(employee['Home Department']), jobTitle: clean(employee['Job Title']), status: clean(employee['Position Status']), detail: record.fileTracker?.finalLockedAt ? 'File Tracker Final Reviewed' : record.fileTracker?.submittedAt ? 'Final Review Needed' : 'Onboarding In Progress' };
       });
-      const terminations = employees.filter(employee => inPeriod(employee['Termination Date'])).map(employee => {
+      const terminations = employees.filter(employee => !isPreEmploymentCancellation(employee) && inPeriod(employee['Termination Date'])).map(employee => {
         const record = terminationRecords.find(item => clean(item.employeeId) === String(employee._id)) || {};
         return { employee: employeeName(employee), date: reportDate(employee['Termination Date']), location: clean(employee.Location), department: clean(employee['Home Department']), jobTitle: clean(employee['Job Title']), status: clean(employee['Termination Type']) || 'Not Recorded', detail: record.fileTracker?.finalLockedAt ? 'File Tracker Final Reviewed' : 'Termination Follow-up In Progress' };
       });
@@ -418,7 +427,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
           { $or: [{ 'Termination Date': { $exists: false } }, { 'Termination Date': '' }, { 'Termination Date': null }] },
         ],
       }).toArray();
-      const ids = employees.map(employee => String(employee._id));
+      const workflowEmployees = employees.filter(employee => !isPreEmploymentCancellation(employee));
+      const ids = workflowEmployees.map(employee => String(employee._id));
       const records = ids.length ? await db.collection('employee_hr_platform').find({ employeeId: { $in: ids } }).toArray() : [];
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
       const rows = [];
@@ -856,7 +866,7 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
         missingIds.forEach(employeeId => records.push({ employeeId, employeeFolderUrl: inheritedLinks.get(employeeId) || '' }));
       }
       const byId = new Map(records.map(record => [String(record.employeeId), record]));
-      return res.json(employees.map(employee => terminationEmployeeView(employee, byId.get(String(employee._id))))
+      return res.json(workflowEmployees.map(employee => terminationEmployeeView(employee, byId.get(String(employee._id))))
         .sort((left, right) => clean(right.terminationDate).localeCompare(clean(left.terminationDate)) || left.name.localeCompare(right.name)));
     } catch (error) {
       console.error('Unable to load HR Platform terminations:', error);

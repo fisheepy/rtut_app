@@ -10,6 +10,7 @@ const { ensureNovemberSalaryEmploymentChanges } = require('../hrPlatform/novembe
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee['First Name']), clean(employee['Last Name'])].filter(Boolean).join(' ');
+const CONFIRMED_PRE_EMPLOYMENT_CANCELLATIONS = new Set(['robert brooks', 'robert brooke']);
 const isExcludedTestEmployee = employee => normalize(employeeName(employee)) === 'yang yang';
 const isTerminated = employee => /^(terminated|inactive)$/i.test(clean(employee['Position Status'])) || Boolean(clean(employee['Termination Date']));
 const money = value => Number.isFinite(Number(value)) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(value)) : '';
@@ -165,7 +166,9 @@ const isPreEmploymentCancellation = employee => {
   const terminationDate = dateOnly(employee?.['Termination Date']);
   const terminatedBeforeStartDate = isTerminated(employee) && hireDate && hireDate > easternDateKey();
   const terminationPrecedesHire = hireDate && terminationDate && terminationDate < hireDate;
-  return Boolean(terminatedBeforeStartDate || terminationPrecedesHire);
+  const explicitlyMarked = employee?.['Pre-Employment Cancellation'] === true;
+  const confirmedHistoricalRecord = CONFIRMED_PRE_EMPLOYMENT_CANCELLATIONS.has(normalize(employeeName(employee)));
+  return Boolean(explicitlyMarked || confirmedHistoricalRecord || terminatedBeforeStartDate || terminationPrecedesHire);
 };
 
 function taskIncomplete(task = {}, finalRequired = false) {
@@ -242,6 +245,14 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         trainingDataLive ? db.collection('monthly_training_topics').find({}).sort({ order: 1, targetDate: 1, name: 1 }).toArray() : Promise.resolve([]),
         trainingDataLive ? db.collection('employee_training').find({}).toArray() : Promise.resolve([]),
       ]);
+      const confirmedPreEmploymentRecords = employees.filter(employee => CONFIRMED_PRE_EMPLOYMENT_CANCELLATIONS.has(normalize(employeeName(employee))));
+      if (confirmedPreEmploymentRecords.length) {
+        confirmedPreEmploymentRecords.forEach(employee => { employee['Pre-Employment Cancellation'] = true; });
+        await db.collection('employees').updateMany(
+          { _id: { $in: confirmedPreEmploymentRecords.map(employee => employee._id) } },
+          { $set: { 'Pre-Employment Cancellation': true, 'Pre-Employment Cancellation Reason': 'Candidate withdrew before starting employment', 'Pre-Employment Cancellation Confirmed At': new Date('2026-11-17T00:00:00.000Z') } },
+        );
+      }
       const activeEmployees = employees.filter(employee => !isExcludedTestEmployee(employee) && !isTerminated(employee) && canonicalTurnoverLocation(employee.Location) !== 'Not Recorded');
       const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));

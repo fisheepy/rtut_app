@@ -77,9 +77,7 @@ const deleteEmployee = async (firstName, lastName, terminationDate, terminationT
 
         const [employeeToDelete] = exactNormalizedMatches;
         const hireDate = dateOnly(employeeToDelete['Hire Date']);
-        if (hireDate && terminationDate < hireDate) {
-            throw new Error(`Error during operation: Termination Date cannot be before Hire Date (${hireDate}).`);
-        }
+        const preEmploymentCancellation = Boolean(hireDate && terminationDate < hireDate);
         const directReportFilter = {
             'Supervisor First Name': { $regex: buildCandidateRegex(normalizeNameInput(employeeToDelete['First Name'])) },
             'Supervisor Last Name': { $regex: buildCandidateRegex(normalizeNameInput(employeeToDelete['Last Name'])) },
@@ -125,6 +123,8 @@ const deleteEmployee = async (firstName, lastName, terminationDate, terminationT
                         'Termination Replacement Manager First Name': replacementManager?.['First Name'] || '',
                         'Termination Replacement Manager Last Name': replacementManager?.['Last Name'] || '',
                         'Termination Reassigned Direct Reports': directReportCount,
+                        'Pre-Employment Cancellation': preEmploymentCancellation,
+                        'Pre-Employment Cancellation Reason': preEmploymentCancellation ? 'Candidate withdrew before starting employment' : '',
                     } },
                     { session },
                 );

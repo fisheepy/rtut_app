@@ -124,3 +124,13 @@ test('excludes a candidate terminated before a planned First Day from workforce 
   assert.equal(newHireResult.newHires.count, 0);
   assert.equal(terminationResult.terminations.count, 0);
 });
+
+test('excludes the administrator-confirmed Robert Brooks pre-employment cancellation even when legacy dates are unreliable', () => {
+  assert.equal(isPreEmploymentCancellation({
+    'First Name': 'Robert',
+    'Last Name': 'Brooks',
+    'Hire Date': '2026-11-16',
+    'Termination Date': '2026-11-17',
+    'Position Status': 'Terminated',
+  }), true);
+});
