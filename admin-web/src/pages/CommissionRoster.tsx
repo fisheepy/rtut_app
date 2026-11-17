@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { AlertTriangle, ArrowRight, CheckCircle2, FileSpreadsheet, FileText, RefreshCw, UsersRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, FileSpreadsheet, FileText, RefreshCw, UsersRound } from 'lucide-react'
 import { api } from '../shared/api'
 
 type CommissionRosterSummary = {
@@ -200,6 +201,7 @@ export default function CommissionRoster() {
             <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-teal-500/30 blur-3xl" />
             <div className="absolute -bottom-20 left-20 h-56 w-56 rounded-full bg-blue-400/25 blur-3xl" />
             <div className="relative">
+              <div className="mb-5"><Link className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-white/20" to="/"><ArrowLeft className="h-4 w-4" />Back to HR Tools</Link></div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-teal-100">
                 <UsersRound className="h-4 w-4" />
                 Commission Operations Tool
