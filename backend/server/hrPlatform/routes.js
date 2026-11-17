@@ -853,7 +853,8 @@ function createHrPlatformRouter({ uri, databaseName, requireHrToolsSession }) {
           { 'Termination Date': { $exists: true, $nin: ['', null] } },
         ],
       }).toArray();
-      const ids = employees.map(employee => String(employee._id));
+      const workflowEmployees = employees.filter(employee => !isPreEmploymentCancellation(employee));
+      const ids = workflowEmployees.map(employee => String(employee._id));
       const records = ids.length ? await db.collection('employee_hr_termination').find({ employeeId: { $in: ids } }).toArray() : [];
       const catalog = await getTerminationTrackerCatalog(db);
       const existingIds = new Set(records.map(record => String(record.employeeId)));

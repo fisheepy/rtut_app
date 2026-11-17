@@ -2228,7 +2228,7 @@ app.post('/api/authentication', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'robert-brooks-preemployment-exclusion-2026-11-17' })
+  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'termination-page-restored-preemployment-exclusion-2026-11-17' })
 })
 
 // ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
