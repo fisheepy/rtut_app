@@ -2228,7 +2228,7 @@ app.post('/api/authentication', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'salary-history-payroll-date-2026-11-20' })
+  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'prehire-cancellation-first-day-2026-11-17' })
 })
 
 // ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
