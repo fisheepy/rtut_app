@@ -12,9 +12,10 @@ const dateOnly = value => {
   const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
 };
+const employeeHireDate = employee => dateOnly(employee?.['Hire Date'] || employee?.['First Day']);
 const isExcludedTestEmployee = employee => normalize(employeeName(employee)) === 'yang yang';
 const isPreEmploymentCancellation = employee => {
-  const hireDate = dateOnly(employee['Hire Date']);
+  const hireDate = employeeHireDate(employee);
   const terminationDate = dateOnly(employee['Termination Date']);
   return Boolean(hireDate && terminationDate && terminationDate < hireDate);
 };
@@ -161,7 +162,7 @@ function safeEmployee(employee) {
     manager: clean(employee['Reports To'] || employee.Supervisor || employee.Manager) || 'Not recorded',
     status: clean(employee['Position Status']) || 'Not recorded',
     payType: clean(employee['Pay Category']) || 'Not recorded',
-    hireDate: clean(employee['Hire Date']) || 'Not recorded',
+    hireDate: employeeHireDate(employee) || 'Not recorded',
   };
 }
 
@@ -233,8 +234,8 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
       const validEmployees = employees.filter(employee => !isExcludedTestEmployee(employee) && !isPreEmploymentCancellation(employee));
       const result = { month };
       if (['new_hires', 'all'].includes(args.category)) {
-        const newHires = validEmployees.filter(employee => dateOnly(employee['Hire Date']).slice(0, 7) === month);
-        result.newHires = { count: newHires.length, employees: newHires.map(employee => ({ ...safeEmployee(employee), hireDate: dateOnly(employee['Hire Date']) })).sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name)) };
+        const newHires = validEmployees.filter(employee => employeeHireDate(employee).slice(0, 7) === month);
+        result.newHires = { count: newHires.length, employees: newHires.map(employee => ({ ...safeEmployee(employee), hireDate: employeeHireDate(employee) })).sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name)) };
       }
       if (['terminations', 'all'].includes(args.category)) {
         const terminations = validEmployees.filter(employee => dateOnly(employee['Termination Date']).slice(0, 7) === month);
@@ -281,7 +282,7 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
       const latestLeave = leaves[0] || null;
       return {
         employee: safeEmployee(employee), companyStatus: clean(employee['Position Status']) || 'Not recorded',
-        newHire: latestHire ? { hireDate: dateOnly(employee['Hire Date']), status: trackerStatus(latestHire.fileTracker) } : null,
+        newHire: latestHire ? { hireDate: employeeHireDate(employee), status: trackerStatus(latestHire.fileTracker) } : null,
         employmentChange: latestChange ? { recordCount: changes.length, effectiveDate: dateOnly(latestChange.effectiveDate), reason: clean(latestChange.reason) || 'Not recorded', status: employmentChangeIncomplete(latestChange) ? 'In Progress' : 'Completed' } : null,
         termination: termination || clean(employee['Termination Date']) ? { terminationDate: dateOnly(employee['Termination Date'] || termination?.terminationDate), terminationType: clean(employee['Termination Type'] || termination?.terminationType) || 'Not recorded', status: trackerStatus(termination?.fileTracker) } : null,
         cobra: termination?.cobraStartDate ? { startDate: dateOnly(termination.cobraStartDate), endDate: dateOnly(termination.cobraEndDate), status: termination.cobraClosedAt ? 'Closed' : termination.cobraEndDate ? 'Ready to Close' : 'Active' } : null,
@@ -351,7 +352,7 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
         db.collection('work_injury_cases').find({}).toArray(),
       ]);
       const overlaps = (start, end) => Boolean(start && start <= monthEnd && (!end || end >= monthStart));
-      const newHires = validEmployees.filter(employee => dateOnly(employee['Hire Date']).slice(0, 7) === month);
+      const newHires = validEmployees.filter(employee => employeeHireDate(employee).slice(0, 7) === month);
       const terminations = validEmployees.filter(employee => dateOnly(employee['Termination Date']).slice(0, 7) === month);
       const monthlyChanges = changes.filter(record => dateOnly(record.effectiveDate).slice(0, 7) === month);
       const monthlyLeaves = leaves.filter(record => overlaps(dateOnly(record.leaveStartedAt || record.createdAt), dateOnly(record.actualReturnDate || record.returnedAt || record.closedAt)));
@@ -361,7 +362,7 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
       const named = employee => employeeName(employee) || 'Name not recorded';
       return {
         month, currentHeadcount: headcountEmployees.length, headcountByLocation,
-        newHires: { count: newHires.length, records: newHires.map(employee => ({ employeeName: named(employee), hireDate: dateOnly(employee['Hire Date']), location: clean(employee.Location) || 'Not recorded', department: clean(employee['Home Department'] || employee.Department) || 'Not recorded' })) },
+        newHires: { count: newHires.length, records: newHires.map(employee => ({ employeeName: named(employee), hireDate: employeeHireDate(employee), location: clean(employee.Location) || 'Not recorded', department: clean(employee['Home Department'] || employee.Department) || 'Not recorded' })) },
         terminations: { count: terminations.length, records: terminations.map(employee => ({ employeeName: named(employee), terminationDate: dateOnly(employee['Termination Date']), terminationType: clean(employee['Termination Type']) || 'Not recorded', location: clean(employee.Location) || 'Not recorded' })) },
         employmentChanges: { count: monthlyChanges.length, records: monthlyChanges.map(record => ({ employeeName: clean(record.employeeName) || named(employeeById.get(clean(record.employeeId)) || {}), effectiveDate: dateOnly(record.effectiveDate), reason: clean(record.reason) || 'Not recorded' })) },
         leaveCases: { count: monthlyLeaves.length, records: monthlyLeaves.map(record => ({ employeeName: named(employeeById.get(clean(record.employeeId)) || {}) || clean(record.employeeName), startDate: dateOnly(record.leaveStartedAt || record.createdAt), returnToWorkDate: dateOnly(record.actualReturnDate || record.returnedAt), status: record.active === false || record.actualReturnDate || record.returnedAt ? 'Closed' : 'Open' })) },

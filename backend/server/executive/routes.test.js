@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { compensationRecord, employmentChangeIncomplete, findEmployeeMatches, findLocationMatch, locationEmployeeDetails } = require('./routes');
+const { compensationRecord, employeeHireDate, employmentChangeIncomplete, findEmployeeMatches, findLocationMatch, isPreEmploymentCancellation, locationEmployeeDetails } = require('./routes');
 const { EXECUTIVE_TOOLS, createToolResolver, extractOutputText } = require('./smartAi');
 
 test('matches an employee full name without partial last-name collisions', () => {
@@ -105,4 +105,22 @@ test('returns a complete historical monthly new-hire count', async () => {
   const result = await resolve('get_monthly_workforce_activity', { month: '2026-10', category: 'new_hires' });
   assert.equal(result.newHires.count, 2);
   assert.deepEqual(result.newHires.employees.map(employee => employee.name), ['October Hire', 'Later Terminated']);
+});
+
+test('excludes a candidate terminated before a planned First Day from workforce activity', async () => {
+  const cancelled = {
+    _id: 5,
+    'First Name': 'Robert',
+    'Last Name': 'Brooks',
+    'First Day': '2026-11-16',
+    'Termination Date': '2026-11-10',
+    'Position Status': 'Terminated',
+  };
+  assert.equal(employeeHireDate(cancelled), '2026-11-16');
+  assert.equal(isPreEmploymentCancellation(cancelled), true);
+  const resolve = createToolResolver({ db: {}, employees: [cancelled], compensationRecord: () => null, employmentChangeIncomplete: () => false });
+  const newHireResult = await resolve('get_monthly_workforce_activity', { month: '2026-11', category: 'new_hires' });
+  const terminationResult = await resolve('get_monthly_workforce_activity', { month: '2026-11', category: 'terminations' });
+  assert.equal(newHireResult.newHires.count, 0);
+  assert.equal(terminationResult.terminations.count, 0);
 });

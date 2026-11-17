@@ -22,6 +22,7 @@ const dateOnly = value => {
   const parsed = new Date(text);
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
 };
+const employeeHireDate = employee => dateOnly(employee?.['Hire Date'] || employee?.['First Day']);
 const easternMonthKey = () => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
   return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}`;
@@ -160,7 +161,7 @@ const turnoverRowsWithRates = rows => rows.map(row => ({
   involuntaryRate: turnoverRate(row.involuntary, row.denominator),
 }));
 const isPreEmploymentCancellation = employee => {
-  const hireDate = dateOnly(employee?.['Hire Date']);
+  const hireDate = employeeHireDate(employee);
   const terminationDate = dateOnly(employee?.['Termination Date']);
   const terminatedBeforeStartDate = isTerminated(employee) && hireDate && hireDate > easternDateKey();
   const terminationPrecedesHire = hireDate && terminationDate && terminationDate < hireDate;
@@ -246,14 +247,14 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
       const currentMonth = easternMonthKey();
       const currentMonthNewHires = employees
-        .filter(employee => !isPreEmploymentCancellation(employee) && dateOnly(employee['Hire Date']).slice(0, 7) === currentMonth)
+        .filter(employee => !isPreEmploymentCancellation(employee) && employeeHireDate(employee).slice(0, 7) === currentMonth)
         .map(employee => {
           const record = newHireByEmployeeId.get(String(employee._id)) || {};
           const tracker = record.fileTracker || {};
           return {
             id: String(employee._id),
             name: employeeName(employee) || 'Name Not Recorded',
-            hireDate: dateOnly(employee['Hire Date']),
+            hireDate: employeeHireDate(employee),
             jobTitle: clean(employee['Job Title']) || 'Not Recorded',
             department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
             location: clean(employee.Location) || 'Not Recorded',
@@ -325,7 +326,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       }
       for (const employee of employees) {
         if (isExcludedTestEmployee(employee)) continue;
-        const hireDate = dateOnly(employee['Hire Date']);
+        const hireDate = employeeHireDate(employee);
         const terminationDate = dateOnly(employee['Termination Date']);
         if (!terminationDate || terminationDate < '2026-10-01' || terminationDate > turnoverAsOf || (hireDate && terminationDate < hireDate)) continue;
         if (TURNOVER_Q3_2026_INCLUDED_NAMES.has(normalize(employeeName(employee)))) continue;
@@ -572,10 +573,10 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       };
       let records = [];
       if (category === 'new-hire') {
-        records = employees.filter(employee => !isExcludedTestEmployee(employee) && !isPreEmploymentCancellation(employee) && dateMatches(employee['Hire Date']) && nameMatches(employeeName(employee))).map(employee => {
+        records = employees.filter(employee => !isExcludedTestEmployee(employee) && !isPreEmploymentCancellation(employee) && dateMatches(employeeHireDate(employee)) && nameMatches(employeeName(employee))).map(employee => {
           const tracker = newHireByEmployeeId.get(String(employee._id))?.fileTracker || {};
           return {
-            id: String(employee._id), employeeName: employeeName(employee) || 'Name Not Recorded', eventDate: dateOnly(employee['Hire Date']),
+            id: String(employee._id), employeeName: employeeName(employee) || 'Name Not Recorded', eventDate: employeeHireDate(employee),
             jobTitle: clean(employee['Job Title']) || 'Not Recorded', department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded', location: clean(employee.Location) || 'Not Recorded',
             status: tracker.finalLockedAt || tracker.confirmedAt ? 'Completed' : tracker.submittedAt ? 'Final Review Needed' : 'In Progress', detail: clean(employee['Position Status']) || 'Active',
           };
@@ -720,4 +721,4 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
   return router;
 }
 
-module.exports = { compensationRecord, createExecutiveRouter, employmentChangeIncomplete, findEmployeeMatches, findLocationMatch, locationEmployeeDetails };
+module.exports = { compensationRecord, createExecutiveRouter, employeeHireDate, employmentChangeIncomplete, findEmployeeMatches, findLocationMatch, isPreEmploymentCancellation, locationEmployeeDetails };
