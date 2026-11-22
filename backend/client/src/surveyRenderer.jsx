@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, Pressable } from 'react-native';
-import { Slider } from '@miblanchard/react-native-slider';
+import { Slider } from '@mui/material';
 import { GiConfirmed } from "react-icons/gi";
 import { GiCancel } from "react-icons/gi";
 import { RiDeleteBin5Line } from "react-icons/ri";
@@ -265,12 +265,12 @@ const SurveyRenderer = ({ surveyJson, onSurveyComplete, onCancel, onRemoveQuesti
           <>
             <Text style={styles.questionTitle}>{question.title}:</Text>
             <Slider
-              containerStyle={styles.sliderContainer}
-              minimumValue={1}
-              maximumValue={question.rateMax}
+              style={styles.sliderContainer}
+              min={1}
+              max={question.rateMax}
               step={1}
-              onValueChange={(value) => handleInputChange(question.name, value)}
-              value={answers[question.name] || question.rateMax / 2}
+              onChange={(_, value) => handleInputChange(question.name, [value])}
+              value={Number(answers[question.name] || question.rateMax / 2)}
             />
             <Text>{answers[question.name] || question.rateMax / 2}</Text>
           </>

@@ -344,7 +344,7 @@ function EmployeeSelectionComponent() {
             .sort((a, b) => a.localeCompare(b));
         const isOther = Boolean(editOtherFields[field.database]);
         return (
-            <Grid item xs={12} sm={6} key={field.database}>
+            <Grid size={{ xs: 12, sm: 6 }} key={field.database}>
                 <TextField
                     fullWidth
                     select
@@ -492,7 +492,7 @@ function EmployeeSelectionComponent() {
             value={selectedFilters[id] || []}
             onChange={(_event, values) => setFilterSelection(id, values)}
             getOptionLabel={(option) => String(option)}
-            renderTags={(values, getTagProps) => values.slice(0, 2).map((option, index) => (
+            renderValue={(values, getTagProps) => values.slice(0, 2).map((option, index) => (
                 <Chip label={String(option)} size="small" {...getTagProps({ index })} />
             )).concat(values.length > 2 ? [<Chip key="more" label={`+${values.length - 2}`} size="small" />] : [])}
             renderOption={(props, option, { selected }) => (
@@ -521,7 +521,7 @@ function EmployeeSelectionComponent() {
     return (
         <div>
             <Box className="employee-section-heading">
-                <Stack direction="row" alignItems="center" spacing={1.25}>
+                <Stack direction="row" sx={{ alignItems: 'center' }} spacing={1.25}>
                     <Box className="employee-section-icon"><PeopleAltOutlinedIcon fontSize="small" /></Box>
                     <Box>
                         <Typography variant="h5" component="h3" fontWeight={750}>Employees</Typography>
@@ -545,8 +545,8 @@ function EmployeeSelectionComponent() {
                 }}
             >
                 <Box sx={{ px: { xs: 2, md: 2.5 }, py: 2, borderBottom: '1px solid #e8edf3' }}>
-                    <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" spacing={1.5}>
-                        <Stack direction="row" alignItems="center" spacing={1.25}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} sx={{ alignItems: { xs: 'stretch', sm: 'center' }, justifyContent: 'space-between' }} spacing={1.5}>
+                        <Stack direction="row" sx={{ alignItems: 'center' }} spacing={1.25}>
                             <Box sx={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 2, bgcolor: '#e8f2ff', color: '#1769aa' }}>
                                 <FilterAltOutlinedIcon fontSize="small" />
                             </Box>
@@ -565,7 +565,7 @@ function EmployeeSelectionComponent() {
                 </Box>
                 <Box sx={{ p: { xs: 2, md: 2.5 } }}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }} >
                             <TextField
                                 fullWidth
                                 label="Search employee"
@@ -573,17 +573,17 @@ function EmployeeSelectionComponent() {
                                 value={employeeSearch}
                                 onChange={(event) => setEmployeeSearch(event.target.value)}
                                 size="small"
-                                InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.disabled' }} fontSize="small" /> }}
+                                slotProps={{ input: { startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.disabled' }} fontSize="small" /> } }}
                             />
                         </Grid>
-                        {primaryFilterColumns.map((column) => <Grid item xs={12} sm={6} md={2} key={column.id}>{renderFilter(column)}</Grid>)}
+                        {primaryFilterColumns.map((column) => <Grid size={{ xs: 12, sm: 6, md: 2 }} key={column.id}>{renderFilter(column)}</Grid>)}
                     </Grid>
                     <Collapse in={showMoreFilters}>
                         <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e8edf3' }}>
                             <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>Additional Filters</Typography>
                             <Grid container spacing={2}>
-                                {additionalFilterColumns.map((column) => <Grid item xs={12} sm={6} md={2.4} key={column.id}>{renderFilter(column)}</Grid>)}
-                                <Grid item xs={12} md={5}>
+                                {additionalFilterColumns.map((column) => <Grid size={{ xs: 12, sm: 6, md: 2.4 }} key={column.id}>{renderFilter(column)}</Grid>)}
+                                <Grid size={{ xs: 12, md: 5 }} >
                                     <Autocomplete
                                         multiple
                                         options={(filterValues.Name || []).filter(Boolean).sort()}
@@ -592,16 +592,16 @@ function EmployeeSelectionComponent() {
                                         renderInput={(params) => <TextField {...params} label="Name" helperText="Choose one or more employee names." size="small" />}
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={3.5}>
+                                <Grid size={{ xs: 12, sm: 6, md: 3.5 }} >
                                     <Stack direction="row" spacing={1}>
-                                        <TextField fullWidth id="start-date" label="Hire Date From" type="date" value={startDate} onChange={handleStartDateChange} InputLabelProps={{ shrink: true }} size="small" />
-                                        <TextField fullWidth id="end-date" label="Hire Date To" type="date" value={endDate} onChange={handleEndDateChange} InputLabelProps={{ shrink: true }} size="small" />
+                                        <TextField fullWidth id="start-date" label="Hire Date From" type="date" value={startDate} onChange={handleStartDateChange} slotProps={{ inputLabel: { shrink: true } }} size="small" />
+                                        <TextField fullWidth id="end-date" label="Hire Date To" type="date" value={endDate} onChange={handleEndDateChange} slotProps={{ inputLabel: { shrink: true } }} size="small" />
                                     </Stack>
                                 </Grid>
                             </Grid>
                         </Box>
                     </Collapse>
-                    {activeFilterCount ? <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 2 }}><Typography variant="caption" color="text.secondary">Active selections:</Typography><Chip label={activeFilterCount} color="primary" size="small" /></Stack> : null}
+                    {activeFilterCount ? <Stack direction="row" spacing={1} sx={{ mt: 2, alignItems: 'center' }}><Typography variant="caption" color="text.secondary">Active selections:</Typography><Chip label={activeFilterCount} color="primary" size="small" /></Stack> : null}
                 </Box>
             </Paper>
             <div className="employee-scrollbar-proxy" ref={topScrollRef} onScroll={handleTopHorizontalScroll}>
@@ -683,11 +683,11 @@ function EmployeeSelectionComponent() {
                 <DialogContent>
                     {selectedEmployee && (
                         <Grid container spacing={2}>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }} >
                                 <Alert severity="info">Edit the information below. The system will automatically identify the fields that changed. Company App updates take effect immediately.</Alert>
                                 {editError ? <Alert severity="error" sx={{ mt: 1 }}>{editError}</Alert> : null}
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }} >
                                 <TextField
                                     fullWidth
                                     label="First Name"
@@ -696,7 +696,7 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                 />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }} >
                                 <TextField
                                     fullWidth
                                     label="Last Name"
@@ -705,7 +705,7 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                 />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }} >
                                 <TextField
                                     fullWidth
                                     label="Hire Date"
@@ -713,10 +713,10 @@ function EmployeeSelectionComponent() {
                                     type="date"
                                     value={employeeDateInputValue(selectedEmployee['Hire Date'])}
                                     onChange={handleInputChange}
-                                    InputLabelProps={{ shrink: true }}
+                                    slotProps={{ inputLabel: { shrink: true } }}
                                 />
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={{ xs: 6 }} >
                                 <TextField
                                     fullWidth
                                     select
@@ -725,14 +725,14 @@ function EmployeeSelectionComponent() {
                                     value={selectedEmployee['Position Status'] || 'Active'}
                                     onChange={handleInputChange}
                                     helperText="Leave keeps the employee active in Company App and sends them to the Leave workflow. Use Terminate Employee for separations."
-                                    SelectProps={{ native: true }}
+                                    slotProps={{ select: { native: true } }}
                                 >
                                     <option value="Active">Active</option>
                                     <option value="Leave">Leave</option>
                                 </TextField>
                             </Grid>
                             {editReferenceFields.filter(field => field.database === 'Home Department').map(renderEditReferenceField)}
-                            <Grid item xs={12} sm={6}>
+                            <Grid size={{ xs: 12, sm: 6 }} >
                                 <Autocomplete
                                     options={editSupervisorOptions}
                                     getOptionLabel={employee => `${employee['Last Name']}, ${employee['First Name']}${employee['Job Title'] ? ` — ${employee['Job Title']}` : ''}`}
@@ -742,7 +742,7 @@ function EmployeeSelectionComponent() {
                                 />
                             </Grid>
                             {editReferenceFields.filter(field => ['Job Title', 'Location'].includes(field.database)).map(renderEditReferenceField)}
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }} >
                                 <TextField
                                     fullWidth
                                     label="Email"
@@ -751,7 +751,7 @@ function EmployeeSelectionComponent() {
                                     onChange={handleInputChange}
                                 />
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }} >
                                 <TextField
                                     fullWidth
                                     label="Phone"
@@ -761,16 +761,16 @@ function EmployeeSelectionComponent() {
                                 />
                             </Grid>
                             {editReferenceFields.filter(field => ['EEOC Establishment', 'Worker Category', 'Pay Category'].includes(field.database)).map(renderEditReferenceField)}
-                            {newEditReferenceValues.length ? <Grid item xs={12}><Alert severity="error"><Typography fontWeight={700}>New database information detected:</Typography>{newEditReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}<Typography sx={{ mt: 1 }}>You may proceed, but the final confirmation will ask you to approve these new values.</Typography></Alert></Grid> : null}
-                            <Grid item xs={12}><Typography variant="h6">Other Changes</Typography><Typography variant="body2" color="text.secondary">Select one or more related payroll or benefit changes below, or leave all unchecked when none apply. A change only between Active and Leave is routed to FMLA / ADA / Medical Leave instead of Employment Change.</Typography></Grid>
-                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked, payRateType: event.target.checked ? (/salary/i.test(selectedEmployee['Pay Category']) ? 'Annual Salary' : /hourly/i.test(selectedEmployee['Pay Category']) ? 'Hourly Rate' : '') : '', newPayRate: event.target.checked ? current.newPayRate : '' }))} />} label="Payroll change needed" /></Grid>
-                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
-                            <Grid item xs={12} sm={4}><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
+                            {newEditReferenceValues.length ? <Grid size={{ xs: 12 }} ><Alert severity="error"><Typography fontWeight={700}>New database information detected:</Typography>{newEditReferenceValues.map(entry => <div key={`${entry.field}:${entry.value}`}>{entry.label}: {entry.value}</div>)}<Typography sx={{ mt: 1 }}>You may proceed, but the final confirmation will ask you to approve these new values.</Typography></Alert></Grid> : null}
+                            <Grid size={{ xs: 12 }} ><Typography variant="h6">Other Changes</Typography><Typography variant="body2" color="text.secondary">Select one or more related payroll or benefit changes below, or leave all unchecked when none apply. A change only between Active and Leave is routed to FMLA / ADA / Medical Leave instead of Employment Change.</Typography></Grid>
+                            <Grid size={{ xs: 12, sm: 4 }} ><FormControlLabel control={<Checkbox checked={changeDetails.payroll} onChange={event => setChangeDetails(current => ({ ...current, payroll: event.target.checked, payRateType: event.target.checked ? (/salary/i.test(selectedEmployee['Pay Category']) ? 'Annual Salary' : /hourly/i.test(selectedEmployee['Pay Category']) ? 'Hourly Rate' : '') : '', newPayRate: event.target.checked ? current.newPayRate : '' }))} />} label="Payroll change needed" /></Grid>
+                            <Grid size={{ xs: 12, sm: 4 }} ><FormControlLabel control={<Checkbox checked={changeDetails.insurance} onChange={event => setChangeDetails(current => ({ ...current, insurance: event.target.checked }))} />} label="Insurance change needed" /></Grid>
+                            <Grid size={{ xs: 12, sm: 4 }} ><FormControlLabel control={<Checkbox checked={changeDetails.retirement} onChange={event => setChangeDetails(current => ({ ...current, retirement: event.target.checked }))} />} label="401(k) change needed" /></Grid>
                             {changeDetails.payroll ? <>
-                                <Grid item xs={12} sm={6}><TextField select fullWidth required label="New Pay Rate Basis" value={changeDetails.payRateType} onChange={event => setChangeDetails(current => ({ ...current, payRateType: event.target.value }))} helperText="The current rate is intentionally hidden on Company App Console."><MenuItem value="Hourly Rate">Hourly Rate</MenuItem><MenuItem value="Annual Salary">Annual Salary</MenuItem></TextField></Grid>
-                                <Grid item xs={12} sm={6}><TextField fullWidth required type="number" label={changeDetails.payRateType === 'Annual Salary' ? 'New Annual Salary Amount' : changeDetails.payRateType === 'Hourly Rate' ? 'New Hourly Rate' : 'New Pay Rate'} value={changeDetails.newPayRate} onChange={event => setChangeDetails(current => ({ ...current, newPayRate: event.target.value }))} inputProps={{ min: '0.01', step: '0.01' }} helperText="Enter only the new rate. It will be sent to Employment Change." /></Grid>
+                                <Grid size={{ xs: 12, sm: 6 }} ><TextField select fullWidth required label="New Pay Rate Basis" value={changeDetails.payRateType} onChange={event => setChangeDetails(current => ({ ...current, payRateType: event.target.value }))} helperText="The current rate is intentionally hidden on Company App Console."><MenuItem value="Hourly Rate">Hourly Rate</MenuItem><MenuItem value="Annual Salary">Annual Salary</MenuItem></TextField></Grid>
+                                <Grid size={{ xs: 12, sm: 6 }} ><TextField fullWidth required type="number" label={changeDetails.payRateType === 'Annual Salary' ? 'New Annual Salary Amount' : changeDetails.payRateType === 'Hourly Rate' ? 'New Hourly Rate' : 'New Pay Rate'} value={changeDetails.newPayRate} onChange={event => setChangeDetails(current => ({ ...current, newPayRate: event.target.value }))} slotProps={{ htmlInput: { min: '0.01', step: '0.01' } }} helperText="Enter only the new rate. It will be sent to Employment Change." /></Grid>
                             </> : null}
-                            <Grid item xs={12}><Alert severity="info">Phone-only changes update Company App and Training without creating an Employment Change record. Status-only Active/Leave changes go to FMLA / ADA / Medical Leave. Other employee changes go to Employment Change. Action dates and follow-up details are entered on HR Platform.</Alert></Grid>
+                            <Grid size={{ xs: 12 }} ><Alert severity="info">Phone-only changes update Company App and Training without creating an Employment Change record. Status-only Active/Leave changes go to FMLA / ADA / Medical Leave. Other employee changes go to Employment Change. Action dates and follow-up details are entered on HR Platform.</Alert></Grid>
                         </Grid>
                     )}
                 </DialogContent>

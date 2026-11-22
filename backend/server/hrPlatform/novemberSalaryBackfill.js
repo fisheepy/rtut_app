@@ -1,3 +1,4 @@
+const { runtimePolicy } = require('../runtimePolicy');
 const clean = value => value == null ? '' : String(value).trim();
 const normalize = value => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const employeeName = employee => [clean(employee?.['First Name']), clean(employee?.['Last Name'])].filter(Boolean).join(' ') || clean(employee?.name);
@@ -77,6 +78,7 @@ function historicalImportTasks(target, existingTasks = {}) {
 }
 
 async function ensureNovemberSalaryEmploymentChanges(db) {
+  if (!runtimePolicy().startupReconciliation) return { skipped: true, reason: "Reconciliation disabled" };
   const employeeCollection = db.collection('employees');
   const changeCollection = db.collection('employee_hr_employment_change');
   const [employees, existingChanges] = await Promise.all([

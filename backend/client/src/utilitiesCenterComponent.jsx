@@ -312,7 +312,7 @@ const UtilitiesCenterComponent = () => {
                         <MenuItem value="Hourly Rate">Hourly Rate</MenuItem>
                         <MenuItem value="Annual Salary">Annual Salary</MenuItem>
                     </TextField>
-                    <TextField {...fieldProps('payRate', newEmployee.payRateType === 'Annual Salary' ? 'Annual Salary Amount' : newEmployee.payRateType === 'Hourly Rate' ? 'Hourly Rate' : 'Pay Rate')} type="number" inputProps={{ min: '0.01', step: '0.01' }} helperText={attemptedSubmit && !newEmployee.payRate ? 'Pay Rate is required.' : 'Stored securely for HR, Compensation Analysis, and Executive Intelligence. It will not appear on Company App Console.'} />
+                    <TextField {...fieldProps('payRate', newEmployee.payRateType === 'Annual Salary' ? 'Annual Salary Amount' : newEmployee.payRateType === 'Hourly Rate' ? 'Hourly Rate' : 'Pay Rate')} type="number" slotProps={{ htmlInput: { min: '0.01', step: '0.01' } }} helperText={attemptedSubmit && !newEmployee.payRate ? 'Pay Rate is required.' : 'Stored securely for HR, Compensation Analysis, and Executive Intelligence. It will not appear on Company App Console.'} />
                     {newReferenceValues.length ? (
                         <Alert severity="error" sx={{ mt: 2 }}>
                             <Typography fontWeight={700}>New database information detected:</Typography>
@@ -375,7 +375,7 @@ const UtilitiesCenterComponent = () => {
                         }))}
                         renderInput={params => <TextField {...params} autoFocus required margin="dense" label="Employee to Terminate" error={deleteAttempted && !selectedTerminationEmployee} helperText={deleteAttempted && !selectedTerminationEmployee ? 'Select an employee.' : ''} />}
                     />
-                    <TextField required margin="dense" name="terminationDate" label="Termination Date" type="date" fullWidth value={deleteEmployee.terminationDate} onChange={handleDeleteEmployeeChange} InputLabelProps={{ shrink: true }} error={deleteAttempted && !deleteEmployee.terminationDate} helperText={deleteAttempted && !deleteEmployee.terminationDate ? 'Termination Date is required.' : 'Use the employee’s actual last date of employment.'} />
+                    <TextField required margin="dense" name="terminationDate" label="Termination Date" type="date" fullWidth value={deleteEmployee.terminationDate} onChange={handleDeleteEmployeeChange} slotProps={{ inputLabel: { shrink: true } }} error={deleteAttempted && !deleteEmployee.terminationDate} helperText={deleteAttempted && !deleteEmployee.terminationDate ? 'Termination Date is required.' : 'Use the employee’s actual last date of employment.'} />
                     <TextField select required margin="dense" name="terminationType" label="Termination Type" fullWidth value={deleteEmployee.terminationType} onChange={handleDeleteEmployeeChange} error={deleteAttempted && !deleteEmployee.terminationType} helperText={deleteAttempted && !deleteEmployee.terminationType ? 'Select a termination type.' : 'Deceased and Retired employees move to the Termination Platform but are excluded from turnover.'}>
                         <MenuItem value="Voluntary">Voluntary</MenuItem>
                         <MenuItem value="Involuntary">Involuntary</MenuItem>

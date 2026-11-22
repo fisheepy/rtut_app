@@ -104,7 +104,7 @@ function WorkflowModule() {
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         onDropRejected,
-        accept: 'text/csv, application/vnd.ms-excel, .csv',
+        accept: { 'text/csv': ['.csv'], 'application/vnd.ms-excel': ['.csv'] },
         maxFiles: 1,
         noClick: true,
         noKeyboard: true

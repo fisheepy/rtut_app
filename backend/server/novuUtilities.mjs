@@ -1,8 +1,13 @@
+import runtime from './runtimePolicy.js';
 import { Novu, PushProviderIdEnum } from '@novu/node';
 import crypto from 'crypto';
 import { exec } from 'child_process';
 const apiKey = process.env.NOVU_API;
-const novu = new Novu(apiKey);
+let novuClient;
+function getNovu() {
+  novuClient ??= new Novu(apiKey);
+  return novuClient;
+}
 
 export function generateUniqueId(firstName, lastName) {
   const nameString = `${firstName}${lastName}`;
@@ -30,6 +35,7 @@ function generateUniqueSurveyId(subject, sender) {
 }
 
 export async function updateEmployeeToNovuSubscriber(employee) {
+  runtime.requireNotificationDelivery();
   try {
     const uid = generateUniqueId(employee['Payroll Name: First Name'].toUpperCase(), employee['Payroll Name: Last Name'].toUpperCase());
 
@@ -46,7 +52,7 @@ export async function updateEmployeeToNovuSubscriber(employee) {
       subscriberData.phone = employee['Phone'];
     }
 
-    await novu.subscribers.identify(uid, subscriberData);
+    await getNovu().subscribers.identify(uid, subscriberData);
 
     console.log('Updated', employee['Payroll Name: First Name']);
   } catch (error) {
@@ -56,6 +62,7 @@ export async function updateEmployeeToNovuSubscriber(employee) {
 }
 
 export async function sendNovuNotification(formattedValues, messageContent, messageType, subject, sender, sendOptions) {
+  runtime.requireNotificationDelivery();
   const formattedArray = Array.isArray(formattedValues) ? formattedValues : [formattedValues];
 
   const filteredValuesToSend = formattedArray.map(({ Email, Phone, ...rest }) => {
@@ -106,7 +113,7 @@ export async function sendNovuNotification(formattedValues, messageContent, mess
   }
 
   try {
-    const response = await novu.trigger(triggerType, {
+    const response = await getNovu().trigger(triggerType, {
       to: filteredValuesToSend,
       payload: payload,
       overrides: {
@@ -136,8 +143,9 @@ export async function sendNovuNotification(formattedValues, messageContent, mess
 
 // Obsolete
 export async function sendNotification(triggerIdentifier, to, payload) {
+  runtime.requireNotificationDelivery();
   try {
-    await novu.trigger(triggerIdentifier, {
+    await getNovu().trigger(triggerIdentifier, {
       to: to,
       payload: payload,
     });
@@ -149,11 +157,12 @@ export async function sendNotification(triggerIdentifier, to, payload) {
 }
 
 export async function listNotifications(subscriberId) {
+  runtime.requireNotificationDelivery();
   try {
     const params = {
       subscriberId: subscriberId  //optional
     }
-    await novu.messages.list(params);
+    await getNovu().messages.list(params);
     console.log('Notification listed successfully');
   } catch (error) {
     console.error('Error listing notification:', error);
@@ -162,8 +171,9 @@ export async function listNotifications(subscriberId) {
 }
 
 export async function deleteNotification(transactionId) {
+  runtime.requireNotificationDelivery();
   try {
-    // await novu.messages.deleteById(messageId);
+    // await getNovu().messages.deleteById(messageId);
     const curlCommand = `curl --request DELETE \
     --url 'https://api.novu.co/v1/messages/transaction/${transactionId}' \
     --header 'Authorization: ApiKey ${apiKey}'`;
@@ -197,15 +207,16 @@ export async function updateEmployeesToNovuSubscribers(employees) {
 }
 
 export async function updateEmployeeNovuSubscriberToken(firstName, lastName, token) {
+  runtime.requireNotificationDelivery();
   try {
     // Process each employee
     const uid = generateUniqueId(firstName.toUpperCase(), lastName.toUpperCase());
 
-    await novu.subscribers.setCredentials(uid, PushProviderIdEnum.FCM, {
+    await getNovu().subscribers.setCredentials(uid, PushProviderIdEnum.FCM, {
       deviceTokens: [token],
     });
 
-    const response = await novu.subscribers.get(uid);
+    const response = await getNovu().subscribers.get(uid);
     console.log(response.data);
   } catch (error) {
     console.error('Error:', error);
