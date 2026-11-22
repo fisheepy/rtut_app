@@ -1,3 +1,5 @@
+import runtime from './runtimePolicy.js';
+runtime.requireNotificationDelivery();
 import fs from 'fs';
 import { Novu } from '@novu/node';
 import { generateUniqueId } from './novuUtilities.mjs'; // Adjust the import path as needed

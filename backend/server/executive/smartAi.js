@@ -405,6 +405,7 @@ function createToolResolver({ db, employees, compensationRecord, employmentChang
 }
 
 async function answerWithSmartAi({ question, db, employees, compensationRecord, employmentChangeIncomplete }) {
+  if (!require('../runtimePolicy').runtimePolicy().externalAi) return null;
   const apiKey = clean(process.env.OPENAI_API_KEY);
   if (!apiKey) return null;
   const model = clean(process.env.OPENAI_EXECUTIVE_MODEL || process.env.OPENAI_MODEL) || 'gpt-6.1-sol';

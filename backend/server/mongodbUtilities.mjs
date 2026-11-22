@@ -3,11 +3,8 @@ import { DateTime } from 'luxon';
 import { updateEmployeeToNovuSubscriber } from './novuUtilities.mjs';
 import { employeeMatchReasons } from './employeeDuplicate.mjs';
 
-const username = process.env.MONGODB_USERNAME;
-const password = process.env.MONGODB_PASSWORD;
-const host_name = process.env.MONGODB_HOST;
-const database_name = process.env.MONGODB_DATABASE;
-const MONGODB_URI = `mongodb+srv://${username}:${password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
+import runtime from './runtimePolicy.js';
+const { uri: MONGODB_URI, databaseName: database_name } = runtime.databaseConfig();
 
 // Helper function to generate a random code for password
 export const generateRandomCode = () => {

@@ -3,14 +3,16 @@ const cors = require('cors');
 const { exec, execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const bodyParser = require('body-parser');
+const { runtimePolicy, databaseConfig } = require('./runtimePolicy');
+const { sendEmail } = require('./mail');
+const policy = runtimePolicy();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
-const FAISS_SERVER_URL = process.env.FAISS_SERVER_URL || "https://rtut-app-faiss-0a3485bd0bc8.herokuapp.com/";
+const FAISS_SERVER_URL = (policy.externalAi ? process.env.FAISS_SERVER_URL : null) || (policy.isolated ? "" : "https://rtut-app-faiss-0a3485bd0bc8.herokuapp.com/");
 console.log(`🔗 Using FAISS Server URL: ${FAISS_SERVER_URL}`);
 const axios = require("axios");
-const nodemailer = require('nodemailer'); 
+
 const cron = require('node-cron');
 const { DateTime } = require('luxon');
 const { format } = require('@fast-csv/format'); 
@@ -102,52 +104,11 @@ function rowsToCsvBuffer(rows) {
 }
 
 // 统一的发信函数（你已引过 nodemailer，不重复改你现有风格）
-function makeTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-}
-async function sendEmail({ to, subject, text, html, attachments }) {
-  const transporter = makeTransporter();
-  return transporter.sendMail({
-    from: process.env.EMAIL_FROM || 'no-reply@example.com',
-    to: Array.isArray(to) ? to.join(',') : to,
-    subject,
-    text,
-    html,
-    attachments,
-  });
-}
-
 const uploadDirectory = path.join(__dirname, 'uploads');
 
 // Create the uploads directory if it doesn't exist
 if (!fs.existsSync(uploadDirectory)) {
     fs.mkdirSync(uploadDirectory, { recursive: true });
-}
-
-function makeTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-}
-
-async function sendEmail({ to, subject, text, html, attachments }) {
-  const transporter = makeTransporter();
-  return transporter.sendMail({
-    from: process.env.EMAIL_FROM || 'no-reply@example.com',
-    to: Array.isArray(to) ? to.join(',') : to,
-    subject,
-    text,
-    html,
-    attachments,
-  });
 }
 
 const storage = multer.diskStorage({
@@ -162,23 +123,18 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const app = express();
-app.use(express.json());
+app.set('query parser', 'extended');
+app.use(express.json({ limit: '10mb' }));
 app.use(cors());
-app.use(bodyParser.json());
+
 app.use(express.static(path.join(__dirname, '../client/build'), { index: false }))
 
 // Set the limit to 10MB or more as needed
-app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const port = 3101;
 
-const database_username = process.env.MONGODB_USERNAME;
-const database_password = process.env.MONGODB_PASSWORD;
-const host_name = process.env.MONGODB_HOST;
-const database_name = process.env.MONGODB_DATABASE;
-
-const uri = `mongodb+srv://${database_username}:${database_password}@${host_name}/?retryWrites=true&w=majority&appName=${database_name}`;
+const { uri, databaseName: database_name } = databaseConfig();
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
     serverApi: {
@@ -282,6 +238,7 @@ async function reconcileHistoricalTerminationTypes() {
 
 // ======= Daily Digest 主函数（独立连接/独立关闭） =======
 async function runDailyDigest(etDateOpt) {
+  if (!policy.scheduledJobs) throw new Error('Scheduled jobs are disabled in this environment');
   const TZ = process.env.TIMEZONE || 'America/Detroit';
   const etDate = etDateOpt || DateTime.now().setZone(TZ).minus({ days: 1 }).toISODate(); // 昨日（美东）
   const startET = DateTime.fromISO(etDate, { zone: TZ }).startOf('day');
@@ -2228,11 +2185,11 @@ app.post('/api/authentication', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), dataReconciliation: 'finance-tools-back-navigation-2026-11-17' })
+  res.json({ ok: true, environment: policy.environment, node: process.version, revision: process.env.SOURCE_COMMIT || process.env.HEROKU_BUILD_COMMIT || 'local', time: new Date().toISOString(), dataReconciliation: 'finance-tools-back-navigation-2026-11-17' })
 })
 
 // ======= 每日定时任务（07:05 ET；可改 .env DIGEST_CRON） =======
-cron.schedule(process.env.DIGEST_CRON || '5 7 * * *', async () => {
+if (policy.scheduledJobs) cron.schedule(process.env.DIGEST_CRON || '5 7 * * *', async () => {
   await runDailyDigest(); // 默认汇总“昨日（美东）”
 }, { timezone: process.env.TIMEZONE || 'America/Detroit' });
 
@@ -2260,7 +2217,7 @@ app.use('/admin', express.static(newDir));
 app.use('/hr-tools', express.static(newDir, { index: false }));
 app.use('/app-console', express.static(oldDir, { index: false }));
 
-app.get('/admin/*', (req, res) => {
+app.get('/admin/{*splat}', (req, res) => {
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
@@ -2268,7 +2225,7 @@ app.get(['/hr-tools', '/hr-tools/executive-intelligence', '/hr-tools/payroll-ver
   res.sendFile(path.join(newDir, 'index.html'));
 });
 
-app.get(['/app-console', '/app-console/*'], (req, res) => {
+app.get(['/app-console', '/app-console/{*splat}'], (req, res) => {
   const session = getSessionFromRequest(req);
   if (!session) return res.redirect('/admin');
   res.sendFile(path.join(oldDir, 'index.html'));
@@ -2283,8 +2240,9 @@ app.get(/^\/(?!api|admin|hr-tools).*/, (req, res) => {
 });
 
 // Start the server
-app.listen(process.env.PORT || port, () => {
-    console.log(`Server is running on port ${port}`);
+const server = app.listen(Number(process.env.PORT || port), process.env.HOST || '0.0.0.0', () => {
+    console.log(`Server is running on port ${server.address().port}`);
+    if (!policy.startupReconciliation) return;
     reconcileHistoricalAppRegistrationDates();
     reconcileHistoricalTerminationTypes();
     (async () => {

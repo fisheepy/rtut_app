@@ -63,7 +63,7 @@ function BulkRecipientConfirmDialog({
                     <ListItemText
                       primary={`${index + 1}. ${employee.fullName}`}
                       secondary={`Location: ${employee.location} • Department: ${employee.department}`}
-                      primaryTypographyProps={{ fontWeight: 600 }}
+                      slotProps={{ primary: { fontWeight: 600 } }}
                     />
                   </ListItem>
                   {index < previewEmployees.length - 1 && <Divider component="li" />}

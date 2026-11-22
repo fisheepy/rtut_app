@@ -153,8 +153,8 @@ const EventsCenterComponent = ({ event }) => {
                     <TextField name="title" label="Title" fullWidth size="small" value={formData.title} onChange={handleChange} />
                     <TextField name="creator" label="Creator" fullWidth size="small" value={formData.creator} onChange={handleChange} />
                     <TextField name="location" label="Location" fullWidth size="small" value={formData.location} onChange={handleChange} />
-                    <TextField name="startDate" label="Start Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth size="small" InputLabelProps={{ shrink: true }} value={formData.startDate} onChange={handleChange} />
-                    <TextField name="endDate" label="End Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth size="small" InputLabelProps={{ shrink: true }} value={formData.endDate} onChange={handleChange} />
+                    <TextField name="startDate" label="Start Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth size="small" slotProps={{ inputLabel: { shrink: true } }} value={formData.startDate} onChange={handleChange} />
+                    <TextField name="endDate" label="End Date" type={formData.allDay ? 'date' : 'datetime-local'} fullWidth size="small" slotProps={{ inputLabel: { shrink: true } }} value={formData.endDate} onChange={handleChange} />
                     <div className="event-toggle-row">
                         <FormControlLabel control={<Checkbox checked={formData.allDay} onChange={handleCheckboxChange} name="allDay" />} label="All Day" />
                         <FormControlLabel control={<Checkbox checked={formData.isRecurring} onChange={() => setFormData(prev => ({ ...prev, isRecurring: !prev.isRecurring }))} />} label="Recurring" />
@@ -171,7 +171,7 @@ const EventsCenterComponent = ({ event }) => {
                                     <MenuItem value="monthly">Monthly</MenuItem>
                                 </Select>
                             </FormControl>
-                            <TextField name="recurrenceEndDate" label="Recurrence End Date" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }} value={formData.recurrenceEndDate} onChange={handleChange} />
+                            <TextField name="recurrenceEndDate" label="Recurrence End Date" type="date" fullWidth size="small" slotProps={{ inputLabel: { shrink: true } }} value={formData.recurrenceEndDate} onChange={handleChange} />
                         </>
                     )}
                 </div>

@@ -8,3 +8,5 @@
 .DS*
 /backend/server/temp/
 /backend/server/uploads/
+/admin-web/node_modules.baseline/
+/backend/client/build/

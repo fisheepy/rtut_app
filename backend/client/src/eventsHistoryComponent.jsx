@@ -127,7 +127,7 @@ const EventsHistoryModule = () => {
           {selectedEvent && (
             <form>
               <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }} >
                   <TextField
                     fullWidth
                     label="Title"
@@ -136,7 +136,7 @@ const EventsHistoryModule = () => {
                     onChange={handleChange}
                   />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }} >
                   <TextField
                     fullWidth
                     label="Start Date"
@@ -144,10 +144,10 @@ const EventsHistoryModule = () => {
                     type={selectedEvent.allDay ? "date" : "datetime-local"}
                     value={selectedEvent.startDate}
                     onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
+                    slotProps={{ inputLabel: { shrink: true } }}
                   />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={{ xs: 6 }} >
                   <TextField
                     fullWidth
                     label="End Date"
@@ -155,10 +155,10 @@ const EventsHistoryModule = () => {
                     type={selectedEvent.allDay ? "date" : "datetime-local"}
                     value={selectedEvent.endDate}
                     onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
+                    slotProps={{ inputLabel: { shrink: true } }}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }} >
                   <TextField
                     fullWidth
                     label="Creator"
@@ -167,7 +167,7 @@ const EventsHistoryModule = () => {
                     onChange={handleChange}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }} >
                   <TextField
                     fullWidth
                     label="Location"
@@ -176,7 +176,7 @@ const EventsHistoryModule = () => {
                     onChange={handleChange}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }} >
                   <TextField
                     fullWidth
                     label="Detail"
@@ -187,7 +187,7 @@ const EventsHistoryModule = () => {
                     rows={4}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }} >
                   <FormControlLabel
                     control={
                       <Checkbox

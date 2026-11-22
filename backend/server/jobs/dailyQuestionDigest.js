@@ -1,8 +1,9 @@
 // jobs/dailyQuestionDigest.js
 const { DateTime } = require('luxon');
 const cron = require('node-cron');
-const nodemailer = require('nodemailer');
-const { stringify } = require('fast-csv');
+const { makeTransporter } = require('../mail');
+const { runtimePolicy } = require('../runtimePolicy');
+const { format: stringify } = require('fast-csv');
 const { Readable } = require('stream');
 const crypto = require('crypto');
 
@@ -77,16 +78,8 @@ function rowsToCsvBuffer(rows) {
   });
 }
 
-function makeTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: false,
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
-}
-
 async function runDigest({ db, dateET = yesterdayETStr(), force = false }) {
+  if (!runtimePolicy().scheduledJobs) throw new Error('Scheduled jobs are disabled');
   const { startUTC, endUTC } = utcRangeForETDay(dateET);
 
   const digests = db.collection('digests');
@@ -137,6 +130,7 @@ async function runDigest({ db, dateET = yesterdayETStr(), force = false }) {
 }
 
 function scheduleDigest({ db }) {
+  if (!runtimePolicy().scheduledJobs) return;
   cron.schedule(CRON, async () => {
     try { await runDigest({ db }); }
     catch (err) {
