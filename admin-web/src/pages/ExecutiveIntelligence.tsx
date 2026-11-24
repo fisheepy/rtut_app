@@ -35,6 +35,7 @@ type Overview = {
   }>;
   currentMonth: string;
   previousMonth: string;
+  previousMonthRecordsHidden: boolean;
   currentMonthNewHires: Array<{
     id: string;
     name: string;
@@ -745,20 +746,20 @@ export default function ExecutiveIntelligence() {
   }, []);
 
   useEffect(() => {
-    if (!overview?.currentMonth) return;
-    setHidePreviousMonthRecords(
-      window.localStorage.getItem(`executive-hide-previous-${overview.currentMonth}`) === "true",
-    );
-  }, [overview?.currentMonth]);
+    if (!overview) return;
+    setHidePreviousMonthRecords(overview.previousMonthRecordsHidden === true);
+  }, [overview]);
 
-  function togglePreviousMonthRecords() {
+  async function togglePreviousMonthRecords() {
     if (!overview) return;
     const next = !hidePreviousMonthRecords;
-    setHidePreviousMonthRecords(next);
-    window.localStorage.setItem(
-      `executive-hide-previous-${overview.currentMonth}`,
-      String(next),
-    );
+    try {
+      await api.put("/executive/workforce-activity/previous-month-visibility", { hidden: next });
+      setHidePreviousMonthRecords(next);
+      setOverview((current) => current ? { ...current, previousMonthRecordsHidden: next } : current);
+    } catch (requestError: any) {
+      setError(requestError.response?.data?.error || "The shared month visibility setting could not be updated.");
+    }
   }
 
   async function submitQuestion(text: string) {

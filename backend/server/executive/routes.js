@@ -232,6 +232,36 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
   const createClient = () => new MongoClient(uri, { serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true } });
   router.use(requireExecutiveSession);
 
+  router.put('/workforce-activity/previous-month-visibility', async (req, res) => {
+    if (typeof req.body?.hidden !== 'boolean') {
+      return res.status(400).json({ error: 'Select whether the previous month should be hidden.' });
+    }
+    const client = createClient();
+    try {
+      await client.connect();
+      const currentMonth = easternMonthKey();
+      const updatedAt = new Date();
+      await client.db(databaseName).collection('executive_dashboard_settings').updateOne(
+        { _id: 'previous-month-workforce-visibility' },
+        {
+          $set: {
+            hidden: req.body.hidden,
+            month: currentMonth,
+            updatedAt,
+            updatedBy: clean(req.adminSession?.email).toLowerCase(),
+          },
+        },
+        { upsert: true },
+      );
+      return res.json({ hidden: req.body.hidden, month: currentMonth, updatedAt });
+    } catch (error) {
+      console.error('Unable to update Executive Intelligence month visibility:', error);
+      return res.status(500).json({ error: 'The shared month visibility setting could not be updated.' });
+    } finally {
+      await client.close();
+    }
+  });
+
   router.get('/overview', async (req, res) => {
     const client = createClient();
     try {
@@ -240,7 +270,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const novemberBackfill = await ensureNovemberSalaryEmploymentChanges(db);
       if (novemberBackfill.inserted || novemberBackfill.updated || novemberBackfill.employeesNotFound.length) console.info('November 1 salary Employment Change reconciliation:', novemberBackfill);
       const trainingDataLive = easternDateKey() >= '2027-01-01';
-      const [employees, leaves, injuries, changes, newHireRecords, terminationRecords, trainingTopics, trainingRecords] = await Promise.all([
+      const [employees, leaves, injuries, changes, newHireRecords, terminationRecords, trainingTopics, trainingRecords, dashboardSettings] = await Promise.all([
         db.collection('employees').find({}).toArray(),
         db.collection('employee_hr_leave').find({}).toArray(),
         db.collection('work_injury_cases').find({}).toArray(),
@@ -249,6 +279,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
         db.collection('employee_hr_termination').find({}).toArray(),
         trainingDataLive ? db.collection('monthly_training_topics').find({}).sort({ order: 1, targetDate: 1, name: 1 }).toArray() : Promise.resolve([]),
         trainingDataLive ? db.collection('employee_training').find({}).toArray() : Promise.resolve([]),
+        db.collection('executive_dashboard_settings').findOne({ _id: 'previous-month-workforce-visibility' }),
       ]);
       const confirmedPreEmploymentRecords = employees.filter(employee => CONFIRMED_PRE_EMPLOYMENT_CANCELLATIONS.has(normalize(employeeName(employee))));
       if (confirmedPreEmploymentRecords.length) {
@@ -263,6 +294,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
       const currentMonth = easternMonthKey();
       const previousMonth = previousMonthKey(currentMonth);
+      const previousMonthRecordsHidden = dashboardSettings?.month === currentMonth && dashboardSettings?.hidden === true;
       const currentMonthNewHires = employees
         .filter(employee => !isPreEmploymentCancellation(employee) && employeeHireDate(employee).slice(0, 7) === currentMonth)
         .map(employee => {
@@ -560,6 +592,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           .sort((a, b) => a.name.localeCompare(b.name)),
         currentMonth,
         previousMonth,
+        previousMonthRecordsHidden,
         currentMonthNewHires,
         previousMonthNewHires,
         currentMonthTerminations,
