@@ -28,6 +28,11 @@ const easternMonthKey = () => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
   return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}`;
 };
+const previousMonthKey = monthKey => {
+  const [year, month] = clean(monthKey).split('-').map(Number);
+  if (!year || !month) return '';
+  return new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 7);
+};
 const easternDateKey = () => {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   return `${parts.find(part => part.type === 'year')?.value}-${parts.find(part => part.type === 'month')?.value}-${parts.find(part => part.type === 'day')?.value}`;
@@ -257,6 +262,7 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const employeeById = new Map(employees.map(employee => [String(employee._id), employee]));
       const newHireByEmployeeId = new Map(newHireRecords.map(record => [clean(record.employeeId), record]));
       const currentMonth = easternMonthKey();
+      const previousMonth = previousMonthKey(currentMonth);
       const currentMonthNewHires = employees
         .filter(employee => !isPreEmploymentCancellation(employee) && employeeHireDate(employee).slice(0, 7) === currentMonth)
         .map(employee => {
@@ -287,6 +293,35 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
             terminationType: clean(employee['Termination Type'] || terminationRecords.find(record => clean(record.employeeId) === String(employee._id))?.terminationType) || 'Not Recorded',
           };
         })
+        .sort((a, b) => a.terminationDate.localeCompare(b.terminationDate) || a.name.localeCompare(b.name));
+      const previousMonthNewHires = employees
+        .filter(employee => !isPreEmploymentCancellation(employee) && employeeHireDate(employee).slice(0, 7) === previousMonth)
+        .map(employee => {
+          const record = newHireByEmployeeId.get(String(employee._id)) || {};
+          const tracker = record.fileTracker || {};
+          return {
+            id: String(employee._id),
+            name: employeeName(employee) || 'Name Not Recorded',
+            hireDate: employeeHireDate(employee),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+            department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+            location: clean(employee.Location) || 'Not Recorded',
+            employeeStatus: clean(employee['Position Status']) || 'Active',
+            onboardingStatus: tracker.finalLockedAt || tracker.confirmedAt ? 'Completed' : tracker.submittedAt ? 'Final Review Needed' : 'In Progress',
+          };
+        })
+        .sort((a, b) => a.hireDate.localeCompare(b.hireDate) || a.name.localeCompare(b.name));
+      const previousMonthTerminations = employees
+        .filter(employee => !isPreEmploymentCancellation(employee) && dateOnly(employee['Termination Date']).slice(0, 7) === previousMonth)
+        .map(employee => ({
+          id: String(employee._id),
+          name: employeeName(employee) || 'Name Not Recorded',
+          terminationDate: dateOnly(employee['Termination Date']),
+          jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+          department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+          location: clean(employee.Location) || 'Not Recorded',
+          terminationType: clean(employee['Termination Type'] || terminationRecords.find(record => clean(record.employeeId) === String(employee._id))?.terminationType) || 'Not Recorded',
+        }))
         .sort((a, b) => a.terminationDate.localeCompare(b.terminationDate) || a.name.localeCompare(b.name));
       const terminationByEmployeeId = new Map(terminationRecords.map(record => [clean(record.employeeId), record]));
       const currentTurnoverEmployees = employees.filter(employee => {
@@ -378,6 +413,23 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
       const partsServiceYtdRows = turnoverRowsWithRates([...partsServiceYtdByLocation.values()].sort((a, b) => a.location.localeCompare(b.location)));
       const currentMonthEmploymentChanges = changes
         .filter(record => dateOnly(record.effectiveDate).slice(0, 7) === currentMonth)
+        .map(record => {
+          const employee = employeeById.get(clean(record.employeeId)) || {};
+          return {
+            id: String(record._id),
+            employeeId: clean(record.employeeId),
+            name: clean(record.employeeName) || employeeName(employee) || 'Name Not Recorded',
+            effectiveDate: dateOnly(record.effectiveDate),
+            jobTitle: clean(employee['Job Title']) || 'Not Recorded',
+            department: clean(employee['Home Department'] || employee.Department) || 'Not Recorded',
+            location: clean(employee.Location) || 'Not Recorded',
+            changes: employmentChangeDetails(record),
+            reason: clean(record.reason) || 'Not Recorded',
+          };
+        })
+        .sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate) || a.name.localeCompare(b.name));
+      const previousMonthEmploymentChanges = changes
+        .filter(record => dateOnly(record.effectiveDate).slice(0, 7) === previousMonth)
         .map(record => {
           const employee = employeeById.get(clean(record.employeeId)) || {};
           return {
@@ -507,9 +559,13 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
           }))
           .sort((a, b) => a.name.localeCompare(b.name)),
         currentMonth,
+        previousMonth,
         currentMonthNewHires,
+        previousMonthNewHires,
         currentMonthTerminations,
+        previousMonthTerminations,
         currentMonthEmploymentChanges,
+        previousMonthEmploymentChanges,
         currentLeaveCases,
         injuryDataLive,
         injuryLaunchDate: '2027-01-01',

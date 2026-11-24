@@ -3,6 +3,8 @@ import {
   ArrowLeft,
   Bot,
   Building2,
+  Eye,
+  EyeOff,
   KeyRound,
   LockKeyhole,
   LogOut,
@@ -32,6 +34,7 @@ type Overview = {
     status: string;
   }>;
   currentMonth: string;
+  previousMonth: string;
   currentMonthNewHires: Array<{
     id: string;
     name: string;
@@ -42,6 +45,7 @@ type Overview = {
     employeeStatus: string;
     onboardingStatus: "Completed" | "Final Review Needed" | "In Progress";
   }>;
+  previousMonthNewHires: Overview["currentMonthNewHires"];
   currentMonthTerminations: Array<{
     id: string;
     name: string;
@@ -51,6 +55,7 @@ type Overview = {
     location: string;
     terminationType: string;
   }>;
+  previousMonthTerminations: Overview["currentMonthTerminations"];
   currentMonthEmploymentChanges: Array<{
     id: string;
     employeeId: string;
@@ -62,6 +67,7 @@ type Overview = {
     changes: string;
     reason: string;
   }>;
+  previousMonthEmploymentChanges: Overview["currentMonthEmploymentChanges"];
   currentLeaveCases: Array<{
     id: string;
     employeeId: string;
@@ -721,6 +727,7 @@ export default function ExecutiveIntelligence() {
   const [historyBusy, setHistoryBusy] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [injuryView, setInjuryView] = useState<"current" | "annual-osha">("current");
+  const [hidePreviousMonthRecords, setHidePreviousMonthRecords] = useState(false);
 
   async function loadOverview() {
     const result = await api.get<Overview>("/executive/overview");
@@ -736,6 +743,23 @@ export default function ExecutiveIntelligence() {
       })
       .catch(() => setAuthState("signed-out"));
   }, []);
+
+  useEffect(() => {
+    if (!overview?.currentMonth) return;
+    setHidePreviousMonthRecords(
+      window.localStorage.getItem(`executive-hide-previous-${overview.currentMonth}`) === "true",
+    );
+  }, [overview?.currentMonth]);
+
+  function togglePreviousMonthRecords() {
+    if (!overview) return;
+    const next = !hidePreviousMonthRecords;
+    setHidePreviousMonthRecords(next);
+    window.localStorage.setItem(
+      `executive-hide-previous-${overview.currentMonth}`,
+      String(next),
+    );
+  }
 
   async function submitQuestion(text: string) {
     const submitted = text.trim();
@@ -937,6 +961,27 @@ export default function ExecutiveIntelligence() {
       ? overview.annualOshaRecordableCases || []
       : overview.currentInjuryCases
     : [];
+  const displayedNewHires = overview
+    ? hidePreviousMonthRecords
+      ? overview.currentMonthNewHires
+      : [...(overview.previousMonthNewHires || []), ...overview.currentMonthNewHires]
+    : [];
+  const displayedTerminations = overview
+    ? hidePreviousMonthRecords
+      ? overview.currentMonthTerminations
+      : [...(overview.previousMonthTerminations || []), ...overview.currentMonthTerminations]
+    : [];
+  const displayedEmploymentChanges = overview
+    ? hidePreviousMonthRecords
+      ? overview.currentMonthEmploymentChanges
+      : [...(overview.previousMonthEmploymentChanges || []), ...overview.currentMonthEmploymentChanges]
+    : [];
+  const previousMonthLabel = overview
+    ? new Date(`${overview.previousMonth}-01T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "previous month";
+  const currentMonthLabel = overview
+    ? new Date(`${overview.currentMonth}-01T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    : "current month";
 
   return (
     <div
@@ -965,14 +1010,26 @@ export default function ExecutiveIntelligence() {
               complete query audit trail.
             </p>
           </div>
-          <button
-            className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white"
-            onClick={logout}
-            type="button"
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {overview && (
+              <button
+                className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-cyan-50 transition hover:bg-white/20"
+                onClick={togglePreviousMonthRecords}
+                type="button"
+              >
+                {hidePreviousMonthRecords ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                {hidePreviousMonthRecords ? `Show ${previousMonthLabel}` : `Hide ${previousMonthLabel}`}
+              </button>
+            )}
+            <button
+              className="inline-flex items-center gap-2 text-sm font-bold text-slate-300 hover:text-white"
+              onClick={logout}
+              type="button"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1577,19 +1634,13 @@ export default function ExecutiveIntelligence() {
           <header className="flex flex-wrap items-center justify-between gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-cyan-50 px-6 py-5">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">
-                Current month workforce activity
+                Current and previous month workforce activity
               </p>
               <h2 className="mt-1 text-xl font-black text-slate-950">
-                This Month’s New Hires
+                {hidePreviousMonthRecords ? "This Month’s New Hires" : "Recent New Hires"}
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                All employees with a Hire Date in{" "}
-                {new Date(
-                  `${overview.currentMonth}-01T12:00:00`,
-                ).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
+                All employees with a Hire Date in {hidePreviousMonthRecords ? currentMonthLabel : `${previousMonthLabel} or ${currentMonthLabel}`}
                 , including completed and in-progress onboarding.
               </p>
             </div>
@@ -1603,12 +1654,12 @@ export default function ExecutiveIntelligence() {
                 Search History
               </button>
               <span className="rounded-full bg-emerald-700 px-4 py-2 text-sm font-black text-white">
-                {overview.currentMonthNewHires.length} New Hire
-                {overview.currentMonthNewHires.length === 1 ? "" : "s"}
+                {displayedNewHires.length} New Hire
+                {displayedNewHires.length === 1 ? "" : "s"}
               </span>
             </div>
           </header>
-          {overview.currentMonthNewHires.length ? (
+          {displayedNewHires.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-sm">
                 <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
@@ -1629,7 +1680,7 @@ export default function ExecutiveIntelligence() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {overview.currentMonthNewHires.map((employee) => (
+                  {displayedNewHires.map((employee) => (
                     <tr className="hover:bg-emerald-50/50" key={employee.id}>
                       <td className="px-4 py-3 font-bold text-slate-950">
                         {employee.name}
@@ -1676,19 +1727,13 @@ export default function ExecutiveIntelligence() {
           <header className="flex flex-wrap items-center justify-between gap-4 border-b border-rose-100 bg-gradient-to-r from-rose-50 to-orange-50 px-6 py-5">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-rose-700">
-                Current month workforce activity
+                Current and previous month workforce activity
               </p>
               <h2 className="mt-1 text-xl font-black text-slate-950">
-                This Month’s Terminations
+                {hidePreviousMonthRecords ? "This Month’s Terminations" : "Recent Terminations"}
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                All employees with a Termination Date in{" "}
-                {new Date(
-                  `${overview.currentMonth}-01T12:00:00`,
-                ).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
+                All employees with a Termination Date in {hidePreviousMonthRecords ? currentMonthLabel : `${previousMonthLabel} or ${currentMonthLabel}`}
                 , regardless of termination workflow status.
               </p>
             </div>
@@ -1702,12 +1747,12 @@ export default function ExecutiveIntelligence() {
                 Search History
               </button>
               <span className="rounded-full bg-rose-700 px-4 py-2 text-sm font-black text-white">
-                {overview.currentMonthTerminations.length} Termination
-                {overview.currentMonthTerminations.length === 1 ? "" : "s"}
+                {displayedTerminations.length} Termination
+                {displayedTerminations.length === 1 ? "" : "s"}
               </span>
             </div>
           </header>
-          {overview.currentMonthTerminations.length ? (
+          {displayedTerminations.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[880px] text-left text-sm">
                 <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
@@ -1727,7 +1772,7 @@ export default function ExecutiveIntelligence() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {overview.currentMonthTerminations.map((employee) => (
+                  {displayedTerminations.map((employee) => (
                     <tr className="hover:bg-rose-50/50" key={employee.id}>
                       <td className="px-4 py-3 font-bold text-slate-950">
                         {employee.name}
@@ -1767,19 +1812,13 @@ export default function ExecutiveIntelligence() {
           <header className="flex flex-wrap items-center justify-between gap-4 border-b border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-700">
-                Current month workforce activity
+                Current and previous month workforce activity
               </p>
               <h2 className="mt-1 text-xl font-black text-slate-950">
-                This Month’s Employment Changes
+                {hidePreviousMonthRecords ? "This Month’s Employment Changes" : "Recent Employment Changes"}
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                All records with a Change Effective Date in{" "}
-                {new Date(
-                  `${overview.currentMonth}-01T12:00:00`,
-                ).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
+                All records with a Change Effective Date in {hidePreviousMonthRecords ? currentMonthLabel : `${previousMonthLabel} or ${currentMonthLabel}`}
                 , regardless of workflow completion.
               </p>
             </div>
@@ -1793,12 +1832,12 @@ export default function ExecutiveIntelligence() {
                 Search History
               </button>
               <span className="rounded-full bg-blue-700 px-4 py-2 text-sm font-black text-white">
-                {overview.currentMonthEmploymentChanges.length} Change
-                {overview.currentMonthEmploymentChanges.length === 1 ? "" : "s"}
+                {displayedEmploymentChanges.length} Change
+                {displayedEmploymentChanges.length === 1 ? "" : "s"}
               </span>
             </div>
           </header>
-          {overview.currentMonthEmploymentChanges.length ? (
+          {displayedEmploymentChanges.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1180px] text-left text-sm">
                 <thead className="bg-slate-900 text-xs uppercase tracking-wide text-white">
@@ -1819,7 +1858,7 @@ export default function ExecutiveIntelligence() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {overview.currentMonthEmploymentChanges.map((change) => (
+                  {displayedEmploymentChanges.map((change) => (
                     <tr className="hover:bg-blue-50/50" key={change.id}>
                       <td className="px-4 py-3 font-bold text-slate-950">
                         {change.name}
