@@ -1012,7 +1012,7 @@ export default function ExecutiveIntelligence() {
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {overview && (
+            {overview?.email.toLowerCase() === "myu@royaltrailersales.com" && (
               <button
                 className="inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-cyan-50 transition hover:bg-white/20"
                 onClick={togglePreviousMonthRecords}

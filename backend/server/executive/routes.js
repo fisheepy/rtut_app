@@ -233,6 +233,9 @@ function createExecutiveRouter({ uri, databaseName, requireExecutiveSession }) {
   router.use(requireExecutiveSession);
 
   router.put('/workforce-activity/previous-month-visibility', async (req, res) => {
+    if (clean(req.adminSession?.email).toLowerCase() !== 'myu@royaltrailersales.com') {
+      return res.status(403).json({ error: 'Only Myra Yu can change the shared previous-month display.' });
+    }
     if (typeof req.body?.hidden !== 'boolean') {
       return res.status(400).json({ error: 'Select whether the previous month should be hidden.' });
     }
